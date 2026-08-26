@@ -1639,6 +1639,8 @@
                     { target_inquiry_id: x.id },
                   );
                   if (forwardError) throw forwardError;
+                  const { error: deliveryError } = await supabase.functions.invoke("email-forward", { body: { inquiry_id: x.id } });
+                  if (deliveryError) throw deliveryError;
                 }
                 const { error: assignmentError } = await supabase.rpc(
                   "register_inquiry_for_assignment",

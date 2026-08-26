@@ -2177,7 +2177,7 @@
         $("#detail-reason").value = "";
         await Promise.all([loadTimeline(currentInquiry.id), loadInquiries()]);
       });
-+      $("#save-smart-summary").addEventListener("click", async () => {
+      $("#save-smart-summary").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const reason = $("#detail-smart-reason").value.trim();
         if (!reason) return toast("请填写补充/修改原因");

@@ -218,6 +218,18 @@
         padding: 9px 12px;
         cursor: pointer;
       }
+      .table-action {
+        border: 1px solid #b9cabe;
+        background: #edf3ee;
+        color: #315c40;
+        border-radius: 9px;
+        padding: 7px 11px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .table-action:hover { background: #dfeae2; }
       .notice-wrap {
         position: relative;
       }
@@ -1217,7 +1229,7 @@
         $("#password-modal").classList.add("hidden");
         $("#app").classList.remove("hidden");
         $("#user-name").textContent = profile.full_name;
-        $("#user-role").textContent = roleNames[profile.role] || profile.role;
+        $("#user-role").textContent = profile.job_title || roleNames[profile.role] || profile.role;
         $("#avatar").textContent = profile.full_name.slice(0, 1);
         const role = profile.role;
         const visibility = {
@@ -1245,6 +1257,19 @@
         rows.forEach((row) => {
           const tr = document.createElement("tr");
           row.cells.forEach((value) => { const td = document.createElement("td"); td.textContent = value ?? "—"; tr.append(td); });
+          if (row.action) {
+            const td = document.createElement("td");
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "table-action";
+            button.textContent = row.action.label;
+            button.addEventListener("click", (event) => {
+              event.stopPropagation();
+              row.action.onClick();
+            });
+            td.append(button);
+            tr.append(td);
+          }
           if (onRowClick) tr.addEventListener("click", () => onRowClick(row));
           body.append(tr);
         });
@@ -1295,9 +1320,16 @@
           columns = ["公司", "域名", "国家", "公司类型", "主营业务", "风险", "AI 摘要"];
           mapper = (x) => ({ cells: [x.name, x.domain, x.country, x.company_type, x.main_business, x.risk_level, x.ai_summary] });
         } else {
-          query = supabase.from("profiles").select("full_name,email,role,team,job_title,active,must_change_password,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,error_message)").order("created_at", { ascending: true });
-          columns = ["姓名", "邮箱", "CRM 角色", "部门", "职位", "状态", "邮箱连接", "最后测试"];
-          mapper = (x) => { const mailbox = Array.isArray(x.mailbox_connections) ? x.mailbox_connections[0] : x.mailbox_connections; return { cells: [x.full_name, x.email, roleNames[x.role] || x.role, x.team, x.job_title, x.active ? "启用" : "停用", mailbox?.status === "connected" ? "已连接" : mailbox?.status === "error" ? "连接失败" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"] }; };
+          query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,error_message)").order("created_at", { ascending: true });
+          columns = ["姓名", "邮箱", "职称", "部门", "CRM 权限角色", "状态", "邮箱连接", "最后测试", "操作"];
+          mapper = (x) => {
+            const mailbox = Array.isArray(x.mailbox_connections) ? x.mailbox_connections[0] : x.mailbox_connections;
+            const connected = mailbox?.status === "connected";
+            return {
+              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : "停用", connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"],
+              action: { label: connected ? "重新连接" : "连接", onClick: () => openMailboxBinding(x.id) },
+            };
+          };
         }
         const { data, error } = await query;
         if (error) { renderModuleTable(columns, []); toast("页面加载失败：" + error.message); return; }
@@ -2118,8 +2150,8 @@
         toast("跟进记录已保存");
         await loadTimeline(currentInquiry.id);
       });
-      async function openMailboxBinding() {
-        const { data, error } = await supabase.from("profiles").select("id,full_name,email,role").in("role", ["sales", "sales_manager"]).eq("active", true).order("full_name");
+      async function openMailboxBinding(selectedUserId = "") {
+        const { data, error } = await supabase.from("profiles").select("id,full_name,email,role").eq("active", true).order("full_name");
         if (error) return toast("成员加载失败：" + error.message);
         const select = $("#mailbox-user");
         select.replaceChildren(new Option("请选择成员", ""));
@@ -2128,11 +2160,12 @@
           option.dataset.email = member.email;
           select.add(option);
         });
-        $("#mailbox-email").value = "";
+        select.value = selectedUserId || "";
+        $("#mailbox-email").value = select.selectedOptions[0]?.dataset.email || "";
         $("#mailbox-password").value = "";
         $("#mailbox-modal").classList.remove("hidden");
       }
-      $("#module-primary").addEventListener("click", openMailboxBinding);
+      $("#module-primary").addEventListener("click", () => openMailboxBinding());
       $("#mailbox-user").addEventListener("change", (event) => {
         $("#mailbox-email").value = event.target.selectedOptions[0]?.dataset.email || "";
       });

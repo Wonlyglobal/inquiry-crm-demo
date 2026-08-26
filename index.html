@@ -371,12 +371,17 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        white-space: nowrap;
         border-radius: 20px;
         padding: 5px 8px;
         background: #edf3ee;
         color: #456c53;
         font-size: 10px;
         font-weight: 700;
+      }
+      #inquiry-table th:nth-child(n + 4),
+      #inquiry-table td:nth-child(n + 4) {
+        white-space: nowrap;
       }
       .modal-backdrop {
         position: fixed;
@@ -749,7 +754,7 @@
                   <th>来源</th>
                   <th>状态</th>
                   <th>进入阶段时间</th>
-                  <th>创建时间</th>
+                  <th>询盘时间</th>
                   <th id="assignment-action-head">操作</th>
                 </tr>
               </thead>

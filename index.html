@@ -329,6 +329,7 @@
       th,
       td {
         text-align: left;
+        vertical-align: middle;
         padding: 13px 16px;
         border-bottom: 1px solid #edf0ed;
       }
@@ -356,6 +357,8 @@
       }
       .tag {
         display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border-radius: 20px;
         padding: 5px 8px;
         background: #edf3ee;
@@ -1066,6 +1069,18 @@
         marketing: "市场部",
         sales: "销售",
       };
+      const statusNames = {
+        pending_assignment: "待分配",
+        received: "收到询盘",
+        qualified: "有效询盘",
+        contacted: "已联系",
+        quoted: "已报价",
+        sample_sent: "已寄样",
+        negotiating: "谈判",
+        won: "成交",
+        lost: "丢单",
+      };
+      const sourceNames = { email: "邮件", manual: "手工录入", website: "官网表单" };
       function icons() {
         window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
       }
@@ -1164,7 +1179,7 @@
           if (view === "assignment") query = query.eq("status", "pending_assignment");
           if (view === "public-pool") query = query.is("owner_id", null).neq("status", "pending_assignment");
           columns = ["编号", "询盘主题", "国家/地区", "来源", "阶段", "有效性", "创建时间"];
-          mapper = (x) => ({ id: x.id, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, x.source, x.status, x.validity, fmtDate(x.created_at)] });
+          mapper = (x) => ({ id: x.id, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, sourceNames[x.source] || x.source, statusNames[x.status] || x.status, x.validity, fmtDate(x.created_at)] });
           clickable = true;
         } else if (view === "email") {
           query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,received_at,created_at,inquiry_id").order("created_at", { ascending: false }).limit(200);
@@ -1301,14 +1316,20 @@
             String(x.inquiry_no).padStart(6, "0"),
             x.title,
             x.contacts?.email || "—",
-            x.source,
-            x.status,
+            sourceNames[x.source] || x.source,
+            statusNames[x.status] || x.status,
             fmtDate(latestByInquiry.get(x.id) || x.created_at),
             fmtDate(x.created_at),
           ].forEach((v, i) => {
             const td = document.createElement("td");
-            td.textContent = v;
-            if (i === 4) td.className = "tag";
+            if (i === 4) {
+              const badge = document.createElement("span");
+              badge.className = "tag";
+              badge.textContent = v;
+              td.appendChild(badge);
+            } else {
+              td.textContent = v;
+            }
             tr.appendChild(td);
           });
           tr.addEventListener("click", () => openInquiryDetail(x.id));

@@ -286,6 +286,12 @@
         font-weight: 600;
         background: #fafbfa;
       }
+      tbody tr {
+        cursor: pointer;
+      }
+      tbody tr:hover {
+        background: #f7f9f7;
+      }
       .empty {
         text-align: center;
         padding: 60px 20px;
@@ -422,6 +428,34 @@
         margin-top: 12px;
         font-size: 12px;
         font-weight: 650;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .timeline {
+        margin-top: 16px;
+        border-top: 1px solid var(--line);
+      }
+      .timeline-item {
+        display: grid;
+        grid-template-columns: 18px 1fr;
+        gap: 9px;
+        padding: 13px 0;
+        border-bottom: 1px solid #edf0ed;
+        font-size: 12px;
+      }
+      .timeline-dot {
+        width: 10px;
+        height: 10px;
+        margin-top: 3px;
+        border-radius: 50%;
+        background: var(--brand);
+        box-shadow: 0 0 0 3px var(--soft);
+      }
+      .timeline-item small {
+        color: var(--muted);
       }
       .toast {
         position: fixed;
@@ -736,6 +770,79 @@
       </div>
     </div>
     <div id="toast" class="toast hidden"></div>
+    <div id="detail-modal" class="modal-backdrop hidden">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="detail-title">询盘详情</h3>
+          <button id="close-detail" class="close">×</button>
+        </div>
+        <div class="form-body">
+          <div class="detail-grid">
+            <div class="field">
+              <label>当前阶段</label
+              ><select id="detail-status" class="input">
+                <option value="pending_assignment">待分配</option>
+                <option value="received">收到询盘</option>
+                <option value="qualified">有效询盘</option>
+                <option value="contacted">已联系</option>
+                <option value="quoted">已报价</option>
+                <option value="sample_sent">已寄样</option>
+                <option value="negotiating">谈判</option>
+                <option value="won">成交</option>
+                <option value="lost">丢单</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>负责人</label
+              ><select id="detail-owner" class="input">
+                <option value="">暂未分配</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>修改原因 *</label
+            ><input
+              id="detail-reason"
+              class="input"
+              placeholder="所有修改必须填写原因"
+            />
+          </div>
+          <div class="form-actions">
+            <button id="save-detail" class="primary">保存阶段与分配</button>
+          </div>
+          <h4>新增跟进记录</h4>
+          <div class="detail-grid">
+            <div class="field">
+              <label>跟进方式</label
+              ><select id="follow-method" class="input">
+                <option value="email">邮件</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="phone">电话</option>
+                <option value="meeting">会议</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>下次跟进时间</label
+              ><input id="follow-next" class="input" type="datetime-local" />
+            </div>
+          </div>
+          <div class="field">
+            <label>跟进内容 *</label
+            ><textarea id="follow-content" class="input" rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label>客户反馈</label
+            ><textarea id="follow-feedback" class="input" rows="2"></textarea>
+          </div>
+          <div class="form-actions">
+            <button id="add-follow" class="primary">保存跟进</button>
+          </div>
+          <h4>时间线（精确到秒）</h4>
+          <div id="detail-timeline" class="timeline"></div>
+        </div>
+      </div>
+    </div>
     <script type="module">
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
       const supabase = createClient(
@@ -745,6 +852,7 @@
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
       let profile = null;
+      let currentInquiry = null;
       const roleNames = {
         owner: "老板",
         sales_manager: "销售主管",
@@ -851,6 +959,7 @@
         body.replaceChildren();
         rows.forEach((x) => {
           const tr = document.createElement("tr");
+          tr.dataset.inquiryId = x.id;
           [
             String(x.inquiry_no).padStart(6, "0"),
             x.title,
@@ -865,7 +974,91 @@
             if (i === 4) td.className = "tag";
             tr.appendChild(td);
           });
+          tr.addEventListener("click", () => openInquiryDetail(x.id));
           body.appendChild(tr);
+        });
+      }
+      async function openInquiryDetail(id) {
+        const [{ data: inquiry, error }, { data: owners }] = await Promise.all([
+          supabase
+            .from("inquiries")
+            .select("id,inquiry_no,title,status,owner_id")
+            .eq("id", id)
+            .single(),
+          supabase
+            .from("profiles")
+            .select("id,full_name,role")
+            .in("role", ["sales", "sales_manager"])
+            .eq("active", true),
+        ]);
+        if (error) {
+          toast("详情加载失败：" + error.message);
+          return;
+        }
+        currentInquiry = inquiry;
+        $("#detail-title").textContent =
+          `询盘 #${String(inquiry.inquiry_no).padStart(6, "0")} · ${inquiry.title}`;
+        $("#detail-status").value = inquiry.status;
+        const owner = $("#detail-owner");
+        owner.replaceChildren(new Option("暂未分配", ""));
+        (owners || []).forEach((x) =>
+          owner.add(new Option(`${x.full_name} · ${roleNames[x.role]}`, x.id)),
+        );
+        owner.value = inquiry.owner_id || "";
+        const canAssign = ["owner", "sales_manager"].includes(profile.role);
+        owner.disabled = !canAssign;
+        $("#detail-reason").value = "";
+        $("#detail-modal").classList.remove("hidden");
+        await loadTimeline(id);
+      }
+      async function loadTimeline(id) {
+        const [{ data: stages }, { data: follows }] = await Promise.all([
+          supabase
+            .from("inquiry_stage_history")
+            .select("to_status,entered_at")
+            .eq("inquiry_id", id)
+            .order("entered_at", { ascending: false }),
+          supabase
+            .from("follow_ups")
+            .select(
+              "method,content,customer_feedback,next_follow_up_at,created_at,profiles(full_name)",
+            )
+            .eq("inquiry_id", id)
+            .order("created_at", { ascending: false }),
+        ]);
+        const events = [
+          ...(stages || []).map((x) => ({
+            time: x.entered_at,
+            text: `进入阶段：${x.to_status}`,
+            sub: "系统阶段记录",
+          })),
+          ...(follows || []).map((x) => ({
+            time: x.created_at,
+            text: `${x.profiles?.full_name || "成员"} · ${x.method}：${x.content}`,
+            sub: x.next_follow_up_at
+              ? `下次跟进 ${fmtDate(x.next_follow_up_at)}`
+              : x.customer_feedback || "跟进记录",
+          })),
+        ].sort((a, b) => new Date(b.time) - new Date(a.time));
+        const box = $("#detail-timeline");
+        box.replaceChildren();
+        if (!events.length) {
+          box.textContent = "暂无记录";
+          return;
+        }
+        events.forEach((event) => {
+          const item = document.createElement("div");
+          item.className = "timeline-item";
+          const dot = document.createElement("i");
+          dot.className = "timeline-dot";
+          const content = document.createElement("div");
+          const strong = document.createElement("strong");
+          strong.textContent = event.text;
+          const small = document.createElement("small");
+          small.textContent = `${fmtDate(event.time)} · ${event.sub}`;
+          content.append(strong, document.createElement("br"), small);
+          item.append(dot, content);
+          box.append(item);
         });
       }
       $("#login-form").addEventListener("submit", async (e) => {
@@ -1143,6 +1336,82 @@
         } finally {
           btn.disabled = false;
         }
+      });
+      $("#close-detail").addEventListener("click", () =>
+        $("#detail-modal").classList.add("hidden"),
+      );
+      $("#save-detail").addEventListener("click", async () => {
+        if (!currentInquiry) return;
+        const reason = $("#detail-reason").value.trim();
+        if (!reason) {
+          toast("请填写修改原因");
+          return;
+        }
+        const button = $("#save-detail");
+        button.disabled = true;
+        const update = {
+          status: $("#detail-status").value,
+          last_change_reason: reason,
+          updated_by: profile.id,
+          updated_at: new Date().toISOString(),
+        };
+        if (["owner", "sales_manager"].includes(profile.role))
+          update.owner_id = $("#detail-owner").value || null;
+        const { error } = await supabase
+          .from("inquiries")
+          .update(update)
+          .eq("id", currentInquiry.id);
+        button.disabled = false;
+        if (error) {
+          toast("保存失败：" + error.message);
+          return;
+        }
+        toast("阶段与分配已更新，修改记录已留痕");
+        currentInquiry.status = update.status;
+        currentInquiry.owner_id = update.owner_id ?? currentInquiry.owner_id;
+        $("#detail-reason").value = "";
+        await Promise.all([loadTimeline(currentInquiry.id), loadInquiries()]);
+      });
+      $("#add-follow").addEventListener("click", async () => {
+        if (!currentInquiry) return;
+        const content = $("#follow-content").value.trim();
+        if (!content) {
+          toast("请填写跟进内容");
+          return;
+        }
+        const next = $("#follow-next").value;
+        const button = $("#add-follow");
+        button.disabled = true;
+        const { error } = await supabase
+          .from("follow_ups")
+          .insert({
+            inquiry_id: currentInquiry.id,
+            author_id: profile.id,
+            method: $("#follow-method").value,
+            content,
+            customer_feedback: $("#follow-feedback").value.trim() || null,
+            next_follow_up_at: next ? new Date(next).toISOString() : null,
+          });
+        if (!error && next)
+          await supabase
+            .from("inquiries")
+            .update({
+              next_follow_up_at: new Date(next).toISOString(),
+              updated_by: profile.id,
+              last_change_reason: "新增跟进记录",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", currentInquiry.id);
+        button.disabled = false;
+        if (error) {
+          toast("跟进保存失败：" + error.message);
+          return;
+        }
+        $("#follow-content").value = "";
+        $("#follow-feedback").value = "";
+        $("#follow-next").value = "";
+        toast("跟进记录已保存");
+        await loadTimeline(currentInquiry.id);
       });
       const {
         data: { session },

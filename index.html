@@ -1157,6 +1157,8 @@
           <div class="detail-grid"><div class="field"><label>销售应询问的问题（每行一条）</label><textarea id="detail-research-questions" class="input" rows="6"></textarea></div><div class="field"><label>建议准备的材料（每行一条）</label><textarea id="detail-research-materials" class="input" rows="6"></textarea></div></div>
           <div class="field"><label>下一步最佳动作</label><textarea id="detail-research-next-action" class="input" rows="3"></textarea></div>
           <div class="field"><label>证据来源（每行一个可访问网址）</label><textarea id="detail-research-sources" class="input" rows="4"></textarea></div>
+          <h4>市场、新闻与线上信号</h4><div class="form-actions"><button id="search-company-news" class="ghost" type="button">搜索相关新闻 ↗</button><button id="locate-company" class="ghost" type="button">识别公司地址</button><button id="open-company-map" class="ghost" type="button">Google Maps 核验 ↗</button><button id="open-company-osm" class="ghost" type="button">OpenStreetMap ↗</button></div>
+          <div class="field"><label>相关新闻与项目线索（标题｜日期｜项目/品类判断｜来源网址）</label><textarea id="detail-research-news" class="input" rows="6"></textarea></div><div class="field"><label>官网 SEO 重点品类（每行一项）</label><textarea id="detail-research-seo-focus" class="input" rows="5"></textarea></div><div class="field"><label>项目与品类指向信号（每行一项）</label><textarea id="detail-research-project-categories" class="input" rows="5"></textarea></div><div id="map-candidate-wrap" class="field hidden"><label>地址候选（采用前请人工确认公司名称、国家与官网）</label><select id="detail-map-candidate" class="input"></select></div><div class="detail-grid"><div class="field"><label>人工确认后的公司地址</label><input id="detail-research-map-address" class="input" /></div><div class="field"><label>Google Maps 链接</label><input id="detail-research-map-url" class="input" /></div></div><input id="detail-research-osm-url" class="hidden" /><div id="company-image-preview" class="hidden"><label>公司图片候选 <span class="tag">待人工核验</span></label><div id="company-image-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:10px"></div></div><div class="field"><label>公司照片来源（每行一个 Google Maps/官网照片链接）</label><textarea id="detail-research-photo-sources" class="input" rows="4" placeholder="只保存已人工确认属于该公司的图片页面或照片来源链接"></textarea><label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input id="detail-photo-verified" type="checkbox" /> 我已逐条核验以上照片来源属于该公司</label></div>
           <div class="field"><label>推荐跟进策略</label><textarea id="detail-recommended-strategy" class="input" rows="4"></textarea></div>
           <div class="field"><label>补充/修改原因 *</label><input id="detail-research-reason" class="input" /></div>
           <div class="form-actions"><button id="calculate-research-score" class="ghost" type="button">重新计算评分</button><button id="save-detail-research" class="primary">保存背调信息</button></div>
@@ -1685,7 +1687,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at)",
+              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
             )
             .eq("id", id)
             .single(),
@@ -1747,7 +1749,7 @@
         $("#detail-purchase-likelihood").value = company.purchase_likelihood || "unknown";
         $("#detail-recommended-strategy").value = company.recommended_strategy || "";
         const lineText=(items,keys)=>(Array.isArray(items)?items:[]).map((item)=>typeof item==="string"?item:keys.map((key)=>item?.[key]).find(Boolean)).filter(Boolean).join("\n"),brief=company.research_sales_brief||{};
-        $("#detail-research-deep-status").value=company.research_status||"research_required";$("#detail-research-match-method").value=company.match_method||"";$("#detail-research-match-confidence").value=company.match_confidence||"low";$("#detail-research-source-updated").value=company.source_updated_at?fmtDate(company.source_updated_at):"";$("#detail-research-why-now").value=brief.why_now||"";$("#detail-research-confirmed-facts").value=lineText(company.confirmed_facts,["fact","text"]);$("#detail-research-demand-signals").value=lineText(company.demand_signals,["display","signal","text"]);$("#detail-research-likely-needs").value=lineText(company.likely_needs,["need","text"]);$("#detail-research-risks-counter").value=lineText(company.risks_counterevidence,["risk","text"]);$("#detail-research-contacts").value=lineText(company.research_contacts,["display","name","text"]);$("#detail-research-questions").value=lineText(brief.questions_to_ask,["text"]);$("#detail-research-materials").value=lineText(brief.materials_to_prepare,["text"]);$("#detail-research-next-action").value=brief.next_best_action||"";$("#detail-research-sources").value=lineText(company.research_evidence_sources,["url","source_url","text"]);
+        $("#detail-research-deep-status").value=company.research_status||"research_required";$("#detail-research-match-method").value=company.match_method||"";$("#detail-research-match-confidence").value=company.match_confidence||"low";$("#detail-research-source-updated").value=company.source_updated_at?fmtDate(company.source_updated_at):"";$("#detail-research-why-now").value=brief.why_now||"";$("#detail-research-confirmed-facts").value=lineText(company.confirmed_facts,["fact","text"]);$("#detail-research-demand-signals").value=lineText(company.demand_signals,["display","signal","text"]);$("#detail-research-likely-needs").value=lineText(company.likely_needs,["need","text"]);$("#detail-research-risks-counter").value=lineText(company.risks_counterevidence,["risk","text"]);$("#detail-research-contacts").value=lineText(company.research_contacts,["display","name","text"]);$("#detail-research-questions").value=lineText(brief.questions_to_ask,["text"]);$("#detail-research-materials").value=lineText(brief.materials_to_prepare,["text"]);$("#detail-research-next-action").value=brief.next_best_action||"";$("#detail-research-sources").value=lineText(company.research_evidence_sources,["url","source_url","text"]);$("#detail-research-news").value=lineText(company.news_signals,["display","title","text"]);$("#detail-research-seo-focus").value=lineText(company.seo_focus_categories,["name","text"]);$("#detail-research-project-categories").value=lineText(company.project_category_signals,["display","signal","text"]);$("#detail-research-map-address").value=company.map_address||"";$("#detail-research-map-url").value=company.google_maps_url||"";$("#detail-research-osm-url").value=company.openstreetmap_url||"";const savedPhotos=Array.isArray(company.company_photo_sources)?company.company_photo_sources:[];$("#detail-research-photo-sources").value=lineText(savedPhotos,["url","source_url"]);$("#detail-photo-verified").checked=savedPhotos.length>0&&savedPhotos.every((item)=>item?.verified===true);$("#map-candidate-wrap").classList.add("hidden");renderCompanyImages(savedPhotos);
         $("#detail-research-reason").value = "";
         currentInquiry.businessResearch = null;
         $("#detail-research-status").textContent = company.ai_summary ? "背调状态：已有背调资料，可重新执行" : "背调状态：尚未执行";
@@ -2401,6 +2403,102 @@
       $("#topease-report-file").addEventListener("change",async(event)=>{const file=event.target.files?.[0];if(!file)return;if(file.size>15*1024*1024){event.target.value="";return toast("文件不能超过 15MB");}const button=$("#upload-topease-report");button.disabled=true;button.textContent="解析中…";try{const parsed=await parseTopeaseFile(file);await saveTopeaseImport({file,sourceText:parsed.text,rowCount:parsed.rowCount});toast("特易报告已解析并保存，请确认预览后合并");}catch(error){toast("导入失败："+(error.message||error));}finally{button.disabled=false;button.textContent="导入特易报告";event.target.value="";}});
       $("#parse-topease-paste").addEventListener("click",async()=>{const sourceText=$("#topease-paste-text").value.trim();if(!sourceText)return toast("请先粘贴特易报告内容");const button=$("#parse-topease-paste");button.disabled=true;try{await saveTopeaseImport({sourceText,rowCount:sourceText.split(/\r?\n/).filter(Boolean).length});$("#topease-paste-panel").classList.add("hidden");$("#topease-paste-text").value="";toast("特易报告已解析并保存");}catch(error){toast("保存失败："+(error.message||error));}finally{button.disabled=false;}});
       $("#merge-topease-summary").addEventListener("click",()=>{const imported=$("#topease-preview-summary").value.trim();if(!imported)return toast("没有可合并的数据");const current=$("#detail-research-summary").value.trim();$("#detail-research-summary").value=[current,imported].filter(Boolean).join("\n\n");$("#detail-research-reason").value="";calculateResearchScore();toast("已合并到客户背调，请检查后点击保存背调信息");});
+      function companySearchQuery() {
+        return [$("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim(), $("#detail-smart-country").value.trim()].filter(Boolean).join(" ");
+      }
+      function safeExternalUrl(value) {
+        try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) ? url.toString() : ""; } catch { return ""; }
+      }
+      function renderCompanyImages(candidates = []) {
+        const wrap = $("#company-image-preview");
+        const grid = $("#company-image-grid");
+        grid.replaceChildren();
+        const usable = (Array.isArray(candidates) ? candidates : []).filter((item) => safeExternalUrl(item?.url || item?.source_url));
+        wrap.classList.toggle("hidden", usable.length === 0);
+        usable.forEach((candidate) => {
+          const url = safeExternalUrl(candidate.url || candidate.source_url);
+          const card = document.createElement("div");
+          card.style.cssText = "border:1px solid var(--line);border-radius:12px;padding:10px;background:white";
+          const img = document.createElement("img");
+          img.src = url; img.alt = "公司图片候选"; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+          img.style.cssText = "width:100%;height:130px;object-fit:contain;border-radius:8px;background:var(--soft)";
+          img.addEventListener("error", () => { img.replaceWith(Object.assign(document.createElement("div"), { textContent: "图片无法直接预览，请打开来源核验" })); });
+          const meta = document.createElement("small");
+          meta.textContent = candidate.source || (candidate.verified ? "已核验来源" : "官网图片候选");
+          meta.style.cssText = "display:block;margin:8px 0;color:var(--muted)";
+          const action = document.createElement("button");
+          action.type = "button"; action.className = "table-action"; action.textContent = candidate.verified ? "已保存" : "采用此图片";
+          action.disabled = Boolean(candidate.verified);
+          action.addEventListener("click", () => {
+            const lines = $("#detail-research-photo-sources").value.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+            if (!lines.includes(url)) lines.push(url);
+            $("#detail-research-photo-sources").value = lines.join("\n");
+            $("#detail-photo-verified").checked = false;
+            action.textContent = "已加入，待核验"; action.disabled = true;
+          });
+          const sourceLink = document.createElement("a");
+          sourceLink.className = "table-action"; sourceLink.href = candidate.source_page || url;
+          sourceLink.target = "_blank"; sourceLink.rel = "noopener noreferrer"; sourceLink.textContent = "打开来源 ↗";
+          sourceLink.style.marginLeft = "8px";
+          card.append(img, meta, action, sourceLink);
+          grid.append(card);
+        });
+      }
+      async function loadCompanyImages() {
+        const website = $("#detail-research-domain").value.trim();
+        if (!website || !currentInquiry) { renderCompanyImages([]); return; }
+        try {
+          const { data, error } = await supabase.functions.invoke("company-website-images", { body: { inquiry_id: currentInquiry.id, website } });
+          if (error) throw error;
+          renderCompanyImages(data?.candidates || []);
+        } catch (error) {
+          renderCompanyImages([]);
+          toast("公司图片暂未取得：" + (error.message || error));
+        }
+      }
+      function applyMapCandidate(candidate) {
+        if (!candidate) return;
+        $("#detail-research-map-address").value = candidate.formatted_address || "";
+        $("#detail-research-map-url").value = candidate.google_maps_url || "";
+        $("#detail-research-osm-url").value = candidate.openstreetmap_url || "";
+        $("#detail-map-candidate").dataset.placeId = candidate.place_id || "";
+        $("#detail-map-candidate").dataset.provider = "geoapify";
+      }
+      $("#detail-map-candidate").addEventListener("change", (event) => {
+        try { applyMapCandidate(JSON.parse(event.target.value)); } catch { }
+      });
+      $("#locate-company").addEventListener("click", async () => {
+        if (!currentInquiry) return;
+        const companyName = $("#detail-research-company").value.trim();
+        if (!companyName) return toast("请先填写公司名称");
+        const button = $("#locate-company"); button.disabled = true; button.textContent = "识别中…";
+        try {
+          const { data, error } = await supabase.functions.invoke("geoapify-place-research", { body: { inquiry_id: currentInquiry.id, company_name: companyName, domain: $("#detail-research-domain").value.trim(), country: $("#detail-smart-country").value.trim() } });
+          if (error) throw error;
+          $("#detail-research-map-url").value = data.google_maps_search_url || "";
+          $("#detail-research-osm-url").value = data.openstreetmap_search_url || "";
+          const select = $("#detail-map-candidate"); select.replaceChildren();
+          (data.candidates || []).forEach((candidate, index) => select.add(new Option((index + 1) + ". " + candidate.formatted_address, JSON.stringify(candidate))));
+          $("#map-candidate-wrap").classList.toggle("hidden", !(data.candidates || []).length);
+          if (data.candidates?.length) { select.selectedIndex = 0; applyMapCandidate(data.candidates[0]); toast("已找到地址候选，请人工核验后保存"); }
+          else if (!data.configured) toast("Geoapify 密钥尚未配置，已生成地图人工检索链接");
+          else toast("没有找到可靠地址候选，请打开地图人工核验");
+        } catch (error) { toast("地址识别失败：" + (error.message || error)); }
+        finally { button.disabled = false; button.textContent = "识别公司地址"; }
+      });
+      $("#search-company-news").addEventListener("click", () => {
+        const query = companySearchQuery();
+        if (!query) return toast("请先填写公司名称或域名");
+        window.open("https://www.google.com/search?tbm=nws&q=" + encodeURIComponent(query), "_blank", "noopener");
+      });
+      $("#open-company-map").addEventListener("click", () => {
+        const url = safeExternalUrl($("#detail-research-map-url").value) || "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(companySearchQuery());
+        window.open(url, "_blank", "noopener");
+      });
+      $("#open-company-osm").addEventListener("click", () => {
+        const url = safeExternalUrl($("#detail-research-osm-url").value) || "https://www.openstreetmap.org/search?query=" + encodeURIComponent(companySearchQuery());
+        window.open(url, "_blank", "noopener");
+      });
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const button = $("#run-business-research");
@@ -2443,7 +2541,7 @@
           $("#detail-research-status").textContent = `背调状态：可用 · 数据更新 ${record.dataUpdatedAt || "未知"}`;
           const evidence = $("#detail-research-evidence"); evidence.replaceChildren(); evidence.append("来源：");
           if (record.sourceUrl) { const link=document.createElement("a"); link.href=record.sourceUrl; link.target="_blank"; link.rel="noopener"; link.textContent=record.sourceUrl; evidence.appendChild(link); } else evidence.append("WONLY Business 数据记录");
-          evidence.classList.remove("hidden"); calculateResearchScore(); toast("背调已完成并带入详情，请确认后保存");
+          evidence.classList.remove("hidden"); calculateResearchScore(); await loadCompanyImages(); toast("背调已完成并带入详情，请确认后保存");
         } catch (error) { $("#detail-research-status").textContent = "背调状态：执行失败"; toast("背调失败：" + (error.message || error)); }
         finally { button.disabled=false; button.textContent="一键前置背调"; }
       });
@@ -2469,6 +2567,8 @@
         if (!reason) return toast("请填写背调补充/修改原因");
         const name = $("#detail-research-company").value.trim();
         if (!name) return toast("请填写公司名称");
+        const photoUrls = $("#detail-research-photo-sources").value.split(/\n+/).map((url) => safeExternalUrl(url.trim())).filter(Boolean);
+        if (photoUrls.length && !$("#detail-photo-verified").checked) return toast("保存公司图片前，请逐条核验并勾选确认");
         const button = $("#save-detail-research");
         button.disabled = true;
         const before = currentInquiry.companies || null;
@@ -2495,6 +2595,16 @@
           research_contacts: $("#detail-research-contacts").value.split(/\n+/).map((display)=>display.trim()).filter(Boolean).map((display)=>({display})),
           research_sales_brief: {why_now:$("#detail-research-why-now").value.trim(),questions_to_ask:$("#detail-research-questions").value.split(/\n+/).map((text)=>text.trim()).filter(Boolean),materials_to_prepare:$("#detail-research-materials").value.split(/\n+/).map((text)=>text.trim()).filter(Boolean),next_best_action:$("#detail-research-next-action").value.trim()},
           research_evidence_sources: $("#detail-research-sources").value.split(/\n+/).map((url)=>url.trim()).filter(Boolean).map((url)=>({url})),
+          news_signals: $("#detail-research-news").value.split(/\n+/).map((display)=>display.trim()).filter(Boolean).map((display)=>({display})),
+          seo_focus_categories: $("#detail-research-seo-focus").value.split(/\n+/).map((name)=>name.trim()).filter(Boolean).map((name)=>({name})),
+          project_category_signals: $("#detail-research-project-categories").value.split(/\n+/).map((display)=>display.trim()).filter(Boolean).map((display)=>({display})),
+          map_address: $("#detail-research-map-address").value.trim() || null,
+          google_maps_url: safeExternalUrl($("#detail-research-map-url").value.trim()) || null,
+          openstreetmap_url: safeExternalUrl($("#detail-research-osm-url").value.trim()) || null,
+          map_provider: $("#detail-map-candidate").dataset.provider || null,
+          map_place_id: $("#detail-map-candidate").dataset.placeId || null,
+          map_verified_at: $("#detail-research-map-address").value.trim() ? new Date().toISOString() : null,
+          company_photo_sources: photoUrls.map((url)=>({url,verified:true,verified_by:profile.id,verified_by_name:profile.full_name||"",verified_at:new Date().toISOString()})),
           researched_at: new Date().toISOString(),
           source_updated_at: currentInquiry.businessResearch?.addedDate || currentInquiry.businessResearch?.dataUpdatedAt || null,
           updated_at: new Date().toISOString(),

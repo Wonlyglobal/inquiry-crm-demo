@@ -906,6 +906,19 @@
         </form>
       </div>
     </div>
+    <div id="disable-member-modal" class="modal-backdrop hidden">
+      <div class="modal" style="max-width:520px">
+        <div class="modal-head"><h3>禁用成员账号</h3><button id="close-disable-member" class="close">×</button></div>
+        <form id="disable-member-form" class="form-body">
+          <p id="disable-member-name" class="hint"></p>
+          <input id="disable-member-id" type="hidden" />
+          <div class="field"><label>禁用原因 *</label><select id="disable-reason-type" class="input" required><option value="departed">离职</option><option value="other">其他原因</option></select></div>
+          <div class="field"><label>原因说明</label><textarea id="disable-reason" class="input" rows="4" placeholder="选择其他原因时必须填写"></textarea></div>
+          <p class="hint">禁用后该成员不能继续登录；历史询盘、跟进和操作记录不会删除。</p>
+          <div class="form-actions"><button type="button" id="cancel-disable-member" class="ghost">取消</button><button class="primary" type="submit">确认禁用</button></div>
+        </form>
+      </div>
+    </div>
     <div id="inquiry-modal" class="modal-backdrop hidden">
       <div class="modal">
         <div class="modal-head">
@@ -1311,6 +1324,10 @@
           .eq("id", user.id)
           .single();
         if (error) throw error;
+        if (!data.active) {
+          await supabase.auth.signOut();
+          throw new Error("该成员账号已被管理员禁用");
+        }
         profile = data;
         if (data.must_change_password) {
           $("#login").classList.add("hidden");
@@ -1353,17 +1370,22 @@
         rows.forEach((row) => {
           const tr = document.createElement("tr");
           row.cells.forEach((value) => { const td = document.createElement("td"); td.textContent = value ?? "—"; tr.append(td); });
-          if (row.action) {
+          const actions = row.actions || (row.action ? [row.action] : []);
+          if (actions.length) {
             const td = document.createElement("td");
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = "table-action";
-            button.textContent = row.action.label;
-            button.addEventListener("click", (event) => {
-              event.stopPropagation();
-              row.action.onClick();
+            td.style.whiteSpace = "nowrap";
+            actions.forEach((action) => {
+              const button = document.createElement("button");
+              button.type = "button";
+              button.className = "table-action";
+              button.style.marginRight = "6px";
+              button.textContent = action.label;
+              button.addEventListener("click", (event) => {
+                event.stopPropagation();
+                action.onClick();
+              });
+              td.append(button);
             });
-            td.append(button);
             tr.append(td);
           }
           if (onRowClick) tr.addEventListener("click", () => onRowClick(row));
@@ -1417,14 +1439,17 @@
           columns = ["公司", "域名", "国家", "公司类型", "主营业务", "风险", "AI 摘要"];
           mapper = (x) => ({ cells: [x.name, x.domain, x.country, x.company_type, x.main_business, x.risk_level, x.ai_summary] });
         } else {
-          query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,error_message)").order("created_at", { ascending: true });
+          query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,disabled_reason_type,disabled_reason,disabled_at,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,error_message)").order("created_at", { ascending: true });
           columns = ["姓名", "邮箱", "职称", "部门", "CRM 权限角色", "状态", "邮箱连接", "最后测试", "操作"];
           mapper = (x) => {
             const mailbox = Array.isArray(x.mailbox_connections) ? x.mailbox_connections[0] : x.mailbox_connections;
             const connected = mailbox?.status === "connected";
             return {
-              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : "停用", connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"],
-              action: { label: connected ? "重新连接" : "连接", onClick: () => openMailboxBinding(x.id) },
+              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : mailbox?.status === "disabled" ? "已停用" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"],
+              actions: x.active ? [
+                { label: connected ? "重新连接" : "连接", onClick: () => openMailboxBinding(x.id) },
+                { label: "禁用", onClick: () => openDisableMember(x) },
+              ] : [{ label: "恢复", onClick: () => enableMember(x) }],
             };
           };
         }
@@ -2448,6 +2473,32 @@
       $("#add-member").addEventListener("click", () => {
         $("#member-form").reset();
         $("#member-modal").classList.remove("hidden");
+      });
+      function openDisableMember(member) {
+        if (member.id === profile.id) return toast("不能禁用当前登录账号");
+        $("#disable-member-id").value = member.id;
+        $("#disable-member-name").textContent = `成员：${member.full_name} · ${member.email}`;
+        $("#disable-reason-type").value = "departed"; $("#disable-reason").value = "";
+        $("#disable-member-modal").classList.remove("hidden");
+      }
+      async function enableMember(member) {
+        if (!confirm(`确认恢复 ${member.full_name} 的 CRM 登录权限？`)) return;
+        const { data, error } = await supabase.functions.invoke("member-admin", { body: { action: "enable", user_id: member.id } });
+        let message = data?.error || error?.message;
+        if (error?.context) { try { message = (await error.context.clone().json())?.error || message; } catch {} }
+        if (message) return toast("成员恢复失败：" + message);
+        toast("成员账号已恢复，邮箱需要时请重新连接"); await loadModule("settings");
+      }
+      ["#close-disable-member", "#cancel-disable-member"].forEach((selector) => $(selector).addEventListener("click", () => $("#disable-member-modal").classList.add("hidden")));
+      $("#disable-member-form").addEventListener("submit", async (event) => {
+        event.preventDefault(); const reasonType=$("#disable-reason-type").value, reason=$("#disable-reason").value.trim();
+        if (reasonType === "other" && !reason) return toast("选择其他原因时必须填写说明");
+        const button=event.submitter; button.disabled=true; button.textContent="正在禁用…";
+        const { data, error } = await supabase.functions.invoke("member-admin", { body: { action:"disable", user_id:$("#disable-member-id").value, reason_type:reasonType, reason } });
+        button.disabled=false; button.textContent="确认禁用"; let message=data?.error || error?.message;
+        if (error?.context) { try { message=(await error.context.clone().json())?.error || message; } catch {} }
+        if (message) return toast("成员禁用失败：" + message);
+        $("#disable-member-modal").classList.add("hidden"); toast("成员已禁用，历史数据已保留"); await loadModule("settings");
       });
       ["#close-member", "#cancel-member"].forEach((selector) => $(selector).addEventListener("click", () => $("#member-modal").classList.add("hidden")));
       $("#member-form").addEventListener("submit", async (event) => {

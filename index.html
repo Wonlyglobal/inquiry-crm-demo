@@ -876,6 +876,10 @@
             </div>
           </div>
           <div class="field">
+            <label>邮件收到时间 *</label
+            ><input name="received_at" class="input" type="datetime-local" required />
+          </div>
+          <div class="field">
             <label>客户邮件正文 *</label
             ><textarea name="body" class="input" rows="10" required></textarea>
           </div>
@@ -1290,6 +1294,17 @@
           return;
         }
         const rows = data || [];
+        const emailInquiryIds = rows.filter((x) => x.source === "email").map((x) => x.id);
+        const receivedAtByInquiry = new Map();
+        if (emailInquiryIds.length) {
+          const { data: intakes } = await supabase
+            .from("email_intake")
+            .select("inquiry_id,received_at")
+            .in("inquiry_id", emailInquiryIds);
+          for (const intake of intakes || []) {
+            if (intake.received_at) receivedAtByInquiry.set(intake.inquiry_id, intake.received_at);
+          }
+        }
         const { data: history, error: historyError } = await supabase
           .from("inquiry_stage_history")
           .select("inquiry_id,to_status,entered_at")
@@ -1341,7 +1356,7 @@
             sourceNames[x.source] || x.source,
             statusNames[x.status] || x.status,
             fmtDate(latestByInquiry.get(x.id) || x.created_at),
-            fmtDate(x.created_at),
+            fmtDate(receivedAtByInquiry.get(x.id) || x.created_at),
           ].forEach((v, i) => {
             const td = document.createElement("td");
             if (i === 4) {
@@ -1635,9 +1650,15 @@
         toast("今日日报已提交给主管");
         $("#daily-modal").classList.add("hidden");
       });
-      $("#new-inquiry").addEventListener("click", () =>
-        $("#inquiry-modal").classList.remove("hidden"),
-      );
+      function localDateTimeValue(date = new Date()) {
+        const offset = date.getTimezoneOffset() * 60000;
+        return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+      }
+      $("#new-inquiry").addEventListener("click", () => {
+        const receivedAt = $('#email-form [name="received_at"]');
+        if (!receivedAt.value) receivedAt.value = localDateTimeValue();
+        $("#inquiry-modal").classList.remove("hidden");
+      });
       $("#close-modal").addEventListener("click", () =>
         $("#inquiry-modal").classList.add("hidden"),
       );
@@ -1827,6 +1848,7 @@
           email = fd.get("email").trim(),
           subject = fd.get("subject"),
           body = fd.get("body"),
+          receivedAt = fd.get("received_at"),
           parsed = parseMail(body, subject),
           btn = e.submitter;
         btn.disabled = true;
@@ -1845,6 +1867,7 @@
             sender_email: email,
             subject,
             body_text: body,
+            received_at: new Date(receivedAt).toISOString(),
             parsed_data: parsed,
             processing_status: "converted",
             inquiry_id: inquiry.id,

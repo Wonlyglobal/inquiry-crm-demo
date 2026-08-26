@@ -1275,6 +1275,7 @@
         $$ = (s) => [...document.querySelectorAll(s)];
       let profile = null;
       let currentInquiry = null;
+      let notificationChannel = null;
       $(".main").appendChild($("#detail-modal"));
       const roleNames = {
         owner: "老板",
@@ -1384,8 +1385,10 @@
           !["owner", "marketing"].includes(role),
         );
         await Promise.all([loadInquiries(), loadNotifications()]);
+        subscribeNotifications();
         icons();
       }
+      function subscribeNotifications(){if(notificationChannel)supabase.removeChannel(notificationChannel);notificationChannel=supabase.channel(`notifications-${profile.id}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:`recipient_id=eq.${profile.id}`},(payload)=>{loadNotifications();toast(`新消息：${payload.new.title||"收到一项新任务"}`);}).subscribe();}
       function renderModuleTable(columns, rows, onRowClick) {
         const head = $("#module-head"), body = $("#module-body");
         head.replaceChildren(); body.replaceChildren();

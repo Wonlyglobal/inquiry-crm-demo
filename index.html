@@ -1081,6 +1081,35 @@
           <div id="detail-pipeline" class="detail-pipeline"></div>
         </div>
         <div class="form-body">
+          <h4>客户原文</h4>
+          <textarea id="detail-original-message" class="input" rows="9" readonly></textarea>
+          <h4 style="margin-top:22px">智能整理</h4>
+          <p class="hint">系统识别到的信息会自动带入；没有识别到的保持空白，可以人工补充。</p>
+          <div class="detail-grid">
+            <div class="field"><label>国家/地区</label><input id="detail-smart-country" class="input" /></div>
+            <div class="field"><label>姓名</label><input id="detail-smart-name" class="input" /></div>
+            <div class="field"><label>职称</label><input id="detail-smart-title" class="input" /></div>
+            <div class="field"><label>项目名</label><input id="detail-smart-project" class="input" /></div>
+          </div>
+          <div class="field"><label>需求</label><textarea id="detail-smart-demand" class="input" rows="4"></textarea></div>
+          <div class="field"><label>补充/修改原因 *</label><input id="detail-smart-reason" class="input" placeholder="人工补充或修改时必填" /></div>
+          <div class="form-actions"><button id="save-smart-summary" class="primary">保存智能整理</button></div>
+        </div>
+        <div class="form-body">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><h4 style="margin:0">客户背调</h4><button id="complete-detail-research" class="ghost">完成本次背调</button></div>
+          <p class="hint">背调信息可由系统带入或人工补充；风险严重时请选择高风险/严重风险。</p>
+          <div class="detail-grid">
+            <div class="field"><label>公司名称</label><input id="detail-research-company" class="input" /></div>
+            <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /></div>
+            <div class="field"><label>公司类型</label><input id="detail-research-type" class="input" /></div>
+            <div class="field"><label>风险等级</label><select id="detail-research-risk" class="input"><option value="normal">正常</option><option value="medium">中风险</option><option value="high">高风险</option><option value="critical">严重风险</option></select></div>
+          </div>
+          <div class="field"><label>主营业务</label><textarea id="detail-research-business" class="input" rows="3"></textarea></div>
+          <div class="field"><label>AI 摘要/项目线索</label><textarea id="detail-research-summary" class="input" rows="5"></textarea></div>
+          <div class="field"><label>补充/修改原因 *</label><input id="detail-research-reason" class="input" /></div>
+          <div class="form-actions"><button id="save-detail-research" class="primary">保存背调信息</button></div>
+        </div>
+        <div class="form-body">
           <div class="detail-grid">
             <div class="field">
               <label>当前阶段</label
@@ -1544,7 +1573,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at",
+              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary)",
             )
             .eq("id", id)
             .single(),
@@ -1583,6 +1612,21 @@
           inquiry.invalid_reason || inquiry.lost_reason || "";
         $("#detail-won-amount").value = inquiry.won_amount || "";
         $("#detail-won-currency").value = inquiry.won_currency || "";
+        $("#detail-original-message").value = inquiry.original_message || "";
+        $("#detail-smart-country").value = inquiry.target_country || "";
+        $("#detail-smart-name").value = inquiry.contact_name || "";
+        $("#detail-smart-title").value = inquiry.contact_job_title || "";
+        $("#detail-smart-demand").value = inquiry.demand_summary || "";
+        $("#detail-smart-project").value = inquiry.project_name || "";
+        $("#detail-smart-reason").value = "";
+        const company = inquiry.companies || {};
+        $("#detail-research-company").value = company.name || "";
+        $("#detail-research-domain").value = company.domain || "";
+        $("#detail-research-type").value = company.company_type || "";
+        $("#detail-research-business").value = company.main_business || "";
+        $("#detail-research-risk").value = company.risk_level || "normal";
+        $("#detail-research-summary").value = company.ai_summary || "";
+        $("#detail-research-reason").value = "";
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign;
         $("#detail-reason").value = "";
@@ -2133,6 +2177,89 @@
         $("#detail-reason").value = "";
         await Promise.all([loadTimeline(currentInquiry.id), loadInquiries()]);
       });
++      $("#save-smart-summary").addEventListener("click", async () => {
+        if (!currentInquiry) return;
+        const reason = $("#detail-smart-reason").value.trim();
+        if (!reason) return toast("请填写补充/修改原因");
+        const button = $("#save-smart-summary");
+        button.disabled = true;
+        const valueOrNull = (selector) => $(selector).value.trim() || null;
+        const update = {
+          target_country: valueOrNull("#detail-smart-country"),
+          contact_name: valueOrNull("#detail-smart-name"),
+          contact_job_title: valueOrNull("#detail-smart-title"),
+          demand_summary: valueOrNull("#detail-smart-demand"),
+          project_name: valueOrNull("#detail-smart-project"),
+          last_change_reason: reason,
+          updated_by: profile.id,
+          updated_at: new Date().toISOString(),
+        };
+        const { error } = await supabase.from("inquiries").update(update).eq("id", currentInquiry.id);
+        button.disabled = false;
+        if (error) return toast("智能整理保存失败：" + error.message);
+        Object.assign(currentInquiry, update);
+        $("#detail-smart-reason").value = "";
+        toast("智能整理已保存，修改记录已留痕");
+      });
+      $("#save-detail-research").addEventListener("click", async () => {
+        if (!currentInquiry) return;
+        const reason = $("#detail-research-reason").value.trim();
+        if (!reason) return toast("请填写背调补充/修改原因");
+        const name = $("#detail-research-company").value.trim();
+        if (!name) return toast("请填写公司名称");
+        const button = $("#save-detail-research");
+        button.disabled = true;
+        const before = currentInquiry.companies || null;
+        const companyUpdate = {
+          name,
+          domain: $("#detail-research-domain").value.trim() || null,
+          country: $("#detail-smart-country").value.trim() || null,
+          company_type: $("#detail-research-type").value.trim() || null,
+          main_business: $("#detail-research-business").value.trim() || null,
+          risk_level: $("#detail-research-risk").value,
+          ai_summary: $("#detail-research-summary").value.trim() || null,
+          updated_at: new Date().toISOString(),
+        };
+        let companyId = currentInquiry.company_id;
+        let saved, error;
+        if (companyId) {
+          ({ data: saved, error } = await supabase.from("companies").update(companyUpdate).eq("id", companyId).select().single());
+        } else {
+          ({ data: saved, error } = await supabase.from("companies").insert({ ...companyUpdate, created_by: profile.id }).select().single());
+          if (!error) {
+            companyId = saved.id;
+            const linked = await supabase.from("inquiries").update({ company_id: companyId, updated_by: profile.id, last_change_reason: reason }).eq("id", currentInquiry.id);
+            error = linked.error;
+          }
+        }
+        if (!error) {
+          const audit = await supabase.from("audit_logs").insert({ actor_id: profile.id, entity_type: "company", entity_id: companyId, action: "research_update", before_data: before, after_data: saved, reason });
+          error = audit.error;
+        }
+        button.disabled = false;
+        if (error) return toast("背调保存失败：" + error.message);
+        currentInquiry.company_id = companyId;
+        currentInquiry.companies = saved;
+        $("#detail-research-reason").value = "";
+        toast("背调信息已保存，修改记录已留痕");
+      });
+      $("#complete-detail-research").addEventListener("click", async () => {
+        if (!currentInquiry) return;
+        const reason = $("#detail-research-reason").value.trim() || "询盘详情完成客户背调";
+        const button = $("#complete-detail-research");
+        button.disabled = true;
+        let error;
+        if (currentInquiry.email_intake) {
+          ({ error } = await supabase.rpc("complete_inquiry_research", { target_inquiry_id: currentInquiry.id }));
+        } else {
+          ({ error } = await supabase.from("audit_logs").insert({ actor_id: profile.id, entity_type: "inquiry", entity_id: currentInquiry.id, action: "research_completed", reason }));
+        }
+        button.disabled = false;
+        if (error) return toast("背调状态更新失败：" + error.message);
+        toast("本次背调已完成，记录已留痕");
+        await loadTimeline(currentInquiry.id);
+      });
+
       $("#add-follow").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const content = $("#follow-content").value.trim();

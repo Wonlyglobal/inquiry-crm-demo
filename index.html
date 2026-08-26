@@ -1232,12 +1232,13 @@
         $("#user-role").textContent = profile.job_title || roleNames[profile.role] || profile.role;
         $("#avatar").textContent = profile.full_name.slice(0, 1);
         const role = profile.role;
+        const canConfigureMailboxes = role === "owner" || ["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase());
         const visibility = {
           email: ["owner", "sales_manager", "marketing"].includes(role),
           assignment: ["owner", "sales_manager", "marketing"].includes(role),
           research: ["owner", "sales_manager", "marketing"].includes(role),
           daily: ["owner", "sales_manager", "sales"].includes(role),
-          settings: role === "owner",
+          settings: canConfigureMailboxes,
         };
         Object.entries(visibility).forEach(([view, visible]) => {
           const nav = $(`.nav[data-view="${view}"]`);
@@ -1295,7 +1296,7 @@
         modulePrimary.classList.toggle("hidden", view !== "settings");
         if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";
         const denied =
-          (view === "settings" && profile.role !== "owner") ||
+          (view === "settings" && profile.role !== "owner" && !["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase())) ||
           (["email", "assignment", "research"].includes(view) &&
             !["owner", "sales_manager", "marketing"].includes(profile.role));
         if (denied) {

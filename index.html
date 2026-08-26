@@ -1137,7 +1137,7 @@
           </div>
           <div class="detail-grid">
             <div class="field"><label>公司名称</label><input id="detail-research-company" class="input" /></div>
-            <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /></div>
+            <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /><a id="detail-research-domain-link" class="table-action hidden" target="_blank" rel="noopener noreferrer" style="display:none;margin-top:8px">打开官网 ↗</a></div>
             <div class="field"><label>公司类型</label><input id="detail-research-type" class="input" /></div>
             <div class="field"><label>风险等级</label><select id="detail-research-risk" class="input"><option value="normal">正常</option><option value="medium">中风险</option><option value="high">高风险</option><option value="critical">严重风险</option></select></div>
             <div class="field"><label>客户价值评分</label><input id="detail-value-score" class="input" type="number" min="0" max="100" readonly /></div>
@@ -1302,6 +1302,8 @@
         $("#toast").classList.remove("hidden");
         setTimeout(() => $("#toast").classList.add("hidden"), 2600);
       }
+      function updateDomainLink(){const link=$("#detail-research-domain-link"),raw=$("#detail-research-domain").value.trim();try{const url=new URL(/^https?:\/\//i.test(raw)?raw:`https://${raw}`);if(!raw||!["http:","https:"].includes(url.protocol))throw new Error("invalid");link.href=url.href;link.classList.remove("hidden");link.style.display="inline-block";}catch{link.removeAttribute("href");link.classList.add("hidden");link.style.display="none";}}
+      $("#detail-research-domain").addEventListener("input",updateDomainLink);
       function fmtDate(v) {
         return new Date(v).toLocaleString("zh-CN", {
           year: "numeric",
@@ -1719,6 +1721,7 @@
         const company = inquiry.companies || {};
         $("#detail-research-company").value = company.name || "";
         $("#detail-research-domain").value = company.domain || "";
+        updateDomainLink();
         $("#detail-research-type").value = company.company_type || "";
         $("#detail-research-business").value = company.main_business || "";
         $("#detail-research-risk").value = company.risk_level || "normal";
@@ -2405,6 +2408,7 @@
           currentInquiry.businessResearch = record;
           $("#detail-research-company").value = record.company || hit?.company || "";
           $("#detail-research-domain").value = domain;
+          updateDomainLink();
           if (record.countryName) $("#detail-smart-country").value = record.countryName;
           $("#detail-research-type").value = record.categoryName || "";
           $("#detail-research-business").value = [record.productFocus,record.brandsCarried,record.scale].filter(Boolean).join("\n");

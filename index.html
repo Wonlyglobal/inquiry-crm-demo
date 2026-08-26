@@ -217,6 +217,56 @@
         padding: 9px 12px;
         cursor: pointer;
       }
+      .notice-wrap {
+        position: relative;
+      }
+      .notice-button {
+        position: relative;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+      }
+      .notice-button svg {
+        width: 17px;
+      }
+      .notice-count {
+        position: absolute;
+        right: -5px;
+        top: -5px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 10px;
+        background: #bd4a43;
+        color: white;
+        font-size: 10px;
+        line-height: 18px;
+      }
+      .notice-panel {
+        position: absolute;
+        right: 0;
+        top: 46px;
+        width: 330px;
+        max-height: 360px;
+        overflow: auto;
+        padding: 10px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: 0 18px 45px rgba(27, 45, 34, 0.18);
+        z-index: 40;
+      }
+      .notice-item {
+        padding: 11px;
+        border-bottom: 1px solid #edf0ed;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .notice-item b {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+      }
       .page {
         padding-top: 24px;
       }
@@ -559,6 +609,19 @@
             <div>
               <b id="user-name">—</b><br /><small id="user-role">—</small>
             </div>
+            <div class="notice-wrap">
+              <button
+                id="notice-button"
+                class="ghost notice-button"
+                aria-label="通知"
+              >
+                <i data-lucide="bell"></i
+                ><span id="notice-count" class="notice-count hidden">0</span>
+              </button>
+              <div id="notice-panel" class="notice-panel hidden">
+                <div id="notice-list">暂无通知</div>
+              </div>
+            </div>
             <button id="logout" class="ghost">退出</button>
           </div>
         </header>
@@ -798,6 +861,40 @@
                 <option value="">暂未分配</option>
               </select>
             </div>
+            <div class="field">
+              <label>询盘有效性</label
+              ><select id="detail-validity" class="input">
+                <option value="pending">待确认</option>
+                <option value="valid">有效</option>
+                <option value="invalid">无效</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>无效/丢单原因</label
+              ><input
+                id="detail-invalid-reason"
+                class="input"
+                placeholder="无效或丢单时必填"
+              />
+            </div>
+            <div class="field">
+              <label>成交金额</label
+              ><input
+                id="detail-won-amount"
+                class="input"
+                type="number"
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div class="field">
+              <label>成交币种</label
+              ><input
+                id="detail-won-currency"
+                class="input"
+                placeholder="USD / CNY / EUR"
+              />
+            </div>
           </div>
           <div class="field">
             <label>修改原因 *</label
@@ -900,8 +997,47 @@
         $("#user-name").textContent = profile.full_name;
         $("#user-role").textContent = roleNames[profile.role] || profile.role;
         $("#avatar").textContent = profile.full_name.slice(0, 1);
-        await loadInquiries();
+        await Promise.all([loadInquiries(), loadNotifications()]);
         icons();
+      }
+      async function loadNotifications() {
+        const { data, error } = await supabase
+          .from("notifications")
+          .select("id,inquiry_id,title,body,read_at,created_at")
+          .order("created_at", { ascending: false })
+          .limit(30);
+        if (error) return;
+        const unread = (data || []).filter((x) => !x.read_at).length;
+        $("#notice-count").textContent = unread;
+        $("#notice-count").classList.toggle("hidden", unread === 0);
+        const list = $("#notice-list");
+        list.replaceChildren();
+        if (!data?.length) {
+          list.textContent = "暂无通知";
+          return;
+        }
+        data.forEach((item) => {
+          const row = document.createElement("div");
+          row.className = "notice-item";
+          const title = document.createElement("b");
+          title.textContent = item.title;
+          const detail = document.createElement("div");
+          detail.textContent = item.body || "";
+          const time = document.createElement("small");
+          time.textContent = fmtDate(item.created_at);
+          row.append(title, detail, time);
+          row.addEventListener("click", async () => {
+            if (!item.read_at)
+              await supabase
+                .from("notifications")
+                .update({ read_at: new Date().toISOString() })
+                .eq("id", item.id);
+            $("#notice-panel").classList.add("hidden");
+            if (item.inquiry_id) await openInquiryDetail(item.inquiry_id);
+            await loadNotifications();
+          });
+          list.append(row);
+        });
       }
       async function loadInquiries() {
         const { data, error } = await supabase
@@ -982,7 +1118,9 @@
         const [{ data: inquiry, error }, { data: owners }] = await Promise.all([
           supabase
             .from("inquiries")
-            .select("id,inquiry_no,title,status,owner_id")
+            .select(
+              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency",
+            )
             .eq("id", id)
             .single(),
           supabase
@@ -1005,6 +1143,11 @@
           owner.add(new Option(`${x.full_name} · ${roleNames[x.role]}`, x.id)),
         );
         owner.value = inquiry.owner_id || "";
+        $("#detail-validity").value = inquiry.validity;
+        $("#detail-invalid-reason").value =
+          inquiry.invalid_reason || inquiry.lost_reason || "";
+        $("#detail-won-amount").value = inquiry.won_amount || "";
+        $("#detail-won-currency").value = inquiry.won_currency || "";
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign;
         $("#detail-reason").value = "";
@@ -1114,6 +1257,9 @@
         await supabase.auth.signOut();
         location.reload();
       });
+      $("#notice-button").addEventListener("click", () =>
+        $("#notice-panel").classList.toggle("hidden"),
+      );
       $("#new-inquiry").addEventListener("click", () =>
         $("#inquiry-modal").classList.remove("hidden"),
       );
@@ -1351,10 +1497,37 @@
         button.disabled = true;
         const update = {
           status: $("#detail-status").value,
+          validity: $("#detail-validity").value,
           last_change_reason: reason,
           updated_by: profile.id,
           updated_at: new Date().toISOString(),
         };
+        const outcomeReason = $("#detail-invalid-reason").value.trim();
+        if (update.validity === "invalid" && !outcomeReason) {
+          toast("无效询盘必须填写原因");
+          button.disabled = false;
+          return;
+        }
+        if (update.status === "lost" && !outcomeReason) {
+          toast("丢单必须填写原因");
+          button.disabled = false;
+          return;
+        }
+        update.invalid_reason =
+          update.validity === "invalid" ? outcomeReason : null;
+        update.lost_reason = update.status === "lost" ? outcomeReason : null;
+        if (update.status === "won") {
+          const amount = Number($("#detail-won-amount").value);
+          const currency = $("#detail-won-currency").value.trim().toUpperCase();
+          if (!amount || !currency) {
+            toast("成交时必须填写金额和币种");
+            button.disabled = false;
+            return;
+          }
+          update.won_amount = amount;
+          update.won_currency = currency;
+          update.won_at = new Date().toISOString();
+        }
         if (["owner", "sales_manager"].includes(profile.role))
           update.owner_id = $("#detail-owner").value || null;
         const { error } = await supabase
@@ -1382,16 +1555,14 @@
         const next = $("#follow-next").value;
         const button = $("#add-follow");
         button.disabled = true;
-        const { error } = await supabase
-          .from("follow_ups")
-          .insert({
-            inquiry_id: currentInquiry.id,
-            author_id: profile.id,
-            method: $("#follow-method").value,
-            content,
-            customer_feedback: $("#follow-feedback").value.trim() || null,
-            next_follow_up_at: next ? new Date(next).toISOString() : null,
-          });
+        const { error } = await supabase.from("follow_ups").insert({
+          inquiry_id: currentInquiry.id,
+          author_id: profile.id,
+          method: $("#follow-method").value,
+          content,
+          customer_feedback: $("#follow-feedback").value.trim() || null,
+          next_follow_up_at: next ? new Date(next).toISOString() : null,
+        });
         if (!error && next)
           await supabase
             .from("inquiries")

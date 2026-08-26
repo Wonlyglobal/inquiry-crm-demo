@@ -913,6 +913,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     #wonly-crm-concept .crm-rail { background:#24352c; color:white; display:flex; flex-direction:column; align-items:center; padding:24px 12px; gap:12px; }
     #wonly-crm-concept .crm-logo { width:44px; height:44px; display:grid; place-items:center; border-radius:14px; background:#c7d8c8; color:#24352c; font-size:22px; font-weight:900; margin-bottom:18px; }
     #wonly-crm-concept .crm-nav { width:48px; height:48px; border:0; border-radius:14px; background:transparent; color:#b6c4bb; cursor:pointer; font-size:18px; display:grid; place-items:center; position:relative; }
+    #wonly-crm-concept .crm-nav svg { width:20px; height:20px; stroke-width:1.8; }
+    #wonly-crm-concept .crm-logo svg { width:23px; height:23px; stroke-width:2; }
     #wonly-crm-concept .crm-nav:hover { background:#354a3e; color:white; }
     #wonly-crm-concept .crm-nav.active { background:#c7d8c8; color:#24352c; }
     #wonly-crm-concept .crm-nav span { position:absolute; left:58px; top:8px; background:#24352c; color:white; padding:7px 10px; border-radius:8px; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none; z-index:20; }
@@ -1029,17 +1031,17 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;/style&gt;
   &lt;div class=&quot;crm-shell&quot;&gt;
     &lt;aside class=&quot;crm-rail&quot; aria-label=&quot;主导航&quot;&gt;
-      &lt;div class=&quot;crm-logo&quot;&gt;W&lt;/div&gt;
-      &lt;button class=&quot;crm-nav active&quot; data-page=&quot;dashboard&quot; aria-label=&quot;经营看板&quot;&gt;⌂&lt;span&gt;经营看板&lt;/span&gt;&lt;/button&gt;
-      &lt;button class=&quot;crm-nav&quot; data-page=&quot;workbench&quot; aria-label=&quot;销售工作台&quot;&gt;◫&lt;span&gt;销售工作台&lt;/span&gt;&lt;/button&gt;
-      &lt;button class=&quot;crm-nav&quot; data-page=&quot;leads&quot; aria-label=&quot;询盘商机&quot;&gt;▤&lt;span&gt;询盘商机&lt;/span&gt;&lt;/button&gt;
-      &lt;button class=&quot;crm-nav&quot; data-page=&quot;allocation&quot; aria-label=&quot;待分配池&quot;&gt;◎&lt;span&gt;待分配池&lt;/span&gt;&lt;/button&gt;
-      &lt;button class=&quot;crm-nav&quot; data-page=&quot;pool&quot; aria-label=&quot;客户公海&quot;&gt;♧&lt;span&gt;客户公海&lt;/span&gt;&lt;/button&gt;
-      &lt;button class=&quot;crm-nav&quot; data-page=&quot;detail&quot; aria-label=&quot;客户背调&quot;&gt;◈&lt;span&gt;客户背调&lt;/span&gt;&lt;/button&gt;
-      &lt;button class=&quot;crm-nav&quot; data-page=&quot;channels&quot; aria-label=&quot;渠道ROI&quot;&gt;⌁&lt;span&gt;渠道 ROI&lt;/span&gt;&lt;/button&gt;
-      &lt;button class=&quot;crm-nav&quot; data-page=&quot;daily&quot; aria-label=&quot;销售日报&quot;&gt;▥&lt;span&gt;销售日报&lt;/span&gt;&lt;/button&gt;
-      &lt;button class=&quot;crm-nav&quot; data-page=&quot;approvals&quot; aria-label=&quot;审批中心&quot;&gt;✓&lt;span&gt;审批中心&lt;/span&gt;&lt;/button&gt;
-      &lt;button class=&quot;crm-nav crm-nav-bottom&quot; aria-label=&quot;系统设置&quot;&gt;⚙&lt;span&gt;系统设置&lt;/span&gt;&lt;/button&gt;
+      &lt;div class=&quot;crm-logo&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+      &lt;button class=&quot;crm-nav active&quot; data-page=&quot;dashboard&quot; aria-label=&quot;经营看板&quot;&gt;&lt;i data-lucide=&quot;layout-dashboard&quot;&gt;&lt;/i&gt;&lt;span&gt;经营看板&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;workbench&quot; aria-label=&quot;销售工作台&quot;&gt;&lt;i data-lucide=&quot;briefcase-business&quot;&gt;&lt;/i&gt;&lt;span&gt;销售工作台&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;leads&quot; aria-label=&quot;询盘商机&quot;&gt;&lt;i data-lucide=&quot;contact-round&quot;&gt;&lt;/i&gt;&lt;span&gt;询盘商机&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;allocation&quot; aria-label=&quot;待分配池&quot;&gt;&lt;i data-lucide=&quot;inbox&quot;&gt;&lt;/i&gt;&lt;span&gt;待分配池&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;pool&quot; aria-label=&quot;客户公海&quot;&gt;&lt;i data-lucide=&quot;users-round&quot;&gt;&lt;/i&gt;&lt;span&gt;客户公海&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;detail&quot; aria-label=&quot;客户背调&quot;&gt;&lt;i data-lucide=&quot;scan-search&quot;&gt;&lt;/i&gt;&lt;span&gt;客户背调&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;channels&quot; aria-label=&quot;渠道ROI&quot;&gt;&lt;i data-lucide=&quot;chart-no-axes-combined&quot;&gt;&lt;/i&gt;&lt;span&gt;渠道 ROI&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;daily&quot; aria-label=&quot;销售日报&quot;&gt;&lt;i data-lucide=&quot;clipboard-list&quot;&gt;&lt;/i&gt;&lt;span&gt;销售日报&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;approvals&quot; aria-label=&quot;审批中心&quot;&gt;&lt;i data-lucide=&quot;badge-check&quot;&gt;&lt;/i&gt;&lt;span&gt;审批中心&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav crm-nav-bottom&quot; aria-label=&quot;系统设置&quot;&gt;&lt;i data-lucide=&quot;settings&quot;&gt;&lt;/i&gt;&lt;span&gt;系统设置&lt;/span&gt;&lt;/button&gt;
     &lt;/aside&gt;
     &lt;main class=&quot;crm-main&quot;&gt;
       &lt;header class=&quot;crm-top&quot;&gt;
@@ -1177,9 +1179,11 @@ html&gt;body{padding:0}&lt;/style&gt;
       &lt;div class=&quot;crm-toast&quot; role=&quot;status&quot;&gt;已将询盘分配给王海，并发送飞书提醒&lt;/div&gt;
     &lt;/main&gt;
   &lt;/div&gt;
+  &lt;script src=&quot;https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js&quot;&gt;&lt;/script&gt;
   &lt;script&gt;
     (() =&gt; {
       const root = document.getElementById(&#x27;wonly-crm-concept&#x27;);
+      if (window.lucide) window.lucide.createIcons({attrs:{&#x27;aria-hidden&#x27;:&#x27;true&#x27;}});
       const navs = root.querySelectorAll(&#x27;[data-page]&#x27;);
       const pages = root.querySelectorAll(&#x27;.crm-page&#x27;);
       function showPage(name) {

@@ -862,17 +862,23 @@
         </form>
       </div>
     </div>
+    <div id="mailbox-modal" class="modal-backdrop hidden">
+      <div class="modal" style="max-width:560px">
+        <div class="modal-head"><h3>连接业务员邮箱</h3><button id="close-mailbox" class="close">×</button></div>
+        <form id="mailbox-form" class="form-body">
+          <p class="hint">使用业务员本人生成的阿里邮箱第三方客户端密码。密码仅提交到服务端 Vault，不会在页面中保存或回显。</p>
+          <div class="field"><label>成员 *</label><select id="mailbox-user" class="input" required></select></div>
+          <div class="field"><label>企业邮箱 *</label><input id="mailbox-email" class="input" type="email" required /></div>
+          <div class="field"><label>第三方客户端密码 *</label><input id="mailbox-password" class="input" type="password" autocomplete="new-password" required /></div>
+          <div class="form-actions"><button type="button" id="cancel-mailbox" class="ghost">取消</button><button class="primary" type="submit">测试并连接</button></div>
+        </form>
+      </div>
+    </div>
     <div id="inquiry-modal" class="modal-backdrop hidden">
       <div class="modal">
         <div class="modal-head">
           <h3>新建询盘</h3>
           <button id="close-modal" class="close">×</button>
-        </div>
-        <div class="detail-kpis">
-          <div class="detail-kpi"><span>当前阶段</span><b id="detail-kpi-stage">—</b></div>
-          <div class="detail-kpi"><span>负责人</span><b id="detail-kpi-owner">—</b></div>
-          <div class="detail-kpi"><span>询盘时间</span><b id="detail-kpi-time">—</b></div>
-          <div class="detail-kpi"><span>有效性</span><b id="detail-kpi-validity">—</b></div>
         </div>
         <div class="tabs">
           <button class="tab active" data-tab="manual">手工录入</button
@@ -1031,6 +1037,12 @@
         <div class="modal-head">
           <h3 id="detail-title">询盘详情</h3>
           <button id="close-detail" class="ghost">← 返回询盘</button>
+        </div>
+        <div class="detail-kpis">
+          <div class="detail-kpi"><span>当前阶段</span><b id="detail-kpi-stage">—</b></div>
+          <div class="detail-kpi"><span>负责人</span><b id="detail-kpi-owner">—</b></div>
+          <div class="detail-kpi"><span>询盘时间</span><b id="detail-kpi-time">—</b></div>
+          <div class="detail-kpi"><span>有效性</span><b id="detail-kpi-validity">—</b></div>
         </div>
         <div class="detail-pipeline-wrap">
           <h4>询盘流水线</h4>
@@ -1254,6 +1266,9 @@
         $("#module-subtitle").textContent = config[1];
         $("#module-table-title").textContent = config[2];
         $("#module-empty-text").textContent = `暂无${config[2]}`;
+        const modulePrimary = $("#module-primary");
+        modulePrimary.classList.toggle("hidden", view !== "settings");
+        if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";
         const denied =
           (view === "settings" && profile.role !== "owner") ||
           (["email", "assignment", "research"].includes(view) &&
@@ -1280,9 +1295,9 @@
           columns = ["公司", "域名", "国家", "公司类型", "主营业务", "风险", "AI 摘要"];
           mapper = (x) => ({ cells: [x.name, x.domain, x.country, x.company_type, x.main_business, x.risk_level, x.ai_summary] });
         } else {
-          query = supabase.from("profiles").select("full_name,email,role,team,job_title,active,must_change_password").order("created_at", { ascending: true });
-          columns = ["姓名", "邮箱", "CRM 角色", "部门", "职位", "状态", "首次改密"];
-          mapper = (x) => ({ cells: [x.full_name, x.email, roleNames[x.role] || x.role, x.team, x.job_title, x.active ? "启用" : "停用", x.must_change_password ? "待修改" : "已完成"] });
+          query = supabase.from("profiles").select("full_name,email,role,team,job_title,active,must_change_password,mailbox_connections(status,last_tested_at,error_message)").order("created_at", { ascending: true });
+          columns = ["姓名", "邮箱", "CRM 角色", "部门", "职位", "状态", "邮箱连接", "最后测试"];
+          mapper = (x) => { const mailbox = Array.isArray(x.mailbox_connections) ? x.mailbox_connections[0] : x.mailbox_connections; return { cells: [x.full_name, x.email, roleNames[x.role] || x.role, x.team, x.job_title, x.active ? "启用" : "停用", mailbox?.status === "connected" ? "已连接" : mailbox?.status === "error" ? "连接失败" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"] }; };
         }
         const { data, error } = await query;
         if (error) { renderModuleTable(columns, []); toast("页面加载失败：" + error.message); return; }
@@ -2102,6 +2117,43 @@
         $("#follow-next").value = "";
         toast("跟进记录已保存");
         await loadTimeline(currentInquiry.id);
+      });
+      async function openMailboxBinding() {
+        const { data, error } = await supabase.from("profiles").select("id,full_name,email,role").in("role", ["sales", "sales_manager"]).eq("active", true).order("full_name");
+        if (error) return toast("成员加载失败：" + error.message);
+        const select = $("#mailbox-user");
+        select.replaceChildren(new Option("请选择成员", ""));
+        (data || []).forEach((member) => {
+          const option = new Option(`${member.full_name} · ${member.email}`, member.id);
+          option.dataset.email = member.email;
+          select.add(option);
+        });
+        $("#mailbox-email").value = "";
+        $("#mailbox-password").value = "";
+        $("#mailbox-modal").classList.remove("hidden");
+      }
+      $("#module-primary").addEventListener("click", openMailboxBinding);
+      $("#mailbox-user").addEventListener("change", (event) => {
+        $("#mailbox-email").value = event.target.selectedOptions[0]?.dataset.email || "";
+      });
+      ["#close-mailbox", "#cancel-mailbox"].forEach((selector) => $(selector).addEventListener("click", () => $("#mailbox-modal").classList.add("hidden")));
+      $("#mailbox-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = event.submitter;
+        button.disabled = true;
+        button.textContent = "正在测试 IMAP/SMTP…";
+        const { data, error } = await supabase.functions.invoke("mailbox-connect", { body: {
+          user_id: $("#mailbox-user").value,
+          email: $("#mailbox-email").value.trim(),
+          password: $("#mailbox-password").value,
+        }});
+        button.disabled = false;
+        button.textContent = "测试并连接";
+        if (error || data?.error) return toast("邮箱连接失败：" + (data?.error || error.message));
+        $("#mailbox-password").value = "";
+        $("#mailbox-modal").classList.add("hidden");
+        toast("邮箱连接成功");
+        await loadModule("settings");
       });
       const {
         data: { session },

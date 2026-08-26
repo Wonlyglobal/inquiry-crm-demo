@@ -1167,6 +1167,7 @@
           <div class="field"><label>证据来源（每行一个可访问网址）</label><textarea id="detail-research-sources" class="input" rows="4"></textarea></div>
           <h4>市场、新闻与线上信号</h4>
           <div class="form-actions"><a id="open-company-map" class="table-action" target="_blank" rel="noopener noreferrer">Google Maps 查看 ↗</a><a id="open-company-osm" class="table-action" target="_blank" rel="noopener noreferrer">OpenStreetMap 查看 ↗</a></div>
+          <div class="field"><label>中文智能总结</label><textarea id="detail-research-chinese-summary" class="input" rows="4" readonly placeholder="智能体正在生成中文总结…"></textarea></div>
           <div class="field"><label>相关新闻与项目线索（标题｜日期｜项目/品类判断｜来源网址）</label><textarea id="detail-research-news" class="input" rows="6" readonly placeholder="智能体正在自动检索…"></textarea></div>
           <div class="field"><label>官网 SEO 重点品类（每行一项）</label><textarea id="detail-research-seo-focus" class="input" rows="5" readonly placeholder="智能体正在自动分析官网…"></textarea></div>
           <div class="field"><label>项目与品类指向信号（每行一项）</label><textarea id="detail-research-project-categories" class="input" rows="5" readonly placeholder="智能体正在自动归纳…"></textarea></div>
@@ -1823,6 +1824,7 @@
         $("#detail-research-next-action").value = brief.next_best_action || "";
         $("#detail-research-sources").value = lineText(company.research_evidence_sources, ["url", "source_url", "text"]);
         $("#detail-research-news").value = lineText(company.news_signals, ["display", "title", "text"]);
+        $("#detail-research-chinese-summary").value = "智能体正在根据官网、新闻与品类信号生成中文总结…";
         $("#detail-research-seo-focus").value = lineText(company.seo_focus_categories, ["name", "text"]);
         $("#detail-research-project-categories").value = lineText(company.project_category_signals, ["display", "signal", "text"]);
         $("#detail-research-map-address").value = company.map_address || "";
@@ -2669,12 +2671,14 @@
           $("#detail-research-photo-sources").value = candidates.map((item) => safeExternalUrl(item.url)).filter(Boolean).join("\n");
           $("#detail-photo-verified").checked = true;
           const news = (data?.news_signals || []).map((item) => item.display || [item.title, item.date, item.source_url].filter(Boolean).join("｜"));
+          $("#detail-research-chinese-summary").value = data?.chinese_summary || "暂未生成中文总结";
           $("#detail-research-news").value = news.join("\n") || "未检索到与该公司唯一匹配的近期公开新闻";
           $("#detail-research-seo-focus").value = (data?.seo_focus_categories || []).join("\n") || "官网未公开可可靠识别的重点品类";
           const profile = data?.website_profile || {};
           $("#detail-research-project-categories").value = [profile.title, profile.description, ...(profile.keywords || [])].filter(Boolean).join("\n") || "未检索到明确的项目与品类指向信号";
         } catch (error) {
           renderCompanyImages([]);
+          if (!$("#detail-research-chinese-summary").value.trim()) $("#detail-research-chinese-summary").value = "中文总结暂时生成失败，智能体将在下次打开时重试";
           if (!$("#detail-research-news").value.trim()) $("#detail-research-news").value = "自动检索暂时失败，智能体将在下次打开时重试";
           if (!$("#detail-research-seo-focus").value.trim()) $("#detail-research-seo-focus").value = "官网暂时无法读取，智能体将在下次打开时重试";
           if (!$("#detail-research-project-categories").value.trim()) $("#detail-research-project-categories").value = "暂无可信的项目与品类指向信号";

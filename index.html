@@ -409,6 +409,28 @@
         border: 1px solid var(--line);
         box-shadow: none;
       }
+      .detail-pipeline-wrap {
+        padding: 20px 22px 4px;
+      }
+      .detail-pipeline-wrap h4 { margin: 0 0 12px; font-size: 15px; }
+      .detail-pipeline {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 12px;
+      }
+      .pipeline-step {
+        min-width: 112px;
+        flex: 1;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #f8faf8;
+      }
+      .pipeline-step b { display: block; font-size: 12px; margin-bottom: 7px; }
+      .pipeline-step small { display: block; color: var(--muted); font-size: 9px; line-height: 1.45; }
+      .pipeline-step.visited { border-color: #a9beaf; background: #edf3ee; }
+      .pipeline-step.active { border: 2px solid var(--green); background: #dfeae2; color: #234b33; }
       .modal {
         width: min(680px, 100%);
         max-height: 90vh;
@@ -992,6 +1014,10 @@
           <h3 id="detail-title">询盘详情</h3>
           <button id="close-detail" class="ghost">← 返回询盘</button>
         </div>
+        <div class="detail-pipeline-wrap">
+          <h4>询盘流水线</h4>
+          <div id="detail-pipeline" class="detail-pipeline"></div>
+        </div>
         <div class="form-body">
           <div class="detail-grid">
             <div class="field">
@@ -1483,10 +1509,32 @@
             .eq("inquiry_id", id)
             .order("created_at", { ascending: false }),
         ]);
+        const pipelineStatuses = [
+          "pending_assignment", "received", "qualified", "contacted", "quoted",
+          "sample_sent", "negotiating", "won", "lost",
+        ];
+        const stageTimes = new Map();
+        for (const stage of stages || []) {
+          if (!stageTimes.has(stage.to_status)) stageTimes.set(stage.to_status, stage.entered_at);
+        }
+        const pipeline = $("#detail-pipeline");
+        pipeline.replaceChildren();
+        pipelineStatuses.forEach((status) => {
+          const step = document.createElement("div");
+          step.className = "pipeline-step";
+          if (stageTimes.has(status)) step.classList.add("visited");
+          if (currentInquiry?.status === status) step.classList.add("active");
+          const name = document.createElement("b");
+          name.textContent = statusNames[status] || status;
+          const time = document.createElement("small");
+          time.textContent = stageTimes.has(status) ? fmtDate(stageTimes.get(status)) : "尚未进入";
+          step.append(name, time);
+          pipeline.append(step);
+        });
         const events = [
           ...(stages || []).map((x) => ({
             time: x.entered_at,
-            text: `进入阶段：${x.to_status}`,
+            text: `进入阶段：${statusNames[x.to_status] || x.to_status}`,
             sub: "系统阶段记录",
           })),
           ...(follows || []).map((x) => ({

@@ -595,7 +595,7 @@
           <i data-lucide="users-round"></i><span>客户公海</span></button
         ><button class="nav">
           <i data-lucide="scan-search"></i><span>客户背调</span></button
-        ><button class="nav">
+        ><button id="daily-report-button" class="nav">
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
         ><button class="nav bottom">
           <i data-lucide="settings"></i><span>系统设置</span>
@@ -830,6 +830,79 @@
             ><button class="primary" type="submit">解析并生成询盘</button>
           </div>
         </form>
+      </div>
+    </div>
+    <div id="daily-modal" class="modal-backdrop hidden">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>销售日报</h3>
+          <button id="close-daily" class="close">×</button>
+        </div>
+        <div class="form-body">
+          <div id="sales-daily-form">
+            <p class="hint">
+              每日按中国自然日提交。系统会自动统计今日跟进数量，主管可查看团队汇总。
+            </p>
+            <div class="detail-grid">
+              <div class="field">
+                <label>今日新增客户线索</label
+                ><input
+                  id="daily-new-leads"
+                  class="input"
+                  type="number"
+                  min="0"
+                  value="0"
+                />
+              </div>
+              <div class="field">
+                <label>今日跟进次数</label
+                ><input
+                  id="daily-followups"
+                  class="input"
+                  type="number"
+                  min="0"
+                  value="0"
+                />
+              </div>
+            </div>
+            <div class="field">
+              <label>关键进展</label
+              ><textarea id="daily-progress" class="input" rows="3"></textarea>
+            </div>
+            <div class="field">
+              <label>困难与需要支持</label
+              ><textarea id="daily-blockers" class="input" rows="2"></textarea>
+            </div>
+            <div class="field">
+              <label>明日计划</label
+              ><textarea id="daily-plan" class="input" rows="2"></textarea>
+            </div>
+            <div class="form-actions">
+              <button id="submit-daily" class="primary">提交今日日报</button>
+            </div>
+          </div>
+          <div id="manager-daily-view" class="hidden">
+            <div class="table-wrap">
+              <div class="table-head">
+                <span>今日团队日报</span
+                ><span id="daily-summary" class="tag">0/0 已提交</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>销售</th>
+                    <th>新增线索</th>
+                    <th>跟进</th>
+                    <th>关键进展</th>
+                    <th>提交时间</th>
+                  </tr>
+                </thead>
+                <tbody id="daily-report-body"></tbody>
+              </table>
+              <div id="daily-empty" class="empty">暂无销售账号或今日日报</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div id="toast" class="toast hidden"></div>
@@ -1260,6 +1333,99 @@
       $("#notice-button").addEventListener("click", () =>
         $("#notice-panel").classList.toggle("hidden"),
       );
+      function chinaDate() {
+        return new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Shanghai",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
+      }
+      async function openDailyReport() {
+        $("#daily-modal").classList.remove("hidden");
+        const isManager = ["owner", "sales_manager"].includes(profile.role);
+        $("#sales-daily-form").classList.toggle(
+          "hidden",
+          profile.role !== "sales",
+        );
+        $("#manager-daily-view").classList.toggle("hidden", !isManager);
+        if (isManager) {
+          const [{ data: sales }, { data: reports }] = await Promise.all([
+            supabase
+              .from("profiles")
+              .select("id,full_name")
+              .eq("role", "sales")
+              .eq("active", true),
+            supabase
+              .from("daily_sales_reports")
+              .select(
+                "sales_id,new_leads_count,follow_up_count,key_progress,submitted_at,profiles(full_name)",
+              )
+              .eq("report_date", chinaDate())
+              .order("submitted_at", { ascending: false }),
+          ]);
+          $("#daily-summary").textContent =
+            `${reports?.length || 0}/${sales?.length || 0} 已提交`;
+          const body = $("#daily-report-body");
+          body.replaceChildren();
+          $("#daily-empty").classList.toggle(
+            "hidden",
+            Boolean(reports?.length),
+          );
+          (reports || []).forEach((x) => {
+            const tr = document.createElement("tr");
+            [
+              x.profiles?.full_name || "—",
+              x.new_leads_count,
+              x.follow_up_count,
+              x.key_progress || "—",
+              fmtDate(x.submitted_at),
+            ].forEach((v) => {
+              const td = document.createElement("td");
+              td.textContent = v;
+              tr.append(td);
+            });
+            body.append(tr);
+          });
+        } else if (profile.role === "sales") {
+          const date = chinaDate();
+          const start = `${date}T00:00:00+08:00`;
+          const nextDate = new Date(`${date}T00:00:00+08:00`);
+          nextDate.setDate(nextDate.getDate() + 1);
+          const { count } = await supabase
+            .from("follow_ups")
+            .select("id", { count: "exact", head: true })
+            .eq("author_id", profile.id)
+            .gte("created_at", start)
+            .lt("created_at", nextDate.toISOString());
+          $("#daily-followups").value = count || 0;
+        }
+      }
+      $("#daily-report-button").addEventListener("click", openDailyReport);
+      $("#close-daily").addEventListener("click", () =>
+        $("#daily-modal").classList.add("hidden"),
+      );
+      $("#submit-daily").addEventListener("click", async () => {
+        const payload = {
+          sales_id: profile.id,
+          report_date: chinaDate(),
+          new_leads_count: Number($("#daily-new-leads").value) || 0,
+          follow_up_count: Number($("#daily-followups").value) || 0,
+          key_progress: $("#daily-progress").value.trim() || null,
+          blockers: $("#daily-blockers").value.trim() || null,
+          tomorrow_plan: $("#daily-plan").value.trim() || null,
+          updated_at: new Date().toISOString(),
+        };
+        const { error } = await supabase
+          .from("daily_sales_reports")
+          .upsert(payload, { onConflict: "sales_id,report_date" });
+        if (error) {
+          toast("日报提交失败：" + error.message);
+          return;
+        }
+        toast("今日日报已提交给主管");
+        $("#daily-modal").classList.add("hidden");
+      });
       $("#new-inquiry").addEventListener("click", () =>
         $("#inquiry-modal").classList.remove("hidden"),
       );

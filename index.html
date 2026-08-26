@@ -1638,7 +1638,7 @@
                     "request_original_email_forward",
                     { target_inquiry_id: x.id },
                   );
-                  if (forwardError) throw forwardError;
+                  if (forwardError && !/转发队列/.test(forwardError.message || "")) throw forwardError;
                   const { error: deliveryError } = await supabase.functions.invoke("email-forward", { body: { inquiry_id: x.id } });
                   if (deliveryError) throw deliveryError;
                 }

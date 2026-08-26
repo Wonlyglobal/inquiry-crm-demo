@@ -1,0 +1,1468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Global Inquiry Crm Ui</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Global Inquiry Crm Ui" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Global Inquiry Crm Ui&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: var(--border-radius-lg, 12.5px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress {
+  display: flex;
+  height: 6px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 6px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: 16px !important;
+  height: 16px !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;wonly-crm-concept&quot;&gt;
+  &lt;style&gt;
+    #wonly-crm-concept { font-family: Inter, &quot;PingFang SC&quot;, &quot;Microsoft YaHei&quot;, sans-serif; color:#18231d; background:#e9ece9; padding:18px; border-radius:28px; min-height:780px; box-sizing:border-box; }
+    #wonly-crm-concept * { box-sizing:border-box; }
+    #wonly-crm-concept .crm-shell { max-width:1440px; min-height:744px; margin:auto; display:grid; grid-template-columns:82px 1fr; background:#f6f7f5; border:1px solid #dfe4df; border-radius:24px; overflow:hidden; box-shadow:0 24px 70px rgba(33,54,41,.12); }
+    #wonly-crm-concept .crm-rail { background:#24352c; color:white; display:flex; flex-direction:column; align-items:center; padding:24px 12px; gap:12px; }
+    #wonly-crm-concept .crm-logo { width:44px; height:44px; display:grid; place-items:center; border-radius:14px; background:#c7d8c8; color:#24352c; font-size:22px; font-weight:900; margin-bottom:18px; }
+    #wonly-crm-concept .crm-nav { width:48px; height:48px; border:0; border-radius:14px; background:transparent; color:#b6c4bb; cursor:pointer; font-size:18px; display:grid; place-items:center; position:relative; }
+    #wonly-crm-concept .crm-nav:hover { background:#354a3e; color:white; }
+    #wonly-crm-concept .crm-nav.active { background:#c7d8c8; color:#24352c; }
+    #wonly-crm-concept .crm-nav span { position:absolute; left:58px; top:8px; background:#24352c; color:white; padding:7px 10px; border-radius:8px; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none; z-index:20; }
+    #wonly-crm-concept .crm-nav:hover span { opacity:1; }
+    #wonly-crm-concept .crm-nav-bottom { margin-top:auto; }
+    #wonly-crm-concept .crm-main { padding:0 28px 28px; overflow:hidden; }
+    #wonly-crm-concept .crm-top { height:84px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #e4e8e4; }
+    #wonly-crm-concept .crm-brand { font-weight:800; font-size:16px; letter-spacing:.02em; }
+    #wonly-crm-concept .crm-tools { display:flex; align-items:center; gap:10px; }
+    #wonly-crm-concept .crm-search { width:240px; height:40px; border:1px solid #dde3de; background:white; border-radius:12px; padding:0 14px; color:#617067; }
+    #wonly-crm-concept .crm-icon { width:40px; height:40px; border:1px solid #dde3de; background:white; border-radius:12px; color:#3f5046; }
+    #wonly-crm-concept .crm-user { display:flex; align-items:center; gap:9px; background:white; padding:5px 10px 5px 6px; border:1px solid #dde3de; border-radius:14px; font-size:12px; }
+    #wonly-crm-concept .crm-avatar { width:30px; height:30px; border-radius:10px; background:linear-gradient(135deg,#cfe9d7,#5e8f70); display:grid; place-items:center; font-weight:800; color:#14321f; }
+    #wonly-crm-concept .crm-page { display:none; padding-top:22px; }
+    #wonly-crm-concept .crm-page.active { display:block; }
+    #wonly-crm-concept .crm-heading { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:18px; }
+    #wonly-crm-concept h1 { margin:0; font-size:28px; letter-spacing:-.04em; }
+    #wonly-crm-concept .crm-subtitle { margin:7px 0 0; color:#718078; font-size:13px; }
+    #wonly-crm-concept .crm-actions { display:flex; gap:9px; }
+    #wonly-crm-concept .crm-primary, #wonly-crm-concept .crm-secondary { height:40px; border-radius:12px; padding:0 16px; font-weight:700; cursor:pointer; }
+    #wonly-crm-concept .crm-primary { background:#3f7659; color:white; border:0; }
+    #wonly-crm-concept .crm-secondary { background:white; color:#324139; border:1px solid #dce2dd; }
+    #wonly-crm-concept .crm-filter { display:flex; gap:8px; margin-bottom:16px; }
+    #wonly-crm-concept .crm-filter button { border:1px solid #dce2dd; background:white; color:#56645c; border-radius:10px; padding:8px 12px; font-size:12px; }
+    #wonly-crm-concept .crm-kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:14px; }
+    #wonly-crm-concept .crm-panel { background:white; border:1px solid #e4e8e4; border-radius:18px; padding:17px; box-shadow:0 5px 15px rgba(43,65,51,.035); }
+    #wonly-crm-concept .crm-kpi-label { color:#6f7c74; font-size:12px; display:flex; justify-content:space-between; }
+    #wonly-crm-concept .crm-kpi-value { font-size:26px; font-weight:850; letter-spacing:-.04em; margin:11px 0 4px; }
+    #wonly-crm-concept .crm-delta { font-size:11px; color:#3f7659; }
+    #wonly-crm-concept .crm-warn { color:#d56637; }
+    #wonly-crm-concept .crm-dashboard-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:14px; }
+    #wonly-crm-concept .crm-chart-title { font-weight:800; font-size:15px; margin-bottom:4px; }
+    #wonly-crm-concept .crm-chart-sub { color:#7b8880; font-size:11px; }
+    #wonly-crm-concept .crm-bars { height:215px; display:flex; align-items:flex-end; gap:17px; padding:28px 10px 22px; border-bottom:1px solid #dfe5e0; background:repeating-linear-gradient(to bottom,#fff 0,#fff 49px,#edf0ed 50px); }
+    #wonly-crm-concept .crm-bar-group { flex:1; height:100%; display:flex; gap:5px; align-items:flex-end; position:relative; }
+    #wonly-crm-concept .crm-bar { flex:1; border-radius:7px 7px 3px 3px; min-height:10px; }
+    #wonly-crm-concept .crm-bar.inquiry { background:#d7e2d9; }
+    #wonly-crm-concept .crm-bar.won { background:#5f876e; }
+    #wonly-crm-concept .crm-bar-label { position:absolute; bottom:-19px; left:50%; transform:translateX(-50%); font-size:10px; color:#7b8880; }
+    #wonly-crm-concept .crm-legend { display:flex; gap:16px; font-size:11px; color:#647168; margin-top:12px; }
+    #wonly-crm-concept .crm-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+    #wonly-crm-concept .crm-funnel { display:flex; flex-direction:column; gap:11px; margin-top:19px; }
+    #wonly-crm-concept .crm-funnel-row { display:grid; grid-template-columns:70px 1fr 58px; gap:10px; align-items:center; font-size:11px; }
+    #wonly-crm-concept .crm-track { height:9px; background:#eef1ee; border-radius:20px; overflow:hidden; }
+    #wonly-crm-concept .crm-fill { height:100%; border-radius:20px; background:#5f876e; }
+    #wonly-crm-concept .crm-lower { grid-column:1/-1; display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:14px; }
+    #wonly-crm-concept .crm-list { margin-top:12px; }
+    #wonly-crm-concept .crm-list-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid #eef1ee; font-size:11px; }
+    #wonly-crm-concept .crm-list-row strong { font-size:12px; display:block; }
+    #wonly-crm-concept .crm-list-row small { color:#829087; }
+    #wonly-crm-concept .crm-country { width:30px; height:30px; background:#eef4ef; border-radius:9px; display:grid; place-items:center; font-size:14px; }
+    #wonly-crm-concept .crm-grow { flex:1; }
+    #wonly-crm-concept .crm-pill { padding:5px 8px; border-radius:20px; background:#edf3ee; color:#3f7659; font-size:10px; font-weight:700; }
+    #wonly-crm-concept .crm-pill.orange { background:#fff0e8; color:#d56637; }
+    #wonly-crm-concept .crm-pill.red { background:#ffe9e7; color:#c9493d; }
+    #wonly-crm-concept .crm-table-wrap { background:white; border:1px solid #e4e8e4; border-radius:18px; overflow:hidden; }
+    #wonly-crm-concept .crm-table-tools { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid #e8ece8; }
+    #wonly-crm-concept table { width:100%; border-collapse:collapse; font-size:11px; }
+    #wonly-crm-concept th { text-align:left; color:#78857d; font-weight:600; padding:12px 14px; background:#fafbfa; }
+    #wonly-crm-concept td { padding:13px 14px; border-top:1px solid #eef1ee; vertical-align:middle; }
+    #wonly-crm-concept tr[data-detail] { cursor:pointer; }
+    #wonly-crm-concept tr[data-detail]:hover td { background:#f7faf8; }
+    #wonly-crm-concept .crm-score { width:30px; height:30px; border-radius:10px; display:grid; place-items:center; color:white; font-weight:850; }
+    #wonly-crm-concept .crm-score.a { background:#4f7d62; }
+    #wonly-crm-concept .crm-score.b { background:#6ba65b; }
+    #wonly-crm-concept .crm-score.d { background:#cf4c42; }
+    #wonly-crm-concept .crm-kanban { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; overflow:auto; padding-bottom:4px; }
+    #wonly-crm-concept .crm-column { min-width:210px; background:#eef1ee; border-radius:16px; padding:10px; }
+    #wonly-crm-concept .crm-column-head { display:flex; justify-content:space-between; padding:4px 4px 10px; font-size:12px; font-weight:800; }
+    #wonly-crm-concept .crm-lead-card { background:white; border:1px solid #e1e6e2; border-radius:14px; padding:13px; margin-bottom:9px; }
+    #wonly-crm-concept .crm-lead-card strong { font-size:12px; }
+    #wonly-crm-concept .crm-lead-card p { color:#728078; font-size:10px; line-height:1.5; margin:6px 0 10px; }
+    #wonly-crm-concept .crm-lead-meta { display:flex; justify-content:space-between; align-items:center; font-size:10px; }
+    #wonly-crm-concept .crm-detail-grid { display:grid; grid-template-columns:1.15fr .85fr; gap:14px; }
+    #wonly-crm-concept .crm-company-head { display:flex; gap:14px; align-items:center; }
+    #wonly-crm-concept .crm-company-logo { width:52px; height:52px; background:#354a3e; color:#d8e4d9; border-radius:16px; display:grid; place-items:center; font-size:18px; font-weight:900; }
+    #wonly-crm-concept .crm-tabs { display:flex; gap:20px; border-bottom:1px solid #e7ebe8; margin:18px -17px 0; padding:0 17px; }
+    #wonly-crm-concept .crm-tab { padding:0 0 12px; border:0; background:transparent; color:#718078; font-size:11px; }
+    #wonly-crm-concept .crm-tab.active { color:#3f7659; font-weight:800; border-bottom:2px solid #3f7659; }
+    #wonly-crm-concept .crm-ai-summary { background:#f1f5f1; border:1px solid #dce6de; border-radius:14px; padding:14px; margin-top:14px; font-size:11px; line-height:1.65; }
+    #wonly-crm-concept .crm-research-score { display:flex; align-items:center; gap:15px; margin:17px 0; }
+    #wonly-crm-concept .crm-score-ring { width:88px; height:88px; border-radius:50%; background:conic-gradient(#5f876e 0 86%,#e7ede9 86%); display:grid; place-items:center; }
+    #wonly-crm-concept .crm-score-ring::after { content:&quot;86&quot;; width:68px; height:68px; border-radius:50%; background:white; display:grid; place-items:center; font-size:24px; font-weight:900; }
+    #wonly-crm-concept .crm-risk { background:#fff0ee; border:1px solid #f5d2ce; border-radius:12px; padding:12px; color:#a63f36; font-size:11px; }
+    #wonly-crm-concept .crm-timeline { margin-top:10px; }
+    #wonly-crm-concept .crm-event { display:grid; grid-template-columns:18px 1fr; gap:10px; padding-bottom:15px; font-size:11px; }
+    #wonly-crm-concept .crm-event-dot { width:10px; height:10px; border:3px solid #d7e2d9; background:#5f876e; border-radius:50%; margin-top:3px; }
+    #wonly-crm-concept .crm-roster { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    #wonly-crm-concept .crm-sales-card { background:white; border:1px solid #e3e8e4; border-radius:16px; padding:15px; display:grid; grid-template-columns:42px 1fr auto; gap:12px; align-items:center; cursor:pointer; }
+    #wonly-crm-concept .crm-sales-card.selected { border:2px solid #5f876e; box-shadow:0 0 0 3px #e9efea; }
+    #wonly-crm-concept .crm-sales-card .crm-avatar { width:42px; height:42px; }
+    #wonly-crm-concept .crm-load { font-size:10px; color:#718078; }
+    #wonly-crm-concept .crm-load-bar { width:100px; height:7px; background:#edf1ee; border-radius:10px; margin-top:6px; overflow:hidden; }
+    #wonly-crm-concept .crm-load-bar i { display:block; height:100%; background:#5f876e; border-radius:10px; }
+    #wonly-crm-concept .crm-roi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    #wonly-crm-concept .crm-channel-icon { width:40px; height:40px; border-radius:12px; display:grid; place-items:center; background:#eef3ef; font-weight:900; color:#4f725d; }
+    #wonly-crm-concept .crm-channel-top { display:flex; gap:11px; align-items:center; }
+    #wonly-crm-concept .crm-roi { font-size:27px; font-weight:900; margin:18px 0 4px; }
+    #wonly-crm-concept .crm-approval { display:grid; grid-template-columns:48px 1fr auto; gap:13px; align-items:center; padding:15px 0; border-top:1px solid #edf0ed; }
+    #wonly-crm-concept .crm-approval-actions { display:flex; gap:7px; }
+    #wonly-crm-concept .crm-small-button { border:1px solid #dce2dd; background:white; border-radius:9px; padding:7px 10px; font-size:10px; }
+    #wonly-crm-concept .crm-small-button.approve { background:#3f7659; border-color:#3f7659; color:white; }
+    #wonly-crm-concept .crm-toast { position:absolute; right:34px; bottom:30px; background:#354a3e; color:white; padding:12px 16px; border-radius:12px; font-size:11px; box-shadow:0 14px 30px rgba(21,45,33,.20); opacity:0; transform:translateY(8px); transition:.2s; pointer-events:none; }
+    #wonly-crm-concept .crm-toast.show { opacity:1; transform:none; }
+    @media (max-width:900px) {
+      #wonly-crm-concept { padding:8px; }
+      #wonly-crm-concept .crm-shell { grid-template-columns:64px 1fr; }
+      #wonly-crm-concept .crm-main { padding:0 16px 20px; }
+      #wonly-crm-concept .crm-search { display:none; }
+      #wonly-crm-concept .crm-kpis { grid-template-columns:repeat(2,1fr); }
+      #wonly-crm-concept .crm-dashboard-grid, #wonly-crm-concept .crm-detail-grid { grid-template-columns:1fr; }
+      #wonly-crm-concept .crm-lower, #wonly-crm-concept .crm-roi-grid { grid-template-columns:1fr; }
+    }
+  &lt;/style&gt;
+  &lt;div class=&quot;crm-shell&quot;&gt;
+    &lt;aside class=&quot;crm-rail&quot; aria-label=&quot;主导航&quot;&gt;
+      &lt;div class=&quot;crm-logo&quot;&gt;W&lt;/div&gt;
+      &lt;button class=&quot;crm-nav active&quot; data-page=&quot;dashboard&quot; aria-label=&quot;经营看板&quot;&gt;⌂&lt;span&gt;经营看板&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;workbench&quot; aria-label=&quot;销售工作台&quot;&gt;◫&lt;span&gt;销售工作台&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;leads&quot; aria-label=&quot;询盘商机&quot;&gt;▤&lt;span&gt;询盘商机&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;allocation&quot; aria-label=&quot;待分配池&quot;&gt;◎&lt;span&gt;待分配池&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;pool&quot; aria-label=&quot;客户公海&quot;&gt;♧&lt;span&gt;客户公海&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;detail&quot; aria-label=&quot;客户背调&quot;&gt;◈&lt;span&gt;客户背调&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;channels&quot; aria-label=&quot;渠道ROI&quot;&gt;⌁&lt;span&gt;渠道 ROI&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;daily&quot; aria-label=&quot;销售日报&quot;&gt;▥&lt;span&gt;销售日报&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav&quot; data-page=&quot;approvals&quot; aria-label=&quot;审批中心&quot;&gt;✓&lt;span&gt;审批中心&lt;/span&gt;&lt;/button&gt;
+      &lt;button class=&quot;crm-nav crm-nav-bottom&quot; aria-label=&quot;系统设置&quot;&gt;⚙&lt;span&gt;系统设置&lt;/span&gt;&lt;/button&gt;
+    &lt;/aside&gt;
+    &lt;main class=&quot;crm-main&quot;&gt;
+      &lt;header class=&quot;crm-top&quot;&gt;
+        &lt;div class=&quot;crm-brand&quot;&gt;王力 · 全球询盘 CRM&lt;/div&gt;
+        &lt;div class=&quot;crm-tools&quot;&gt;
+          &lt;input class=&quot;crm-search&quot; aria-label=&quot;全局搜索&quot; placeholder=&quot;搜索公司、联系人、商机…&quot;&gt;
+          &lt;button class=&quot;crm-icon&quot;&gt;⌕&lt;/button&gt;&lt;button class=&quot;crm-icon&quot;&gt;♢&lt;/button&gt;
+          &lt;div class=&quot;crm-user&quot;&gt;&lt;div class=&quot;crm-avatar&quot;&gt;陈&lt;/div&gt;&lt;div&gt;&lt;b&gt;陈总&lt;/b&gt;&lt;br&gt;&lt;small&gt;全局视图&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/header&gt;
+
+      &lt;section class=&quot;crm-page active&quot; id=&quot;page-dashboard&quot;&gt;
+        &lt;div class=&quot;crm-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;经营总览&lt;/h1&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;全球询盘、转化与渠道投入的统一视图&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;crm-actions&quot;&gt;&lt;button class=&quot;crm-secondary&quot;&gt;近 30 天⌄&lt;/button&gt;&lt;button class=&quot;crm-primary&quot; data-go=&quot;leads&quot;&gt;＋ 新建询盘&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-filter&quot;&gt;&lt;button&gt;全部区域⌄&lt;/button&gt;&lt;button&gt;全部产品⌄&lt;/button&gt;&lt;button&gt;全部渠道⌄&lt;/button&gt;&lt;button&gt;首次 + 复购⌄&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-kpis&quot;&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;询盘量 &lt;span&gt;↗&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;1,284&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;↑ 18.6% 较上期&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;有效率 &lt;span&gt;◉&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;67.8%&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;↑ 4.2 个百分点&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;报价率 &lt;span&gt;▧&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;43.2%&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;↑ 2.1 个百分点&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;成交金额 &lt;span&gt;¥/$&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;¥8.46M&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;$1.18M · ↑ 12.5%&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;首次响应 &lt;span&gt;⏱&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;8m 24s&lt;/div&gt;&lt;div class=&quot;crm-delta crm-warn&quot;&gt;86.3% 达到 10 分钟 SLA&lt;/div&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;crm-dashboard-grid&quot;&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;询盘与成交趋势&lt;/div&gt;&lt;div class=&quot;crm-chart-sub&quot;&gt;最近 6 个月 · 主来源归因&lt;/div&gt;&lt;div class=&quot;crm-bars&quot;&gt;
+            &lt;div class=&quot;crm-bar-group&quot;&gt;&lt;i class=&quot;crm-bar inquiry&quot; style=&quot;height:56%&quot;&gt;&lt;/i&gt;&lt;i class=&quot;crm-bar won&quot; style=&quot;height:20%&quot;&gt;&lt;/i&gt;&lt;span class=&quot;crm-bar-label&quot;&gt;3月&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-bar-group&quot;&gt;&lt;i class=&quot;crm-bar inquiry&quot; style=&quot;height:68%&quot;&gt;&lt;/i&gt;&lt;i class=&quot;crm-bar won&quot; style=&quot;height:31%&quot;&gt;&lt;/i&gt;&lt;span class=&quot;crm-bar-label&quot;&gt;4月&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-bar-group&quot;&gt;&lt;i class=&quot;crm-bar inquiry&quot; style=&quot;height:61%&quot;&gt;&lt;/i&gt;&lt;i class=&quot;crm-bar won&quot; style=&quot;height:28%&quot;&gt;&lt;/i&gt;&lt;span class=&quot;crm-bar-label&quot;&gt;5月&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-bar-group&quot;&gt;&lt;i class=&quot;crm-bar inquiry&quot; style=&quot;height:79%&quot;&gt;&lt;/i&gt;&lt;i class=&quot;crm-bar won&quot; style=&quot;height:42%&quot;&gt;&lt;/i&gt;&lt;span class=&quot;crm-bar-label&quot;&gt;6月&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-bar-group&quot;&gt;&lt;i class=&quot;crm-bar inquiry&quot; style=&quot;height:87%&quot;&gt;&lt;/i&gt;&lt;i class=&quot;crm-bar won&quot; style=&quot;height:49%&quot;&gt;&lt;/i&gt;&lt;span class=&quot;crm-bar-label&quot;&gt;7月&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-bar-group&quot;&gt;&lt;i class=&quot;crm-bar inquiry&quot; style=&quot;height:96%&quot;&gt;&lt;/i&gt;&lt;i class=&quot;crm-bar won&quot; style=&quot;height:58%&quot;&gt;&lt;/i&gt;&lt;span class=&quot;crm-bar-label&quot;&gt;8月&lt;/span&gt;&lt;/div&gt;
+          &lt;/div&gt;&lt;div class=&quot;crm-legend&quot;&gt;&lt;span&gt;&lt;i class=&quot;crm-dot&quot; style=&quot;background:#d7e2d9&quot;&gt;&lt;/i&gt;有效询盘&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;crm-dot&quot; style=&quot;background:#5f876e&quot;&gt;&lt;/i&gt;成交商机&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;销售漏斗&lt;/div&gt;&lt;div class=&quot;crm-chart-sub&quot;&gt;从有效询盘到成交&lt;/div&gt;&lt;div class=&quot;crm-funnel&quot;&gt;
+            &lt;div class=&quot;crm-funnel-row&quot;&gt;&lt;span&gt;有效询盘&lt;/span&gt;&lt;div class=&quot;crm-track&quot;&gt;&lt;div class=&quot;crm-fill&quot; style=&quot;width:100%&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;b&gt;870&lt;/b&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-funnel-row&quot;&gt;&lt;span&gt;已联系&lt;/span&gt;&lt;div class=&quot;crm-track&quot;&gt;&lt;div class=&quot;crm-fill&quot; style=&quot;width:82%&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;b&gt;714&lt;/b&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-funnel-row&quot;&gt;&lt;span&gt;已报价&lt;/span&gt;&lt;div class=&quot;crm-track&quot;&gt;&lt;div class=&quot;crm-fill&quot; style=&quot;width:64%&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;b&gt;556&lt;/b&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-funnel-row&quot;&gt;&lt;span&gt;寄样&lt;/span&gt;&lt;div class=&quot;crm-track&quot;&gt;&lt;div class=&quot;crm-fill&quot; style=&quot;width:38%&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;b&gt;329&lt;/b&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-funnel-row&quot;&gt;&lt;span&gt;谈判&lt;/span&gt;&lt;div class=&quot;crm-track&quot;&gt;&lt;div class=&quot;crm-fill&quot; style=&quot;width:27%&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;b&gt;235&lt;/b&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-funnel-row&quot;&gt;&lt;span&gt;成交&lt;/span&gt;&lt;div class=&quot;crm-track&quot;&gt;&lt;div class=&quot;crm-fill&quot; style=&quot;width:18%&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;b&gt;157&lt;/b&gt;&lt;/div&gt;
+          &lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-lower&quot;&gt;
+            &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;重点预警&lt;/div&gt;&lt;div class=&quot;crm-list&quot;&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill red&quot;&gt;风险&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;Al Noor Security LLC&lt;/strong&gt;&lt;small&gt;背调发现重大信用风险&lt;/small&gt;&lt;/div&gt;&lt;b&gt;D&lt;/b&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;超时&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;Marriott Procurement UAE&lt;/strong&gt;&lt;small&gt;谈判阶段 4 天未跟进&lt;/small&gt;&lt;/div&gt;&lt;b&gt;4d&lt;/b&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;国家转化 TOP 3&lt;/div&gt;&lt;div class=&quot;crm-list&quot;&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-country&quot;&gt;🇦🇪&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;阿联酋&lt;/strong&gt;&lt;small&gt;成交率 22.4%&lt;/small&gt;&lt;/div&gt;&lt;b&gt;¥1.8M&lt;/b&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-country&quot;&gt;🇸🇦&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;沙特&lt;/strong&gt;&lt;small&gt;成交率 19.8%&lt;/small&gt;&lt;/div&gt;&lt;b&gt;¥1.5M&lt;/b&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;今日待处理&lt;/div&gt;&lt;div class=&quot;crm-list&quot;&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;12&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;待分配询盘&lt;/strong&gt;&lt;small&gt;其中 4 条 A 级&lt;/small&gt;&lt;/div&gt;&lt;b&gt;→&lt;/b&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot; data-go=&quot;daily&quot; style=&quot;cursor:pointer&quot;&gt;&lt;span class=&quot;crm-pill red&quot;&gt;5&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;销售未完成录入&lt;/strong&gt;&lt;small&gt;团队完成率 83%&lt;/small&gt;&lt;/div&gt;&lt;b&gt;→&lt;/b&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;crm-page&quot; id=&quot;page-workbench&quot;&gt;
+        &lt;div class=&quot;crm-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;早上好，王海&lt;/h1&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;今天还有 3 条客户线索待录入，2 个跟进任务即将超时&lt;/p&gt;&lt;/div&gt;&lt;button class=&quot;crm-primary&quot; id=&quot;quick-entry-button&quot;&gt;＋ 快速录入线索&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-kpis&quot;&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;今日线索目标 &lt;span&gt;7 / 10&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;70%&lt;/div&gt;&lt;div class=&quot;crm-track&quot;&gt;&lt;div class=&quot;crm-fill&quot; style=&quot;width:70%&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;今日待跟进&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;12&lt;/div&gt;&lt;div class=&quot;crm-delta crm-warn&quot;&gt;2 条即将超时&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;本月有效询盘&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;48&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;有效率 78.6%&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;本月成交&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;¥860K&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;$120K · 目标 82%&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;平均首次响应&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;7m 18s&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;91% 达到 SLA&lt;/div&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;crm-detail-grid&quot;&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;今日行动清单&lt;/div&gt;&lt;div class=&quot;crm-list&quot;&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill red&quot;&gt;6m&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;Qiddiya Investment · 首次联系&lt;/strong&gt;&lt;small&gt;酒店智能锁 2,800 套 · A级&lt;/small&gt;&lt;/div&gt;&lt;button class=&quot;crm-small-button approve&quot;&gt;立即联系&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;10:30&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;Metallic Equipment · 报价跟进&lt;/strong&gt;&lt;small&gt;确认 OEM 锁体规格和样品地址&lt;/small&gt;&lt;/div&gt;&lt;button class=&quot;crm-small-button&quot;&gt;记录跟进&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill&quot;&gt;14:00&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;Trend International · 视频会议&lt;/strong&gt;&lt;small&gt;讨论私牌合作和年度数量&lt;/small&gt;&lt;/div&gt;&lt;button class=&quot;crm-small-button&quot;&gt;查看客户&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;今日&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;补充 3 条客户线索&lt;/strong&gt;&lt;small&gt;18:00 前完成今日录入目标&lt;/small&gt;&lt;/div&gt;&lt;button class=&quot;crm-small-button&quot; data-open-entry&gt;去录入&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot; id=&quot;quick-entry-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;快速录入客户线索&lt;/div&gt;&lt;p class=&quot;crm-chart-sub&quot;&gt;最少填写公司、联系方式、来源、国家和需求&lt;/p&gt;&lt;div style=&quot;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px&quot;&gt;&lt;input class=&quot;crm-search&quot; style=&quot;display:block;width:100%&quot; placeholder=&quot;公司名称 *&quot;&gt;&lt;input class=&quot;crm-search&quot; style=&quot;display:block;width:100%&quot; placeholder=&quot;公司域名&quot;&gt;&lt;input class=&quot;crm-search&quot; style=&quot;display:block;width:100%&quot; placeholder=&quot;联系人 / 邮箱 *&quot;&gt;&lt;input class=&quot;crm-search&quot; style=&quot;display:block;width:100%&quot; placeholder=&quot;国家 / 地区 *&quot;&gt;&lt;input class=&quot;crm-search&quot; style=&quot;display:block;width:100%&quot; placeholder=&quot;线索来源 *&quot;&gt;&lt;input class=&quot;crm-search&quot; style=&quot;display:block;width:100%&quot; placeholder=&quot;产品类目 *&quot;&gt;&lt;/div&gt;&lt;textarea style=&quot;width:100%;height:76px;margin-top:10px;border:1px solid #dde3de;border-radius:12px;padding:12px;font-family:inherit;resize:none&quot; placeholder=&quot;客户需求、数量或项目信息 *&quot;&gt;&lt;/textarea&gt;&lt;div class=&quot;crm-actions&quot; style=&quot;justify-content:flex-end;margin-top:10px&quot;&gt;&lt;button class=&quot;crm-secondary&quot;&gt;保存草稿&lt;/button&gt;&lt;button class=&quot;crm-primary&quot; id=&quot;save-lead-button&quot;&gt;保存并自动背调&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;crm-page&quot; id=&quot;page-leads&quot;&gt;
+        &lt;div class=&quot;crm-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;询盘与商机&lt;/h1&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;统一管理首次询盘、跟进阶段和复购机会&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;crm-actions&quot;&gt;&lt;button class=&quot;crm-secondary&quot;&gt;导入&lt;/button&gt;&lt;button class=&quot;crm-primary&quot;&gt;＋ 新建询盘&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-filter&quot;&gt;&lt;button&gt;列表视图&lt;/button&gt;&lt;button&gt;阶段看板&lt;/button&gt;&lt;button&gt;负责人⌄&lt;/button&gt;&lt;button&gt;风险等级⌄&lt;/button&gt;&lt;button&gt;产品类目⌄&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-table-wrap&quot;&gt;&lt;div class=&quot;crm-table-tools&quot;&gt;&lt;b&gt;全部商机 · 1,284&lt;/b&gt;&lt;span class=&quot;crm-subtitle&quot;&gt;最后同步：2 分钟前&lt;/span&gt;&lt;/div&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;公司 / 联系人&lt;/th&gt;&lt;th&gt;来源&lt;/th&gt;&lt;th&gt;产品需求&lt;/th&gt;&lt;th&gt;阶段&lt;/th&gt;&lt;th&gt;价值评分&lt;/th&gt;&lt;th&gt;预计金额&lt;/th&gt;&lt;th&gt;负责人&lt;/th&gt;&lt;th&gt;下次跟进&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+          &lt;tr data-detail&gt;&lt;td&gt;&lt;b&gt;Qiddiya Investment&lt;/b&gt;&lt;br&gt;&lt;small&gt;Adam Bektić · 采购总监&lt;/small&gt;&lt;/td&gt;&lt;td&gt;官网表单&lt;/td&gt;&lt;td&gt;酒店智能锁 / 2,800套&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill&quot;&gt;谈判&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;div class=&quot;crm-score a&quot;&gt;A&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;$420,000&lt;/b&gt;&lt;br&gt;&lt;small&gt;¥3.01M&lt;/small&gt;&lt;/td&gt;&lt;td&gt;王海&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;今天 14:30&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr data-detail&gt;&lt;td&gt;&lt;b&gt;Metallic Equipment Group&lt;/b&gt;&lt;br&gt;&lt;small&gt;Mohammed Ali · 采购经理&lt;/small&gt;&lt;/td&gt;&lt;td&gt;企业邮箱&lt;/td&gt;&lt;td&gt;建筑门锁 / OEM&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill&quot;&gt;已报价&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;div class=&quot;crm-score a&quot;&gt;A&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;$185,000&lt;/b&gt;&lt;br&gt;&lt;small&gt;¥1.32M&lt;/small&gt;&lt;/td&gt;&lt;td&gt;李娜&lt;/td&gt;&lt;td&gt;明天 10:00&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;&lt;b&gt;Al Noor Security LLC&lt;/b&gt;&lt;br&gt;&lt;small&gt;Omar Rahman · Owner&lt;/small&gt;&lt;/td&gt;&lt;td&gt;展会&lt;/td&gt;&lt;td&gt;门禁锁&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill red&quot;&gt;风险复核&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;div class=&quot;crm-score d&quot;&gt;D&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;$38,000&lt;/b&gt;&lt;br&gt;&lt;small&gt;¥272K&lt;/small&gt;&lt;/td&gt;&lt;td&gt;赵磊&lt;/td&gt;&lt;td&gt;暂停&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;&lt;b&gt;Trend International&lt;/b&gt;&lt;br&gt;&lt;small&gt;Ajith Kumar · 待核实&lt;/small&gt;&lt;/td&gt;&lt;td&gt;LinkedIn&lt;/td&gt;&lt;td&gt;机械锁 / 私牌&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill&quot;&gt;已联系&lt;/span&gt;&lt;/td&gt;&lt;td&gt;&lt;div class=&quot;crm-score b&quot;&gt;B&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;$72,000&lt;/b&gt;&lt;br&gt;&lt;small&gt;¥515K&lt;/small&gt;&lt;/td&gt;&lt;td&gt;周琪&lt;/td&gt;&lt;td&gt;8月27日&lt;/td&gt;&lt;/tr&gt;
+        &lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;crm-page&quot; id=&quot;page-allocation&quot;&gt;
+        &lt;div class=&quot;crm-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;待分配池&lt;/h1&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;12 条待处理 · 系统结合国家、语言、产品线和负载推荐销售&lt;/p&gt;&lt;/div&gt;&lt;button class=&quot;crm-primary&quot; id=&quot;assign-button&quot;&gt;确认分配&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-detail-grid&quot;&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;当前询盘&lt;/div&gt;&lt;div class=&quot;crm-company-head&quot; style=&quot;margin-top:15px&quot;&gt;&lt;div class=&quot;crm-company-logo&quot;&gt;QD&lt;/div&gt;&lt;div&gt;&lt;h3 style=&quot;margin:0&quot;&gt;Qiddiya Investment Company&lt;/h3&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;沙特 · 酒店/项目开发商 · 官网表单 · 4 分钟前&lt;/p&gt;&lt;/div&gt;&lt;span class=&quot;crm-pill&quot; style=&quot;margin-left:auto&quot;&gt;A · 86分&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-ai-summary&quot;&gt;&lt;b&gt;AI 背调摘要&lt;/b&gt;&lt;br&gt;大型文旅项目开发商，已定位采购管理链。智能锁、门禁五金与逃生装置存在明确项目适配机会，建议由具备沙特项目经验的销售在 6 分钟内联系。&lt;/div&gt;&lt;div class=&quot;crm-list&quot;&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;b style=&quot;width:90px&quot;&gt;需求&lt;/b&gt;&lt;span&gt;酒店智能锁 2,800 套，需项目规格与供应商注册&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;b style=&quot;width:90px&quot;&gt;联系人&lt;/b&gt;&lt;span&gt;Adam Bektić · Director of Procurement&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;b style=&quot;width:90px&quot;&gt;语言&lt;/b&gt;&lt;span&gt;英语 / 阿拉伯语&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;推荐销售&lt;/div&gt;&lt;p class=&quot;crm-chart-sub&quot;&gt;点击选择后确认分配&lt;/p&gt;&lt;div class=&quot;crm-roster&quot; style=&quot;grid-template-columns:1fr;margin-top:14px&quot;&gt;
+            &lt;div class=&quot;crm-sales-card selected&quot;&gt;&lt;div class=&quot;crm-avatar&quot;&gt;王&lt;/div&gt;&lt;div&gt;&lt;b&gt;王海&lt;/b&gt;&lt;div class=&quot;crm-load&quot;&gt;沙特 · 英语 · 酒店锁&lt;/div&gt;&lt;div class=&quot;crm-load-bar&quot;&gt;&lt;i style=&quot;width:62%&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;crm-pill&quot;&gt;95% 匹配&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-sales-card&quot;&gt;&lt;div class=&quot;crm-avatar&quot;&gt;李&lt;/div&gt;&lt;div&gt;&lt;b&gt;李娜&lt;/b&gt;&lt;div class=&quot;crm-load&quot;&gt;中东 · 英语 · 智能锁&lt;/div&gt;&lt;div class=&quot;crm-load-bar&quot;&gt;&lt;i style=&quot;width:83%;background:#d56637&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;负载较高&lt;/span&gt;&lt;/div&gt;
+            &lt;div class=&quot;crm-sales-card&quot;&gt;&lt;div class=&quot;crm-avatar&quot;&gt;赵&lt;/div&gt;&lt;div&gt;&lt;b&gt;赵磊&lt;/b&gt;&lt;div class=&quot;crm-load&quot;&gt;沙特 · 阿拉伯语 · 门禁&lt;/div&gt;&lt;div class=&quot;crm-load-bar&quot;&gt;&lt;i style=&quot;width:48%&quot;&gt;&lt;/i&gt;&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;crm-pill&quot;&gt;89% 匹配&lt;/span&gt;&lt;/div&gt;
+          &lt;/div&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;crm-page&quot; id=&quot;page-pool&quot;&gt;
+        &lt;div class=&quot;crm-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;客户公海&lt;/h1&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;可领取客户、即将回收客户与历史回收记录&lt;/p&gt;&lt;/div&gt;&lt;button class=&quot;crm-primary&quot; id=&quot;claim-button&quot;&gt;领取所选客户&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-filter&quot;&gt;&lt;button&gt;可领取 86&lt;/button&gt;&lt;button&gt;即将回收 14&lt;/button&gt;&lt;button&gt;已回收记录&lt;/button&gt;&lt;button&gt;国家⌄&lt;/button&gt;&lt;button&gt;产品类目⌄&lt;/button&gt;&lt;button&gt;客户等级⌄&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-table-wrap&quot;&gt;&lt;div class=&quot;crm-table-tools&quot;&gt;&lt;b&gt;公海客户&lt;/b&gt;&lt;span class=&quot;crm-subtitle&quot;&gt;领取后主管可在团队看板查看负载变化&lt;/span&gt;&lt;/div&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;&lt;/th&gt;&lt;th&gt;公司 / 联系人&lt;/th&gt;&lt;th&gt;国家&lt;/th&gt;&lt;th&gt;需求&lt;/th&gt;&lt;th&gt;等级&lt;/th&gt;&lt;th&gt;最近联系&lt;/th&gt;&lt;th&gt;回收原因&lt;/th&gt;&lt;th&gt;历史负责人&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+          &lt;tr&gt;&lt;td&gt;&lt;input type=&quot;checkbox&quot; checked aria-label=&quot;选择 Golden Lock&quot;&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;The Golden Lock Co.&lt;/b&gt;&lt;br&gt;&lt;small&gt;采购负责人待确认&lt;/small&gt;&lt;/td&gt;&lt;td&gt;科威特&lt;/td&gt;&lt;td&gt;智能锁 / 渠道合作&lt;/td&gt;&lt;td&gt;&lt;div class=&quot;crm-score b&quot;&gt;B&lt;/div&gt;&lt;/td&gt;&lt;td&gt;96 天前&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;3个月未联系&lt;/span&gt;&lt;/td&gt;&lt;td&gt;李娜&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;&lt;input type=&quot;checkbox&quot; aria-label=&quot;选择 Hardware Plus&quot;&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;Hardware Plus SARL&lt;/b&gt;&lt;br&gt;&lt;small&gt;Owner 待确认&lt;/small&gt;&lt;/td&gt;&lt;td&gt;黎巴嫩&lt;/td&gt;&lt;td&gt;建筑门五金&lt;/td&gt;&lt;td&gt;&lt;div class=&quot;crm-score b&quot;&gt;B&lt;/div&gt;&lt;/td&gt;&lt;td&gt;104 天前&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;3个月未联系&lt;/span&gt;&lt;/td&gt;&lt;td&gt;赵磊&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;&lt;input type=&quot;checkbox&quot; aria-label=&quot;选择 RB Trading&quot;&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;R B Trading&lt;/b&gt;&lt;br&gt;&lt;small&gt;主体待消歧&lt;/small&gt;&lt;/td&gt;&lt;td&gt;阿曼&lt;/td&gt;&lt;td&gt;机械锁&lt;/td&gt;&lt;td&gt;&lt;div class=&quot;crm-score d&quot;&gt;D&lt;/div&gt;&lt;/td&gt;&lt;td&gt;128 天前&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill red&quot;&gt;低价值回收&lt;/span&gt;&lt;/td&gt;&lt;td&gt;周琪&lt;/td&gt;&lt;/tr&gt;
+        &lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-dashboard-grid&quot; style=&quot;margin-top:14px&quot;&gt;&lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;领取规则&lt;/div&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;每人每日最多领取 5 个客户；当前负载超过 85% 时需主管批准。高风险客户领取后仍保留红色风险提示。&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;即将回收提醒&lt;/div&gt;&lt;div class=&quot;crm-list&quot;&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;3天&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;14 个客户即将进入公海&lt;/strong&gt;&lt;small&gt;销售可提交延期或保留申请&lt;/small&gt;&lt;/div&gt;&lt;b&gt;查看 →&lt;/b&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;crm-page&quot; id=&quot;page-detail&quot;&gt;
+        &lt;div class=&quot;crm-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;商机详情&lt;/h1&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;Qiddiya Investment · OP-20260826-0182&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;crm-actions&quot;&gt;&lt;button class=&quot;crm-secondary&quot;&gt;··· 更多&lt;/button&gt;&lt;button class=&quot;crm-primary&quot;&gt;＋ 记录跟进&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-detail-grid&quot;&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-company-head&quot;&gt;&lt;div class=&quot;crm-company-logo&quot;&gt;QD&lt;/div&gt;&lt;div&gt;&lt;h3 style=&quot;margin:0&quot;&gt;Qiddiya Investment Company&lt;/h3&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;酒店智能锁 / 2,800 套 · 预计 $420,000&lt;/p&gt;&lt;/div&gt;&lt;span class=&quot;crm-pill&quot; style=&quot;margin-left:auto&quot;&gt;谈判中&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-tabs&quot;&gt;&lt;button class=&quot;crm-tab active&quot;&gt;概览&lt;/button&gt;&lt;button class=&quot;crm-tab&quot;&gt;沟通记录&lt;/button&gt;&lt;button class=&quot;crm-tab&quot;&gt;报价与文件&lt;/button&gt;&lt;button class=&quot;crm-tab&quot;&gt;审批&lt;/button&gt;&lt;button class=&quot;crm-tab&quot;&gt;操作日志&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;crm-ai-summary&quot;&gt;&lt;b&gt;✦ AI 沟通摘要&lt;/b&gt;&lt;br&gt;客户已确认酒店项目时间表，重点关注锁体兼容性、SASO/SABER 文件及交期。建议本次回复附带酒店锁规格表，并预约采购与技术联合会议。&lt;/div&gt;&lt;div class=&quot;crm-chart-title&quot; style=&quot;margin-top:18px&quot;&gt;最近动态&lt;/div&gt;&lt;div class=&quot;crm-timeline&quot;&gt;&lt;div class=&quot;crm-event&quot;&gt;&lt;i class=&quot;crm-event-dot&quot;&gt;&lt;/i&gt;&lt;div&gt;&lt;b&gt;销售提交第二版报价&lt;/b&gt;&lt;br&gt;&lt;small&gt;王海 · 今天 09:42 · $420,000&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-event&quot;&gt;&lt;i class=&quot;crm-event-dot&quot;&gt;&lt;/i&gt;&lt;div&gt;&lt;b&gt;AI 自动总结企业邮箱往来&lt;/b&gt;&lt;br&gt;&lt;small&gt;客户要求确认交期与认证资料 · 昨天 16:25&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-event&quot;&gt;&lt;i class=&quot;crm-event-dot&quot;&gt;&lt;/i&gt;&lt;div&gt;&lt;b&gt;阶段由“已报价”推进至“谈判”&lt;/b&gt;&lt;br&gt;&lt;small&gt;王海 · 8月23日 11:18&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;前置背调&lt;/div&gt;&lt;div class=&quot;crm-chart-sub&quot;&gt;数据源更新于 2026-08-25&lt;/div&gt;&lt;div class=&quot;crm-research-score&quot;&gt;&lt;div class=&quot;crm-score-ring&quot;&gt;&lt;/div&gt;&lt;div&gt;&lt;b style=&quot;font-size:18px&quot;&gt;A级 · 高价值&lt;/b&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;原始适配分 5/5&lt;br&gt;联系人置信度：高&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-risk&quot;&gt;&lt;b&gt;风险提示&lt;/b&gt;&lt;br&gt;大型项目供应商注册周期较长；需提前确认认证和付款节点。当前无严重信用风险。&lt;/div&gt;&lt;div class=&quot;crm-list&quot;&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;公司类型&lt;/strong&gt;&lt;small&gt;大型文旅项目投资与开发&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;关键联系人&lt;/strong&gt;&lt;small&gt;采购总监、采购经理、采购专员共 6 人&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;推荐策略&lt;/strong&gt;&lt;small&gt;获取供应商注册条件，以采购总监为 Sponsor 推进&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;button class=&quot;crm-secondary&quot; style=&quot;width:100%;margin-top:10px&quot;&gt;查看完整报告与来源&lt;/button&gt;&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;crm-page&quot; id=&quot;page-channels&quot;&gt;
+        &lt;div class=&quot;crm-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;渠道 ROI&lt;/h1&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;以销售确认的主来源归因，成交金额按成交日汇率锁定&lt;/p&gt;&lt;/div&gt;&lt;button class=&quot;crm-secondary&quot;&gt;近 90 天⌄&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-roi-grid&quot;&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-channel-top&quot;&gt;&lt;div class=&quot;crm-channel-icon&quot;&gt;W&lt;/div&gt;&lt;div&gt;&lt;b&gt;官网表单&lt;/b&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;468 条询盘 · 76% 有效&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-roi&quot;&gt;6.8×&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;成交 ¥3.26M · 成本 ¥480K&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-channel-top&quot;&gt;&lt;div class=&quot;crm-channel-icon&quot;&gt;✉&lt;/div&gt;&lt;div&gt;&lt;b&gt;企业邮箱&lt;/b&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;327 条询盘 · 71% 有效&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-roi&quot;&gt;5.4×&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;成交 ¥2.10M · 成本 ¥389K&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-channel-top&quot;&gt;&lt;div class=&quot;crm-channel-icon&quot;&gt;展&lt;/div&gt;&lt;div&gt;&lt;b&gt;行业展会&lt;/b&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;188 条询盘 · 63% 有效&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-roi&quot;&gt;3.2×&lt;/div&gt;&lt;div class=&quot;crm-delta crm-warn&quot;&gt;成交 ¥1.44M · 成本 ¥450K&lt;/div&gt;&lt;/div&gt;
+        &lt;/div&gt;&lt;div class=&quot;crm-table-wrap&quot; style=&quot;margin-top:14px&quot;&gt;&lt;div class=&quot;crm-table-tools&quot;&gt;&lt;b&gt;渠道明细&lt;/b&gt;&lt;span class=&quot;crm-subtitle&quot;&gt;成本支持平台同步与人工修正&lt;/span&gt;&lt;/div&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;渠道&lt;/th&gt;&lt;th&gt;询盘&lt;/th&gt;&lt;th&gt;有效率&lt;/th&gt;&lt;th&gt;报价率&lt;/th&gt;&lt;th&gt;成交率&lt;/th&gt;&lt;th&gt;成交金额&lt;/th&gt;&lt;th&gt;成本&lt;/th&gt;&lt;th&gt;ROI&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;官网表单&lt;/td&gt;&lt;td&gt;468&lt;/td&gt;&lt;td&gt;76%&lt;/td&gt;&lt;td&gt;48%&lt;/td&gt;&lt;td&gt;18.2%&lt;/td&gt;&lt;td&gt;¥3.26M&lt;/td&gt;&lt;td&gt;¥480K&lt;/td&gt;&lt;td&gt;&lt;b&gt;6.8×&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;企业邮箱&lt;/td&gt;&lt;td&gt;327&lt;/td&gt;&lt;td&gt;71%&lt;/td&gt;&lt;td&gt;46%&lt;/td&gt;&lt;td&gt;15.6%&lt;/td&gt;&lt;td&gt;¥2.10M&lt;/td&gt;&lt;td&gt;¥389K&lt;/td&gt;&lt;td&gt;&lt;b&gt;5.4×&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;行业展会&lt;/td&gt;&lt;td&gt;188&lt;/td&gt;&lt;td&gt;63%&lt;/td&gt;&lt;td&gt;39%&lt;/td&gt;&lt;td&gt;12.4%&lt;/td&gt;&lt;td&gt;¥1.44M&lt;/td&gt;&lt;td&gt;¥450K&lt;/td&gt;&lt;td&gt;&lt;b&gt;3.2×&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;crm-page&quot; id=&quot;page-approvals&quot;&gt;
+        &lt;div class=&quot;crm-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;审批中心&lt;/h1&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;成交、延期与客户保留申请&lt;/p&gt;&lt;/div&gt;&lt;button class=&quot;crm-secondary&quot;&gt;全部类型⌄&lt;/button&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;待我审批 · 7&lt;/div&gt;&lt;div class=&quot;crm-approval&quot;&gt;&lt;div class=&quot;crm-score a&quot;&gt;成&lt;/div&gt;&lt;div&gt;&lt;b&gt;Qiddiya Investment · 成交确认&lt;/b&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;王海提交 · $420,000 · 已上传合同及定金凭证&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;crm-approval-actions&quot;&gt;&lt;button class=&quot;crm-small-button&quot;&gt;查看&lt;/button&gt;&lt;button class=&quot;crm-small-button approve&quot;&gt;通过&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-approval&quot;&gt;&lt;div class=&quot;crm-score b&quot;&gt;延&lt;/div&gt;&lt;div&gt;&lt;b&gt;Trend International · 延期 14 天&lt;/b&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;周琪提交 · 客户等待总部年度预算批准&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;crm-approval-actions&quot;&gt;&lt;button class=&quot;crm-small-button&quot;&gt;驳回&lt;/button&gt;&lt;button class=&quot;crm-small-button approve&quot;&gt;通过&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-approval&quot;&gt;&lt;div class=&quot;crm-score d&quot;&gt;留&lt;/div&gt;&lt;div&gt;&lt;b&gt;Al Noor Security · 客户保留申请&lt;/b&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;赵磊提交 · 背调风险待客户提供信用资料&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;crm-approval-actions&quot;&gt;&lt;button class=&quot;crm-small-button&quot;&gt;驳回&lt;/button&gt;&lt;button class=&quot;crm-small-button approve&quot;&gt;通过&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+      &lt;/section&gt;
+
+      &lt;section class=&quot;crm-page&quot; id=&quot;page-daily&quot;&gt;
+        &lt;div class=&quot;crm-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;销售线索日报&lt;/h1&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;2026年8月26日 · 截止快照 18:00 · 华东海外销售组&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;crm-actions&quot;&gt;&lt;button class=&quot;crm-secondary&quot;&gt;调整每日目标&lt;/button&gt;&lt;button class=&quot;crm-primary&quot; id=&quot;remind-button&quot;&gt;提醒未完成人员&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-kpis&quot;&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;团队完成率 &lt;span&gt;目标 150&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;83%&lt;/div&gt;&lt;div class=&quot;crm-delta crm-warn&quot;&gt;已录入 124 条&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;有效线索&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;96&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;有效率 77.4%&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;高价值线索&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;18&lt;/div&gt;&lt;div class=&quot;crm-delta&quot;&gt;A级 7 · B级 11&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;待补全&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;9&lt;/div&gt;&lt;div class=&quot;crm-delta crm-warn&quot;&gt;不计入达标&lt;/div&gt;&lt;/div&gt;
+          &lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-kpi-label&quot;&gt;未达标销售&lt;/div&gt;&lt;div class=&quot;crm-kpi-value&quot;&gt;5&lt;/div&gt;&lt;div class=&quot;crm-delta crm-warn&quot;&gt;已发送 2 次提醒&lt;/div&gt;&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;crm-table-wrap&quot;&gt;&lt;div class=&quot;crm-table-tools&quot;&gt;&lt;b&gt;个人完成情况&lt;/b&gt;&lt;span class=&quot;crm-subtitle&quot;&gt;主管可下钻查看录入明细与质量&lt;/span&gt;&lt;/div&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;销售&lt;/th&gt;&lt;th&gt;今日目标&lt;/th&gt;&lt;th&gt;已录入&lt;/th&gt;&lt;th&gt;有效&lt;/th&gt;&lt;th&gt;A/B级&lt;/th&gt;&lt;th&gt;待补全&lt;/th&gt;&lt;th&gt;首次联系 SLA&lt;/th&gt;&lt;th&gt;状态&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;
+          &lt;tr&gt;&lt;td&gt;&lt;b&gt;王海&lt;/b&gt;&lt;br&gt;&lt;small&gt;沙特 / 酒店锁&lt;/small&gt;&lt;/td&gt;&lt;td&gt;10&lt;/td&gt;&lt;td&gt;12&lt;/td&gt;&lt;td&gt;10&lt;/td&gt;&lt;td&gt;4&lt;/td&gt;&lt;td&gt;0&lt;/td&gt;&lt;td&gt;92%&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill&quot;&gt;已达标&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;&lt;b&gt;李娜&lt;/b&gt;&lt;br&gt;&lt;small&gt;中东 / 智能锁&lt;/small&gt;&lt;/td&gt;&lt;td&gt;10&lt;/td&gt;&lt;td&gt;9&lt;/td&gt;&lt;td&gt;7&lt;/td&gt;&lt;td&gt;2&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;td&gt;88%&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;差 1 条&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;&lt;b&gt;赵磊&lt;/b&gt;&lt;br&gt;&lt;small&gt;海湾 / 门禁&lt;/small&gt;&lt;/td&gt;&lt;td&gt;10&lt;/td&gt;&lt;td&gt;6&lt;/td&gt;&lt;td&gt;4&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;td&gt;2&lt;/td&gt;&lt;td&gt;71%&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill red&quot;&gt;未达标&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;&lt;b&gt;周琪&lt;/b&gt;&lt;br&gt;&lt;small&gt;欧洲 / 机械锁&lt;/small&gt;&lt;/td&gt;&lt;td&gt;—&lt;/td&gt;&lt;td&gt;—&lt;/td&gt;&lt;td&gt;—&lt;/td&gt;&lt;td&gt;—&lt;/td&gt;&lt;td&gt;—&lt;/td&gt;&lt;td&gt;—&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;crm-pill&quot;&gt;出差免除&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;
+        &lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;
+        &lt;div class=&quot;crm-dashboard-grid&quot; style=&quot;margin-top:14px&quot;&gt;&lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;今日质量摘要&lt;/div&gt;&lt;div class=&quot;crm-list&quot;&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill&quot;&gt;77.4%&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;有效率高于近 7 日均值&lt;/strong&gt;&lt;small&gt;官网与企业邮箱线索质量最佳&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-list-row&quot;&gt;&lt;span class=&quot;crm-pill orange&quot;&gt;9 条&lt;/span&gt;&lt;div class=&quot;crm-grow&quot;&gt;&lt;strong&gt;资料待补全&lt;/strong&gt;&lt;small&gt;主要缺少公司域名与明确需求&lt;/small&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;crm-panel&quot;&gt;&lt;div class=&quot;crm-chart-title&quot;&gt;报告发送&lt;/div&gt;&lt;p class=&quot;crm-subtitle&quot;&gt;日报将在 18:05 自动发送至主管飞书，并保留 18:00 截止快照。补录数据将在“最新进度”中更新，不覆盖原快照。&lt;/p&gt;&lt;button class=&quot;crm-secondary&quot; style=&quot;width:100%;margin-top:17px&quot;&gt;预览飞书日报&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;
+      &lt;/section&gt;
+      &lt;div class=&quot;crm-toast&quot; role=&quot;status&quot;&gt;已将询盘分配给王海，并发送飞书提醒&lt;/div&gt;
+    &lt;/main&gt;
+  &lt;/div&gt;
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;wonly-crm-concept&#x27;);
+      const navs = root.querySelectorAll(&#x27;[data-page]&#x27;);
+      const pages = root.querySelectorAll(&#x27;.crm-page&#x27;);
+      function showPage(name) {
+        pages.forEach(p =&gt; p.classList.toggle(&#x27;active&#x27;, p.id === &#x27;page-&#x27; + name));
+        navs.forEach(n =&gt; n.classList.toggle(&#x27;active&#x27;, n.dataset.page === name));
+      }
+      navs.forEach(n =&gt; n.addEventListener(&#x27;click&#x27;, () =&gt; showPage(n.dataset.page)));
+      root.querySelectorAll(&#x27;[data-go]&#x27;).forEach(b =&gt; b.addEventListener(&#x27;click&#x27;, () =&gt; showPage(b.dataset.go)));
+      root.querySelectorAll(&#x27;[data-detail]&#x27;).forEach(r =&gt; r.addEventListener(&#x27;click&#x27;, () =&gt; showPage(&#x27;detail&#x27;)));
+      root.querySelectorAll(&#x27;.crm-sales-card&#x27;).forEach(c =&gt; c.addEventListener(&#x27;click&#x27;, () =&gt; {
+        root.querySelectorAll(&#x27;.crm-sales-card&#x27;).forEach(x =&gt; x.classList.remove(&#x27;selected&#x27;));
+        c.classList.add(&#x27;selected&#x27;);
+      }));
+      const assign = root.querySelector(&#x27;#assign-button&#x27;);
+      const toast = root.querySelector(&#x27;.crm-toast&#x27;);
+      assign.addEventListener(&#x27;click&#x27;, () =&gt; {
+        toast.classList.add(&#x27;show&#x27;);
+        setTimeout(() =&gt; toast.classList.remove(&#x27;show&#x27;), 2200);
+      });
+      const remind = root.querySelector(&#x27;#remind-button&#x27;);
+      remind.addEventListener(&#x27;click&#x27;, () =&gt; {
+        toast.textContent = &#x27;已通过站内与飞书提醒 5 名未完成销售&#x27;;
+        toast.classList.add(&#x27;show&#x27;);
+        setTimeout(() =&gt; toast.classList.remove(&#x27;show&#x27;), 2200);
+      });
+      const quickEntry = root.querySelector(&#x27;#quick-entry-button&#x27;);
+      quickEntry.addEventListener(&#x27;click&#x27;, () =&gt; root.querySelector(&#x27;#quick-entry-panel&#x27;).scrollIntoView({behavior:&#x27;smooth&#x27;, block:&#x27;center&#x27;}));
+      root.querySelectorAll(&#x27;[data-open-entry]&#x27;).forEach(b =&gt; b.addEventListener(&#x27;click&#x27;, () =&gt; root.querySelector(&#x27;#quick-entry-panel&#x27;).scrollIntoView({behavior:&#x27;smooth&#x27;, block:&#x27;center&#x27;})));
+      root.querySelector(&#x27;#save-lead-button&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+        toast.textContent = &#x27;线索已保存，今日进度 8 / 10，背调任务已启动&#x27;;
+        toast.classList.add(&#x27;show&#x27;);
+        setTimeout(() =&gt; toast.classList.remove(&#x27;show&#x27;), 2200);
+      });
+      root.querySelector(&#x27;#claim-button&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+        toast.textContent = &#x27;已领取 The Golden Lock Co.，主管已收到负载更新&#x27;;
+        toast.classList.add(&#x27;show&#x27;);
+        setTimeout(() =&gt; toast.classList.remove(&#x27;show&#x27;), 2200);
+      });
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

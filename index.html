@@ -1087,6 +1087,7 @@
           email: ["owner", "sales_manager", "marketing"].includes(role),
           assignment: ["owner", "sales_manager", "marketing"].includes(role),
           research: ["owner", "sales_manager", "marketing"].includes(role),
+          daily: ["owner", "sales_manager", "sales"].includes(role),
           settings: role === "owner",
         };
         Object.entries(visibility).forEach(([view, visible]) => {
@@ -1161,7 +1162,15 @@
       }
       async function switchView(view) {
         $$(".nav[data-view]").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
-        if (view === "daily") { await openDailyReport(); return; }
+        if (view === "daily") {
+          if (!["owner", "sales_manager", "sales"].includes(profile.role)) {
+            toast("当前账号无权查看销售日报");
+            await switchView("dashboard");
+            return;
+          }
+          await openDailyReport();
+          return;
+        }
         const dashboard = view === "dashboard";
         $("#dashboard-page").classList.toggle("hidden", !dashboard);
         $("#module-page").classList.toggle("hidden", dashboard);

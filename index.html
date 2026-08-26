@@ -2149,7 +2149,14 @@
         }});
         button.disabled = false;
         button.textContent = "测试并连接";
-        if (error || data?.error) return toast("邮箱连接失败：" + (data?.error || error.message));
+        let connectionError = data?.error || error?.message;
+        if (error?.context) {
+          try {
+            const payload = await error.context.clone().json();
+            connectionError = payload?.error || connectionError;
+          } catch {}
+        }
+        if (connectionError) return toast("邮箱连接失败：" + connectionError);
         $("#mailbox-password").value = "";
         $("#mailbox-modal").classList.add("hidden");
         toast("邮箱连接成功");

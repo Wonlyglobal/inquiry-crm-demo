@@ -519,6 +519,28 @@
         font-size: 12px;
         z-index: 80;
       }
+      .boot-shell {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+      }
+      .boot-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .boot-spinner {
+        width: 22px;
+        height: 22px;
+        border: 2px solid var(--line);
+        border-top-color: var(--green);
+        border-radius: 50%;
+        animation: boot-spin 0.8s linear infinite;
+      }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
       @media (max-width: 850px) {
         .app {
           grid-template-columns: 64px 1fr;
@@ -550,7 +572,10 @@
     </style>
   </head>
   <body>
-    <section id="login" class="login-shell">
+    <section id="boot" class="boot-shell">
+      <div class="boot-card"><span class="boot-spinner"></span><span>正在进入询盘 CRM…</span></div>
+    </section>
+    <section id="login" class="login-shell hidden">
       <form id="login-form" class="login-card">
         <div class="brand-mark"><i data-lucide="shield-check"></i></div>
         <h1>全球询盘 CRM</h1>
@@ -1860,13 +1885,17 @@
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      let sessionReady = false;
       if (session) {
         try {
           await loadProfile(session.user);
+          sessionReady = true;
         } catch {
           await supabase.auth.signOut();
         }
       }
+      $("#boot").classList.add("hidden");
+      if (!sessionReady) $("#login").classList.remove("hidden");
       icons();
     </script>
   </body>

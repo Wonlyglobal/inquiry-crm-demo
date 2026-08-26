@@ -1695,7 +1695,8 @@
       }
       $("#manual-form").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const fd = new FormData(e.currentTarget),
+        const form = e.currentTarget,
+          fd = new FormData(form),
           btn = e.submitter;
         btn.disabled = true;
         try {
@@ -1710,7 +1711,7 @@
             source: "manual",
             notify: fd.get("notify") === "on",
           });
-          e.currentTarget.reset();
+          form.reset();
           $("#inquiry-modal").classList.add("hidden");
           toast("询盘已创建并进入待分配池");
           await loadInquiries();
@@ -1744,7 +1745,8 @@
       }
       $("#email-form").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const fd = new FormData(e.currentTarget),
+        const form = e.currentTarget,
+          fd = new FormData(form),
           email = fd.get("email").trim(),
           subject = fd.get("subject"),
           body = fd.get("body"),
@@ -1771,7 +1773,7 @@
             inquiry_id: inquiry.id,
             created_by: profile.id,
           });
-          e.currentTarget.reset();
+          form.reset();
           $("#inquiry-modal").classList.add("hidden");
           toast("邮件已解析并生成询盘");
           await loadInquiries();

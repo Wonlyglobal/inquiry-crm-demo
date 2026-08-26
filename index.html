@@ -298,6 +298,7 @@
         color: var(--muted);
         margin: 7px 0 0;
       }
+      .heading-actions { display: flex; gap: 9px; align-items: center; }
       .kpis {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -829,7 +830,10 @@
         <section id="module-page" class="page hidden">
           <div class="heading">
             <div><h1 id="module-title">业务页面</h1><p id="module-subtitle"></p></div>
-            <button id="module-primary" class="primary hidden"></button>
+            <div class="heading-actions">
+              <button id="add-member" class="ghost hidden">+ 新增成员</button>
+              <button id="module-primary" class="primary hidden"></button>
+            </div>
           </div>
           <div class="table-wrap">
             <div class="table-head"><span id="module-table-title">数据列表</span><span id="module-count" class="tag">0 条</span></div>
@@ -883,6 +887,22 @@
           <div class="field"><label>企业邮箱 *</label><input id="mailbox-email" class="input" type="email" required /></div>
           <div class="field"><label>第三方客户端密码 *</label><input id="mailbox-password" class="input" type="password" autocomplete="new-password" required /></div>
           <div class="form-actions"><button type="button" id="cancel-mailbox" class="ghost">取消</button><button class="primary" type="submit">测试并连接</button></div>
+        </form>
+      </div>
+    </div>
+    <div id="member-modal" class="modal-backdrop hidden">
+      <div class="modal" style="max-width:620px">
+        <div class="modal-head"><h3>新增 CRM 成员</h3><button id="close-member" class="close">×</button></div>
+        <form id="member-form" class="form-body">
+          <p class="hint">初始密码为 <b>wonly123</b>，新成员首次登录后必须修改密码。CRM 权限角色仅决定系统权限，对外展示仍使用职称。</p>
+          <div class="grid2">
+            <div class="field"><label>姓名 *</label><input id="member-name" class="input" required /></div>
+            <div class="field"><label>公司邮箱 *</label><input id="member-email" class="input" type="email" required /></div>
+            <div class="field"><label>部门 *</label><input id="member-team" class="input" required /></div>
+            <div class="field"><label>职称 *</label><input id="member-title" class="input" required /></div>
+            <div class="field"><label>CRM 权限角色 *</label><select id="member-role" class="input" required><option value="sales">销售</option><option value="marketing">市场部</option><option value="sales_manager">销售主管</option><option value="owner">老板</option></select></div>
+          </div>
+          <div class="form-actions"><button type="button" id="cancel-member" class="ghost">取消</button><button class="primary" type="submit">创建成员账号</button></div>
         </form>
       </div>
     </div>
@@ -1294,6 +1314,7 @@
         $("#module-empty-text").textContent = `暂无${config[2]}`;
         const modulePrimary = $("#module-primary");
         modulePrimary.classList.toggle("hidden", view !== "settings");
+        $("#add-member").classList.toggle("hidden", view !== "settings");
         if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";
         const denied =
           (view === "settings" && profile.role !== "owner" && !["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase())) ||
@@ -2167,6 +2188,34 @@
         $("#mailbox-modal").classList.remove("hidden");
       }
       $("#module-primary").addEventListener("click", () => openMailboxBinding());
+      $("#add-member").addEventListener("click", () => {
+        $("#member-form").reset();
+        $("#member-modal").classList.remove("hidden");
+      });
+      ["#close-member", "#cancel-member"].forEach((selector) => $(selector).addEventListener("click", () => $("#member-modal").classList.add("hidden")));
+      $("#member-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = event.submitter;
+        button.disabled = true;
+        button.textContent = "正在创建…";
+        const { data, error } = await supabase.functions.invoke("member-admin", { body: {
+          full_name: $("#member-name").value.trim(),
+          email: $("#member-email").value.trim(),
+          team: $("#member-team").value.trim(),
+          job_title: $("#member-title").value.trim(),
+          role: $("#member-role").value,
+        }});
+        button.disabled = false;
+        button.textContent = "创建成员账号";
+        let message = data?.error || error?.message;
+        if (error?.context) {
+          try { message = (await error.context.clone().json())?.error || message; } catch {}
+        }
+        if (message) return toast("成员创建失败：" + message);
+        $("#member-modal").classList.add("hidden");
+        toast("成员账号已创建，初始密码为 wonly123");
+        await loadModule("settings");
+      });
       $("#mailbox-user").addEventListener("change", (event) => {
         $("#mailbox-email").value = event.target.selectedOptions[0]?.dataset.email || "";
       });

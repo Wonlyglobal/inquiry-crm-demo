@@ -344,6 +344,18 @@
       tbody tr:hover {
         background: #f7f9f7;
       }
+      .table-action {
+        white-space: nowrap;
+        padding: 7px 10px;
+        border: 1px solid #cad7ce;
+        border-radius: 9px;
+        background: #edf3ee;
+        color: #355f45;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .table-action:disabled { opacity: 0.55; cursor: wait; }
       .empty {
         text-align: center;
         padding: 60px 20px;
@@ -738,6 +750,7 @@
                   <th>状态</th>
                   <th>进入阶段时间</th>
                   <th>创建时间</th>
+                  <th id="assignment-action-head">操作</th>
                 </tr>
               </thead>
               <tbody id="inquiry-body"></tbody>
@@ -1134,6 +1147,10 @@
           const nav = $(`.nav[data-view="${view}"]`);
           if (nav) nav.classList.toggle("hidden", !visible);
         });
+        $("#assignment-action-head").classList.toggle(
+          "hidden",
+          !["owner", "marketing"].includes(role),
+        );
         await Promise.all([loadInquiries(), loadNotifications()]);
         icons();
       }
@@ -1332,6 +1349,40 @@
             }
             tr.appendChild(td);
           });
+          if (["owner", "marketing"].includes(profile.role)) {
+            const actionCell = document.createElement("td");
+            const action = document.createElement("button");
+            action.type = "button";
+            action.className = "table-action";
+            action.textContent = x.source === "email" ? "转发并提交分配" : "提交分配";
+            action.addEventListener("click", async (event) => {
+              event.stopPropagation();
+              action.disabled = true;
+              action.textContent = "提交中…";
+              try {
+                if (x.source === "email") {
+                  const { error: forwardError } = await supabase.rpc(
+                    "request_original_email_forward",
+                    { target_inquiry_id: x.id },
+                  );
+                  if (forwardError) throw forwardError;
+                }
+                const { error: assignmentError } = await supabase.rpc(
+                  "register_inquiry_for_assignment",
+                  { target_inquiry_id: x.id },
+                );
+                if (assignmentError) throw assignmentError;
+                toast(x.source === "email" ? "已转发给凌子学并提交分配" : "已提交主管分配");
+                await Promise.all([loadInquiries(), loadNotifications()]);
+              } catch (error) {
+                action.disabled = false;
+                action.textContent = x.source === "email" ? "转发并提交分配" : "提交分配";
+                toast("提交失败：" + error.message);
+              }
+            });
+            actionCell.appendChild(action);
+            tr.appendChild(actionCell);
+          }
           tr.addEventListener("click", () => openInquiryDetail(x.id));
           body.appendChild(tr);
         });

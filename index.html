@@ -1095,7 +1095,7 @@
             <div class="field"><label>项目名</label><input id="detail-smart-project" class="input" /></div>
           </div>
           <div class="field"><label>需求</label><textarea id="detail-smart-demand" class="input" rows="4"></textarea></div>
-          <div class="field"><label>补充/修改原因 *</label><input id="detail-smart-reason" class="input" placeholder="人工补充或修改时必填" /></div>
+          <div class="field"><label>补充/修改原因（选填）</label><input id="detail-smart-reason" class="input" placeholder="可填写补充或修改说明" /></div>
           <div class="form-actions"><button id="save-smart-summary" class="primary">保存智能整理</button></div>
         </div>
         <div class="form-body">
@@ -2208,8 +2208,7 @@
       });
       $("#save-smart-summary").addEventListener("click", async () => {
         if (!currentInquiry) return;
-        const reason = $("#detail-smart-reason").value.trim();
-        if (!reason) return toast("请填写补充/修改原因");
+        const reason = $("#detail-smart-reason").value.trim() || "人工确认智能整理";
         const button = $("#save-smart-summary");
         button.disabled = true;
         const valueOrNull = (selector) => $(selector).value.trim() || null;

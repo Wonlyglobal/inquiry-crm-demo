@@ -1146,6 +1146,17 @@
           </div>
           <div class="field"><label>主营业务</label><textarea id="detail-research-business" class="input" rows="3"></textarea></div>
           <div class="field"><label>AI 摘要/项目线索</label><textarea id="detail-research-summary" class="input" rows="5"></textarea></div>
+          <h4>深度背调报告</h4>
+          <div class="detail-grid"><div class="field"><label>研究状态</label><select id="detail-research-deep-status" class="input"><option value="research_required">待继续调查</option><option value="company_match_required">待确认公司身份</option><option value="ready">资料可用于销售准备</option></select></div><div class="field"><label>匹配方式</label><input id="detail-research-match-method" class="input" readonly /></div><div class="field"><label>匹配可信度</label><select id="detail-research-match-confidence" class="input"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></div><div class="field"><label>数据更新时间</label><input id="detail-research-source-updated" class="input" readonly /></div></div>
+          <div class="field"><label>为什么现在值得跟进</label><textarea id="detail-research-why-now" class="input" rows="3" placeholder="只写有证据支持的近期采购、项目或扩张信号"></textarea></div>
+          <div class="field"><label>已确认事实（每行一条）</label><textarea id="detail-research-confirmed-facts" class="input" rows="5"></textarea></div>
+          <div class="field"><label>采购/需求信号（每行一条）</label><textarea id="detail-research-demand-signals" class="input" rows="5" placeholder="信号｜判断｜来源｜日期｜可信度"></textarea></div>
+          <div class="field"><label>可能需求（属于判断，不是事实）</label><textarea id="detail-research-likely-needs" class="input" rows="4"></textarea></div>
+          <div class="field"><label>风险、反证与待核实项</label><textarea id="detail-research-risks-counter" class="input" rows="5"></textarea></div>
+          <div class="field"><label>联系人与核验状态</label><textarea id="detail-research-contacts" class="input" rows="4" placeholder="姓名｜职称/角色｜联系方式｜核验状态｜来源"></textarea></div>
+          <div class="detail-grid"><div class="field"><label>销售应询问的问题（每行一条）</label><textarea id="detail-research-questions" class="input" rows="6"></textarea></div><div class="field"><label>建议准备的材料（每行一条）</label><textarea id="detail-research-materials" class="input" rows="6"></textarea></div></div>
+          <div class="field"><label>下一步最佳动作</label><textarea id="detail-research-next-action" class="input" rows="3"></textarea></div>
+          <div class="field"><label>证据来源（每行一个可访问网址）</label><textarea id="detail-research-sources" class="input" rows="4"></textarea></div>
           <div class="field"><label>推荐跟进策略</label><textarea id="detail-recommended-strategy" class="input" rows="4"></textarea></div>
           <div class="field"><label>补充/修改原因 *</label><input id="detail-research-reason" class="input" /></div>
           <div class="form-actions"><button id="calculate-research-score" class="ghost" type="button">重新计算评分</button><button id="save-detail-research" class="primary">保存背调信息</button></div>
@@ -1674,7 +1685,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade)",
+              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at)",
             )
             .eq("id", id)
             .single(),
@@ -1735,6 +1746,8 @@
         $("#detail-value-grade").value = company.value_grade || "";
         $("#detail-purchase-likelihood").value = company.purchase_likelihood || "unknown";
         $("#detail-recommended-strategy").value = company.recommended_strategy || "";
+        const lineText=(items,keys)=>(Array.isArray(items)?items:[]).map((item)=>typeof item==="string"?item:keys.map((key)=>item?.[key]).find(Boolean)).filter(Boolean).join("\n"),brief=company.research_sales_brief||{};
+        $("#detail-research-deep-status").value=company.research_status||"research_required";$("#detail-research-match-method").value=company.match_method||"";$("#detail-research-match-confidence").value=company.match_confidence||"low";$("#detail-research-source-updated").value=company.source_updated_at?fmtDate(company.source_updated_at):"";$("#detail-research-why-now").value=brief.why_now||"";$("#detail-research-confirmed-facts").value=lineText(company.confirmed_facts,["fact","text"]);$("#detail-research-demand-signals").value=lineText(company.demand_signals,["display","signal","text"]);$("#detail-research-likely-needs").value=lineText(company.likely_needs,["need","text"]);$("#detail-research-risks-counter").value=lineText(company.risks_counterevidence,["risk","text"]);$("#detail-research-contacts").value=lineText(company.research_contacts,["display","name","text"]);$("#detail-research-questions").value=lineText(brief.questions_to_ask,["text"]);$("#detail-research-materials").value=lineText(brief.materials_to_prepare,["text"]);$("#detail-research-next-action").value=brief.next_best_action||"";$("#detail-research-sources").value=lineText(company.research_evidence_sources,["url","source_url","text"]);
         $("#detail-research-reason").value = "";
         currentInquiry.businessResearch = null;
         $("#detail-research-status").textContent = company.ai_summary ? "背调状态：已有背调资料，可重新执行" : "背调状态：尚未执行";
@@ -2424,6 +2437,8 @@
           $("#detail-research-summary").value = [`匹配：${record.company || hit?.company}（域名精确匹配，可信度 ${record.confidence || "待确认"}）`,record.importSignal&&`采购信号：${record.importSignal}`,record.projects&&record.projects!=="None named"&&`项目线索：${record.projects}`,record.fitReason&&`契合判断：${record.fitReason}`,record.angle&&`建议切入：${record.angle}`,record.risk&&`风险/反证：${record.risk}`].filter(Boolean).join("\n");
           $("#detail-research-risk").value = /fraud|严重|高风险/i.test(record.risk || "") ? "high" : /risk|风险|跨度/i.test(record.risk || "") ? "medium" : "normal";
           $("#detail-research-reason").value = "WONLY Business 一键前置背调";
+          const sourceDate=record.addedDate||record.dataUpdatedAt||"",sourceUrl=record.sourceUrl||record.website||"",facts=[record.company&&`公司名称：${record.company}`,record.countryName&&`所在地：${record.countryName}${record.city?` · ${record.city}`:""}`,record.categoryName&&`公司类型：${record.categoryName}`,record.productFocus&&`主营产品：${record.productFocus}`,record.scale&&`公司规模：${record.scale}`].filter(Boolean),signals=[record.importSignal&&`采购/进口信号：${record.importSignal}｜来源：${sourceUrl||"待补充"}｜日期：${sourceDate||"未知"}｜可信度：${record.confidence||"待判断"}`,record.projects&&record.projects!=="None named"&&`项目线索：${record.projects}｜来源：${sourceUrl||"待补充"}｜日期：${sourceDate||"未知"}｜可信度：${record.confidence||"待判断"}`].filter(Boolean),contacts=[record.decisionContact&&`决策联系人：${record.decisionContact}｜已公开信息｜${record.contactSource||sourceUrl||"来源待补充"}`,record.email&&`邮箱：${record.email}｜待核验｜${record.contactSource||sourceUrl||"来源待补充"}`,record.phone&&`电话：${record.phone}｜待核验｜${record.contactSource||sourceUrl||"来源待补充"}`].filter(Boolean);
+          $("#detail-research-deep-status").value=sourceUrl&&record.confidence!=="low"?"ready":"research_required";$("#detail-research-match-method").value="官网域名精确匹配";$("#detail-research-match-confidence").value=["high","medium","low"].includes(record.confidence)?record.confidence:"medium";$("#detail-research-source-updated").value=sourceDate;$("#detail-research-why-now").value=record.importSignal||(record.projects&&record.projects!=="None named"?record.projects:"当前未发现可确认的近期采购时间信号，首次联系应优先核实项目时间与采购计划。");$("#detail-research-confirmed-facts").value=facts.join("\n");$("#detail-research-demand-signals").value=signals.join("\n");$("#detail-research-likely-needs").value=record.fitReason||"暂无足够证据形成明确需求判断";$("#detail-research-risks-counter").value=record.risk||"未发现明确风险；仍需核验公司身份、项目真实性、付款条件和最终用途";$("#detail-research-contacts").value=contacts.join("\n");$("#detail-research-questions").value=["项目最终用途和业主是谁？","所需产品规格、尺寸、材质、表面处理和认证标准是什么？","采购数量、预算、交付地点和期望交期是什么？","谁负责技术确认、商务审批和最终采购决定？","是否已有图纸、技术规范或现有供应商？"].join("\n");$("#detail-research-materials").value=["匹配项目的产品选型表与技术参数","相关认证和测试报告","相似国家或项目案例","样品与 Golden Sample 流程","报价所需信息清单和质量检验方案"].join("\n");$("#detail-research-next-action").value=record.angle||"先发送需求确认问题，核实项目和决策链后再准备正式报价";$("#detail-research-sources").value=[...new Set([record.sourceUrl,record.contactSource,record.website].filter(Boolean))].join("\n");
           $("#detail-research-status").textContent = `背调状态：可用 · 数据更新 ${record.dataUpdatedAt || "未知"}`;
           const evidence = $("#detail-research-evidence"); evidence.replaceChildren(); evidence.append("来源：");
           if (record.sourceUrl) { const link=document.createElement("a"); link.href=record.sourceUrl; link.target="_blank"; link.rel="noopener"; link.textContent=record.sourceUrl; evidence.appendChild(link); } else evidence.append("WONLY Business 数据记录");
@@ -2469,6 +2484,18 @@
           purchase_likelihood: $("#detail-purchase-likelihood").value,
           recommended_strategy: $("#detail-recommended-strategy").value.trim() || null,
           risk_forced_downgrade: ["high", "critical"].includes($("#detail-research-risk").value),
+          research_status: $("#detail-research-deep-status").value,
+          match_method: $("#detail-research-match-method").value.trim() || null,
+          match_confidence: $("#detail-research-match-confidence").value,
+          confirmed_facts: $("#detail-research-confirmed-facts").value.split(/\n+/).map((fact)=>fact.trim()).filter(Boolean).map((fact)=>({fact})),
+          demand_signals: $("#detail-research-demand-signals").value.split(/\n+/).map((display)=>display.trim()).filter(Boolean).map((display)=>({display})),
+          likely_needs: $("#detail-research-likely-needs").value.split(/\n+/).map((need)=>need.trim()).filter(Boolean).map((need)=>({need})),
+          risks_counterevidence: $("#detail-research-risks-counter").value.split(/\n+/).map((risk)=>risk.trim()).filter(Boolean).map((risk)=>({risk})),
+          research_contacts: $("#detail-research-contacts").value.split(/\n+/).map((display)=>display.trim()).filter(Boolean).map((display)=>({display})),
+          research_sales_brief: {why_now:$("#detail-research-why-now").value.trim(),questions_to_ask:$("#detail-research-questions").value.split(/\n+/).map((text)=>text.trim()).filter(Boolean),materials_to_prepare:$("#detail-research-materials").value.split(/\n+/).map((text)=>text.trim()).filter(Boolean),next_best_action:$("#detail-research-next-action").value.trim()},
+          research_evidence_sources: $("#detail-research-sources").value.split(/\n+/).map((url)=>url.trim()).filter(Boolean).map((url)=>({url})),
+          researched_at: new Date().toISOString(),
+          source_updated_at: currentInquiry.businessResearch?.addedDate || currentInquiry.businessResearch?.dataUpdatedAt || null,
           updated_at: new Date().toISOString(),
         };
         let companyId = currentInquiry.company_id;

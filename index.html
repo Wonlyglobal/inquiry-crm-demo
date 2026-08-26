@@ -1017,7 +1017,7 @@
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
       const supabase = createClient(
           "https://plhverjihjilnuhlhlxi.supabase.co",
-          "sb_publishable_ltaNA7nnVozoSCOcZIjg",
+          "sb_publishable_uDiOI4MTIoHbsQDAqHsH1A_4Db3Hmmw",
         ),
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
@@ -1288,7 +1288,9 @@
         });
         btn.disabled = false;
         if (error) {
-          $("#login-error").textContent = "邮箱或密码不正确";
+          $("#login-error").textContent = /api key/i.test(error.message)
+            ? "系统连接配置失效，请联系管理员"
+            : "邮箱或密码不正确";
           return;
         }
         try {

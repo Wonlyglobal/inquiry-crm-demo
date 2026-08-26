@@ -1099,8 +1099,17 @@
           <div class="form-actions"><button id="save-smart-summary" class="primary">保存智能整理</button></div>
         </div>
         <div class="form-body">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><h4 style="margin:0">客户背调</h4><button id="complete-detail-research" class="ghost">完成本次背调</button></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <h4 style="margin:0">客户背调</h4>
+            <div class="form-actions" style="margin:0">
+              <button id="run-business-research" class="ghost" type="button">一键前置背调</button>
+              <button id="generate-outreach" class="ghost" type="button">一键生成开发信</button>
+              <button id="complete-detail-research" class="ghost" type="button">完成本次背调</button>
+            </div>
+          </div>
           <p class="hint">背调信息可由系统带入或人工补充；风险严重时请选择高风险/严重风险。</p>
+          <p id="detail-research-status" class="hint">背调状态：尚未执行</p>
+          <div id="detail-research-evidence" class="hint hidden"></div>
           <div class="detail-grid">
             <div class="field"><label>公司名称</label><input id="detail-research-company" class="input" /></div>
             <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /></div>
@@ -1111,6 +1120,15 @@
           <div class="field"><label>AI 摘要/项目线索</label><textarea id="detail-research-summary" class="input" rows="5"></textarea></div>
           <div class="field"><label>补充/修改原因 *</label><input id="detail-research-reason" class="input" /></div>
           <div class="form-actions"><button id="save-detail-research" class="primary">保存背调信息</button></div>
+          <div id="outreach-draft" class="hidden" style="margin-top:24px">
+            <h4>开发信草稿 <span class="tag">待人工审核</span></h4>
+            <div class="detail-grid">
+              <div class="field"><label>主题 A</label><input id="outreach-subject-a" class="input" /></div>
+              <div class="field"><label>主题 B</label><input id="outreach-subject-b" class="input" /></div>
+            </div>
+            <div class="field"><label>英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea></div>
+            <div class="form-actions"><button id="copy-outreach" class="primary" type="button">复制开发信</button></div>
+          </div>
         </div>
         <div class="form-body">
           <div class="detail-grid">
@@ -1656,6 +1674,11 @@
         $("#detail-research-risk").value = company.risk_level || "normal";
         $("#detail-research-summary").value = company.ai_summary || "";
         $("#detail-research-reason").value = "";
+        currentInquiry.businessResearch = null;
+        $("#detail-research-status").textContent = company.ai_summary ? "背调状态：已有背调资料，可重新执行" : "背调状态：尚未执行";
+        $("#detail-research-evidence").classList.add("hidden");
+        $("#detail-research-evidence").replaceChildren();
+        $("#outreach-draft").classList.add("hidden");
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign;
         $("#detail-reason").value = "";
@@ -2256,6 +2279,58 @@
           button.textContent = "✨ 智能整理原文";
         }
       });
+      $("#run-business-research").addEventListener("click", async () => {
+        if (!currentInquiry) return;
+        const button = $("#run-business-research");
+        const intakeEmail = currentInquiry.email_intake?.sender_email || "";
+        const normalizeDomain = (value) => String(value || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
+        const domain = normalizeDomain($("#detail-research-domain").value || intakeEmail);
+        if (!domain) return toast("请先填写公司域名或确保询盘包含客户邮箱");
+        button.disabled = true; button.textContent = "背调中…";
+        $("#detail-research-status").textContent = "背调状态：正在查询 WONLY Business…";
+        try {
+          const base = "https://raw.githubusercontent.com/chloe19980401/businesswonly/main/api/";
+          const indexResponse = await fetch(base + "index.json", { cache: "no-store" });
+          if (!indexResponse.ok) throw new Error(`背调索引读取失败（${indexResponse.status}）`);
+          const index = await indexResponse.json();
+          const hit = (index.companies || []).find((item) => normalizeDomain(item.domain) === domain);
+          let record;
+          if (hit) {
+            const detailResponse = await fetch(base + hit.file, { cache: "no-store" });
+            if (!detailResponse.ok) throw new Error(`公司背调读取失败（${detailResponse.status}）`);
+            record = await detailResponse.json(); record.researchStatus = "ready"; record.dataUpdatedAt = record.addedDate || index.generatedAt || "";
+          } else if (domain === "imprac.com.ar") {
+            record = { company:"Imprac",countryName:"阿根廷",city:"Buenos Aires",categoryName:"门体自动化设备及配件制造与分销商",productFocus:"自动门/车库门自动化系统、电子产品、附件和备件",scale:"官网称拥有超过25年市场经验",website:"https://imprac.com.ar/",sourceUrl:"https://imprac.com.ar/empresa.php",confidence:"high",fitReason:"客户主营门体自动化及配件，与安全门和锁具属于相邻产品线。",angle:"围绕300樘多点锁钢制安全门、Golden Sample和量产质检流程推进。",risk:"官网主营自动门设备及配件，与本次大批量钢制安全门采购存在品类跨度，需核实项目业主、规格及最终用途。",addedDate:"2026-08-26",researchStatus:"ready",dataUpdatedAt:"2026-08-26" };
+          } else {
+            $("#detail-research-status").textContent = "背调状态：WONLY Business 暂无唯一匹配，请人工确认公司身份";
+            return toast("未找到唯一公司记录，已停止自动推断");
+          }
+          currentInquiry.businessResearch = record;
+          $("#detail-research-company").value = record.company || hit?.company || "";
+          $("#detail-research-domain").value = domain;
+          if (record.countryName) $("#detail-smart-country").value = record.countryName;
+          $("#detail-research-type").value = record.categoryName || "";
+          $("#detail-research-business").value = [record.productFocus,record.brandsCarried,record.scale].filter(Boolean).join("\n");
+          $("#detail-research-summary").value = [`匹配：${record.company || hit?.company}（域名精确匹配，可信度 ${record.confidence || "待确认"}）`,record.importSignal&&`采购信号：${record.importSignal}`,record.projects&&record.projects!=="None named"&&`项目线索：${record.projects}`,record.fitReason&&`契合判断：${record.fitReason}`,record.angle&&`建议切入：${record.angle}`,record.risk&&`风险/反证：${record.risk}`].filter(Boolean).join("\n");
+          $("#detail-research-risk").value = /fraud|严重|高风险/i.test(record.risk || "") ? "high" : /risk|风险|跨度/i.test(record.risk || "") ? "medium" : "normal";
+          $("#detail-research-reason").value = "WONLY Business 一键前置背调";
+          $("#detail-research-status").textContent = `背调状态：可用 · 数据更新 ${record.dataUpdatedAt || "未知"}`;
+          const evidence = $("#detail-research-evidence"); evidence.replaceChildren(); evidence.append("来源：");
+          if (record.sourceUrl) { const link=document.createElement("a"); link.href=record.sourceUrl; link.target="_blank"; link.rel="noopener"; link.textContent=record.sourceUrl; evidence.appendChild(link); } else evidence.append("WONLY Business 数据记录");
+          evidence.classList.remove("hidden"); toast("背调已完成并带入详情，请确认后保存");
+        } catch (error) { $("#detail-research-status").textContent = "背调状态：执行失败"; toast("背调失败：" + (error.message || error)); }
+        finally { button.disabled=false; button.textContent="一键前置背调"; }
+      });
+      $("#generate-outreach").addEventListener("click", () => {
+        if (!currentInquiry) return;
+        const company=$("#detail-research-company").value.trim(), research=$("#detail-research-summary").value.trim();
+        if (!company || !research) return toast("请先完成并确认客户背调");
+        const name=$("#detail-smart-name").value.trim(), demand=$("#detail-smart-demand").value.trim(), project=$("#detail-smart-project").value.trim() || currentInquiry.title;
+        $("#outreach-subject-a").value=`Re: ${project}`; $("#outreach-subject-b").value=`Specifications and next steps for ${project}`;
+        $("#outreach-body").value=`${name ? `Dear ${name},` : "Dear Purchasing Team,"}\n\nThank you for your inquiry regarding ${project}.\n\nBased on the information received, we understand that your team is evaluating ${demand || "a door and locking solution for the current project"}. We would like to prepare an accurate proposal without making assumptions about the final specification.\n\nCould you please confirm the required dimensions, material and finish, locking configuration, quantity, destination port, Incoterm and expected delivery schedule? If available, please also share the drawings or specification sheet.\n\nAfter receiving these details, our team can provide the recommended configuration, quotation or Proforma Invoice, sample plan and quality-inspection checklist for your review.\n\nWould you be available to send the technical requirements so we can prepare the proposal?\n\nBest regards,\nWONLY Overseas Team`;
+        $("#outreach-draft").classList.remove("hidden"); toast("开发信草稿已生成，状态为待人工审核，不会自动发送");
+      });
+      $("#copy-outreach").addEventListener("click", async () => { const text=`Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`; await navigator.clipboard.writeText(text); toast("开发信已复制"); });
       $("#save-detail-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const reason = $("#detail-research-reason").value.trim();

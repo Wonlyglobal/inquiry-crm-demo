@@ -1295,7 +1295,7 @@
           columns = ["公司", "域名", "国家", "公司类型", "主营业务", "风险", "AI 摘要"];
           mapper = (x) => ({ cells: [x.name, x.domain, x.country, x.company_type, x.main_business, x.risk_level, x.ai_summary] });
         } else {
-          query = supabase.from("profiles").select("full_name,email,role,team,job_title,active,must_change_password,mailbox_connections(status,last_tested_at,error_message)").order("created_at", { ascending: true });
+          query = supabase.from("profiles").select("full_name,email,role,team,job_title,active,must_change_password,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,error_message)").order("created_at", { ascending: true });
           columns = ["姓名", "邮箱", "CRM 角色", "部门", "职位", "状态", "邮箱连接", "最后测试"];
           mapper = (x) => { const mailbox = Array.isArray(x.mailbox_connections) ? x.mailbox_connections[0] : x.mailbox_connections; return { cells: [x.full_name, x.email, roleNames[x.role] || x.role, x.team, x.job_title, x.active ? "启用" : "停用", mailbox?.status === "connected" ? "已连接" : mailbox?.status === "error" ? "连接失败" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"] }; };
         }

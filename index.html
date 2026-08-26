@@ -393,22 +393,33 @@
         z-index: 50;
       }
       #detail-modal {
-        left: 246px;
-        background: var(--bg);
+        position: static;
+        inset: auto;
+        background: transparent;
         display: block;
-        overflow-y: auto;
-        padding: 24px 38px 48px;
-        z-index: 35;
+        overflow: visible;
+        padding: 24px 0 48px;
+        z-index: auto;
       }
       #detail-modal.hidden { display: none; }
       #detail-modal .modal {
         width: 100%;
-        max-width: 1180px;
+        max-width: none;
         max-height: none;
         margin: 0 auto;
-        border: 1px solid var(--line);
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
         box-shadow: none;
       }
+      #detail-modal .modal-head { padding: 0 0 18px; }
+      #detail-modal .form-body,
+      #detail-modal .detail-pipeline-wrap { margin-bottom: 14px; border: 1px solid var(--line); border-radius: 17px; background: #fff; }
+      .detail-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+      .detail-kpi { padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
+      .detail-kpi span { color: var(--muted); font-size: 11px; }
+      .detail-kpi b { display: block; margin-top: 9px; font-size: 17px; }
       .detail-pipeline-wrap {
         padding: 20px 22px 4px;
       }
@@ -621,7 +632,8 @@
         .main {
           padding: 0 15px 24px;
         }
-        #detail-modal { left: 64px; padding: 16px; }
+        #detail-modal { padding: 16px 0; }
+        .detail-kpis { grid-template-columns: 1fr 1fr; }
         .kpis {
           grid-template-columns: 1fr 1fr;
         }
@@ -855,6 +867,12 @@
         <div class="modal-head">
           <h3>新建询盘</h3>
           <button id="close-modal" class="close">×</button>
+        </div>
+        <div class="detail-kpis">
+          <div class="detail-kpi"><span>当前阶段</span><b id="detail-kpi-stage">—</b></div>
+          <div class="detail-kpi"><span>负责人</span><b id="detail-kpi-owner">—</b></div>
+          <div class="detail-kpi"><span>询盘时间</span><b id="detail-kpi-time">—</b></div>
+          <div class="detail-kpi"><span>有效性</span><b id="detail-kpi-validity">—</b></div>
         </div>
         <div class="tabs">
           <button class="tab active" data-tab="manual">手工录入</button
@@ -1129,6 +1147,7 @@
         $$ = (s) => [...document.querySelectorAll(s)];
       let profile = null;
       let currentInquiry = null;
+      $(".main").appendChild($("#detail-modal"));
       const roleNames = {
         owner: "老板",
         sales_manager: "销售主管",
@@ -1452,11 +1471,11 @@
         });
       }
       async function openInquiryDetail(id) {
-        const [{ data: inquiry, error }, { data: owners }] = await Promise.all([
+        const [{ data: inquiry, error }, { data: owners }, { data: intake }] = await Promise.all([
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency",
+              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at",
             )
             .eq("id", id)
             .single(),
@@ -1465,6 +1484,11 @@
             .select("id,full_name,role")
             .in("role", ["sales", "sales_manager"])
             .eq("active", true),
+          supabase
+            .from("email_intake")
+            .select("received_at")
+            .eq("inquiry_id", id)
+            .maybeSingle(),
         ]);
         if (error) {
           toast("详情加载失败：" + error.message);
@@ -1480,6 +1504,11 @@
           owner.add(new Option(`${x.full_name} · ${roleNames[x.role]}`, x.id)),
         );
         owner.value = inquiry.owner_id || "";
+        const ownerProfile = (owners || []).find((x) => x.id === inquiry.owner_id);
+        $("#detail-kpi-stage").textContent = statusNames[inquiry.status] || inquiry.status;
+        $("#detail-kpi-owner").textContent = ownerProfile?.full_name || "暂未分配";
+        $("#detail-kpi-time").textContent = fmtDate(intake?.received_at || inquiry.created_at);
+        $("#detail-kpi-validity").textContent = { pending: "待确认", valid: "有效", invalid: "无效" }[inquiry.validity] || inquiry.validity;
         $("#detail-validity").value = inquiry.validity;
         $("#detail-invalid-reason").value =
           inquiry.invalid_reason || inquiry.lost_reason || "";
@@ -1488,6 +1517,8 @@
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign;
         $("#detail-reason").value = "";
+        $("#dashboard-page").classList.add("hidden");
+        $("#module-page").classList.add("hidden");
         $("#detail-modal").classList.remove("hidden");
         const detailHash = `#inquiry/${id}`;
         if (location.hash !== detailHash)
@@ -1961,6 +1992,9 @@
       function closeInquiryPage() {
         $("#detail-modal").classList.add("hidden");
         currentInquiry = null;
+        const activeView = $(".nav[data-view].active")?.dataset.view || "dashboard";
+        $("#dashboard-page").classList.toggle("hidden", activeView !== "dashboard");
+        $("#module-page").classList.toggle("hidden", activeView === "dashboard");
       }
       $("#close-detail").addEventListener("click", () => {
         if (location.hash.startsWith("#inquiry/")) history.back();

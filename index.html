@@ -1116,6 +1116,8 @@
             <h4 style="margin:0">客户背调</h4>
             <div class="form-actions" style="margin:0">
               <button id="run-business-research" class="ghost" type="button">一键前置背调</button>
+              <button id="upload-topease-report" class="ghost" type="button">导入特易报告</button>
+              <button id="paste-topease-report" class="ghost" type="button">粘贴特易报告</button>
               <button id="generate-outreach" class="ghost" type="button">一键生成开发信</button>
               <button id="complete-detail-research" class="ghost" type="button">完成本次背调</button>
             </div>
@@ -1123,6 +1125,16 @@
           <p class="hint">背调信息可由系统带入或人工补充；风险严重时请选择高风险/严重风险。</p>
           <p id="detail-research-status" class="hint">背调状态：尚未执行</p>
           <div id="detail-research-evidence" class="hint hidden"></div>
+          <input id="topease-report-file" class="hidden" type="file" accept=".xlsx,.xls,.csv,.pdf,.txt" />
+          <div id="topease-paste-panel" class="hidden" style="margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--soft)">
+            <div class="field"><label>粘贴特易企业背调或交易数据</label><textarea id="topease-paste-text" class="input" rows="8" placeholder="可粘贴企业详情、交易分析或提单导出内容"></textarea></div>
+            <div class="form-actions"><button id="parse-topease-paste" class="primary" type="button">解析并保存</button></div>
+          </div>
+          <div id="topease-preview" class="hidden" style="margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--soft)">
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><b>特易数据导入预览</b><span id="topease-preview-meta" class="hint"></span></div>
+            <textarea id="topease-preview-summary" class="input" rows="8" style="margin-top:12px"></textarea>
+            <div class="form-actions"><button id="merge-topease-summary" class="primary" type="button">合并到客户背调</button></div>
+          </div>
           <div class="detail-grid">
             <div class="field"><label>公司名称</label><input id="detail-research-company" class="input" /></div>
             <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /></div>
@@ -1703,6 +1715,11 @@
         $("#detail-research-status").textContent = company.ai_summary ? "背调状态：已有背调资料，可重新执行" : "背调状态：尚未执行";
         $("#detail-research-evidence").classList.add("hidden");
         $("#detail-research-evidence").replaceChildren();
+        const { data: latestImport } = await supabase.from("research_imports")
+          .select("summary,file_name,provider,created_at").eq("inquiry_id", id)
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (latestImport?.summary) showTopeasePreview(latestImport.summary, latestImport.file_name || "粘贴内容", latestImport.created_at);
+        else $("#topease-preview").classList.add("hidden");
         $("#outreach-draft").classList.add("hidden");
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign;
@@ -2304,6 +2321,34 @@
           button.textContent = "✨ 智能整理原文";
         }
       });
+      function extractTopeaseSummary(sourceText, rowCount = 0) {
+        const clean = String(sourceText || "").replace(/\u0000/g, "").trim();
+        const lines = [...new Set(clean.split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean))];
+        const hsCodes = [...new Set([...clean.matchAll(/(?:HS\s*(?:CODE|编码)?|海关编码|商品编码)\s*[:：#-]?\s*(\d{4,10})\b/gi)].map((match) => match[1]))].slice(0, 20);
+        const dates = [...new Set(clean.match(/\b20\d{2}[-/.年]\d{1,2}[-/.月]\d{1,2}日?\b/g) || [])].slice(-10);
+        const signals = lines.filter((line) => /进口|出口|采购|供应|交易|提单|金额|数量|产品|买方|卖方|import|export|buyer|supplier|shipment|amount|quantity|product|hs\s*code/i.test(line)).slice(0, 24);
+        const parts = ["【特易海关数据】",rowCount ? `导入数据行数：${rowCount}` : "",hsCodes.length ? `涉及 HS 编码：${hsCodes.join("、")}` : "",dates.length ? `数据日期：${dates.join("、")}` : "",signals.length ? `交易与采购线索：\n${signals.join("\n")}` : `原始资料摘要：\n${lines.slice(0, 20).join("\n")}`].filter(Boolean);
+        return { summary: parts.join("\n"), extracted: { row_count: rowCount, hs_codes: hsCodes, dates, signal_lines: signals } };
+      }
+      function showTopeasePreview(summary, sourceName, createdAt = new Date().toISOString()) {
+        $("#topease-preview-summary").value = summary || ""; $("#topease-preview-meta").textContent = `${sourceName || "特易资料"} · ${fmtDate(createdAt)}`; $("#topease-preview").classList.remove("hidden");
+      }
+      async function parseTopeaseFile(file) {
+        const lower = file.name.toLowerCase();
+        if (/\.(xlsx|xls)$/.test(lower)) { const XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm"); const workbook = XLSX.read(await file.arrayBuffer(), { type:"array",cellDates:true }); const rows=[]; workbook.SheetNames.forEach((name)=>{rows.push([`工作表：${name}`]);rows.push(...XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:"",raw:false}));}); return {text:rows.map((row)=>row.join("\t")).join("\n"),rowCount:rows.length}; }
+        if (lower.endsWith(".pdf")) { const pdfjs=await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs"); pdfjs.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs"; const pdf=await pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise; const pages=[]; for(let pageNo=1;pageNo<=pdf.numPages;pageNo+=1){const page=await pdf.getPage(pageNo);const content=await page.getTextContent();pages.push(`第 ${pageNo} 页\n${content.items.map((item)=>item.str||"").join(" ")}`);} return {text:pages.join("\n"),rowCount:pdf.numPages}; }
+        const text=await file.text(); return {text,rowCount:text.split(/\r?\n/).filter(Boolean).length};
+      }
+      async function saveTopeaseImport({ file=null,sourceText,rowCount=0 }) {
+        if(!currentInquiry) throw new Error("请先打开询盘详情"); const parsed=extractTopeaseSummary(sourceText,rowCount); let filePath=null;
+        if(file){const safeName=file.name.replace(/[^a-zA-Z0-9._-]+/g,"_");const extension=file.name.toLowerCase().split(".").pop();const inferredType={xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",xls:"application/vnd.ms-excel",pdf:"application/pdf",csv:"text/csv",txt:"text/plain"}[extension]||"text/plain";const mimeType=file.type||inferredType;filePath=`${currentInquiry.id}/${profile.id}/${Date.now()}-${safeName}`;const uploaded=await supabase.storage.from("research-attachments").upload(filePath,file,{upsert:false,contentType:mimeType});if(uploaded.error)throw uploaded.error;}
+        const inserted=await supabase.from("research_imports").insert({inquiry_id:currentInquiry.id,provider:"topease",file_path:filePath,file_name:file?.name||null,mime_type:file?(file.type||({xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",xls:"application/vnd.ms-excel",pdf:"application/pdf",csv:"text/csv",txt:"text/plain"}[file.name.toLowerCase().split(".").pop()]||"text/plain")):"text/plain",file_size:file?.size||null,source_text:String(sourceText||"").slice(0,200000),extracted_data:parsed.extracted,summary:parsed.summary,created_by:profile.id}).select("id,summary,created_at").single();if(inserted.error)throw inserted.error;showTopeasePreview(inserted.data.summary,file?.name||"粘贴内容",inserted.data.created_at);return inserted.data;
+      }
+      $("#upload-topease-report").addEventListener("click",()=>$("#topease-report-file").click());
+      $("#paste-topease-report").addEventListener("click",()=>$("#topease-paste-panel").classList.toggle("hidden"));
+      $("#topease-report-file").addEventListener("change",async(event)=>{const file=event.target.files?.[0];if(!file)return;if(file.size>15*1024*1024){event.target.value="";return toast("文件不能超过 15MB");}const button=$("#upload-topease-report");button.disabled=true;button.textContent="解析中…";try{const parsed=await parseTopeaseFile(file);await saveTopeaseImport({file,sourceText:parsed.text,rowCount:parsed.rowCount});toast("特易报告已解析并保存，请确认预览后合并");}catch(error){toast("导入失败："+(error.message||error));}finally{button.disabled=false;button.textContent="导入特易报告";event.target.value="";}});
+      $("#parse-topease-paste").addEventListener("click",async()=>{const sourceText=$("#topease-paste-text").value.trim();if(!sourceText)return toast("请先粘贴特易报告内容");const button=$("#parse-topease-paste");button.disabled=true;try{await saveTopeaseImport({sourceText,rowCount:sourceText.split(/\r?\n/).filter(Boolean).length});$("#topease-paste-panel").classList.add("hidden");$("#topease-paste-text").value="";toast("特易报告已解析并保存");}catch(error){toast("保存失败："+(error.message||error));}finally{button.disabled=false;}});
+      $("#merge-topease-summary").addEventListener("click",()=>{const imported=$("#topease-preview-summary").value.trim();if(!imported)return toast("没有可合并的数据");const current=$("#detail-research-summary").value.trim();$("#detail-research-summary").value=[current,imported].filter(Boolean).join("\n\n");$("#detail-research-reason").value="导入特易海关数据补充背调";toast("已合并到客户背调，请检查后点击保存背调信息");});
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const button = $("#run-business-research");

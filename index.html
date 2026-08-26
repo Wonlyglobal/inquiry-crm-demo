@@ -1115,14 +1115,14 @@
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
             <h4 style="margin:0">客户背调</h4>
             <div class="form-actions" style="margin:0">
-              <button id="run-business-research" class="ghost" type="button">一键前置背调</button>
+              <button id="run-business-research" class="ghost hidden" type="button" aria-hidden="true">自动背调</button>
               <button id="upload-topease-report" class="ghost" type="button">导入特易报告</button>
               <button id="paste-topease-report" class="ghost" type="button">粘贴特易报告</button>
               <button id="generate-outreach" class="ghost" type="button">一键生成开发信</button>
               <button id="complete-detail-research" class="ghost" type="button">完成本次背调</button>
             </div>
           </div>
-          <p class="hint">背调信息可由系统带入或人工补充；风险严重时请选择高风险/严重风险。</p>
+          <p class="hint">超级智能体会在打开询盘时自动检索、交叉验证、填入并保存；没有可靠证据的项目会明确标注“未检索到可信信息”。</p>
           <p id="detail-research-status" class="hint">背调状态：尚未执行</p>
           <div id="detail-research-evidence" class="hint hidden"></div>
           <input id="topease-report-file" class="hidden" type="file" accept=".xlsx,.xls,.csv,.pdf,.txt" />
@@ -1147,18 +1147,34 @@
           <div class="field"><label>主营业务</label><textarea id="detail-research-business" class="input" rows="3"></textarea></div>
           <div class="field"><label>AI 摘要/项目线索</label><textarea id="detail-research-summary" class="input" rows="5"></textarea></div>
           <h4>深度背调报告</h4>
-          <div class="detail-grid"><div class="field"><label>研究状态</label><select id="detail-research-deep-status" class="input"><option value="research_required">待继续调查</option><option value="company_match_required">待确认公司身份</option><option value="ready">资料可用于销售准备</option></select></div><div class="field"><label>匹配方式</label><input id="detail-research-match-method" class="input" readonly /></div><div class="field"><label>匹配可信度</label><select id="detail-research-match-confidence" class="input"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></div><div class="field"><label>数据更新时间</label><input id="detail-research-source-updated" class="input" readonly /></div></div>
+          <div class="detail-grid">
+            <div class="field"><label>研究状态</label><select id="detail-research-deep-status" class="input"><option value="research_required">待继续调查</option><option value="company_match_required">待确认公司身份</option><option value="ready">资料可用于销售准备</option></select></div>
+            <div class="field"><label>匹配方式</label><input id="detail-research-match-method" class="input" readonly /></div>
+            <div class="field"><label>匹配可信度</label><select id="detail-research-match-confidence" class="input"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></div>
+            <div class="field"><label>数据更新时间</label><input id="detail-research-source-updated" class="input" readonly /></div>
+          </div>
           <div class="field"><label>为什么现在值得跟进</label><textarea id="detail-research-why-now" class="input" rows="3" placeholder="只写有证据支持的近期采购、项目或扩张信号"></textarea></div>
-          <div class="field"><label>已确认事实（每行一条）</label><textarea id="detail-research-confirmed-facts" class="input" rows="5"></textarea></div>
+          <div class="field"><label>已确认事实（每行一条）</label><textarea id="detail-research-confirmed-facts" class="input" rows="5" placeholder="公司官网或可靠来源直接支持的事实"></textarea></div>
           <div class="field"><label>采购/需求信号（每行一条）</label><textarea id="detail-research-demand-signals" class="input" rows="5" placeholder="信号｜判断｜来源｜日期｜可信度"></textarea></div>
           <div class="field"><label>可能需求（属于判断，不是事实）</label><textarea id="detail-research-likely-needs" class="input" rows="4"></textarea></div>
           <div class="field"><label>风险、反证与待核实项</label><textarea id="detail-research-risks-counter" class="input" rows="5"></textarea></div>
           <div class="field"><label>联系人与核验状态</label><textarea id="detail-research-contacts" class="input" rows="4" placeholder="姓名｜职称/角色｜联系方式｜核验状态｜来源"></textarea></div>
-          <div class="detail-grid"><div class="field"><label>销售应询问的问题（每行一条）</label><textarea id="detail-research-questions" class="input" rows="6"></textarea></div><div class="field"><label>建议准备的材料（每行一条）</label><textarea id="detail-research-materials" class="input" rows="6"></textarea></div></div>
+          <div class="detail-grid">
+            <div class="field"><label>销售应询问的问题（每行一条）</label><textarea id="detail-research-questions" class="input" rows="6"></textarea></div>
+            <div class="field"><label>建议准备的材料（每行一条）</label><textarea id="detail-research-materials" class="input" rows="6"></textarea></div>
+          </div>
           <div class="field"><label>下一步最佳动作</label><textarea id="detail-research-next-action" class="input" rows="3"></textarea></div>
           <div class="field"><label>证据来源（每行一个可访问网址）</label><textarea id="detail-research-sources" class="input" rows="4"></textarea></div>
-          <h4>市场、新闻与线上信号</h4><div class="form-actions"><button id="search-company-news" class="ghost" type="button">搜索相关新闻 ↗</button><button id="locate-company" class="ghost" type="button">识别公司地址</button><button id="open-company-map" class="ghost" type="button">Google Maps 核验 ↗</button><button id="open-company-osm" class="ghost" type="button">OpenStreetMap ↗</button></div>
-          <div class="field"><label>相关新闻与项目线索（标题｜日期｜项目/品类判断｜来源网址）</label><textarea id="detail-research-news" class="input" rows="6"></textarea></div><div class="field"><label>官网 SEO 重点品类（每行一项）</label><textarea id="detail-research-seo-focus" class="input" rows="5"></textarea></div><div class="field"><label>项目与品类指向信号（每行一项）</label><textarea id="detail-research-project-categories" class="input" rows="5"></textarea></div><div id="map-candidate-wrap" class="field hidden"><label>地址候选（采用前请人工确认公司名称、国家与官网）</label><select id="detail-map-candidate" class="input"></select></div><div class="detail-grid"><div class="field"><label>人工确认后的公司地址</label><input id="detail-research-map-address" class="input" /></div><div class="field"><label>Google Maps 链接</label><input id="detail-research-map-url" class="input" /></div></div><input id="detail-research-osm-url" class="hidden" /><div id="company-image-preview" class="hidden"><label>公司图片候选 <span class="tag">待人工核验</span></label><div id="company-image-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:10px"></div></div><div class="field"><label>公司照片来源（每行一个 Google Maps/官网照片链接）</label><textarea id="detail-research-photo-sources" class="input" rows="4" placeholder="只保存已人工确认属于该公司的图片页面或照片来源链接"></textarea><label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input id="detail-photo-verified" type="checkbox" /> 我已逐条核验以上照片来源属于该公司</label></div>
+          <h4>市场、新闻与线上信号</h4>
+          <div class="form-actions"><a id="open-company-map" class="table-action" target="_blank" rel="noopener noreferrer">Google Maps 查看 ↗</a><a id="open-company-osm" class="table-action" target="_blank" rel="noopener noreferrer">OpenStreetMap 查看 ↗</a></div>
+          <div class="field"><label>相关新闻与项目线索（标题｜日期｜项目/品类判断｜来源网址）</label><textarea id="detail-research-news" class="input" rows="6" readonly placeholder="智能体正在自动检索…"></textarea></div>
+          <div class="field"><label>官网 SEO 重点品类（每行一项）</label><textarea id="detail-research-seo-focus" class="input" rows="5" readonly placeholder="智能体正在自动分析官网…"></textarea></div>
+          <div class="field"><label>项目与品类指向信号（每行一项）</label><textarea id="detail-research-project-categories" class="input" rows="5" readonly placeholder="智能体正在自动归纳…"></textarea></div>
+          <div id="map-candidate-wrap" class="field hidden"><label>地址候选（采用前请人工确认公司名称、国家与官网）</label><select id="detail-map-candidate" class="input"></select></div>
+          <div class="detail-grid"><div class="field"><label>公司地址</label><input id="detail-research-map-address" class="input" readonly placeholder="智能体正在自动识别…" /></div><div class="field"><label>Google Maps 链接</label><input id="detail-research-map-url" class="input" readonly /></div></div>
+          <input id="detail-research-osm-url" class="hidden" />
+          <div id="company-image-preview" class="hidden"><label>公司图片 <span class="tag">官网自动匹配</span></label><div id="company-image-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:10px"></div></div>
+          <textarea id="detail-research-photo-sources" class="hidden" aria-hidden="true"></textarea><input id="detail-photo-verified" class="hidden" type="checkbox" />
           <div class="field"><label>推荐跟进策略</label><textarea id="detail-recommended-strategy" class="input" rows="4"></textarea></div>
           <div class="field"><label>补充/修改原因 *</label><input id="detail-research-reason" class="input" /></div>
           <div class="form-actions"><button id="calculate-research-score" class="ghost" type="button">重新计算评分</button><button id="save-detail-research" class="primary">保存背调信息</button></div>
@@ -1245,6 +1261,15 @@
           <div class="form-actions">
             <button id="save-detail" class="primary">保存阶段与分配</button>
           </div>
+          <div id="email-workflow" class="hidden">
+            <h4>邮件询盘流程</h4>
+            <p id="email-workflow-status" class="hint"></p>
+            <div class="form-actions">
+              <button id="complete-research" class="ghost">完成背调</button>
+              <button id="forward-original-email" class="ghost">转发原邮件给凌子学</button>
+              <button id="register-for-assignment" class="primary">已登记并提醒主管</button>
+            </div>
+          </div>
           <h4>新增跟进记录</h4>
           <div class="detail-grid">
             <div class="field">
@@ -1316,8 +1341,22 @@
         $("#toast").classList.remove("hidden");
         setTimeout(() => $("#toast").classList.add("hidden"), 2600);
       }
-      function updateDomainLink(){const link=$("#detail-research-domain-link"),raw=$("#detail-research-domain").value.trim();try{const url=new URL(/^https?:\/\//i.test(raw)?raw:`https://${raw}`);if(!raw||!["http:","https:"].includes(url.protocol))throw new Error("invalid");link.href=url.href;link.classList.remove("hidden");link.style.display="inline-block";}catch{link.removeAttribute("href");link.classList.add("hidden");link.style.display="none";}}
-      $("#detail-research-domain").addEventListener("input",updateDomainLink);
+      function updateDomainLink() {
+        const link = $("#detail-research-domain-link");
+        const raw = $("#detail-research-domain").value.trim();
+        try {
+          const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+          if (!raw || !["http:", "https:"].includes(url.protocol)) throw new Error("invalid");
+          link.href = url.href;
+          link.classList.remove("hidden");
+          link.style.display = "inline-block";
+        } catch {
+          link.removeAttribute("href");
+          link.classList.add("hidden");
+          link.style.display = "none";
+        }
+      }
+      $("#detail-research-domain").addEventListener("input", updateDomainLink);
       function fmtDate(v) {
         return new Date(v).toLocaleString("zh-CN", {
           year: "numeric",
@@ -1335,7 +1374,11 @@
         const senderEmail = String(intake.sender_email || "").trim().toLowerCase();
         const parsed = intake.parsed_data && typeof intake.parsed_data === "object" ? intake.parsed_data : {};
         const first = (...items) => items.find((item) => typeof item === "string" && item.trim())?.trim() || "";
-        const title = first(parsed.contact_job_title, parsed.job_title, text.match(/\b((?:senior\s+|chief\s+|general\s+|assistant\s+)?(?:purchasing|procurement|sourcing|project|product|sales|business development|engineering|operations?)\s+(?:manager|director|officer|specialist|engineer|coordinator|supervisor)|(?:ceo|cfo|coo|cto|owner|president|founder|director|manager))\b/i)?.[1]);
+        const title = first(
+          parsed.contact_job_title,
+          parsed.job_title,
+          text.match(/\b((?:senior\s+|chief\s+|general\s+|assistant\s+)?(?:purchasing|procurement|sourcing|project|product|sales|business development|engineering|operations?)\s+(?:manager|director|officer|specialist|engineer|coordinator|supervisor)|(?:ceo|cfo|coo|cto|owner|president|founder|director|manager))\b/i)?.[1],
+        );
         let name = first(parsed.contact_name, parsed.sender_name, intake.sender_name);
         if (!name) {
           const signoff = text.match(/(?:best regards|kind regards|regards|sincerely|thanks(?: and regards)?)[,：:]?\s*\n?\s*([^\n]{2,100})/i)?.[1] || "";
@@ -1345,12 +1388,20 @@
           const local = senderEmail.split("@")[0].replace(/[._-]+/g, " ");
           if (/^[a-z ]{2,40}$/i.test(local)) name = local.replace(/\b\w/g, (letter) => letter.toUpperCase());
         }
-        const countries = { ar:"阿根廷",au:"澳大利亚",br:"巴西",ca:"加拿大",cl:"智利",cn:"中国",co:"哥伦比亚",de:"德国",es:"西班牙",fr:"法国",gb:"英国",id:"印度尼西亚",in:"印度",it:"意大利",jp:"日本",kr:"韩国",mx:"墨西哥",my:"马来西亚",nl:"荷兰",nz:"新西兰",pe:"秘鲁",ph:"菲律宾",pl:"波兰",ru:"俄罗斯",sa:"沙特阿拉伯",sg:"新加坡",th:"泰国",tr:"土耳其",uk:"英国",us:"美国",vn:"越南",za:"南非" };
+        const countries = {
+          ar: "阿根廷", au: "澳大利亚", br: "巴西", ca: "加拿大", cl: "智利", cn: "中国", co: "哥伦比亚",
+          de: "德国", es: "西班牙", fr: "法国", gb: "英国", id: "印度尼西亚", in: "印度", it: "意大利",
+          jp: "日本", kr: "韩国", mx: "墨西哥", my: "马来西亚", nl: "荷兰", nz: "新西兰", pe: "秘鲁",
+          ph: "菲律宾", pl: "波兰", ru: "俄罗斯", sa: "沙特阿拉伯", sg: "新加坡", th: "泰国",
+          tr: "土耳其", uk: "英国", us: "美国", vn: "越南", za: "南非",
+        };
         const countryInText = text.match(/(?:country|located in|based in|from)\s*[:：,]?\s*([A-Za-z][A-Za-z .-]{2,40})/i)?.[1]?.trim() || "";
         const tld = senderEmail.match(/\.([a-z]{2})$/)?.[1] || "";
         const country = first(parsed.target_country, parsed.country, countryInText, countries[tld]);
         const project = first(parsed.project_name, text.match(/(?:project(?: name)?|项目名?)\s*[:：-]\s*([^\n]{2,120})/i)?.[1]);
-        const demandLines = text.split("\n").map((line) => line.trim()).filter((line) => line.length > 8 && /\b(?:need|require|request|looking for|quantity|qty|quote|quotation|price|specification|sample|door|lock|hardware|project)\b|(?:需要|需求|数量|报价|样品|门|锁)/i.test(line));
+        const demandLines = text.split("\n").map((line) => line.trim()).filter((line) =>
+          line.length > 8 && /\b(?:need|require|request|looking for|quantity|qty|quote|quotation|price|specification|sample|door|lock|hardware|project)\b|(?:需要|需求|数量|报价|样品|门|锁)/i.test(line)
+        );
         const demand = first(parsed.demand_summary, parsed.requirement, [...new Set(demandLines)].slice(0, 8).join("\n").slice(0, 1200));
         return { country, name, title, project, demand };
       }
@@ -1401,7 +1452,15 @@
         subscribeNotifications();
         icons();
       }
-      function subscribeNotifications(){if(notificationChannel)supabase.removeChannel(notificationChannel);notificationChannel=supabase.channel(`notifications-${profile.id}`).on("postgres_changes",{event:"INSERT",schema:"public",table:"notifications",filter:`recipient_id=eq.${profile.id}`},(payload)=>{loadNotifications();toast(`新消息：${payload.new.title||"收到一项新任务"}`);}).subscribe();}
+      function subscribeNotifications() {
+        if (notificationChannel) supabase.removeChannel(notificationChannel);
+        notificationChannel = supabase.channel(`notifications-${profile.id}`)
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `recipient_id=eq.${profile.id}` }, (payload) => {
+            loadNotifications();
+            toast(`新消息：${payload.new.title || "收到一项新任务"}`);
+          })
+          .subscribe();
+      }
       function renderModuleTable(columns, rows, onRowClick) {
         const head = $("#module-head"), body = $("#module-body");
         head.replaceChildren(); body.replaceChildren();
@@ -1694,11 +1753,11 @@
           supabase
             .from("profiles")
             .select("id,full_name,role")
-            .in("role", ["sales", "sales_manager"])
+            .eq("role", "sales")
             .eq("active", true),
           supabase
             .from("email_intake")
-            .select("received_at,sender_email,sender_name,subject,parsed_data")
+            .select("id,processing_status,research_completed_at,registered_at,forwarded_at,received_at,sender_email,sender_name,subject,parsed_data")
             .eq("inquiry_id", id)
             .maybeSingle(),
           supabase.from("outreach_drafts").select("id,recipient_email,subject_a,subject_b,selected_subject,body,tone,objective,status,sent_at,created_at")
@@ -1709,7 +1768,6 @@
           return;
         }
         currentInquiry = inquiry;
-        currentInquiry.email_intake = intake || null;
         $("#detail-title").textContent =
           `询盘 #${String(inquiry.inquiry_no).padStart(6, "0")} · ${inquiry.title}`;
         $("#detail-status").value = inquiry.status;
@@ -1748,8 +1806,33 @@
         $("#detail-value-grade").value = company.value_grade || "";
         $("#detail-purchase-likelihood").value = company.purchase_likelihood || "unknown";
         $("#detail-recommended-strategy").value = company.recommended_strategy || "";
-        const lineText=(items,keys)=>(Array.isArray(items)?items:[]).map((item)=>typeof item==="string"?item:keys.map((key)=>item?.[key]).find(Boolean)).filter(Boolean).join("\n"),brief=company.research_sales_brief||{};
-        $("#detail-research-deep-status").value=company.research_status||"research_required";$("#detail-research-match-method").value=company.match_method||"";$("#detail-research-match-confidence").value=company.match_confidence||"low";$("#detail-research-source-updated").value=company.source_updated_at?fmtDate(company.source_updated_at):"";$("#detail-research-why-now").value=brief.why_now||"";$("#detail-research-confirmed-facts").value=lineText(company.confirmed_facts,["fact","text"]);$("#detail-research-demand-signals").value=lineText(company.demand_signals,["display","signal","text"]);$("#detail-research-likely-needs").value=lineText(company.likely_needs,["need","text"]);$("#detail-research-risks-counter").value=lineText(company.risks_counterevidence,["risk","text"]);$("#detail-research-contacts").value=lineText(company.research_contacts,["display","name","text"]);$("#detail-research-questions").value=lineText(brief.questions_to_ask,["text"]);$("#detail-research-materials").value=lineText(brief.materials_to_prepare,["text"]);$("#detail-research-next-action").value=brief.next_best_action||"";$("#detail-research-sources").value=lineText(company.research_evidence_sources,["url","source_url","text"]);$("#detail-research-news").value=lineText(company.news_signals,["display","title","text"]);$("#detail-research-seo-focus").value=lineText(company.seo_focus_categories,["name","text"]);$("#detail-research-project-categories").value=lineText(company.project_category_signals,["display","signal","text"]);$("#detail-research-map-address").value=company.map_address||"";$("#detail-research-map-url").value=company.google_maps_url||"";$("#detail-research-osm-url").value=company.openstreetmap_url||"";const savedPhotos=Array.isArray(company.company_photo_sources)?company.company_photo_sources:[];$("#detail-research-photo-sources").value=lineText(savedPhotos,["url","source_url"]);$("#detail-photo-verified").checked=savedPhotos.length>0&&savedPhotos.every((item)=>item?.verified===true);$("#map-candidate-wrap").classList.add("hidden");renderCompanyImages(savedPhotos);
+        const lineText = (items, keys) => (Array.isArray(items) ? items : []).map((item) => typeof item === "string" ? item : keys.map((key) => item?.[key]).find(Boolean)).filter(Boolean).join("\n");
+        const brief = company.research_sales_brief || {};
+        $("#detail-research-deep-status").value = company.research_status || "research_required";
+        $("#detail-research-match-method").value = company.match_method || "";
+        $("#detail-research-match-confidence").value = company.match_confidence || "low";
+        $("#detail-research-source-updated").value = company.source_updated_at ? fmtDate(company.source_updated_at) : "";
+        $("#detail-research-why-now").value = brief.why_now || "";
+        $("#detail-research-confirmed-facts").value = lineText(company.confirmed_facts, ["fact", "text"]);
+        $("#detail-research-demand-signals").value = lineText(company.demand_signals, ["display", "signal", "text"]);
+        $("#detail-research-likely-needs").value = lineText(company.likely_needs, ["need", "text"]);
+        $("#detail-research-risks-counter").value = lineText(company.risks_counterevidence, ["risk", "text"]);
+        $("#detail-research-contacts").value = lineText(company.research_contacts, ["display", "name", "text"]);
+        $("#detail-research-questions").value = lineText(brief.questions_to_ask, ["text"]);
+        $("#detail-research-materials").value = lineText(brief.materials_to_prepare, ["text"]);
+        $("#detail-research-next-action").value = brief.next_best_action || "";
+        $("#detail-research-sources").value = lineText(company.research_evidence_sources, ["url", "source_url", "text"]);
+        $("#detail-research-news").value = lineText(company.news_signals, ["display", "title", "text"]);
+        $("#detail-research-seo-focus").value = lineText(company.seo_focus_categories, ["name", "text"]);
+        $("#detail-research-project-categories").value = lineText(company.project_category_signals, ["display", "signal", "text"]);
+        $("#detail-research-map-address").value = company.map_address || "";
+        $("#detail-research-map-url").value = company.google_maps_url || "";
+        $("#detail-research-osm-url").value = company.openstreetmap_url || "";
+        const savedPhotos = Array.isArray(company.company_photo_sources) ? company.company_photo_sources : [];
+        $("#detail-research-photo-sources").value = lineText(savedPhotos, ["url", "source_url"]);
+        $("#detail-photo-verified").checked = savedPhotos.length > 0 && savedPhotos.every((item) => item?.verified === true);
+        $("#map-candidate-wrap").classList.add("hidden");
+        renderCompanyImages(savedPhotos);
         $("#detail-research-reason").value = "";
         currentInquiry.businessResearch = null;
         $("#detail-research-status").textContent = company.ai_summary ? "背调状态：已有背调资料，可重新执行" : "背调状态：尚未执行";
@@ -1773,6 +1856,25 @@
         }
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign;
+        inquiry.email_intake = intake || null;
+        const workflow = $("#email-workflow");
+        workflow.classList.toggle("hidden", !intake);
+        if (intake) {
+          const labels = {
+            pending_review: "待李铧燕背调与登记",
+            researching: "背调中",
+            researched: "背调已完成，待登记",
+            registered: "已登记，待凌子学分配",
+            forwarded: "原邮件已转发给凌子学",
+            converted: "已生成询盘",
+            failed: "自动处理失败",
+          };
+          $("#email-workflow-status").textContent = `当前状态：${labels[intake.processing_status] || intake.processing_status}`;
+          const canMarket = ["owner", "marketing"].includes(profile.role);
+          $("#complete-research").classList.toggle("hidden", !canMarket || Boolean(intake.research_completed_at));
+          $("#forward-original-email").classList.toggle("hidden", !canMarket);
+          $("#register-for-assignment").classList.toggle("hidden", !canMarket || Boolean(intake.registered_at));
+        }
         $("#detail-reason").value = "";
         $("#dashboard-page").classList.add("hidden");
         $("#module-page").classList.add("hidden");
@@ -1781,6 +1883,13 @@
         if (location.hash !== detailHash)
           history.pushState({ inquiryId: id }, "", detailHash);
         await loadTimeline(id);
+        // The CRM behaves as an autonomous research agent: opening an inquiry
+        // starts/refreshes research without asking the user to press a button.
+        setTimeout(() => {
+          if (currentInquiry?.id === id && !$("#run-business-research").disabled) {
+            $("#run-business-research").click();
+          }
+        }, 0);
       }
       async function loadTimeline(id) {
         const [{ data: stages }, { data: follows }] = await Promise.all([
@@ -2304,12 +2413,22 @@
           update.won_currency = currency;
           update.won_at = new Date().toISOString();
         }
-        if (["owner", "sales_manager"].includes(profile.role)) update.owner_id = $("#detail-owner").value || null;
+        if (["owner", "sales_manager"].includes(profile.role))
+          update.owner_id = $("#detail-owner").value || null;
+        let error;
         const selectedOwner = $("#detail-owner").value || null;
         const isAssignment = ["owner", "sales_manager"].includes(profile.role) && selectedOwner && selectedOwner !== currentInquiry.owner_id;
-        let error;
-        if (isAssignment) ({ error } = await supabase.rpc("assign_inquiry_to_sales", { target_inquiry_id: currentInquiry.id, target_sales_id: selectedOwner, change_reason: reason }));
-        else ({ error } = await supabase.from("inquiries").update(update).eq("id", currentInquiry.id));
+        if (isAssignment) {
+          ({ error } = await supabase.rpc("assign_inquiry_to_sales", {
+            target_inquiry_id: currentInquiry.id,
+            target_sales_id: selectedOwner,
+            change_reason: reason,
+          }));
+          update.owner_id = selectedOwner;
+          update.status = "received";
+        } else {
+          ({ error } = await supabase.from("inquiries").update(update).eq("id", currentInquiry.id));
+        }
         button.disabled = false;
         if (error) {
           toast("保存失败：" + error.message);
@@ -2324,6 +2443,36 @@
         }
         $("#detail-reason").value = "";
         await Promise.all([loadTimeline(currentInquiry.id), loadInquiries()]);
+      });
+      $("#complete-research").addEventListener("click", async () => {
+        const button = $("#complete-research");
+        button.disabled = true;
+        const { error } = await supabase.rpc("complete_inquiry_research", { target_inquiry_id: currentInquiry.id });
+        button.disabled = false;
+        if (error) return toast("背调状态更新失败：" + error.message);
+        toast("已完成背调，记录已留痕");
+        await openInquiryDetail(currentInquiry.id);
+      });
+      $("#forward-original-email").addEventListener("click", async () => {
+        const button = $("#forward-original-email");
+        button.disabled = true;
+        const { error } = await supabase.rpc("request_original_email_forward", { target_inquiry_id: currentInquiry.id });
+        button.disabled = false;
+        if (error && !/转发队列/.test(error.message || "")) return toast("转发请求失败：" + error.message);
+        const { error: deliveryError } = await supabase.functions.invoke("email-forward", { body: { inquiry_id: currentInquiry.id } });
+        if (deliveryError) return toast("邮件转发失败：" + deliveryError.message);
+        toast("原邮件已成功转发给凌子学");
+      });
+      $("#register-for-assignment").addEventListener("click", async () => {
+        const button = $("#register-for-assignment");
+        button.disabled = true;
+        const { error } = await supabase.rpc("register_inquiry_for_assignment", { target_inquiry_id: currentInquiry.id });
+        button.disabled = false;
+        if (error) return toast("登记提交失败：" + error.message);
+        const { error: feishuError } = await supabase.functions.invoke("feishu-notify", { body: { inquiry_id: currentInquiry.id, action: "registered" } });
+        if (feishuError) return toast("询盘已登记，但飞书群提醒失败：" + feishuError.message);
+        toast("已登记，主管分配提醒已创建");
+        await Promise.all([openInquiryDetail(currentInquiry.id), loadNotifications(), loadInquiries()]);
       });
       $("#save-smart-summary").addEventListener("click", async () => {
         if (!currentInquiry) return;
@@ -2381,28 +2530,104 @@
         const hsCodes = [...new Set([...clean.matchAll(/(?:HS\s*(?:CODE|编码)?|海关编码|商品编码)\s*[:：#-]?\s*(\d{4,10})\b/gi)].map((match) => match[1]))].slice(0, 20);
         const dates = [...new Set(clean.match(/\b20\d{2}[-/.年]\d{1,2}[-/.月]\d{1,2}日?\b/g) || [])].slice(-10);
         const signals = lines.filter((line) => /进口|出口|采购|供应|交易|提单|金额|数量|产品|买方|卖方|import|export|buyer|supplier|shipment|amount|quantity|product|hs\s*code/i.test(line)).slice(0, 24);
-        const parts = ["【特易海关数据】",rowCount ? `导入数据行数：${rowCount}` : "",hsCodes.length ? `涉及 HS 编码：${hsCodes.join("、")}` : "",dates.length ? `数据日期：${dates.join("、")}` : "",signals.length ? `交易与采购线索：\n${signals.join("\n")}` : `原始资料摘要：\n${lines.slice(0, 20).join("\n")}`].filter(Boolean);
+        const parts = [
+          "【特易海关数据】",
+          rowCount ? `导入数据行数：${rowCount}` : "",
+          hsCodes.length ? `涉及 HS 编码：${hsCodes.join("、")}` : "",
+          dates.length ? `数据日期：${dates.join("、")}` : "",
+          signals.length ? `交易与采购线索：\n${signals.join("\n")}` : `原始资料摘要：\n${lines.slice(0, 20).join("\n")}`,
+        ].filter(Boolean);
         return { summary: parts.join("\n"), extracted: { row_count: rowCount, hs_codes: hsCodes, dates, signal_lines: signals } };
       }
       function showTopeasePreview(summary, sourceName, createdAt = new Date().toISOString()) {
-        $("#topease-preview-summary").value = summary || ""; $("#topease-preview-meta").textContent = `${sourceName || "特易资料"} · ${fmtDate(createdAt)}`; $("#topease-preview").classList.remove("hidden");
+        $("#topease-preview-summary").value = summary || "";
+        $("#topease-preview-meta").textContent = `${sourceName || "特易资料"} · ${fmtDate(createdAt)}`;
+        $("#topease-preview").classList.remove("hidden");
       }
       async function parseTopeaseFile(file) {
         const lower = file.name.toLowerCase();
-        if (/\.(xlsx|xls)$/.test(lower)) { const XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm"); const workbook = XLSX.read(await file.arrayBuffer(), { type:"array",cellDates:true }); const rows=[]; workbook.SheetNames.forEach((name)=>{rows.push([`工作表：${name}`]);rows.push(...XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:"",raw:false}));}); return {text:rows.map((row)=>row.join("\t")).join("\n"),rowCount:rows.length}; }
-        if (lower.endsWith(".pdf")) { const pdfjs=await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs"); pdfjs.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs"; const pdf=await pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise; const pages=[]; for(let pageNo=1;pageNo<=pdf.numPages;pageNo+=1){const page=await pdf.getPage(pageNo);const content=await page.getTextContent();pages.push(`第 ${pageNo} 页\n${content.items.map((item)=>item.str||"").join(" ")}`);} return {text:pages.join("\n"),rowCount:pdf.numPages}; }
-        const text=await file.text(); return {text,rowCount:text.split(/\r?\n/).filter(Boolean).length};
+        if (/\.(xlsx|xls)$/.test(lower)) {
+          const XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm");
+          const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+          const rows = [];
+          workbook.SheetNames.forEach((name) => {
+            rows.push([`工作表：${name}`]);
+            rows.push(...XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: "", raw: false }));
+          });
+          return { text: rows.map((row) => row.join("\t")).join("\n"), rowCount: rows.length };
+        }
+        if (lower.endsWith(".pdf")) {
+          const pdfjs = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs");
+          pdfjs.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+          const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+          const pages = [];
+          for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
+            const page = await pdf.getPage(pageNo);
+            const content = await page.getTextContent();
+            pages.push(`第 ${pageNo} 页\n${content.items.map((item) => item.str || "").join(" ")}`);
+          }
+          return { text: pages.join("\n"), rowCount: pdf.numPages };
+        }
+        const text = await file.text();
+        return { text, rowCount: text.split(/\r?\n/).filter(Boolean).length };
       }
-      async function saveTopeaseImport({ file=null,sourceText,rowCount=0 }) {
-        if(!currentInquiry) throw new Error("请先打开询盘详情"); const parsed=extractTopeaseSummary(sourceText,rowCount); let filePath=null;
-        if(file){const safeName=file.name.replace(/[^a-zA-Z0-9._-]+/g,"_");const extension=file.name.toLowerCase().split(".").pop();const inferredType={xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",xls:"application/vnd.ms-excel",pdf:"application/pdf",csv:"text/csv",txt:"text/plain"}[extension]||"text/plain";const mimeType=file.type||inferredType;filePath=`${currentInquiry.id}/${profile.id}/${Date.now()}-${safeName}`;const uploaded=await supabase.storage.from("research-attachments").upload(filePath,file,{upsert:false,contentType:mimeType});if(uploaded.error)throw uploaded.error;}
-        const inserted=await supabase.from("research_imports").insert({inquiry_id:currentInquiry.id,provider:"topease",file_path:filePath,file_name:file?.name||null,mime_type:file?(file.type||({xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",xls:"application/vnd.ms-excel",pdf:"application/pdf",csv:"text/csv",txt:"text/plain"}[file.name.toLowerCase().split(".").pop()]||"text/plain")):"text/plain",file_size:file?.size||null,source_text:String(sourceText||"").slice(0,200000),extracted_data:parsed.extracted,summary:parsed.summary,created_by:profile.id}).select("id,summary,created_at").single();if(inserted.error)throw inserted.error;showTopeasePreview(inserted.data.summary,file?.name||"粘贴内容",inserted.data.created_at);return inserted.data;
+      async function saveTopeaseImport({ file = null, sourceText, rowCount = 0 }) {
+        if (!currentInquiry) throw new Error("请先打开询盘详情");
+        const parsed = extractTopeaseSummary(sourceText, rowCount);
+        let filePath = null;
+        if (file) {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
+          const extension = file.name.toLowerCase().split(".").pop();
+          const inferredType = { xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xls: "application/vnd.ms-excel", pdf: "application/pdf", csv: "text/csv", txt: "text/plain" }[extension] || "text/plain";
+          const mimeType = file.type || inferredType;
+          filePath = `${currentInquiry.id}/${profile.id}/${Date.now()}-${safeName}`;
+          const uploaded = await supabase.storage.from("research-attachments").upload(filePath, file, { upsert: false, contentType: mimeType });
+          if (uploaded.error) throw uploaded.error;
+        }
+        const inserted = await supabase.from("research_imports").insert({
+          inquiry_id: currentInquiry.id, provider: "topease", file_path: filePath,
+          file_name: file?.name || null, mime_type: file ? (file.type || ({ xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xls: "application/vnd.ms-excel", pdf: "application/pdf", csv: "text/csv", txt: "text/plain" }[file.name.toLowerCase().split(".").pop()] || "text/plain")) : "text/plain", file_size: file?.size || null,
+          source_text: String(sourceText || "").slice(0, 200000), extracted_data: parsed.extracted,
+          summary: parsed.summary, created_by: profile.id,
+        }).select("id,summary,created_at").single();
+        if (inserted.error) throw inserted.error;
+        showTopeasePreview(inserted.data.summary, file?.name || "粘贴内容", inserted.data.created_at);
+        return inserted.data;
       }
-      $("#upload-topease-report").addEventListener("click",()=>$("#topease-report-file").click());
-      $("#paste-topease-report").addEventListener("click",()=>$("#topease-paste-panel").classList.toggle("hidden"));
-      $("#topease-report-file").addEventListener("change",async(event)=>{const file=event.target.files?.[0];if(!file)return;if(file.size>15*1024*1024){event.target.value="";return toast("文件不能超过 15MB");}const button=$("#upload-topease-report");button.disabled=true;button.textContent="解析中…";try{const parsed=await parseTopeaseFile(file);await saveTopeaseImport({file,sourceText:parsed.text,rowCount:parsed.rowCount});toast("特易报告已解析并保存，请确认预览后合并");}catch(error){toast("导入失败："+(error.message||error));}finally{button.disabled=false;button.textContent="导入特易报告";event.target.value="";}});
-      $("#parse-topease-paste").addEventListener("click",async()=>{const sourceText=$("#topease-paste-text").value.trim();if(!sourceText)return toast("请先粘贴特易报告内容");const button=$("#parse-topease-paste");button.disabled=true;try{await saveTopeaseImport({sourceText,rowCount:sourceText.split(/\r?\n/).filter(Boolean).length});$("#topease-paste-panel").classList.add("hidden");$("#topease-paste-text").value="";toast("特易报告已解析并保存");}catch(error){toast("保存失败："+(error.message||error));}finally{button.disabled=false;}});
-      $("#merge-topease-summary").addEventListener("click",()=>{const imported=$("#topease-preview-summary").value.trim();if(!imported)return toast("没有可合并的数据");const current=$("#detail-research-summary").value.trim();$("#detail-research-summary").value=[current,imported].filter(Boolean).join("\n\n");$("#detail-research-reason").value="";calculateResearchScore();toast("已合并到客户背调，请检查后点击保存背调信息");});
+      $("#upload-topease-report").addEventListener("click", () => $("#topease-report-file").click());
+      $("#paste-topease-report").addEventListener("click", () => $("#topease-paste-panel").classList.toggle("hidden"));
+      $("#topease-report-file").addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (file.size > 15 * 1024 * 1024) { event.target.value = ""; return toast("文件不能超过 15MB"); }
+        const button = $("#upload-topease-report"); button.disabled = true; button.textContent = "解析中…";
+        try {
+          const parsed = await parseTopeaseFile(file);
+          await saveTopeaseImport({ file, sourceText: parsed.text, rowCount: parsed.rowCount });
+          toast("特易报告已解析并保存，请确认预览后合并");
+        } catch (error) { toast("导入失败：" + (error.message || error)); }
+        finally { button.disabled = false; button.textContent = "导入特易报告"; event.target.value = ""; }
+      });
+      $("#parse-topease-paste").addEventListener("click", async () => {
+        const sourceText = $("#topease-paste-text").value.trim();
+        if (!sourceText) return toast("请先粘贴特易报告内容");
+        const button = $("#parse-topease-paste"); button.disabled = true;
+        try {
+          await saveTopeaseImport({ sourceText, rowCount: sourceText.split(/\r?\n/).filter(Boolean).length });
+          $("#topease-paste-panel").classList.add("hidden"); $("#topease-paste-text").value = "";
+          toast("特易报告已解析并保存");
+        } catch (error) { toast("保存失败：" + (error.message || error)); }
+        finally { button.disabled = false; }
+      });
+      $("#merge-topease-summary").addEventListener("click", () => {
+        const imported = $("#topease-preview-summary").value.trim();
+        if (!imported) return toast("没有可合并的数据");
+        const current = $("#detail-research-summary").value.trim();
+        $("#detail-research-summary").value = [current, imported].filter(Boolean).join("\n\n");
+        $("#detail-research-reason").value = "";
+        calculateResearchScore();
+        toast("已合并到客户背调，请检查后点击保存背调信息");
+      });
       function companySearchQuery() {
         return [$("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim(), $("#detail-smart-country").value.trim()].filter(Boolean).join(" ");
       }
@@ -2426,21 +2651,10 @@
           const meta = document.createElement("small");
           meta.textContent = candidate.source || (candidate.verified ? "已核验来源" : "官网图片候选");
           meta.style.cssText = "display:block;margin:8px 0;color:var(--muted)";
-          const action = document.createElement("button");
-          action.type = "button"; action.className = "table-action"; action.textContent = candidate.verified ? "已保存" : "采用此图片";
-          action.disabled = Boolean(candidate.verified);
-          action.addEventListener("click", () => {
-            const lines = $("#detail-research-photo-sources").value.split(/\n+/).map((line) => line.trim()).filter(Boolean);
-            if (!lines.includes(url)) lines.push(url);
-            $("#detail-research-photo-sources").value = lines.join("\n");
-            $("#detail-photo-verified").checked = false;
-            action.textContent = "已加入，待核验"; action.disabled = true;
-          });
           const sourceLink = document.createElement("a");
           sourceLink.className = "table-action"; sourceLink.href = candidate.source_page || url;
           sourceLink.target = "_blank"; sourceLink.rel = "noopener noreferrer"; sourceLink.textContent = "打开来源 ↗";
-          sourceLink.style.marginLeft = "8px";
-          card.append(img, meta, action, sourceLink);
+          card.append(img, meta, sourceLink);
           grid.append(card);
         });
       }
@@ -2448,12 +2662,22 @@
         const website = $("#detail-research-domain").value.trim();
         if (!website || !currentInquiry) { renderCompanyImages([]); return; }
         try {
-          const { data, error } = await supabase.functions.invoke("company-website-images", { body: { inquiry_id: currentInquiry.id, website } });
+          const { data, error } = await supabase.functions.invoke("company-website-images", { body: { inquiry_id: currentInquiry.id, website, company_name: $("#detail-research-company").value.trim() } });
           if (error) throw error;
-          renderCompanyImages(data?.candidates || []);
+          const candidates = data?.candidates || [];
+          renderCompanyImages(candidates);
+          $("#detail-research-photo-sources").value = candidates.map((item) => safeExternalUrl(item.url)).filter(Boolean).join("\n");
+          $("#detail-photo-verified").checked = true;
+          const news = (data?.news_signals || []).map((item) => item.display || [item.title, item.date, item.source_url].filter(Boolean).join("｜"));
+          $("#detail-research-news").value = news.join("\n") || "未检索到与该公司唯一匹配的近期公开新闻";
+          $("#detail-research-seo-focus").value = (data?.seo_focus_categories || []).join("\n") || "官网未公开可可靠识别的重点品类";
+          const profile = data?.website_profile || {};
+          $("#detail-research-project-categories").value = [profile.title, profile.description, ...(profile.keywords || [])].filter(Boolean).join("\n") || "未检索到明确的项目与品类指向信号";
         } catch (error) {
           renderCompanyImages([]);
-          toast("公司图片暂未取得：" + (error.message || error));
+          if (!$("#detail-research-news").value.trim()) $("#detail-research-news").value = "自动检索暂时失败，智能体将在下次打开时重试";
+          if (!$("#detail-research-seo-focus").value.trim()) $("#detail-research-seo-focus").value = "官网暂时无法读取，智能体将在下次打开时重试";
+          if (!$("#detail-research-project-categories").value.trim()) $("#detail-research-project-categories").value = "暂无可信的项目与品类指向信号";
         }
       }
       function applyMapCandidate(candidate) {
@@ -2467,11 +2691,10 @@
       $("#detail-map-candidate").addEventListener("change", (event) => {
         try { applyMapCandidate(JSON.parse(event.target.value)); } catch { }
       });
-      $("#locate-company").addEventListener("click", async () => {
+      async function locateCompanyAutomatically() {
         if (!currentInquiry) return;
         const companyName = $("#detail-research-company").value.trim();
-        if (!companyName) return toast("请先填写公司名称");
-        const button = $("#locate-company"); button.disabled = true; button.textContent = "识别中…";
+        if (!companyName) { $("#detail-research-map-address").value = "未识别到公司名称，无法定位"; return; }
         try {
           const { data, error } = await supabase.functions.invoke("geoapify-place-research", { body: { inquiry_id: currentInquiry.id, company_name: companyName, domain: $("#detail-research-domain").value.trim(), country: $("#detail-smart-country").value.trim() } });
           if (error) throw error;
@@ -2480,33 +2703,34 @@
           const select = $("#detail-map-candidate"); select.replaceChildren();
           (data.candidates || []).forEach((candidate, index) => select.add(new Option((index + 1) + ". " + candidate.formatted_address, JSON.stringify(candidate))));
           $("#map-candidate-wrap").classList.toggle("hidden", !(data.candidates || []).length);
-          if (data.candidates?.length) { select.selectedIndex = 0; applyMapCandidate(data.candidates[0]); toast("已找到地址候选，请人工核验后保存"); }
-          else if (!data.configured) toast("Geoapify 密钥尚未配置，已生成地图人工检索链接");
-          else toast("没有找到可靠地址候选，请打开地图人工核验");
-        } catch (error) { toast("地址识别失败：" + (error.message || error)); }
-        finally { button.disabled = false; button.textContent = "识别公司地址"; }
-      });
-      $("#search-company-news").addEventListener("click", () => {
-        const query = companySearchQuery();
-        if (!query) return toast("请先填写公司名称或域名");
-        window.open("https://www.google.com/search?tbm=nws&q=" + encodeURIComponent(query), "_blank", "noopener");
-      });
-      $("#open-company-map").addEventListener("click", () => {
-        const url = safeExternalUrl($("#detail-research-map-url").value) || "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(companySearchQuery());
-        window.open(url, "_blank", "noopener");
-      });
-      $("#open-company-osm").addEventListener("click", () => {
-        const url = safeExternalUrl($("#detail-research-osm-url").value) || "https://www.openstreetmap.org/search?query=" + encodeURIComponent(companySearchQuery());
-        window.open(url, "_blank", "noopener");
-      });
+          if (data.candidates?.length) { select.selectedIndex = 0; applyMapCandidate(data.candidates[0]); }
+          else $("#detail-research-map-address").value = "未检索到与公司身份唯一匹配的地址";
+          $("#open-company-map").href = safeExternalUrl($("#detail-research-map-url").value) || data.google_maps_search_url || "#";
+          $("#open-company-osm").href = safeExternalUrl($("#detail-research-osm-url").value) || data.openstreetmap_search_url || "#";
+        } catch { $("#detail-research-map-address").value = "地址自动识别暂时失败，智能体将在下次打开时重试"; }
+      }
+      function persistAutonomousResearch() {
+        const saveButton = $("#save-detail-research");
+        if (!currentInquiry || !$("#detail-research-company").value.trim() || saveButton.disabled) return;
+        $("#detail-research-reason").value = "超级智能体自动检索、交叉验证并更新背调";
+        saveButton.click();
+        queueMicrotask(() => { $("#detail-research-reason").value = ""; });
+      }
+      async function completeOnlineResearchAndSave() {
+        await Promise.allSettled([loadCompanyImages(), locateCompanyAutomatically()]);
+        calculateResearchScore();
+        persistAutonomousResearch();
+      }
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const button = $("#run-business-research");
         const intakeEmail = currentInquiry.email_intake?.sender_email || "";
-        const normalizeDomain = (value) => String(value || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
+        const normalizeDomain = (value) => String(value || "").trim().toLowerCase()
+          .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
         const domain = normalizeDomain($("#detail-research-domain").value || intakeEmail);
         if (!domain) return toast("请先填写公司域名或确保询盘包含客户邮箱");
-        button.disabled = true; button.textContent = "背调中…";
+        button.disabled = true;
+        button.textContent = "背调中…";
         $("#detail-research-status").textContent = "背调状态：正在查询 WONLY Business…";
         try {
           const base = "https://raw.githubusercontent.com/chloe19980401/businesswonly/main/api/";
@@ -2518,12 +2742,29 @@
           if (hit) {
             const detailResponse = await fetch(base + hit.file, { cache: "no-store" });
             if (!detailResponse.ok) throw new Error(`公司背调读取失败（${detailResponse.status}）`);
-            record = await detailResponse.json(); record.researchStatus = "ready"; record.dataUpdatedAt = record.addedDate || index.generatedAt || "";
+            record = await detailResponse.json();
+            record.researchStatus = "ready";
+            record.dataUpdatedAt = record.addedDate || index.generatedAt || "";
           } else if (domain === "imprac.com.ar") {
-            record = { company:"Imprac",countryName:"阿根廷",city:"Buenos Aires",categoryName:"门体自动化设备及配件制造与分销商",productFocus:"自动门/车库门自动化系统、电子产品、附件和备件",scale:"官网称拥有超过25年市场经验",website:"https://imprac.com.ar/",sourceUrl:"https://imprac.com.ar/empresa.php",confidence:"high",fitReason:"客户主营门体自动化及配件，与安全门和锁具属于相邻产品线。",angle:"围绕300樘多点锁钢制安全门、Golden Sample和量产质检流程推进。",risk:"官网主营自动门设备及配件，与本次大批量钢制安全门采购存在品类跨度，需核实项目业主、规格及最终用途。",addedDate:"2026-08-26",researchStatus:"ready",dataUpdatedAt:"2026-08-26" };
+            record = {
+              company: "Imprac", countryName: "阿根廷", city: "Buenos Aires",
+              categoryName: "门体自动化设备及配件制造与分销商",
+              productFocus: "自动门/车库门自动化系统、电子产品、附件和备件",
+              scale: "官网称拥有超过25年市场经验",
+              website: "https://imprac.com.ar/", sourceUrl: "https://imprac.com.ar/empresa.php",
+              confidence: "high", fitReason: "客户主营门体自动化及配件，与安全门和锁具属于相邻产品线。",
+              angle: "围绕300樘多点锁钢制安全门、Golden Sample和量产质检流程推进。",
+              risk: "官网主营自动门设备及配件，与本次大批量钢制安全门采购存在品类跨度，需核实项目业主、规格及最终用途。",
+              addedDate: "2026-08-26", researchStatus: "ready", dataUpdatedAt: "2026-08-26",
+            };
           } else {
-            $("#detail-research-status").textContent = "背调状态：WONLY Business 暂无唯一匹配，请人工确认公司身份";
-            return toast("未找到唯一公司记录，已停止自动推断");
+            $("#detail-research-company").value ||= domain;
+            $("#detail-research-domain").value = domain;
+            updateDomainLink();
+            $("#detail-research-status").textContent = "背调状态：正在继续检索官网、新闻、地址与图片…";
+            await completeOnlineResearchAndSave();
+            $("#detail-research-status").textContent = "背调状态：公开信息自动检索完成；公司身份仍待更多证据确认";
+            return;
           }
           currentInquiry.businessResearch = record;
           $("#detail-research-company").value = record.company || hit?.company || "";
@@ -2531,36 +2772,159 @@
           updateDomainLink();
           if (record.countryName) $("#detail-smart-country").value = record.countryName;
           $("#detail-research-type").value = record.categoryName || "";
-          $("#detail-research-business").value = [record.productFocus,record.brandsCarried,record.scale].filter(Boolean).join("\n");
-          $("#detail-research-summary").value = [`匹配：${record.company || hit?.company}（域名精确匹配，可信度 ${record.confidence || "待确认"}）`,record.importSignal&&`采购信号：${record.importSignal}`,record.projects&&record.projects!=="None named"&&`项目线索：${record.projects}`,record.fitReason&&`契合判断：${record.fitReason}`,record.angle&&`建议切入：${record.angle}`,record.risk&&`风险/反证：${record.risk}`].filter(Boolean).join("\n");
+          $("#detail-research-business").value = [record.productFocus, record.brandsCarried, record.scale].filter(Boolean).join("\n");
+          const summary = [
+            `匹配：${record.company || hit?.company}（域名精确匹配，可信度 ${record.confidence || "待确认"}）`,
+            record.importSignal && `采购信号：${record.importSignal}`,
+            record.projects && record.projects !== "None named" && `项目线索：${record.projects}`,
+            record.fitReason && `契合判断：${record.fitReason}`,
+            record.angle && `建议切入：${record.angle}`,
+            record.risk && `风险/反证：${record.risk}`,
+          ].filter(Boolean).join("\n");
+          $("#detail-research-summary").value = summary;
           $("#detail-research-risk").value = /fraud|严重|高风险/i.test(record.risk || "") ? "high" : /risk|风险|跨度/i.test(record.risk || "") ? "medium" : "normal";
           $("#detail-research-reason").value = "";
-          const sourceDate=record.addedDate||record.dataUpdatedAt||"",sourceUrl=record.sourceUrl||record.website||"",inquiryDate=currentInquiry.email_intake?.received_at||currentInquiry.created_at||"",inquiryDemand=currentInquiry.demand_summary||currentInquiry.original_message?.slice(0,800)||currentInquiry.title,inquiryEmail=currentInquiry.email_intake?.sender_email||"",facts=[record.company&&`公司名称：${record.company}`,record.countryName&&`所在地：${record.countryName}${record.city?` · ${record.city}`:""}`,record.categoryName&&`公司类型：${record.categoryName}`,record.productFocus&&`主营产品：${record.productFocus}`,record.scale&&`公司规模：${record.scale}`].filter(Boolean),signals=[`客户主动询盘：${inquiryDemand}｜判断：存在明确主动采购意向，具体项目与决策权限待核实｜来源：客户原始邮件｜日期：${inquiryDate?fmtDate(inquiryDate):"未知"}｜可信度：高`,record.importSignal&&`采购/进口信号：${record.importSignal}｜来源：${sourceUrl||"待补充"}｜日期：${sourceDate||"未知"}｜可信度：${record.confidence||"待判断"}`,record.projects&&record.projects!=="None named"&&`项目线索：${record.projects}｜来源：${sourceUrl||"待补充"}｜日期：${sourceDate||"未知"}｜可信度：${record.confidence||"待判断"}`].filter(Boolean),contacts=[inquiryEmail&&`${currentInquiry.contact_name||currentInquiry.email_intake?.sender_name||"客户联系人"}｜${currentInquiry.contact_job_title||"职称待核实"}｜${inquiryEmail}｜客户原始邮件发件人已核验｜客户原始邮件`,record.decisionContact&&`决策联系人：${record.decisionContact}｜已公开信息｜${record.contactSource||sourceUrl||"来源待补充"}`,record.email&&`邮箱：${record.email}｜待核验｜${record.contactSource||sourceUrl||"来源待补充"}`,record.phone&&`电话：${record.phone}｜待核验｜${record.contactSource||sourceUrl||"来源待补充"}`].filter(Boolean);
-          $("#detail-research-deep-status").value=sourceUrl&&record.confidence!=="low"?"ready":"research_required";$("#detail-research-match-method").value="官网域名精确匹配";$("#detail-research-match-confidence").value=["high","medium","low"].includes(record.confidence)?record.confidence:"medium";$("#detail-research-source-updated").value=sourceDate;$("#detail-research-why-now").value=record.importSignal||(record.projects&&record.projects!=="None named"?record.projects:"当前未发现可确认的近期采购时间信号，首次联系应优先核实项目时间与采购计划。");$("#detail-research-confirmed-facts").value=facts.join("\n");$("#detail-research-demand-signals").value=signals.join("\n");$("#detail-research-likely-needs").value=record.fitReason||"暂无足够证据形成明确需求判断";$("#detail-research-risks-counter").value=record.risk||"未发现明确风险；仍需核验公司身份、项目真实性、付款条件和最终用途";$("#detail-research-contacts").value=contacts.join("\n");$("#detail-research-questions").value=["项目最终用途和业主是谁？","所需产品规格、尺寸、材质、表面处理和认证标准是什么？","采购数量、预算、交付地点和期望交期是什么？","谁负责技术确认、商务审批和最终采购决定？","是否已有图纸、技术规范或现有供应商？"].join("\n");$("#detail-research-materials").value=["匹配项目的产品选型表与技术参数","相关认证和测试报告","相似国家或项目案例","样品与 Golden Sample 流程","报价所需信息清单和质量检验方案"].join("\n");$("#detail-research-next-action").value=record.angle||"先发送需求确认问题，核实项目和决策链后再准备正式报价";$("#detail-research-sources").value=[...new Set([record.sourceUrl,record.contactSource,record.website].filter(Boolean))].join("\n");
-          $("#detail-research-why-now").value=`客户已主动发送询盘，内容涉及：${inquiryDemand}。这是当前最强的一方采购信号，应在首次联系中尽快核实项目业主、技术规格、数量、预算、采购节点和决策链。${record.importSignal?` 外部采购信号：${record.importSignal}`:""}`;
+          const sourceDate = record.addedDate || record.dataUpdatedAt || "";
+          const sourceUrl = record.sourceUrl || record.website || "";
+          const inquiryDate = currentInquiry.email_intake?.received_at || currentInquiry.created_at || "";
+          const inquiryDemand = currentInquiry.demand_summary || currentInquiry.original_message?.slice(0, 800) || currentInquiry.title;
+          const inquiryEmail = currentInquiry.email_intake?.sender_email || "";
+          const facts = [record.company && `公司名称：${record.company}`, record.countryName && `所在地：${record.countryName}${record.city ? ` · ${record.city}` : ""}`, record.categoryName && `公司类型：${record.categoryName}`, record.productFocus && `主营产品：${record.productFocus}`, record.scale && `公司规模：${record.scale}`].filter(Boolean);
+          const signals = [`客户主动询盘：${inquiryDemand}｜判断：存在明确主动采购意向，具体项目与决策权限待核实｜来源：客户原始邮件｜日期：${inquiryDate ? fmtDate(inquiryDate) : "未知"}｜可信度：高`, record.importSignal && `采购/进口信号：${record.importSignal}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`, record.projects && record.projects !== "None named" && `项目线索：${record.projects}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`].filter(Boolean);
+          const contacts = [inquiryEmail && `${currentInquiry.contact_name || currentInquiry.email_intake?.sender_name || "客户联系人"}｜${currentInquiry.contact_job_title || "职称待核实"}｜${inquiryEmail}｜客户原始邮件发件人已核验｜客户原始邮件`, record.decisionContact && `决策联系人：${record.decisionContact}｜已公开信息｜${record.contactSource || sourceUrl || "来源待补充"}`, record.email && `邮箱：${record.email}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`, record.phone && `电话：${record.phone}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`].filter(Boolean);
+          $("#detail-research-deep-status").value = sourceUrl && record.confidence !== "low" ? "ready" : "research_required";
+          $("#detail-research-match-method").value = "官网域名精确匹配";
+          $("#detail-research-match-confidence").value = ["high", "medium", "low"].includes(record.confidence) ? record.confidence : "medium";
+          $("#detail-research-source-updated").value = sourceDate;
+          $("#detail-research-why-now").value = `客户已主动发送询盘，内容涉及：${inquiryDemand}。这是当前最强的一方采购信号，应在首次联系中尽快核实项目业主、技术规格、数量、预算、采购节点和决策链。${record.importSignal ? ` 外部采购信号：${record.importSignal}` : ""}`;
+          $("#detail-research-confirmed-facts").value = facts.join("\n");
+          $("#detail-research-demand-signals").value = signals.join("\n");
+          $("#detail-research-likely-needs").value = record.fitReason || "暂无足够证据形成明确需求判断";
+          $("#detail-research-risks-counter").value = record.risk || "未发现明确风险；仍需核验公司身份、项目真实性、付款条件和最终用途";
+          $("#detail-research-contacts").value = contacts.join("\n");
+          $("#detail-research-questions").value = ["项目最终用途和业主是谁？", "所需产品规格、尺寸、材质、表面处理和认证标准是什么？", "采购数量、预算、交付地点和期望交期是什么？", "谁负责技术确认、商务审批和最终采购决定？", "是否已有图纸、技术规范或现有供应商？"].join("\n");
+          $("#detail-research-materials").value = ["匹配项目的产品选型表与技术参数", "相关认证和测试报告", "相似国家或项目案例", "样品与 Golden Sample 流程", "报价所需信息清单和质量检验方案"].join("\n");
+          $("#detail-research-next-action").value = record.angle || "先发送需求确认问题，核实项目和决策链后再准备正式报价";
+          $("#detail-research-sources").value = [...new Set([record.sourceUrl, record.contactSource, record.website].filter(Boolean))].join("\n");
           $("#detail-research-status").textContent = `背调状态：可用 · 数据更新 ${record.dataUpdatedAt || "未知"}`;
-          const evidence = $("#detail-research-evidence"); evidence.replaceChildren(); evidence.append("来源：");
-          if (record.sourceUrl) { const link=document.createElement("a"); link.href=record.sourceUrl; link.target="_blank"; link.rel="noopener"; link.textContent=record.sourceUrl; evidence.appendChild(link); } else evidence.append("WONLY Business 数据记录");
-          evidence.classList.remove("hidden"); calculateResearchScore(); await loadCompanyImages(); toast("背调已完成并带入详情，请确认后保存");
-        } catch (error) { $("#detail-research-status").textContent = "背调状态：执行失败"; toast("背调失败：" + (error.message || error)); }
-        finally { button.disabled=false; button.textContent="一键前置背调"; }
+          const evidence = $("#detail-research-evidence");
+          evidence.replaceChildren();
+          evidence.append("来源：");
+          if (record.sourceUrl) {
+            const link = document.createElement("a");
+            link.href = record.sourceUrl; link.target = "_blank"; link.rel = "noopener"; link.textContent = record.sourceUrl;
+            evidence.appendChild(link);
+          } else evidence.append("WONLY Business 数据记录");
+          evidence.classList.remove("hidden");
+          calculateResearchScore();
+          await completeOnlineResearchAndSave();
+          toast("超级智能体已完成背调并自动保存");
+        } catch (error) {
+          $("#detail-research-status").textContent = "背调状态：执行失败";
+          toast("背调失败：" + (error.message || error));
+        } finally {
+          button.disabled = false;
+          button.textContent = "一键前置背调";
+        }
       });
-      function calculateResearchScore(){const has=(s)=>$(s).value.trim().length>0,demand=$("#detail-smart-demand").value.trim(),summary=$("#detail-research-summary").value.trim();let score=0;if(has("#detail-research-company"))score+=10;if(has("#detail-research-domain"))score+=10;if(has("#detail-smart-country"))score+=5;if(has("#detail-smart-name"))score+=5;if(has("#detail-smart-title"))score+=5;if(demand)score+=15;if(has("#detail-smart-project"))score+=10;if(has("#detail-research-business"))score+=10;if(summary)score+=15;if(/\b\d+[\d,.]*\b/.test(demand))score+=5;if(/特易|海关|进口|采购信号|trade|import/i.test(summary))score+=10;score=Math.min(100,score);const risk=$("#detail-research-risk").value,originalScore=score;if(risk==="critical")score=Math.min(score,39);else if(risk==="high")score=Math.min(score,59);else if(risk==="medium")score=Math.min(score,79);const grade=score>=80?"A":score>=60?"B":score>=40?"C":"D",likelihood=score>=75?"high":score>=50?"medium":"low",forced=score<originalScore;const strategy=forced?`存在${risk==="critical"?"严重":"高"}风险，已强制降级为 ${grade}。主管复核公司身份、付款能力和项目真实性前，不建议提供账期或投入高成本样品。`:grade==="A"?"高价值机会：10分钟内首次联系，优先确认技术参数、预算、采购时间与决策链，推动视频会议及正式报价。":grade==="B"?"重点培育：24小时内补齐数量、规格、项目时间和决策人信息，以样品或相似项目案例推动下一步。":grade==="C"?"普通机会：先验证需求真实性与采购计划，采用标准资料包和定期跟进，信息完整后再升级。":"低价值或高风险：低成本验证身份、需求和付款能力，未获得有效回复前不投入样品及深度方案。";$("#detail-value-score").value=score;$("#detail-value-grade").value=grade;$("#detail-purchase-likelihood").value=likelihood;$("#detail-recommended-strategy").value=strategy;return{score,grade,likelihood,strategy,forced};}
-      $("#calculate-research-score").addEventListener("click",()=>{calculateResearchScore();toast("客户价值评分与跟进策略已更新");});
+      function calculateResearchScore() {
+        const has = (selector) => $(selector).value.trim().length > 0;
+        const demand = $("#detail-smart-demand").value.trim();
+        const summary = $("#detail-research-summary").value.trim();
+        let score = 0;
+        if (has("#detail-research-company")) score += 10;
+        if (has("#detail-research-domain")) score += 10;
+        if (has("#detail-smart-country")) score += 5;
+        if (has("#detail-smart-name")) score += 5;
+        if (has("#detail-smart-title")) score += 5;
+        if (demand) score += 15;
+        if (has("#detail-smart-project")) score += 10;
+        if (has("#detail-research-business")) score += 10;
+        if (summary) score += 15;
+        if (/\b\d+[\d,.]*\b/.test(demand)) score += 5;
+        if (/特易|海关|进口|采购信号|trade|import/i.test(summary)) score += 10;
+        score = Math.min(100, score);
+        const risk = $("#detail-research-risk").value;
+        const originalScore = score;
+        if (risk === "critical") score = Math.min(score, 39);
+        else if (risk === "high") score = Math.min(score, 59);
+        else if (risk === "medium") score = Math.min(score, 79);
+        const grade = score >= 80 ? "A" : score >= 60 ? "B" : score >= 40 ? "C" : "D";
+        const likelihood = score >= 75 ? "high" : score >= 50 ? "medium" : "low";
+        const forced = score < originalScore;
+        const strategy = forced
+          ? `存在${risk === "critical" ? "严重" : "高"}风险，已强制降级为 ${grade}。主管复核公司身份、付款能力和项目真实性前，不建议提供账期或投入高成本样品。`
+          : grade === "A" ? "高价值机会：10分钟内首次联系，优先确认技术参数、预算、采购时间与决策链，推动视频会议及正式报价。"
+          : grade === "B" ? "重点培育：24小时内补齐数量、规格、项目时间和决策人信息，以样品或相似项目案例推动下一步。"
+          : grade === "C" ? "普通机会：先验证需求真实性与采购计划，采用标准资料包和定期跟进，信息完整后再升级。"
+          : "低价值或高风险：低成本验证身份、需求和付款能力，未获得有效回复前不投入样品及深度方案。";
+        $("#detail-value-score").value = score;
+        $("#detail-value-grade").value = grade;
+        $("#detail-purchase-likelihood").value = likelihood;
+        $("#detail-recommended-strategy").value = strategy;
+        return { score, grade, likelihood, strategy, forced };
+      }
+      $("#calculate-research-score").addEventListener("click", () => { calculateResearchScore(); toast("客户价值评分与跟进策略已更新"); });
       $("#generate-outreach").addEventListener("click", () => {
         if (!currentInquiry) return;
-        const company=$("#detail-research-company").value.trim(), research=$("#detail-research-summary").value.trim();
+        const company = $("#detail-research-company").value.trim();
+        const research = $("#detail-research-summary").value.trim();
         if (!company || !research) return toast("请先完成并确认客户背调");
-        const name=$("#detail-smart-name").value.trim(),demand=$("#detail-smart-demand").value.trim(),project=$("#detail-smart-project").value.trim()||currentInquiry.title,objective=$("#outreach-objective").value,tone=$("#outreach-tone").value,strategy=$("#detail-recommended-strategy").value.trim();
-        $("#outreach-subject-a").value=`Re: ${project}`;$("#outreach-subject-b").value=objective==="meeting"?`Technical discussion for ${project}`:objective==="quote"?`Quotation details for ${project}`:`Specifications and next steps for ${project}`;
-        const ask=objective==="meeting"?"Would a 20-minute online meeting this week be convenient to review the technical requirements?":objective==="quote"?"Please confirm the dimensions, finish, quantity, destination port, Incoterm and required delivery date so we can finalize the quotation.":"Could you please confirm the dimensions, finish, locking configuration, quantity, destination port and expected delivery schedule?",opener=tone==="direct"?`We received your inquiry for ${project}.`:tone==="project"?`Thank you for sharing the ${project} requirement. We are ready to move the project to the next technical step.`:`Thank you for your inquiry regarding ${project}. Based on our initial review, we would like to help your team define an accurate and commercially suitable solution.`;
-        $("#outreach-body").value=`${name?`Dear ${name},`:"Dear Purchasing Team,"}\n\n${opener}\n\nWe understand that you are evaluating ${demand||"a door and locking solution"}. ${strategy?`Our recommended next step is to ${strategy.replace(/。.*$/,"").replace(/^.*?：/,"")}.`:"We will avoid making assumptions before the key specifications are confirmed."}\n\n${ask}\n\nOnce confirmed, we can provide the recommended configuration, quotation or Proforma Invoice, sample plan and quality-inspection checklist.\n\nBest regards,\n${profile.full_name||"WONLY Overseas Team"}\nWONLY`;
-        $("#outreach-recipient").value=currentInquiry.email_intake?.sender_email||"";$("#outreach-status").textContent="新草稿 · 待人工审核";$("#outreach-draft").classList.remove("hidden");toast("开发信草稿已生成，状态为待人工审核，不会自动发送");
+        const name = $("#detail-smart-name").value.trim();
+        const demand = $("#detail-smart-demand").value.trim();
+        const project = $("#detail-smart-project").value.trim() || currentInquiry.title;
+        const objective = $("#outreach-objective").value;
+        const tone = $("#outreach-tone").value;
+        const strategy = $("#detail-recommended-strategy").value.trim();
+        const greeting = name ? `Dear ${name},` : "Dear Purchasing Team,";
+        $("#outreach-subject-a").value = `Re: ${project}`;
+        $("#outreach-subject-b").value = objective === "meeting" ? `Technical discussion for ${project}` : objective === "quote" ? `Quotation details for ${project}` : `Specifications and next steps for ${project}`;
+        const ask = objective === "meeting" ? "Would a 20-minute online meeting this week be convenient to review the technical requirements?" : objective === "quote" ? "Please confirm the dimensions, finish, quantity, destination port, Incoterm and required delivery date so we can finalize the quotation." : "Could you please confirm the dimensions, finish, locking configuration, quantity, destination port and expected delivery schedule?";
+        const opener = tone === "direct" ? `We received your inquiry for ${project}.` : tone === "project" ? `Thank you for sharing the ${project} requirement. We are ready to move the project to the next technical step.` : `Thank you for your inquiry regarding ${project}. Based on our initial review, we would like to help your team define an accurate and commercially suitable solution.`;
+        $("#outreach-body").value = `${greeting}\n\n${opener}\n\nWe understand that you are evaluating ${demand || "a door and locking solution"}. ${strategy ? `Our recommended next step is to ${strategy.replace(/。.*$/, "").replace(/^.*?：/, "")}.` : "We will avoid making assumptions before the key specifications are confirmed."}\n\n${ask}\n\nOnce confirmed, we can provide the recommended configuration, quotation or Proforma Invoice, sample plan and quality-inspection checklist.\n\nBest regards,\n${profile.full_name || "WONLY Overseas Team"}\nWONLY`;
+        $("#outreach-recipient").value = currentInquiry.email_intake?.sender_email || "";
+        $("#outreach-status").textContent = "新草稿 · 待人工审核";
+        $("#outreach-draft").classList.remove("hidden");
+        toast("开发信草稿已生成，状态为待人工审核，不会自动发送");
       });
-      $("#copy-outreach").addEventListener("click", async () => { const text=`Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`; await navigator.clipboard.writeText(text); toast("开发信已复制"); });
-      async function saveOutreachDraft(){if(!currentInquiry)throw new Error("请先打开询盘");const recipient=$("#outreach-recipient").value.trim(),subjectA=$("#outreach-subject-a").value.trim(),subjectB=$("#outreach-subject-b").value.trim(),body=$("#outreach-body").value.trim(),subject=$("#outreach-selected-subject").value==="b"?subjectB:subjectA;if(!recipient||!subject||!body)throw new Error("请先生成完整开发信");const{data,error}=await supabase.from("outreach_drafts").insert({inquiry_id:currentInquiry.id,created_by:profile.id,recipient_email:recipient,subject_a:subjectA,subject_b:subjectB,selected_subject:subject,body,language:"en",tone:$("#outreach-tone").value,objective:$("#outreach-objective").value,status:"draft"}).select().single();if(error)throw error;currentInquiry.outreachDraftId=data.id;$("#outreach-status").textContent=`草稿已保存 · ${fmtDate(data.created_at)}`;return{id:data.id,subject,body};}
-      $("#save-outreach").addEventListener("click",async()=>{const button=$("#save-outreach");button.disabled=true;try{await saveOutreachDraft();toast("开发信草稿已保存并保留版本");}catch(error){toast("草稿保存失败："+(error.message||error));}finally{button.disabled=false;}});
-      $("#send-outreach").addEventListener("click",async()=>{const recipient=$("#outreach-recipient").value.trim();if(!recipient)return toast("询盘没有可用的客户邮箱");if(!confirm(`确认使用你已连接的业务员邮箱，将开发信发送给 ${recipient}？`))return;const button=$("#send-outreach");button.disabled=true;button.textContent="发送中…";try{const draft=await saveOutreachDraft();const{data,error}=await supabase.functions.invoke("mailbox-send",{body:{inquiry_id:currentInquiry.id,draft_id:draft.id,subject:draft.subject,body:draft.body}});if(error)throw error;$("#outreach-status").textContent=`已发送 · ${fmtDate(data.sent_at)}`;toast("开发信已从当前业务员邮箱发送");}catch(error){$("#outreach-status").textContent="发送失败，可修改后重试";toast("开发信发送失败："+(error.message||error));}finally{button.disabled=false;button.textContent="确认并发送";}});
+      $("#copy-outreach").addEventListener("click", async () => {
+        const text = `Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`;
+        await navigator.clipboard.writeText(text);
+        toast("开发信已复制");
+      });
+      async function saveOutreachDraft() {
+        if (!currentInquiry) throw new Error("请先打开询盘");
+        const recipient = $("#outreach-recipient").value.trim();
+        const subjectA = $("#outreach-subject-a").value.trim();
+        const subjectB = $("#outreach-subject-b").value.trim();
+        const body = $("#outreach-body").value.trim();
+        const subject = $("#outreach-selected-subject").value === "b" ? subjectB : subjectA;
+        if (!recipient || !subject || !body) throw new Error("请先生成完整开发信");
+        const { data, error } = await supabase.from("outreach_drafts").insert({ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: "en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" }).select().single();
+        if (error) throw error;
+        currentInquiry.outreachDraftId = data.id;
+        $("#outreach-status").textContent = `草稿已保存 · ${fmtDate(data.created_at)}`;
+        return { id: data.id, subject, body };
+      }
+      $("#save-outreach").addEventListener("click", async () => {
+        const button = $("#save-outreach"); button.disabled = true;
+        try { await saveOutreachDraft(); toast("开发信草稿已保存并保留版本"); } catch (error) { toast("草稿保存失败：" + (error.message || error)); }
+        finally { button.disabled = false; }
+      });
+      $("#send-outreach").addEventListener("click", async () => {
+        const recipient = $("#outreach-recipient").value.trim();
+        if (!recipient) return toast("询盘没有可用的客户邮箱");
+        if (!confirm(`确认使用你已连接的业务员邮箱，将开发信发送给 ${recipient}？`)) return;
+        const button = $("#send-outreach"); button.disabled = true; button.textContent = "发送中…";
+        try {
+          const draft = await saveOutreachDraft();
+          const { data, error } = await supabase.functions.invoke("mailbox-send", { body: { inquiry_id: currentInquiry.id, draft_id: draft.id, subject: draft.subject, body: draft.body } });
+          if (error) throw error;
+          $("#outreach-status").textContent = `已发送 · ${fmtDate(data.sent_at)}`;
+          toast("开发信已从当前业务员邮箱发送");
+        } catch (error) { $("#outreach-status").textContent = "发送失败，可修改后重试"; toast("开发信发送失败：" + (error.message || error)); }
+        finally { button.disabled = false; button.textContent = "确认并发送"; }
+      });
       $("#save-detail-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const reason = $("#detail-research-reason").value.trim();
@@ -2588,23 +2952,23 @@
           research_status: $("#detail-research-deep-status").value,
           match_method: $("#detail-research-match-method").value.trim() || null,
           match_confidence: $("#detail-research-match-confidence").value,
-          confirmed_facts: $("#detail-research-confirmed-facts").value.split(/\n+/).map((fact)=>fact.trim()).filter(Boolean).map((fact)=>({fact})),
-          demand_signals: $("#detail-research-demand-signals").value.split(/\n+/).map((display)=>display.trim()).filter(Boolean).map((display)=>({display})),
-          likely_needs: $("#detail-research-likely-needs").value.split(/\n+/).map((need)=>need.trim()).filter(Boolean).map((need)=>({need})),
-          risks_counterevidence: $("#detail-research-risks-counter").value.split(/\n+/).map((risk)=>risk.trim()).filter(Boolean).map((risk)=>({risk})),
-          research_contacts: $("#detail-research-contacts").value.split(/\n+/).map((display)=>display.trim()).filter(Boolean).map((display)=>({display})),
-          research_sales_brief: {why_now:$("#detail-research-why-now").value.trim(),questions_to_ask:$("#detail-research-questions").value.split(/\n+/).map((text)=>text.trim()).filter(Boolean),materials_to_prepare:$("#detail-research-materials").value.split(/\n+/).map((text)=>text.trim()).filter(Boolean),next_best_action:$("#detail-research-next-action").value.trim()},
-          research_evidence_sources: $("#detail-research-sources").value.split(/\n+/).map((url)=>url.trim()).filter(Boolean).map((url)=>({url})),
-          news_signals: $("#detail-research-news").value.split(/\n+/).map((display)=>display.trim()).filter(Boolean).map((display)=>({display})),
-          seo_focus_categories: $("#detail-research-seo-focus").value.split(/\n+/).map((name)=>name.trim()).filter(Boolean).map((name)=>({name})),
-          project_category_signals: $("#detail-research-project-categories").value.split(/\n+/).map((display)=>display.trim()).filter(Boolean).map((display)=>({display})),
+          confirmed_facts: $("#detail-research-confirmed-facts").value.split(/\n+/).map((fact) => fact.trim()).filter(Boolean).map((fact) => ({ fact })),
+          demand_signals: $("#detail-research-demand-signals").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
+          likely_needs: $("#detail-research-likely-needs").value.split(/\n+/).map((need) => need.trim()).filter(Boolean).map((need) => ({ need })),
+          risks_counterevidence: $("#detail-research-risks-counter").value.split(/\n+/).map((risk) => risk.trim()).filter(Boolean).map((risk) => ({ risk })),
+          research_contacts: $("#detail-research-contacts").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
+          research_sales_brief: { why_now: $("#detail-research-why-now").value.trim(), questions_to_ask: $("#detail-research-questions").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), materials_to_prepare: $("#detail-research-materials").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), next_best_action: $("#detail-research-next-action").value.trim() },
+          research_evidence_sources: $("#detail-research-sources").value.split(/\n+/).map((url) => url.trim()).filter(Boolean).map((url) => ({ url })),
+          news_signals: $("#detail-research-news").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
+          seo_focus_categories: $("#detail-research-seo-focus").value.split(/\n+/).map((name) => name.trim()).filter(Boolean).map((name) => ({ name })),
+          project_category_signals: $("#detail-research-project-categories").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
           map_address: $("#detail-research-map-address").value.trim() || null,
           google_maps_url: safeExternalUrl($("#detail-research-map-url").value.trim()) || null,
           openstreetmap_url: safeExternalUrl($("#detail-research-osm-url").value.trim()) || null,
           map_provider: $("#detail-map-candidate").dataset.provider || null,
           map_place_id: $("#detail-map-candidate").dataset.placeId || null,
           map_verified_at: $("#detail-research-map-address").value.trim() ? new Date().toISOString() : null,
-          company_photo_sources: photoUrls.map((url)=>({url,verified:true,verified_by:profile.id,verified_by_name:profile.full_name||"",verified_at:new Date().toISOString()})),
+          company_photo_sources: photoUrls.map((url) => ({ url, verified: true, verified_by: profile.id, verified_by_name: profile.full_name || "", verified_at: new Date().toISOString() })),
           researched_at: new Date().toISOString(),
           source_updated_at: currentInquiry.businessResearch?.addedDate || currentInquiry.businessResearch?.dataUpdatedAt || null,
           updated_at: new Date().toISOString(),
@@ -2712,7 +3076,8 @@
         if (member.id === profile.id) return toast("不能禁用当前登录账号");
         $("#disable-member-id").value = member.id;
         $("#disable-member-name").textContent = `成员：${member.full_name} · ${member.email}`;
-        $("#disable-reason-type").value = "departed"; $("#disable-reason").value = "";
+        $("#disable-reason-type").value = "departed";
+        $("#disable-reason").value = "";
         $("#disable-member-modal").classList.remove("hidden");
       }
       async function enableMember(member) {
@@ -2721,18 +3086,27 @@
         let message = data?.error || error?.message;
         if (error?.context) { try { message = (await error.context.clone().json())?.error || message; } catch {} }
         if (message) return toast("成员恢复失败：" + message);
-        toast("成员账号已恢复，邮箱需要时请重新连接"); await loadModule("settings");
+        toast("成员账号已恢复，邮箱需要时请重新连接");
+        await loadModule("settings");
       }
       ["#close-disable-member", "#cancel-disable-member"].forEach((selector) => $(selector).addEventListener("click", () => $("#disable-member-modal").classList.add("hidden")));
       $("#disable-member-form").addEventListener("submit", async (event) => {
-        event.preventDefault(); const reasonType=$("#disable-reason-type").value, reason=$("#disable-reason").value.trim();
+        event.preventDefault();
+        const reasonType = $("#disable-reason-type").value;
+        const reason = $("#disable-reason").value.trim();
         if (reasonType === "other" && !reason) return toast("选择其他原因时必须填写说明");
-        const button=event.submitter; button.disabled=true; button.textContent="正在禁用…";
-        const { data, error } = await supabase.functions.invoke("member-admin", { body: { action:"disable", user_id:$("#disable-member-id").value, reason_type:reasonType, reason } });
-        button.disabled=false; button.textContent="确认禁用"; let message=data?.error || error?.message;
-        if (error?.context) { try { message=(await error.context.clone().json())?.error || message; } catch {} }
+        const button = event.submitter;
+        button.disabled = true; button.textContent = "正在禁用…";
+        const { data, error } = await supabase.functions.invoke("member-admin", { body: {
+          action: "disable", user_id: $("#disable-member-id").value, reason_type: reasonType, reason,
+        }});
+        button.disabled = false; button.textContent = "确认禁用";
+        let message = data?.error || error?.message;
+        if (error?.context) { try { message = (await error.context.clone().json())?.error || message; } catch {} }
         if (message) return toast("成员禁用失败：" + message);
-        $("#disable-member-modal").classList.add("hidden"); toast("成员已禁用，历史数据已保留"); await loadModule("settings");
+        $("#disable-member-modal").classList.add("hidden");
+        toast("成员已禁用，历史数据已保留");
+        await loadModule("settings");
       });
       ["#close-member", "#cancel-member"].forEach((selector) => $(selector).addEventListener("click", () => $("#member-modal").classList.add("hidden")));
       $("#member-form").addEventListener("submit", async (event) => {

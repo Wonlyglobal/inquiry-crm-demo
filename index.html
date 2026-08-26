@@ -1083,7 +1083,10 @@
         <div class="form-body">
           <h4>客户原文</h4>
           <textarea id="detail-original-message" class="input" rows="9" readonly></textarea>
-          <h4 style="margin-top:22px">智能整理</h4>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px">
+            <h4 style="margin:0">智能整理</h4>
+            <button id="run-smart-summary" class="ghost" type="button">✨ 智能整理原文</button>
+          </div>
           <p class="hint">系统识别到的信息会自动带入；没有识别到的保持空白，可以人工补充。</p>
           <div class="detail-grid">
             <div class="field"><label>国家/地区</label><input id="detail-smart-country" class="input" /></div>
@@ -1257,6 +1260,31 @@
           second: "2-digit",
           hour12: false,
         });
+      }
+      function organizeInquiryText(inquiry) {
+        const intake = inquiry.email_intake || {};
+        const text = String(inquiry.original_message || "").replace(/\r/g, "").trim();
+        const senderEmail = String(intake.sender_email || "").trim().toLowerCase();
+        const parsed = intake.parsed_data && typeof intake.parsed_data === "object" ? intake.parsed_data : {};
+        const first = (...items) => items.find((item) => typeof item === "string" && item.trim())?.trim() || "";
+        const title = first(parsed.contact_job_title, parsed.job_title, text.match(/\b((?:senior\s+|chief\s+|general\s+|assistant\s+)?(?:purchasing|procurement|sourcing|project|product|sales|business development|engineering|operations?)\s+(?:manager|director|officer|specialist|engineer|coordinator|supervisor)|(?:ceo|cfo|coo|cto|owner|president|founder|director|manager))\b/i)?.[1]);
+        let name = first(parsed.contact_name, parsed.sender_name, intake.sender_name);
+        if (!name) {
+          const signoff = text.match(/(?:best regards|kind regards|regards|sincerely|thanks(?: and regards)?)[,：:]?\s*\n?\s*([^\n]{2,100})/i)?.[1] || "";
+          name = signoff.replace(/\b(?:purchasing|procurement|sourcing|project|sales|business development)\b.*$/i, "").replace(/[|,;]+$/, "").trim();
+        }
+        if (!name && senderEmail) {
+          const local = senderEmail.split("@")[0].replace(/[._-]+/g, " ");
+          if (/^[a-z ]{2,40}$/i.test(local)) name = local.replace(/\b\w/g, (letter) => letter.toUpperCase());
+        }
+        const countries = { ar:"阿根廷",au:"澳大利亚",br:"巴西",ca:"加拿大",cl:"智利",cn:"中国",co:"哥伦比亚",de:"德国",es:"西班牙",fr:"法国",gb:"英国",id:"印度尼西亚",in:"印度",it:"意大利",jp:"日本",kr:"韩国",mx:"墨西哥",my:"马来西亚",nl:"荷兰",nz:"新西兰",pe:"秘鲁",ph:"菲律宾",pl:"波兰",ru:"俄罗斯",sa:"沙特阿拉伯",sg:"新加坡",th:"泰国",tr:"土耳其",uk:"英国",us:"美国",vn:"越南",za:"南非" };
+        const countryInText = text.match(/(?:country|located in|based in|from)\s*[:：,]?\s*([A-Za-z][A-Za-z .-]{2,40})/i)?.[1]?.trim() || "";
+        const tld = senderEmail.match(/\.([a-z]{2})$/)?.[1] || "";
+        const country = first(parsed.target_country, parsed.country, countryInText, countries[tld]);
+        const project = first(parsed.project_name, text.match(/(?:project(?: name)?|项目名?)\s*[:：-]\s*([^\n]{2,120})/i)?.[1]);
+        const demandLines = text.split("\n").map((line) => line.trim()).filter((line) => line.length > 8 && /\b(?:need|require|request|looking for|quantity|qty|quote|quotation|price|specification|sample|door|lock|hardware|project)\b|(?:需要|需求|数量|报价|样品|门|锁)/i.test(line));
+        const demand = first(parsed.demand_summary, parsed.requirement, [...new Set(demandLines)].slice(0, 8).join("\n").slice(0, 1200));
+        return { country, name, title, project, demand };
       }
       async function loadProfile(user) {
         const { data, error } = await supabase
@@ -1584,7 +1612,7 @@
             .eq("active", true),
           supabase
             .from("email_intake")
-            .select("received_at")
+            .select("received_at,sender_email,sender_name,subject,parsed_data")
             .eq("inquiry_id", id)
             .maybeSingle(),
         ]);
@@ -1593,6 +1621,7 @@
           return;
         }
         currentInquiry = inquiry;
+        currentInquiry.email_intake = intake || null;
         $("#detail-title").textContent =
           `询盘 #${String(inquiry.inquiry_no).padStart(6, "0")} · ${inquiry.title}`;
         $("#detail-status").value = inquiry.status;
@@ -2200,6 +2229,33 @@
         Object.assign(currentInquiry, update);
         $("#detail-smart-reason").value = "";
         toast("智能整理已保存，修改记录已留痕");
+      });
+      $("#run-smart-summary").addEventListener("click", () => {
+        if (!currentInquiry?.original_message?.trim()) return toast("客户原文为空，无法智能整理");
+        const button = $("#run-smart-summary");
+        button.disabled = true;
+        button.textContent = "整理中…";
+        try {
+          const result = organizeInquiryText(currentInquiry);
+          const fields = {
+            "#detail-smart-country": result.country,
+            "#detail-smart-name": result.name,
+            "#detail-smart-title": result.title,
+            "#detail-smart-project": result.project,
+            "#detail-smart-demand": result.demand,
+          };
+          let count = 0;
+          Object.entries(fields).forEach(([selector, fieldValue]) => {
+            if (fieldValue) {
+              $(selector).value = fieldValue;
+              count += 1;
+            }
+          });
+          toast(count ? `已整理出 ${count} 项信息，请确认后保存` : "未识别到明确字段，可人工补充");
+        } finally {
+          button.disabled = false;
+          button.textContent = "✨ 智能整理原文";
+        }
       });
       $("#save-detail-research").addEventListener("click", async () => {
         if (!currentInquiry) return;

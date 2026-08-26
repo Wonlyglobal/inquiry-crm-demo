@@ -584,21 +584,21 @@
         <div class="logo">
           <i><i data-lucide="shield-check"></i></i><b>询盘 CRM</b>
         </div>
-        <button class="nav active">
+        <button class="nav active" data-view="dashboard">
           <i data-lucide="layout-dashboard"></i><span>经营看板</span></button
-        ><button class="nav">
+        ><button class="nav" data-view="inquiries">
           <i data-lucide="contact-round"></i><span>询盘商机</span></button
-        ><button class="nav">
+        ><button class="nav" data-view="email">
           <i data-lucide="mail-plus"></i><span>邮件待处理</span></button
-        ><button class="nav">
+        ><button class="nav" data-view="assignment">
           <i data-lucide="inbox"></i><span>待分配池</span></button
-        ><button class="nav">
+        ><button class="nav" data-view="public-pool">
           <i data-lucide="users-round"></i><span>客户公海</span></button
-        ><button class="nav">
+        ><button class="nav" data-view="research">
           <i data-lucide="scan-search"></i><span>客户背调</span></button
-        ><button id="daily-report-button" class="nav">
+        ><button id="daily-report-button" class="nav" data-view="daily">
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
-        ><button class="nav bottom">
+        ><button class="nav bottom" data-view="settings">
           <i data-lucide="settings"></i><span>系统设置</span>
         </button>
       </aside>
@@ -626,7 +626,7 @@
             <button id="logout" class="ghost">退出</button>
           </div>
         </header>
-        <section class="page">
+        <section id="dashboard-page" class="page">
           <div class="heading">
             <div>
               <h1>询盘看板</h1>
@@ -714,6 +714,17 @@
               </thead>
               <tbody id="inquiry-body"></tbody>
             </table>
+          </div>
+        </section>
+        <section id="module-page" class="page hidden">
+          <div class="heading">
+            <div><h1 id="module-title">业务页面</h1><p id="module-subtitle"></p></div>
+            <button id="module-primary" class="primary hidden"></button>
+          </div>
+          <div class="table-wrap">
+            <div class="table-head"><span id="module-table-title">数据列表</span><span id="module-count" class="tag">0 条</span></div>
+            <div id="module-empty" class="empty hidden"><i data-lucide="inbox"></i><div><b>暂无数据</b></div><small id="module-empty-text"></small></div>
+            <table id="module-table"><thead><tr id="module-head"></tr></thead><tbody id="module-body"></tbody></table>
           </div>
         </section>
       </main>
@@ -1071,8 +1082,90 @@
         $("#user-name").textContent = profile.full_name;
         $("#user-role").textContent = roleNames[profile.role] || profile.role;
         $("#avatar").textContent = profile.full_name.slice(0, 1);
+        const role = profile.role;
+        const visibility = {
+          email: ["owner", "sales_manager", "marketing"].includes(role),
+          assignment: ["owner", "sales_manager", "marketing"].includes(role),
+          research: ["owner", "sales_manager", "marketing"].includes(role),
+          settings: role === "owner",
+        };
+        Object.entries(visibility).forEach(([view, visible]) => {
+          const nav = $(`.nav[data-view="${view}"]`);
+          if (nav) nav.classList.toggle("hidden", !visible);
+        });
         await Promise.all([loadInquiries(), loadNotifications()]);
         icons();
+      }
+      function renderModuleTable(columns, rows, onRowClick) {
+        const head = $("#module-head"), body = $("#module-body");
+        head.replaceChildren(); body.replaceChildren();
+        columns.forEach((label) => { const th = document.createElement("th"); th.textContent = label; head.append(th); });
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+          row.cells.forEach((value) => { const td = document.createElement("td"); td.textContent = value ?? "—"; tr.append(td); });
+          if (onRowClick) tr.addEventListener("click", () => onRowClick(row));
+          body.append(tr);
+        });
+        $("#module-count").textContent = `${rows.length} 条`;
+        $("#module-table").classList.toggle("hidden", rows.length === 0);
+        $("#module-empty").classList.toggle("hidden", rows.length > 0);
+      }
+      async function loadModule(view) {
+        const config = {
+          inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
+          email: ["邮件待处理", "查看由客户邮件进入的询盘和解析状态", "邮件收件记录"],
+          assignment: ["待分配池", "主管按国家、语言、产品线和工作量进行分配", "等待分配的询盘"],
+          "public-pool": ["客户公海", "展示当前无负责人的可认领客户", "公海客户"],
+          research: ["客户背调", "公司基础信息、风险提示与 AI 调查结果", "公司调查记录"],
+          settings: ["系统设置", "成员、角色与首次登录状态", "成员账号"],
+        }[view];
+        if (!config) return;
+        $("#module-title").textContent = config[0];
+        $("#module-subtitle").textContent = config[1];
+        $("#module-table-title").textContent = config[2];
+        $("#module-empty-text").textContent = `暂无${config[2]}`;
+        const denied =
+          (view === "settings" && profile.role !== "owner") ||
+          (["email", "assignment", "research"].includes(view) &&
+            !["owner", "sales_manager", "marketing"].includes(profile.role));
+        if (denied) {
+          renderModuleTable(["提示"], [{ cells: ["当前账号无权查看此页面"] }]);
+          return;
+        }
+        let query, columns, mapper, clickable = false;
+        if (["inquiries", "assignment", "public-pool"].includes(view)) {
+          query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,source,owner_id,target_country,created_at").order("created_at", { ascending: false }).limit(200);
+          if (view === "assignment") query = query.eq("status", "pending_assignment");
+          if (view === "public-pool") query = query.is("owner_id", null).neq("status", "pending_assignment");
+          columns = ["编号", "询盘主题", "国家/地区", "来源", "阶段", "有效性", "创建时间"];
+          mapper = (x) => ({ id: x.id, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, x.source, x.status, x.validity, fmtDate(x.created_at)] });
+          clickable = true;
+        } else if (view === "email") {
+          query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,received_at,created_at,inquiry_id").order("created_at", { ascending: false }).limit(200);
+          columns = ["发件人", "邮件主题", "处理状态", "收件时间", "进入系统时间"];
+          mapper = (x) => ({ id: x.inquiry_id, cells: [x.sender_email, x.subject, x.processing_status, fmtDate(x.received_at || x.created_at), fmtDate(x.created_at)] });
+          clickable = true;
+        } else if (view === "research") {
+          query = supabase.from("companies").select("id,name,domain,country,company_type,main_business,risk_level,ai_summary,updated_at").order("updated_at", { ascending: false }).limit(200);
+          columns = ["公司", "域名", "国家", "公司类型", "主营业务", "风险", "AI 摘要"];
+          mapper = (x) => ({ cells: [x.name, x.domain, x.country, x.company_type, x.main_business, x.risk_level, x.ai_summary] });
+        } else {
+          query = supabase.from("profiles").select("full_name,email,role,team,job_title,active,must_change_password").order("created_at", { ascending: true });
+          columns = ["姓名", "邮箱", "CRM 角色", "部门", "职位", "状态", "首次改密"];
+          mapper = (x) => ({ cells: [x.full_name, x.email, roleNames[x.role] || x.role, x.team, x.job_title, x.active ? "启用" : "停用", x.must_change_password ? "待修改" : "已完成"] });
+        }
+        const { data, error } = await query;
+        if (error) { renderModuleTable(columns, []); toast("页面加载失败：" + error.message); return; }
+        renderModuleTable(columns, (data || []).map(mapper), clickable ? (row) => row.id && openInquiryDetail(row.id) : null);
+        icons();
+      }
+      async function switchView(view) {
+        $$(".nav[data-view]").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
+        if (view === "daily") { await openDailyReport(); return; }
+        const dashboard = view === "dashboard";
+        $("#dashboard-page").classList.toggle("hidden", !dashboard);
+        $("#module-page").classList.toggle("hidden", dashboard);
+        if (!dashboard) await loadModule(view);
       }
       async function loadNotifications() {
         const { data, error } = await supabase
@@ -1404,7 +1497,9 @@
           $("#daily-followups").value = count || 0;
         }
       }
-      $("#daily-report-button").addEventListener("click", openDailyReport);
+      $$(".nav[data-view]").forEach((item) =>
+        item.addEventListener("click", () => switchView(item.dataset.view)),
+      );
       $("#close-daily").addEventListener("click", () =>
         $("#daily-modal").classList.add("hidden"),
       );

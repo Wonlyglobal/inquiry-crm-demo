@@ -1140,19 +1140,28 @@
             <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /></div>
             <div class="field"><label>公司类型</label><input id="detail-research-type" class="input" /></div>
             <div class="field"><label>风险等级</label><select id="detail-research-risk" class="input"><option value="normal">正常</option><option value="medium">中风险</option><option value="high">高风险</option><option value="critical">严重风险</option></select></div>
+            <div class="field"><label>客户价值评分</label><input id="detail-value-score" class="input" type="number" min="0" max="100" readonly /></div>
+            <div class="field"><label>客户等级</label><input id="detail-value-grade" class="input" readonly /></div>
+            <div class="field"><label>采购可能性</label><select id="detail-purchase-likelihood" class="input"><option value="unknown">待判断</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select></div>
           </div>
           <div class="field"><label>主营业务</label><textarea id="detail-research-business" class="input" rows="3"></textarea></div>
           <div class="field"><label>AI 摘要/项目线索</label><textarea id="detail-research-summary" class="input" rows="5"></textarea></div>
+          <div class="field"><label>推荐跟进策略</label><textarea id="detail-recommended-strategy" class="input" rows="4"></textarea></div>
           <div class="field"><label>补充/修改原因 *</label><input id="detail-research-reason" class="input" /></div>
-          <div class="form-actions"><button id="save-detail-research" class="primary">保存背调信息</button></div>
+          <div class="form-actions"><button id="calculate-research-score" class="ghost" type="button">重新计算评分</button><button id="save-detail-research" class="primary">保存背调信息</button></div>
           <div id="outreach-draft" class="hidden" style="margin-top:24px">
             <h4>开发信草稿 <span class="tag">待人工审核</span></h4>
             <div class="detail-grid">
+              <div class="field"><label>收件人</label><input id="outreach-recipient" class="input" readonly /></div>
+              <div class="field"><label>邮件目标</label><select id="outreach-objective" class="input"><option value="qualify">确认需求</option><option value="quote">推动报价</option><option value="meeting">预约会议</option></select></div>
+              <div class="field"><label>表达风格</label><select id="outreach-tone" class="input"><option value="consultative">专业顾问式</option><option value="direct">简洁直接</option><option value="project">项目推进式</option></select></div>
               <div class="field"><label>主题 A</label><input id="outreach-subject-a" class="input" /></div>
               <div class="field"><label>主题 B</label><input id="outreach-subject-b" class="input" /></div>
+              <div class="field"><label>发送主题</label><select id="outreach-selected-subject" class="input"><option value="a">主题 A</option><option value="b">主题 B</option></select></div>
             </div>
             <div class="field"><label>英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea></div>
-            <div class="form-actions"><button id="copy-outreach" class="primary" type="button">复制开发信</button></div>
+            <p id="outreach-status" class="hint">草稿尚未保存</p>
+            <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
           </div>
         </div>
         <div class="form-body">
@@ -1652,11 +1661,11 @@
         });
       }
       async function openInquiryDetail(id) {
-        const [{ data: inquiry, error }, { data: owners }, { data: intake }] = await Promise.all([
+        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: latestDraft }] = await Promise.all([
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary)",
+              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade)",
             )
             .eq("id", id)
             .single(),
@@ -1670,6 +1679,8 @@
             .select("received_at,sender_email,sender_name,subject,parsed_data")
             .eq("inquiry_id", id)
             .maybeSingle(),
+          supabase.from("outreach_drafts").select("id,recipient_email,subject_a,subject_b,selected_subject,body,tone,objective,status,sent_at,created_at")
+            .eq("inquiry_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         ]);
         if (error) {
           toast("详情加载失败：" + error.message);
@@ -1710,6 +1721,10 @@
         $("#detail-research-business").value = company.main_business || "";
         $("#detail-research-risk").value = company.risk_level || "normal";
         $("#detail-research-summary").value = company.ai_summary || "";
+        $("#detail-value-score").value = company.value_score ?? "";
+        $("#detail-value-grade").value = company.value_grade || "";
+        $("#detail-purchase-likelihood").value = company.purchase_likelihood || "unknown";
+        $("#detail-recommended-strategy").value = company.recommended_strategy || "";
         $("#detail-research-reason").value = "";
         currentInquiry.businessResearch = null;
         $("#detail-research-status").textContent = company.ai_summary ? "背调状态：已有背调资料，可重新执行" : "背调状态：尚未执行";
@@ -1720,7 +1735,17 @@
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (latestImport?.summary) showTopeasePreview(latestImport.summary, latestImport.file_name || "粘贴内容", latestImport.created_at);
         else $("#topease-preview").classList.add("hidden");
-        $("#outreach-draft").classList.add("hidden");
+        currentInquiry.outreachDraftId = latestDraft?.id || null;
+        $("#outreach-recipient").value = intake?.sender_email || latestDraft?.recipient_email || "";
+        if (latestDraft) {
+          $("#outreach-subject-a").value = latestDraft.subject_a || ""; $("#outreach-subject-b").value = latestDraft.subject_b || "";
+          $("#outreach-selected-subject").value = latestDraft.selected_subject === latestDraft.subject_b ? "b" : "a";
+          $("#outreach-body").value = latestDraft.body || ""; $("#outreach-tone").value = latestDraft.tone || "consultative"; $("#outreach-objective").value = latestDraft.objective || "qualify";
+          $("#outreach-status").textContent = latestDraft.status === "sent" ? `已发送 · ${fmtDate(latestDraft.sent_at)}` : latestDraft.status === "failed" ? "发送失败，可修改后重试" : `草稿已保存 · ${fmtDate(latestDraft.created_at)}`;
+          $("#outreach-draft").classList.remove("hidden");
+        } else {
+          $("#outreach-draft").classList.add("hidden"); $("#outreach-status").textContent = "草稿尚未保存";
+        }
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign;
         $("#detail-reason").value = "";
@@ -2348,7 +2373,7 @@
       $("#paste-topease-report").addEventListener("click",()=>$("#topease-paste-panel").classList.toggle("hidden"));
       $("#topease-report-file").addEventListener("change",async(event)=>{const file=event.target.files?.[0];if(!file)return;if(file.size>15*1024*1024){event.target.value="";return toast("文件不能超过 15MB");}const button=$("#upload-topease-report");button.disabled=true;button.textContent="解析中…";try{const parsed=await parseTopeaseFile(file);await saveTopeaseImport({file,sourceText:parsed.text,rowCount:parsed.rowCount});toast("特易报告已解析并保存，请确认预览后合并");}catch(error){toast("导入失败："+(error.message||error));}finally{button.disabled=false;button.textContent="导入特易报告";event.target.value="";}});
       $("#parse-topease-paste").addEventListener("click",async()=>{const sourceText=$("#topease-paste-text").value.trim();if(!sourceText)return toast("请先粘贴特易报告内容");const button=$("#parse-topease-paste");button.disabled=true;try{await saveTopeaseImport({sourceText,rowCount:sourceText.split(/\r?\n/).filter(Boolean).length});$("#topease-paste-panel").classList.add("hidden");$("#topease-paste-text").value="";toast("特易报告已解析并保存");}catch(error){toast("保存失败："+(error.message||error));}finally{button.disabled=false;}});
-      $("#merge-topease-summary").addEventListener("click",()=>{const imported=$("#topease-preview-summary").value.trim();if(!imported)return toast("没有可合并的数据");const current=$("#detail-research-summary").value.trim();$("#detail-research-summary").value=[current,imported].filter(Boolean).join("\n\n");$("#detail-research-reason").value="导入特易海关数据补充背调";toast("已合并到客户背调，请检查后点击保存背调信息");});
+      $("#merge-topease-summary").addEventListener("click",()=>{const imported=$("#topease-preview-summary").value.trim();if(!imported)return toast("没有可合并的数据");const current=$("#detail-research-summary").value.trim();$("#detail-research-summary").value=[current,imported].filter(Boolean).join("\n\n");$("#detail-research-reason").value="导入特易海关数据补充背调";calculateResearchScore();toast("已合并到客户背调，请检查后点击保存背调信息");});
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const button = $("#run-business-research");
@@ -2387,20 +2412,26 @@
           $("#detail-research-status").textContent = `背调状态：可用 · 数据更新 ${record.dataUpdatedAt || "未知"}`;
           const evidence = $("#detail-research-evidence"); evidence.replaceChildren(); evidence.append("来源：");
           if (record.sourceUrl) { const link=document.createElement("a"); link.href=record.sourceUrl; link.target="_blank"; link.rel="noopener"; link.textContent=record.sourceUrl; evidence.appendChild(link); } else evidence.append("WONLY Business 数据记录");
-          evidence.classList.remove("hidden"); toast("背调已完成并带入详情，请确认后保存");
+          evidence.classList.remove("hidden"); calculateResearchScore(); toast("背调已完成并带入详情，请确认后保存");
         } catch (error) { $("#detail-research-status").textContent = "背调状态：执行失败"; toast("背调失败：" + (error.message || error)); }
         finally { button.disabled=false; button.textContent="一键前置背调"; }
       });
+      function calculateResearchScore(){const has=(s)=>$(s).value.trim().length>0,demand=$("#detail-smart-demand").value.trim(),summary=$("#detail-research-summary").value.trim();let score=0;if(has("#detail-research-company"))score+=10;if(has("#detail-research-domain"))score+=10;if(has("#detail-smart-country"))score+=5;if(has("#detail-smart-name"))score+=5;if(has("#detail-smart-title"))score+=5;if(demand)score+=15;if(has("#detail-smart-project"))score+=10;if(has("#detail-research-business"))score+=10;if(summary)score+=15;if(/\b\d+[\d,.]*\b/.test(demand))score+=5;if(/特易|海关|进口|采购信号|trade|import/i.test(summary))score+=10;score=Math.min(100,score);const risk=$("#detail-research-risk").value,originalScore=score;if(risk==="critical")score=Math.min(score,39);else if(risk==="high")score=Math.min(score,59);else if(risk==="medium")score=Math.min(score,79);const grade=score>=80?"A":score>=60?"B":score>=40?"C":"D",likelihood=score>=75?"high":score>=50?"medium":"low",forced=score<originalScore;const strategy=forced?`存在${risk==="critical"?"严重":"高"}风险，已强制降级为 ${grade}。主管复核公司身份、付款能力和项目真实性前，不建议提供账期或投入高成本样品。`:grade==="A"?"高价值机会：10分钟内首次联系，优先确认技术参数、预算、采购时间与决策链，推动视频会议及正式报价。":grade==="B"?"重点培育：24小时内补齐数量、规格、项目时间和决策人信息，以样品或相似项目案例推动下一步。":grade==="C"?"普通机会：先验证需求真实性与采购计划，采用标准资料包和定期跟进，信息完整后再升级。":"低价值或高风险：低成本验证身份、需求和付款能力，未获得有效回复前不投入样品及深度方案。";$("#detail-value-score").value=score;$("#detail-value-grade").value=grade;$("#detail-purchase-likelihood").value=likelihood;$("#detail-recommended-strategy").value=strategy;return{score,grade,likelihood,strategy,forced};}
+      $("#calculate-research-score").addEventListener("click",()=>{calculateResearchScore();toast("客户价值评分与跟进策略已更新");});
       $("#generate-outreach").addEventListener("click", () => {
         if (!currentInquiry) return;
         const company=$("#detail-research-company").value.trim(), research=$("#detail-research-summary").value.trim();
         if (!company || !research) return toast("请先完成并确认客户背调");
-        const name=$("#detail-smart-name").value.trim(), demand=$("#detail-smart-demand").value.trim(), project=$("#detail-smart-project").value.trim() || currentInquiry.title;
-        $("#outreach-subject-a").value=`Re: ${project}`; $("#outreach-subject-b").value=`Specifications and next steps for ${project}`;
-        $("#outreach-body").value=`${name ? `Dear ${name},` : "Dear Purchasing Team,"}\n\nThank you for your inquiry regarding ${project}.\n\nBased on the information received, we understand that your team is evaluating ${demand || "a door and locking solution for the current project"}. We would like to prepare an accurate proposal without making assumptions about the final specification.\n\nCould you please confirm the required dimensions, material and finish, locking configuration, quantity, destination port, Incoterm and expected delivery schedule? If available, please also share the drawings or specification sheet.\n\nAfter receiving these details, our team can provide the recommended configuration, quotation or Proforma Invoice, sample plan and quality-inspection checklist for your review.\n\nWould you be available to send the technical requirements so we can prepare the proposal?\n\nBest regards,\nWONLY Overseas Team`;
-        $("#outreach-draft").classList.remove("hidden"); toast("开发信草稿已生成，状态为待人工审核，不会自动发送");
+        const name=$("#detail-smart-name").value.trim(),demand=$("#detail-smart-demand").value.trim(),project=$("#detail-smart-project").value.trim()||currentInquiry.title,objective=$("#outreach-objective").value,tone=$("#outreach-tone").value,strategy=$("#detail-recommended-strategy").value.trim();
+        $("#outreach-subject-a").value=`Re: ${project}`;$("#outreach-subject-b").value=objective==="meeting"?`Technical discussion for ${project}`:objective==="quote"?`Quotation details for ${project}`:`Specifications and next steps for ${project}`;
+        const ask=objective==="meeting"?"Would a 20-minute online meeting this week be convenient to review the technical requirements?":objective==="quote"?"Please confirm the dimensions, finish, quantity, destination port, Incoterm and required delivery date so we can finalize the quotation.":"Could you please confirm the dimensions, finish, locking configuration, quantity, destination port and expected delivery schedule?",opener=tone==="direct"?`We received your inquiry for ${project}.`:tone==="project"?`Thank you for sharing the ${project} requirement. We are ready to move the project to the next technical step.`:`Thank you for your inquiry regarding ${project}. Based on our initial review, we would like to help your team define an accurate and commercially suitable solution.`;
+        $("#outreach-body").value=`${name?`Dear ${name},`:"Dear Purchasing Team,"}\n\n${opener}\n\nWe understand that you are evaluating ${demand||"a door and locking solution"}. ${strategy?`Our recommended next step is to ${strategy.replace(/。.*$/,"").replace(/^.*?：/,"")}.`:"We will avoid making assumptions before the key specifications are confirmed."}\n\n${ask}\n\nOnce confirmed, we can provide the recommended configuration, quotation or Proforma Invoice, sample plan and quality-inspection checklist.\n\nBest regards,\n${profile.full_name||"WONLY Overseas Team"}\nWONLY`;
+        $("#outreach-recipient").value=currentInquiry.email_intake?.sender_email||"";$("#outreach-status").textContent="新草稿 · 待人工审核";$("#outreach-draft").classList.remove("hidden");toast("开发信草稿已生成，状态为待人工审核，不会自动发送");
       });
       $("#copy-outreach").addEventListener("click", async () => { const text=`Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`; await navigator.clipboard.writeText(text); toast("开发信已复制"); });
+      async function saveOutreachDraft(){if(!currentInquiry)throw new Error("请先打开询盘");const recipient=$("#outreach-recipient").value.trim(),subjectA=$("#outreach-subject-a").value.trim(),subjectB=$("#outreach-subject-b").value.trim(),body=$("#outreach-body").value.trim(),subject=$("#outreach-selected-subject").value==="b"?subjectB:subjectA;if(!recipient||!subject||!body)throw new Error("请先生成完整开发信");const{data,error}=await supabase.from("outreach_drafts").insert({inquiry_id:currentInquiry.id,created_by:profile.id,recipient_email:recipient,subject_a:subjectA,subject_b:subjectB,selected_subject:subject,body,language:"en",tone:$("#outreach-tone").value,objective:$("#outreach-objective").value,status:"draft"}).select().single();if(error)throw error;currentInquiry.outreachDraftId=data.id;$("#outreach-status").textContent=`草稿已保存 · ${fmtDate(data.created_at)}`;return{id:data.id,subject,body};}
+      $("#save-outreach").addEventListener("click",async()=>{const button=$("#save-outreach");button.disabled=true;try{await saveOutreachDraft();toast("开发信草稿已保存并保留版本");}catch(error){toast("草稿保存失败："+(error.message||error));}finally{button.disabled=false;}});
+      $("#send-outreach").addEventListener("click",async()=>{const recipient=$("#outreach-recipient").value.trim();if(!recipient)return toast("询盘没有可用的客户邮箱");if(!confirm(`确认使用你已连接的业务员邮箱，将开发信发送给 ${recipient}？`))return;const button=$("#send-outreach");button.disabled=true;button.textContent="发送中…";try{const draft=await saveOutreachDraft();const{data,error}=await supabase.functions.invoke("mailbox-send",{body:{inquiry_id:currentInquiry.id,draft_id:draft.id,subject:draft.subject,body:draft.body}});if(error)throw error;$("#outreach-status").textContent=`已发送 · ${fmtDate(data.sent_at)}`;toast("开发信已从当前业务员邮箱发送");}catch(error){$("#outreach-status").textContent="发送失败，可修改后重试";toast("开发信发送失败："+(error.message||error));}finally{button.disabled=false;button.textContent="确认并发送";}});
       $("#save-detail-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const reason = $("#detail-research-reason").value.trim();
@@ -2418,6 +2449,11 @@
           main_business: $("#detail-research-business").value.trim() || null,
           risk_level: $("#detail-research-risk").value,
           ai_summary: $("#detail-research-summary").value.trim() || null,
+          value_score: Number($("#detail-value-score").value) || 0,
+          value_grade: $("#detail-value-grade").value || null,
+          purchase_likelihood: $("#detail-purchase-likelihood").value,
+          recommended_strategy: $("#detail-recommended-strategy").value.trim() || null,
+          risk_forced_downgrade: ["high", "critical"].includes($("#detail-research-risk").value),
           updated_at: new Date().toISOString(),
         };
         let companyId = currentInquiry.company_id;

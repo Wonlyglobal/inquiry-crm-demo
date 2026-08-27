@@ -92,7 +92,9 @@ async function syncFolder(connection,password,folder){
       const {data:cursor}=await db.from('email_sync_cursors').select('*').eq('mailbox_connection_id',connection.id).eq('folder',folder).maybeSingle();
       const uidValidity=String(client.mailbox.uidValidity||'');
       const last=cursor?.uid_validity===uidValidity?Number(cursor.last_uid||0):0;
-      if(!cursor&&isSentFolder(folder)){
+      // A newly connected mailbox starts at its current newest message. This
+      // prevents old mailbox history from being imported as fresh CRM work.
+      if(!cursor&&(isSentFolder(folder)||connection.mailbox_kind==='shared_inquiry')){
         const baseline=Math.max(0,Number(client.mailbox.uidNext||1)-1);
         await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:baseline,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
         console.log(`${connection.email} initialized ${folder} at UID ${baseline}`);

@@ -1960,13 +1960,13 @@
         sharedInquiryButton.removeAttribute("title");
         if (view === "settings" && canManageSharedInquiry) {
           const { data: sharedMailbox } = await supabase.from("mailbox_connections")
-            .select("status,last_tested_at,error_message")
+            .select("status,last_tested_at,last_synced_at,error_message")
             .eq("mailbox_kind", "shared_inquiry")
             .eq("email", "inquiry@wonlyglobal.com")
             .maybeSingle();
           if (sharedMailbox?.status === "connected") {
-            sharedInquiryButton.textContent = "公共询盘邮箱 · 已连接";
-            sharedInquiryButton.title = sharedMailbox.last_tested_at ? `最近测试：${fmtDate(sharedMailbox.last_tested_at)}；点击可重新连接` : "点击可重新连接";
+            sharedInquiryButton.textContent = sharedMailbox.last_synced_at ? "公共询盘邮箱 · 自动同步正常" : "公共询盘邮箱 · 已连接";
+            sharedInquiryButton.title = [sharedMailbox.last_tested_at ? `最近测试：${fmtDate(sharedMailbox.last_tested_at)}` : "", sharedMailbox.last_synced_at ? `最近同步：${fmtDate(sharedMailbox.last_synced_at)}` : "", "点击可重新连接"].filter(Boolean).join("；");
           } else if (sharedMailbox?.status === "error") {
             sharedInquiryButton.textContent = "公共询盘邮箱 · 连接失败";
             sharedInquiryButton.title = sharedMailbox.error_message || "点击重新连接";

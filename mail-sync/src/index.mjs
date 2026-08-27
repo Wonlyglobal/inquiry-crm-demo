@@ -15,6 +15,11 @@ const normalizeSubject=(v)=>String(v||'').replace(/^\s*((re|fw|fwd|答复|回复
 const addrList=(node)=>[...(node?.value||[])].map(x=>cleanEmail(x.address)).filter(Boolean);
 const headerId=(v)=>String(v||'').trim().replace(/^<|>$/g,'');
 const isSentFolder=(name)=>/sent|已发送|发件箱/i.test(name);
+const isInstantlyNurturing=(message,connection)=>connection.mailbox_kind==='shared_inquiry'&&message.direction==='inbound'&&/\bchloe\b/i.test([
+  message.sender_email,
+  message.subject,
+  message.body_text,
+].filter(Boolean).join('\n'));
 
 async function secretFor(id){const {data,error}=await db.rpc('read_mailbox_secret',{target_connection_id:id});if(error||!data)throw error||new Error('邮箱凭据不存在');return data}
 
@@ -109,8 +114,10 @@ async function syncFolder(connection,password,folder){
         const sent=isSentFolder(folder);
         const references=Array.isArray(parsed.references)?parsed.references:(parsed.references?[parsed.references]:[]);
         const record={mailbox_connection_id:connection.id,folder,uid:msg.uid,message_id:headerId(parsed.messageId),in_reply_to:headerId(parsed.inReplyTo),reference_ids:references.map(headerId),direction:sent?'outbound':'inbound',sender_email:cleanEmail(parsed.from?.value?.[0]?.address),recipient_emails:addrList(parsed.to),cc_emails:addrList(parsed.cc),subject:parsed.subject||'',body_text:parsed.text||'',body_html:typeof parsed.html==='string'?parsed.html:'',sent_at:sent?(parsed.date||new Date()).toISOString():null,received_at:sent?null:(parsed.date||new Date()).toISOString(),attachment_count:parsed.attachments?.length||0,raw_headers:{message_id:parsed.messageId||null,in_reply_to:parsed.inReplyTo||null,references}};
-        let match=await matchInquiry(record,connection);if(!match.id)match=await createInquiryFromShared(record,connection)||match;
-        const {data:row,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
+        const nurturing=isInstantlyNurturing(record,connection);
+        let match=nurturing?{id:null,method:'instantly_chloe_filter'}:await matchInquiry(record,connection);
+        if(!nurturing&&!match.id)match=await createInquiryFromShared(record,connection)||match;
+        const {data:row,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:nurturing?'ignored':match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
         if(error)throw error;if(row?.inquiry_id)await applyMatchedMessage(row,connection);
       }
       await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:maxUid,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});

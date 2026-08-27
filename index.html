@@ -1847,11 +1847,16 @@
         else $("#topease-preview").classList.add("hidden");
         currentInquiry.outreachDraftId = latestDraft?.id || null;
         $("#outreach-recipient").value = intake?.sender_email || latestDraft?.recipient_email || "";
-        if (latestDraft) {
+        const legacyDraftError = latestDraft ? validateCustomerFacingDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body || "") : "";
+        if (latestDraft && !legacyDraftError) {
           $("#outreach-subject-a").value = latestDraft.subject_a || ""; $("#outreach-subject-b").value = latestDraft.subject_b || "";
           $("#outreach-selected-subject").value = latestDraft.selected_subject === latestDraft.subject_b ? "b" : "a";
           $("#outreach-body").value = latestDraft.body || ""; $("#outreach-tone").value = latestDraft.tone || "consultative"; $("#outreach-objective").value = latestDraft.objective || "qualify";
           $("#outreach-status").textContent = latestDraft.status === "sent" ? `已发送 · ${fmtDate(latestDraft.sent_at)}` : latestDraft.status === "failed" ? "发送失败，可修改后重试" : `草稿已保存 · ${fmtDate(latestDraft.created_at)}`;
+          $("#outreach-draft").classList.remove("hidden");
+        } else if (latestDraft) {
+          $("#outreach-subject-a").value = ""; $("#outreach-subject-b").value = ""; $("#outreach-body").value = "";
+          $("#outreach-status").textContent = "旧草稿包含中文或内部判断，已停止使用；请重新生成";
           $("#outreach-draft").classList.remove("hidden");
         } else {
           $("#outreach-draft").classList.add("hidden"); $("#outreach-status").textContent = "草稿尚未保存";
@@ -2869,23 +2874,42 @@
         return { score, grade, likelihood, strategy, forced };
       }
       $("#calculate-research-score").addEventListener("click", () => { calculateResearchScore(); toast("客户价值评分与跟进策略已更新"); });
+      function customerFacingEnglish(value, fallback, max = 260) {
+        const text = String(value || "").replace(/https?:\/\/\S+/g, "").replace(/\s+/g, " ").trim();
+        if (!text || /[\u3400-\u9fff]/.test(text)) return fallback;
+        return text.slice(0, max);
+      }
+      function unifiedEnglishSignature() {
+        return [
+          "Best regards,",
+          "WONLY International Sales Team",
+          "WONLY",
+          "www.wonlygroup.com",
+        ].join("\n");
+      }
+      function validateCustomerFacingDraft(subject, body) {
+        if (/[\u3400-\u9fff]/.test(`${subject}\n${body}`)) return "英文开发信中包含中文或内部备注，请重新生成";
+        if (/强制降级|高风险|低价值|成交概率|客户等级|内部判断|our recommended next step is to|\b(?:risk rating|value grade|lead score|internal assessment)\b/i.test(body)) {
+          return "开发信中包含内部评分、风险或判断信息，请重新生成";
+        }
+        return "";
+      }
       $("#generate-outreach").addEventListener("click", () => {
         if (!currentInquiry) return;
         const company = $("#detail-research-company").value.trim();
         const research = $("#detail-research-summary").value.trim();
         if (!company || !research) return toast("请先完成并确认客户背调");
-        const name = $("#detail-smart-name").value.trim();
-        const demand = $("#detail-smart-demand").value.trim();
-        const project = $("#detail-smart-project").value.trim() || currentInquiry.title;
+        const name = customerFacingEnglish($("#detail-smart-name").value, "", 80);
+        const demand = customerFacingEnglish($("#detail-smart-demand").value, "the door and locking products described in your inquiry", 320);
+        const project = customerFacingEnglish($("#detail-smart-project").value || currentInquiry.title, "your door and locking project", 140);
         const objective = $("#outreach-objective").value;
         const tone = $("#outreach-tone").value;
-        const strategy = $("#detail-recommended-strategy").value.trim();
         const greeting = name ? `Dear ${name},` : "Dear Purchasing Team,";
         $("#outreach-subject-a").value = `Re: ${project}`;
         $("#outreach-subject-b").value = objective === "meeting" ? `Technical discussion for ${project}` : objective === "quote" ? `Quotation details for ${project}` : `Specifications and next steps for ${project}`;
         const ask = objective === "meeting" ? "Would a 20-minute online meeting this week be convenient to review the technical requirements?" : objective === "quote" ? "Please confirm the dimensions, finish, quantity, destination port, Incoterm and required delivery date so we can finalize the quotation." : "Could you please confirm the dimensions, finish, locking configuration, quantity, destination port and expected delivery schedule?";
         const opener = tone === "direct" ? `We received your inquiry for ${project}.` : tone === "project" ? `Thank you for sharing the ${project} requirement. We are ready to move the project to the next technical step.` : `Thank you for your inquiry regarding ${project}. Based on our initial review, we would like to help your team define an accurate and commercially suitable solution.`;
-        $("#outreach-body").value = `${greeting}\n\n${opener}\n\nWe understand that you are evaluating ${demand || "a door and locking solution"}. ${strategy ? `Our recommended next step is to ${strategy.replace(/。.*$/, "").replace(/^.*?：/, "")}.` : "We will avoid making assumptions before the key specifications are confirmed."}\n\n${ask}\n\nOnce confirmed, we can provide the recommended configuration, quotation or Proforma Invoice, sample plan and quality-inspection checklist.\n\nBest regards,\n${profile.full_name || "WONLY Overseas Team"}\nWONLY`;
+        $("#outreach-body").value = `${greeting}\n\n${opener}\n\nWe understand that you are evaluating ${demand}. We would be pleased to prepare the most suitable technical and commercial proposal based on your confirmed requirements.\n\n${ask}\n\nOnce confirmed, we can provide the recommended configuration, quotation or Proforma Invoice, sample plan and quality-inspection checklist.\n\n${unifiedEnglishSignature()}`;
         $("#outreach-recipient").value = currentInquiry.email_intake?.sender_email || "";
         $("#outreach-status").textContent = "新草稿 · 待人工审核";
         $("#outreach-draft").classList.remove("hidden");
@@ -2904,6 +2928,8 @@
         const body = $("#outreach-body").value.trim();
         const subject = $("#outreach-selected-subject").value === "b" ? subjectB : subjectA;
         if (!recipient || !subject || !body) throw new Error("请先生成完整开发信");
+        const customerFacingError = validateCustomerFacingDraft(subject, body);
+        if (customerFacingError) throw new Error(customerFacingError);
         const { data, error } = await supabase.from("outreach_drafts").insert({ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: "en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" }).select().single();
         if (error) throw error;
         currentInquiry.outreachDraftId = data.id;

@@ -1939,7 +1939,24 @@
         const modulePrimary = $("#module-primary");
         modulePrimary.classList.toggle("hidden", view !== "settings");
         const canManageSharedInquiry = profile.role === "owner" || ["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com", "lingzx@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase());
-        $("#connect-shared-inquiry").classList.toggle("hidden", view !== "settings" || !canManageSharedInquiry);
+        const sharedInquiryButton = $("#connect-shared-inquiry");
+        sharedInquiryButton.classList.toggle("hidden", view !== "settings" || !canManageSharedInquiry);
+        sharedInquiryButton.textContent = "连接公共询盘邮箱";
+        sharedInquiryButton.removeAttribute("title");
+        if (view === "settings" && canManageSharedInquiry) {
+          const { data: sharedMailbox } = await supabase.from("mailbox_connections")
+            .select("status,last_tested_at,error_message")
+            .eq("mailbox_kind", "shared_inquiry")
+            .eq("email", "inquiry@wonlyglobal.com")
+            .maybeSingle();
+          if (sharedMailbox?.status === "connected") {
+            sharedInquiryButton.textContent = "公共询盘邮箱 · 已连接";
+            sharedInquiryButton.title = sharedMailbox.last_tested_at ? `最近测试：${fmtDate(sharedMailbox.last_tested_at)}；点击可重新连接` : "点击可重新连接";
+          } else if (sharedMailbox?.status === "error") {
+            sharedInquiryButton.textContent = "公共询盘邮箱 · 连接失败";
+            sharedInquiryButton.title = sharedMailbox.error_message || "点击重新连接";
+          }
+        }
         $("#inquiry-definitions").classList.toggle("hidden",view!=="inquiries");
         $("#add-member").classList.toggle("hidden", view !== "settings");
         if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";

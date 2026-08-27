@@ -320,6 +320,33 @@
         font-weight: 800;
         margin-top: 12px;
       }
+      .dashboard-toolbar { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:14px; padding:12px; }
+      .dashboard-filter-group,.dashboard-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+      .input.compact { width:auto; min-width:110px; padding:9px 10px; }
+      .dashboard-kpis { grid-template-columns:repeat(4,1fr); }
+      .metric-help { width:18px; height:18px; padding:0; margin-left:4px; border:1px solid #cbd6ce; border-radius:50%; background:#fff; color:#607268; font-size:10px; font-weight:800; cursor:pointer; vertical-align:middle; }
+      .metric-help:hover { background:var(--soft); color:var(--rail); }
+      .money-pair { display:grid; gap:4px; margin-top:10px; }
+      .money-pair b { font-size:21px; } .money-pair span { color:var(--muted); font-size:12px; }
+      .danger-text { color:var(--danger); }
+      .leaderboards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-bottom:14px; }
+      .leaderboard { background:#fff; border:1px solid var(--line); border-radius:17px; overflow:hidden; }
+      .leaderboard-head,.panel-title { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); }
+      .leaderboard table th,.leaderboard table td { padding:10px 12px; font-size:11px; }
+      .rank-pill { display:inline-grid; place-items:center; width:24px; height:24px; border-radius:8px; background:#edf3ee; font-weight:800; }
+      .rank-pill.top { background:#d6e4d9; color:#315c40; }
+      .trend-up { color:#317a4b; } .trend-down { color:#b34f48; }
+      .dashboard-grid { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(300px,.8fr); gap:14px; margin-bottom:14px; }
+      .dashboard-panel { min-width:0; background:#fff; border:1px solid var(--line); border-radius:17px; overflow:hidden; }
+      .dashboard-panel .pipeline { padding:14px; margin:0; }
+      .alert-list { padding:10px 14px; max-height:260px; overflow:auto; }
+      .alert-item { display:flex; justify-content:space-between; gap:10px; padding:10px 2px; border-bottom:1px solid #edf0ed; font-size:11px; }
+      .alert-level { flex:0 0 auto; border-radius:14px; padding:3px 7px; background:#f7e5e3; color:#a43e38; font-weight:700; }
+      .dashboard-table-scroll { overflow:auto; }
+      .mini-metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:14px; }
+      .mini-metric { border:1px solid var(--line); border-radius:12px; padding:13px; }
+      .mini-metric span { display:block; color:var(--muted); font-size:10px; margin-bottom:7px; }
+      .mini-metric b { font-size:19px; }
       .table-wrap {
         background: #fff;
         border: 1px solid var(--line);
@@ -676,6 +703,8 @@
         .kpis {
           grid-template-columns: 1fr 1fr;
         }
+        .leaderboards,.dashboard-grid { grid-template-columns:1fr; }
+        .dashboard-toolbar { align-items:flex-start; flex-direction:column; }
         .grid2 {
           grid-template-columns: 1fr;
         }
@@ -765,66 +794,55 @@
         <section id="dashboard-page" class="page">
           <div class="heading">
             <div>
-              <h1>询盘看板</h1>
-              <p>当前为真实业务数据，已清除全部演示记录</p>
+              <h1>经营看板</h1>
+              <p>询盘效率、销售转化、渠道 ROI 与风险预警</p>
             </div>
             <button id="new-inquiry" class="primary">+ 新建询盘</button>
           </div>
-          <div class="kpis">
+          <div class="dashboard-toolbar card">
+            <div class="dashboard-filter-group">
+              <select id="dashboard-period" class="input compact"><option value="today">今日</option><option value="week">本周</option><option value="month" selected>本月</option><option value="quarter">本季度</option><option value="year">本年度</option><option value="custom">自定义</option></select>
+              <input id="dashboard-start" class="input compact hidden" type="date" />
+              <input id="dashboard-end" class="input compact hidden" type="date" />
+              <select id="dashboard-team" class="input compact"><option value="">全部团队</option></select>
+              <select id="dashboard-sales" class="input compact"><option value="">全部成员</option></select>
+              <select id="dashboard-source" class="input compact"><option value="">全部来源</option></select>
+              <button id="dashboard-apply" class="primary">应用筛选</button>
+            </div>
+            <div class="dashboard-actions"><button id="dashboard-targets" class="ghost">设置目标</button><button id="dashboard-export-csv" class="ghost">导出 Excel</button><button id="dashboard-export-pdf" class="ghost">导出 PDF</button></div>
+          </div>
+          <div class="kpis dashboard-kpis">
             <div class="card">
-              <div class="kpi-label">询盘总量</div>
+              <div class="kpi-label">新增询盘 <button class="metric-help" data-metric="new_inquiries">?</button></div>
               <div class="kpi-value" id="kpi-total">0</div>
             </div>
             <div class="card">
-              <div class="kpi-label">待分配</div>
+              <div class="kpi-label">待分配 <button class="metric-help" data-metric="pending_assignment">?</button></div>
               <div class="kpi-value" id="kpi-pending">0</div>
             </div>
             <div class="card">
-              <div class="kpi-label">有效询盘</div>
-              <div class="kpi-value" id="kpi-valid">0</div>
+              <div class="kpi-label">超时未响应 <button class="metric-help" data-metric="overdue_response">?</button></div>
+              <div class="kpi-value danger-text" id="kpi-overdue">0</div>
             </div>
             <div class="card">
-              <div class="kpi-label">已成交</div>
-              <div class="kpi-value" id="kpi-won">0</div>
+              <div class="kpi-label">有效询盘率 <button class="metric-help" data-metric="valid_rate">?</button></div>
+              <div class="kpi-value" id="kpi-valid-rate">—</div>
             </div>
+            <div class="card"><div class="kpi-label">首次响应率 <button class="metric-help" data-metric="response_rate">?</button></div><div class="kpi-value" id="kpi-response-rate">—</div></div>
+            <div class="card"><div class="kpi-label">平均首次响应 <button class="metric-help" data-metric="avg_response">?</button></div><div class="kpi-value" id="kpi-avg-response">—</div></div>
+            <div class="card"><div class="kpi-label">成交率 <button class="metric-help" data-metric="conversion_rate">?</button></div><div class="kpi-value" id="kpi-conversion">—</div></div>
+            <div class="card"><div class="kpi-label">成交额 <button class="metric-help" data-metric="won_amount">?</button></div><div class="money-pair"><b id="kpi-won-cny">¥0</b><span id="kpi-won-usd">$0</span></div></div>
           </div>
-          <div class="pipeline" id="pipeline">
-            <div class="stage">
-              <b data-stage="pending_assignment">0</b><span>待分配</span
-              ><small data-stage-time="pending_assignment">暂无记录</small>
-            </div>
-            <div class="stage">
-              <b data-stage="received">0</b><span>收到询盘</span
-              ><small data-stage-time="received">暂无记录</small>
-            </div>
-            <div class="stage">
-              <b data-stage="qualified">0</b><span>有效询盘</span
-              ><small data-stage-time="qualified">暂无记录</small>
-            </div>
-            <div class="stage">
-              <b data-stage="contacted">0</b><span>已联系</span
-              ><small data-stage-time="contacted">暂无记录</small>
-            </div>
-            <div class="stage">
-              <b data-stage="quoted">0</b><span>已报价</span
-              ><small data-stage-time="quoted">暂无记录</small>
-            </div>
-            <div class="stage">
-              <b data-stage="sample_sent">0</b><span>已寄样</span
-              ><small data-stage-time="sample_sent">暂无记录</small>
-            </div>
-            <div class="stage">
-              <b data-stage="negotiating">0</b><span>谈判</span
-              ><small data-stage-time="negotiating">暂无记录</small>
-            </div>
-            <div class="stage">
-              <b data-stage="won">0</b><span>成交</span
-              ><small data-stage-time="won">暂无记录</small>
-            </div>
-            <div class="stage">
-              <b data-stage="lost">0</b><span>丢单</span
-              ><small data-stage-time="lost">暂无记录</small>
-            </div>
+          <div class="leaderboards" id="dashboard-leaderboards"></div>
+          <div class="dashboard-grid">
+            <section class="dashboard-panel"><div class="panel-title"><b>商机阶段</b><button class="metric-help" data-metric="stage_pipeline">?</button></div><div class="pipeline" id="pipeline">
+              <div class="stage"><b data-stage="pending_assignment">0</b><span>待分配</span><small data-stage-time="pending_assignment">暂无记录</small></div><div class="stage"><b data-stage="received">0</b><span>收到询盘</span><small data-stage-time="received">暂无记录</small></div><div class="stage"><b data-stage="qualified">0</b><span>有效询盘</span><small data-stage-time="qualified">暂无记录</small></div><div class="stage"><b data-stage="contacted">0</b><span>已联系</span><small data-stage-time="contacted">暂无记录</small></div><div class="stage"><b data-stage="quoted">0</b><span>已报价</span><small data-stage-time="quoted">暂无记录</small></div><div class="stage"><b data-stage="sample_sent">0</b><span>已寄样</span><small data-stage-time="sample_sent">暂无记录</small></div><div class="stage"><b data-stage="negotiating">0</b><span>谈判</span><small data-stage-time="negotiating">暂无记录</small></div><div class="stage"><b data-stage="won">0</b><span>成交</span><small data-stage-time="won">暂无记录</small></div><div class="stage"><b data-stage="lost">0</b><span>丢单</span><small data-stage-time="lost">暂无记录</small></div>
+            </div></section>
+            <section class="dashboard-panel"><div class="panel-title"><b>风险与待办</b><button class="metric-help" data-metric="risk_alerts">?</button></div><div id="dashboard-alerts" class="alert-list"></div></section>
+          </div>
+          <div class="dashboard-grid">
+            <section class="dashboard-panel"><div class="panel-title"><b>渠道表现与 ROI</b><button class="metric-help" data-metric="channel_roi">?</button></div><div id="dashboard-channels" class="dashboard-table-scroll"></div></section>
+            <section class="dashboard-panel"><div class="panel-title"><b>跟进任务</b><button class="metric-help" data-metric="followup_completion">?</button></div><div id="dashboard-followups" class="mini-metrics"></div></section>
           </div>
           <div class="table-wrap">
             <div class="table-head">
@@ -1650,11 +1668,92 @@
           list.append(row);
         });
       }
+      const dashboardMetricDefinitions = {
+        new_inquiries:["新增询盘","统计期内创建且未被排除的询盘数。","按询盘创建时间；排除垃圾、测试、未分配撤销及系统托管记录。"],
+        pending_assignment:["待分配","当前仍处于待分配阶段的询盘数。","这是当前存量，不受统计期起止限制。"],
+        overdue_response:["超时未响应","分配后超过 30 分钟仍未完成首次有效联系。","首次有效联系必须由业务员明确记录；旧数据不推断。"],
+        valid_rate:["有效询盘率","有效询盘数 ÷ 已完成有效性判断的询盘数。","分母为有效+无效，不含待确认。"],
+        response_rate:["首次响应率","分配后 30 分钟内完成首次有效联系的询盘数 ÷ 已分配询盘数。","转交后仍归属首位完成有效联系者。"],
+        avg_response:["平均首次响应时长","首次有效联系时间减分配时间的平均值。","仅统计两个时间均有记录的询盘，越低越好。"],
+        conversion_rate:["成交率","统计期内成交商机数 ÷ 统计期内已关闭商机数（成交＋丢单）。","今日/周/月/季/年正式排名最低关闭样本分别为 1/3/5/10/20。"],
+        won_amount:["成交额","统计期内成交商机按成交日汇率折算后的金额。","归属成交时负责人；排行榜默认按人民币金额。成交数据锁定成交日汇率。"],
+        stage_pipeline:["商机阶段","当前筛选范围内各阶段商机数量及最近进入时间。","阶段停留超过阈值黄色预警，超过两倍阈值红色预警。"],
+        risk_alerts:["风险与待办","高风险、响应超时、计划跟进逾期、阶段停留超时、报价 7 天无反馈及预计成交日已过。","预警仅用于管理跟进，不自动修改客户或商机数据。"],
+        channel_roi:["渠道 ROI","渠道归因成交额 ÷ 渠道成本。","MVP 由主来源获得 100% 归因；渠道成本由市场部按月录入。"],
+        followup_completion:["跟进任务完成率","按期或逾期完成的跟进任务数 ÷ 到期任务数。","逾期后完成计入完成率，并单独标注“逾期完成”。"]
+      };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[] };
+      function dashboardRange() {
+        const now = new Date(), type = $("#dashboard-period")?.value || "month";
+        let start = new Date(now), end = new Date(now);
+        end.setHours(23,59,59,999);
+        if (type === "today") start.setHours(0,0,0,0);
+        else if (type === "week") { const day=(now.getDay()+6)%7; start.setDate(now.getDate()-day); start.setHours(0,0,0,0); }
+        else if (type === "month") start = new Date(now.getFullYear(),now.getMonth(),1);
+        else if (type === "quarter") start = new Date(now.getFullYear(),Math.floor(now.getMonth()/3)*3,1);
+        else if (type === "year") start = new Date(now.getFullYear(),0,1);
+        else { start = new Date($("#dashboard-start").value+"T00:00:00"); end = new Date($("#dashboard-end").value+"T23:59:59.999"); }
+        const duration=end-start+1, previousEnd=new Date(start-1), previousStart=new Date(previousEnd-duration+1);
+        return { type,start,end,previousStart,previousEnd };
+      }
+      const inRange=(value,start,end)=>value && new Date(value)>=start && new Date(value)<=end;
+      const pct=(n,d)=>d ? `${(n/d*100).toFixed(1)}%` : "—";
+      const mins=(ms)=>Number.isFinite(ms) ? (ms<3600000?`${Math.round(ms/60000)} 分钟`:`${(ms/3600000).toFixed(1)} 小时`) : "—";
+      const money=(n,c)=>new Intl.NumberFormat("zh-CN",{style:"currency",currency:c,maximumFractionDigits:0}).format(Number(n)||0);
+      function renderLeaderboard(title,metric,records,format,lowerBetter=false) {
+        const sorted=[...records].sort((a,b)=>lowerBetter?a.value-b.value:b.value-a.value);
+        const average=sorted.length?sorted.reduce((s,x)=>s+x.value,0)/sorted.length:0;
+        return `<section class="leaderboard"><div class="leaderboard-head"><b>${title}</b><button class="metric-help" data-metric="${metric}">?</button></div><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>环比</th><th>团队平均</th></tr></thead><tbody>${sorted.length?sorted.map((x,i)=>`<tr data-sales-detail="${x.id}"><td><span class="rank-pill ${i<3?'top':''}">${i+1}</span></td><td>${x.name}</td><td>${x.insufficient?'<span class="tag">样本不足</span> ':''}${format(x.value)}</td><td class="${x.change>=0?'trend-up':'trend-down'}">${x.change===null?'—':`${x.change>=0?'↑':'↓'} ${Math.abs(x.change).toFixed(1)}%`}</td><td>${format(average)}</td></tr>`).join(''):`<tr><td colspan="5">暂无可排名数据</td></tr>`}</tbody></table></section>`;
+      }
+      function renderDashboard(rows, profiles, history, followups) {
+        dashboardState={rows,profiles,history,followups};
+        const {type,start,end,previousStart,previousEnd}=dashboardRange();
+        const selectedTeam=$("#dashboard-team")?.value||"", selectedSales=$("#dashboard-sales")?.value||"", selectedSource=$("#dashboard-source")?.value||"";
+        const allowedProfiles=profiles.filter(p=>(!selectedTeam||p.team===selectedTeam)&&(!selectedSales||p.id===selectedSales));
+        const allowedIds=new Set(allowedProfiles.map(p=>p.id));
+        const scoped=rows.filter(x=>(!x.owner_id||allowedIds.has(x.owner_id))&&(!selectedSource||(x.primary_source||x.source)===selectedSource)&&!x.excluded_from_dashboard);
+        const periodRows=scoped.filter(x=>inRange(x.created_at,start,end));
+        const decided=periodRows.filter(x=>x.validity!=="pending"), closed=periodRows.filter(x=>["won","lost"].includes(x.status)), won=periodRows.filter(x=>x.status==="won");
+        $("#kpi-total").textContent=periodRows.length; $("#kpi-pending").textContent=scoped.filter(x=>x.status==="pending_assignment").length;
+        const assigned=scoped.filter(x=>x.assigned_at&&inRange(x.assigned_at,start,end));
+        const responded=assigned.filter(x=>x.first_valid_contact_at);
+        const fast=responded.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000);
+        const overdue=assigned.filter(x=>!x.first_valid_contact_at&&Date.now()-new Date(x.assigned_at)>1800000);
+        $("#kpi-overdue").textContent=overdue.length; $("#kpi-valid-rate").textContent=pct(decided.filter(x=>x.validity==="valid").length,decided.length);
+        $("#kpi-response-rate").textContent=pct(fast.length,assigned.length);
+        $("#kpi-avg-response").textContent=mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN);
+        $("#kpi-conversion").textContent=pct(won.length,closed.length);
+        const wonCny=won.reduce((s,x)=>s+(Number(x.won_amount)||0)*(x.won_currency==="CNY"?1:Number(x.won_exchange_rate)||0),0);
+        $("#kpi-won-cny").textContent=money(wonCny,"CNY"); $("#kpi-won-usd").textContent=money(wonCny/7.15,"USD");
+        const minSamples={today:1,week:3,month:5,quarter:10,year:20,custom:1};
+        const stats=allowedProfiles.filter(p=>p.role==="sales"||p.role==="sales_manager").map(p=>{
+          const own=periodRows.filter(x=>x.owner_id===p.id), ownAssigned=own.filter(x=>x.assigned_at), ownResponded=ownAssigned.filter(x=>x.first_valid_contact_at), ownClosed=own.filter(x=>["won","lost"].includes(x.status));
+          const processing=own.filter(x=>x.first_valid_contact_at).length;
+          const response=ownResponded.length?ownResponded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/ownResponded.length:Number.MAX_SAFE_INTEGER;
+          const amount=own.filter(x=>x.status==="won").reduce((s,x)=>s+(Number(x.won_amount)||0)*(x.won_currency==="CNY"?1:Number(x.won_exchange_rate)||0),0);
+          const conversion=ownClosed.length?ownClosed.filter(x=>x.status==="won").length/ownClosed.length*100:0;
+          return {id:p.id,name:p.full_name,processing,response,amount,conversion,closed:ownClosed.length};
+        });
+        $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:null})),v=>`${v} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:null})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:null})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:null,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`);
+        $$("[data-stage]").forEach(el=>el.textContent=scoped.filter(x=>x.status===el.dataset.stage).length);
+        const latest=new Map(); history.filter(h=>scoped.some(x=>x.id===h.inquiry_id)).forEach(h=>{if(!latest.has(h.to_status))latest.set(h.to_status,h.entered_at)}); $$("[data-stage-time]").forEach(el=>el.textContent=latest.has(el.dataset.stageTime)?fmtDate(latest.get(el.dataset.stageTime)):"暂无记录");
+        const stageHours={pending_assignment:.5,received:4,qualified:24,contacted:72,quoted:168,sample_sent:336,negotiating:336};
+        const alerts=[]; overdue.forEach(x=>alerts.push(["红色",x.title,"首次响应已超 30 分钟"]));
+        scoped.forEach(x=>{const entered=history.find(h=>h.inquiry_id===x.id&&h.to_status===x.status)?.entered_at||x.updated_at||x.created_at,limit=stageHours[x.status]; if(limit&&Date.now()-new Date(entered)>limit*3600000)alerts.push([Date.now()-new Date(entered)>limit*7200000?"红色":"黄色",x.title,`${statusNames[x.status]}阶段停留超时`]); if(x.next_follow_up_at&&new Date(x.next_follow_up_at)<new Date())alerts.push(["黄色",x.title,"计划跟进时间已过"]); if(x.expected_close_date&&new Date(x.expected_close_date)<new Date()&&!["won","lost"].includes(x.status))alerts.push(["黄色",x.title,"预计成交日期已过"]);});
+        $("#dashboard-alerts").innerHTML=alerts.length?alerts.slice(0,20).map(a=>`<div class="alert-item"><div><b>${a[1]}</b><br><small>${a[2]}</small></div><span class="alert-level">${a[0]}</span></div>`).join(''):`<div class="empty">暂无风险预警</div>`;
+        const channels=["website","email","feishu","google_ads","meta_ads","linkedin","exhibition","self_developed","referral","other"];
+        const channelLabels={website:"官网表单",email:"企业邮箱",feishu:"飞书",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",self_developed:"销售自主开发",referral:"经销商/客户转介绍",other:"其他"};
+        $("#dashboard-channels").innerHTML=`<table><thead><tr><th>渠道</th><th>询盘量</th><th>有效率</th><th>成交额（人民币）</th><th>ROI</th></tr></thead><tbody>${channels.map(c=>{const cr=periodRows.filter(x=>(x.primary_source||x.source)===c),cw=cr.filter(x=>x.status==="won").reduce((s,x)=>s+(Number(x.won_amount)||0)*(x.won_currency==="CNY"?1:Number(x.won_exchange_rate)||0),0);return `<tr><td>${channelLabels[c]}</td><td>${cr.length}</td><td>${pct(cr.filter(x=>x.validity==="valid").length,cr.filter(x=>x.validity!=="pending").length)}</td><td>${money(cw,"CNY")}</td><td>—</td></tr>`}).join('')}</tbody></table>`;
+        const due=followups.filter(f=>f.next_follow_up_at&&inRange(f.next_follow_up_at,start,end)), completed=due.filter(f=>f.completed_at), late=completed.filter(f=>new Date(f.completed_at)>new Date(f.next_follow_up_at));
+        $("#dashboard-followups").innerHTML=`<div class="mini-metric"><span>到期任务</span><b>${due.length}</b></div><div class="mini-metric"><span>完成率</span><b>${pct(completed.length,due.length)}</b></div><div class="mini-metric"><span>逾期完成</span><b>${late.length}</b></div><div class="mini-metric"><span>仍未完成</span><b>${due.length-completed.length}</b></div>`;
+        bindMetricHelp();
+      }
+      function bindMetricHelp(){ $$(".metric-help").forEach(b=>{b.title=dashboardMetricDefinitions[b.dataset.metric]?.[1]||"查看指标定义"; b.onclick=()=>{const d=dashboardMetricDefinitions[b.dataset.metric]; if(d) alert(`${d[0]}\n\n${d[1]}\n\n口径：${d[2]}\n更新时间：${new Date().toLocaleString('zh-CN',{hour12:false})}`)}}); }
       async function loadInquiries() {
         const { data, error } = await supabase
           .from("inquiries")
           .select(
-            "id,inquiry_no,title,source,status,validity,created_at,contacts(email)",
+            "id,inquiry_no,title,source,status,validity,created_at,updated_at,owner_id,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,contacts(email)",
           )
           .order("created_at", { ascending: false })
           .limit(100);
@@ -1663,6 +1762,13 @@
           return;
         }
         const rows = data || [];
+        // Optional dashboard columns are loaded separately so the UI remains
+        // usable while a newly deployed migration is being applied.
+        const { data: dashboardFields } = await supabase.from("inquiries").select("id,assigned_at,first_valid_contact_at,quoted_at,expected_close_date,probability,deal_type,primary_source,excluded_from_dashboard").limit(1000);
+        if (dashboardFields) {
+          const byId = new Map(dashboardFields.map(x => [x.id, x]));
+          rows.forEach(x => Object.assign(x, byId.get(x.id) || {}));
+        }
         const emailInquiryIds = rows.filter((x) => x.source === "email").map((x) => x.id);
         const receivedAtByInquiry = new Map();
         if (emailInquiryIds.length) {
@@ -1683,6 +1789,15 @@
           toast("阶段时间加载失败：" + historyError.message);
           return;
         }
+        const [{ data: dashboardProfiles }, { data: dashboardFollowups }] = await Promise.all([
+          supabase.from("profiles").select("id,full_name,role,team,active").eq("active", true),
+          supabase.from("follow_ups").select("id,inquiry_id,author_id,next_follow_up_at,created_at").limit(2000),
+        ]);
+        const teamSelect = $("#dashboard-team"), salesSelect = $("#dashboard-sales"), sourceSelect = $("#dashboard-source");
+        if (teamSelect && teamSelect.options.length === 1) [...new Set((dashboardProfiles||[]).map(x=>x.team).filter(Boolean))].sort().forEach(v=>teamSelect.add(new Option(v,v)));
+        if (salesSelect && salesSelect.options.length === 1) (dashboardProfiles||[]).filter(x=>["sales","sales_manager"].includes(x.role)).forEach(x=>salesSelect.add(new Option(x.full_name,x.id)));
+        if (sourceSelect && sourceSelect.options.length === 1) Object.entries({...sourceNames,feishu:"飞书",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",self_developed:"销售自主开发",referral:"经销商/客户转介绍",other:"其他"}).forEach(([v,l])=>sourceSelect.add(new Option(l,v)));
+        renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         const latestByInquiry = new Map();
         const latestByStage = new Map();
         for (const item of history || []) {
@@ -1695,12 +1810,6 @@
         $("#kpi-total").textContent = rows.length;
         $("#kpi-pending").textContent = rows.filter(
           (x) => x.status === "pending_assignment",
-        ).length;
-        $("#kpi-valid").textContent = rows.filter(
-          (x) => x.validity === "valid",
-        ).length;
-        $("#kpi-won").textContent = rows.filter(
-          (x) => x.status === "won",
         ).length;
         $$("[data-stage]").forEach((el) => {
           el.textContent = rows.filter(
@@ -3290,6 +3399,27 @@
         toast("邮箱连接成功");
         await loadModule("settings");
       });
+      $("#dashboard-period").addEventListener("change", (event) => {
+        const custom = event.target.value === "custom";
+        $("#dashboard-start").classList.toggle("hidden", !custom);
+        $("#dashboard-end").classList.toggle("hidden", !custom);
+        if (!custom) renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups);
+      });
+      $("#dashboard-apply").addEventListener("click", () => renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups));
+      $("#dashboard-targets").addEventListener("click", () => toast(["owner","sales_manager"].includes(profile?.role)?"目标设置数据结构已就绪，下一步可录入个人/团队目标":"仅老板或销售主管可设置目标"));
+      $("#dashboard-export-csv").addEventListener("click", () => {
+        if (!["owner","sales_manager"].includes(profile?.role)) return toast("仅老板或销售主管可导出看板");
+        const tableRows=[["榜单","名次","成员","实际值","环比","团队平均"]];
+        $$(".leaderboard").forEach(card=>{const title=card.querySelector("b").textContent; card.querySelectorAll("tbody tr").forEach(tr=>tableRows.push([title,...[...tr.cells].map(td=>td.innerText.trim())]));});
+        tableRows.push([],['筛选周期',$("#dashboard-period").selectedOptions[0].text],['生成时间',new Date().toLocaleString('zh-CN',{hour12:false})]);
+        const csv="\ufeff"+tableRows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");
+        const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download=`经营看板-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+      });
+      $("#dashboard-export-pdf").addEventListener("click", () => {
+        if (!["owner","sales_manager"].includes(profile?.role)) return toast("仅老板或销售主管可导出看板");
+        window.print();
+      });
+      bindMetricHelp();
       const {
         data: { session },
       } = await supabase.auth.getSession();

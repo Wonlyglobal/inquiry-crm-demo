@@ -413,10 +413,22 @@
       .manager-workload h4 { margin:0 0 10px; }
       .workload-row { display:grid; grid-template-columns:minmax(90px,1fr) 2fr auto; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); }
       .workload-row:last-child { border-bottom:0; }
+      .workload-row[role="button"] { cursor:pointer; border-radius:8px; }
+      .workload-row[role="button"]:hover { background:var(--soft); }
       .workload-bar { height:7px; background:var(--soft); border-radius:99px; overflow:hidden; }
       .workload-bar i { display:block; height:100%; background:var(--brand); border-radius:inherit; }
       .marketing-source-row { display:grid; grid-template-columns:minmax(110px,1fr) 2fr auto; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); }
       .marketing-source-row:last-child { border-bottom:0; }
+      .sales-profile-hero { display:flex; justify-content:space-between; gap:18px; align-items:center; margin-bottom:14px; padding:18px; }
+      .sales-profile-identity { display:flex; align-items:center; gap:14px; }
+      .sales-profile-avatar { width:58px; height:58px; display:grid; place-items:center; border-radius:16px; background:var(--soft); color:var(--rail); font-size:24px; font-weight:800; }
+      .sales-profile-identity h1 { margin:0 0 4px; font-size:24px; }
+      .sales-profile-identity p { margin:0; color:var(--muted); }
+      .sales-profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+      .sales-profile-pipeline { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:14px; }
+      .sales-profile-stage { border:1px solid var(--line); border-radius:11px; padding:11px; }
+      .sales-profile-stage b { display:block; font-size:20px; }
+      .sales-profile-stage span { color:var(--muted); font-size:10px; }
       #dashboard-page.scope-current #legacy-dashboard,
       #dashboard-page.scope-legacy .current-dashboard-block { display:none !important; }
       #dashboard-page.sales-role-view .sales-hero { grid-template-columns:1fr; }
@@ -838,6 +850,8 @@
         .sales-workbench-kpis { grid-template-columns:repeat(2,1fr); }
         .manager-workbench-body { grid-template-columns:1fr; }
         .manager-workload { border-left:0; border-top:1px solid var(--line); }
+        .sales-profile-grid { grid-template-columns:1fr; }
+        .sales-profile-pipeline { grid-template-columns:repeat(3,1fr); }
       }
       @media (max-width: 850px) {
         .app {
@@ -1005,7 +1019,7 @@
             </div>
           </div>
           <section id="sales-workbench" class="dashboard-panel sales-workbench hidden">
-            <div class="sales-workbench-head"><div><b>我的今日工作台</b><p>按紧急程度排列本人负责的询盘和跟进任务</p></div><div class="sales-workbench-actions"><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
+            <div class="sales-workbench-head"><div><b>我的今日工作台</b><p>按紧急程度排列本人负责的询盘和跟进任务</p></div><div class="sales-workbench-actions"><button id="sales-open-profile" class="ghost">个人业务主页</button><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
             <div id="sales-workbench-kpis" class="sales-workbench-kpis"></div>
             <div id="sales-task-list" class="sales-task-list"></div>
           </section>
@@ -1120,6 +1134,12 @@
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
             <div class="module-table-scroll"><table id="module-table"><thead><tr id="module-head"></tr></thead><tbody id="module-body"></tbody></table></div>
           </div>
+        </section>
+        <section id="sales-profile-page" class="page hidden">
+          <div class="sales-profile-hero card"><div class="sales-profile-identity"><div id="sales-profile-avatar" class="sales-profile-avatar">销</div><div><h1 id="sales-profile-name">个人业务主页</h1><p id="sales-profile-meta"></p></div></div><div class="heading-actions"><span id="sales-profile-period" class="tag"></span><button id="sales-profile-back" class="ghost">← 返回经营看板</button></div></div>
+          <div id="sales-profile-kpis" class="kpis dashboard-kpis"></div>
+          <section class="dashboard-panel" style="margin-bottom:14px"><div class="panel-title"><b>个人商机阶段</b><span class="dashboard-scope-note">当前负责的全部未关闭及已关闭商机</span></div><div id="sales-profile-pipeline" class="sales-profile-pipeline"></div></section>
+          <div class="sales-profile-grid"><section class="dashboard-panel"><div class="panel-title"><b>负责询盘</b><span id="sales-profile-inquiry-count" class="tag"></span></div><div id="sales-profile-inquiries" class="dashboard-table-scroll"></div></section><section class="dashboard-panel"><div class="panel-title"><b>跟进与风险</b><span id="sales-profile-followup-count" class="tag"></span></div><div id="sales-profile-followups" class="dashboard-table-scroll"></div></section></div>
         </section>
       </main>
     </div>
@@ -1939,6 +1959,7 @@
             return {
               cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : mailbox?.status === "disabled" ? "已停用" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"],
               actions: x.active ? [
+                ...(x.role === "sales" ? [{ label: "业务主页", onClick: () => openSalesProfilePage(x.id) }] : []),
                 { label: connected ? "重新连接" : "连接", onClick: () => openMailboxBinding(x.id) },
                 { label: "禁用", onClick: () => openDisableMember(x) },
               ] : [{ label: "恢复", onClick: () => enableMember(x) }],
@@ -1973,6 +1994,7 @@
         openDashboardModal(`历史工程 #${project.legacy_project_id} · ${project.partner_name || project.project_name || "项目详情"}`, `<div class="legacy-detail-grid">${fields.map(([label,value]) => `<div class="legacy-detail-item"><span>${esc(label)}</span><div>${value === null || value === undefined || value === "" ? "—" : esc(value)}</div></div>`).join("")}${website ? `<div class="legacy-detail-item"><span>网站</span><div>${website}</div></div>` : ""}</div><p class="hint" style="margin-top:16px">该记录来自旧 CRM 文件，仅用于历史工程管理，不计入新询盘响应率、成交率和渠道 ROI。</p>`);
       }
       async function switchView(view) {
+        $("#sales-profile-page").classList.add("hidden");
         $$(".nav[data-view]").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
         if (view === "daily") {
           if (!["owner", "sales_manager", "sales"].includes(profile.role)) {
@@ -2114,7 +2136,8 @@
         $("#manager-priority-list").innerHTML=priorities.length?priorities.slice(0,12).map(t=>`<div class="sales-task-item" data-manager-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无团队紧急事项</b><small>当前分配、响应和跟进均无异常</small></div>';
         $$('[data-manager-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.managerTask)));
         const loads=sales.map(member=>{const active=open.filter(x=>x.owner_id===member.id).length,late=responseOverdue.filter(x=>x.owner_id===member.id).length,tasks=overdueFollowups.filter(x=>x.author_id===member.id).length;return {name:member.full_name,active,late,tasks}}).sort((a,b)=>b.active-a.active),max=Math.max(...loads.map(x=>x.active),1);
-        $("#manager-workload").innerHTML=`<h4>业务员负载</h4>${loads.length?loads.map(x=>`<div class="workload-row"><span>${esc(x.name)}</span><div><div class="workload-bar"><i style="width:${Math.max(4,x.active/max*100)}%"></i></div><small>${x.late?`响应超时 ${x.late}`:"响应正常"}${x.tasks?` · 逾期任务 ${x.tasks}`:""}</small></div><b>${x.active} 条</b></div>`).join(""):'<div class="empty">暂无业务员数据</div>'}`;
+        $("#manager-workload").innerHTML=`<h4>业务员负载</h4>${loads.length?loads.map(x=>`<div class="workload-row" data-sales-profile-name="${esc(x.name)}" role="button" tabindex="0"><span>${esc(x.name)}</span><div><div class="workload-bar"><i style="width:${Math.max(4,x.active/max*100)}%"></i></div><small>${x.late?`响应超时 ${x.late}`:"响应正常"}${x.tasks?` · 逾期任务 ${x.tasks}`:""}</small></div><b>${x.active} 条</b></div>`).join(""):'<div class="empty">暂无业务员数据</div>'}`;
+        $$('[data-sales-profile-name]').forEach(row=>{const open=()=>{const member=sales.find(x=>x.full_name===row.dataset.salesProfileName);if(member)openSalesProfilePage(member.id)};row.addEventListener("click",open);row.addEventListener("keydown",event=>{if(event.key==="Enter")open()})});
       }
       function renderMarketingWorkbench(rows){
         if(profile?.role!=="marketing")return;
@@ -2162,7 +2185,7 @@
         dashboardState={...dashboardState,rows,profiles,history,followups,costs,targets,audits,rates};
         const {type,start,end,previousStart,previousEnd}=dashboardRange();
         const selectedTeam=$("#dashboard-team")?.value||"", selectedSales=$("#dashboard-sales")?.value||"", selectedSource=$("#dashboard-source")?.value||"",selectedCountry=$("#dashboard-country")?.value||"",selectedProduct=$("#dashboard-product")?.value||"",selectedDealType=$("#dashboard-deal-type")?.value||"";
-        const allowedProfiles=profiles.filter(p=>(!selectedTeam||p.team===selectedTeam)&&(!selectedSales||p.id===selectedSales));
+        const allowedProfiles=profiles.filter(p=>(profile?.role!=="sales_manager"||!profile.team||p.team===profile.team)&&(!selectedTeam||p.team===selectedTeam)&&(!selectedSales||p.id===selectedSales));
         const allowedIds=new Set(allowedProfiles.map(p=>p.id));
         const scoped=rows.filter(x=>(!x.owner_id||allowedIds.has(x.owner_id))&&(!selectedSource||(x.primary_source||x.source)===selectedSource)&&(!selectedCountry||x.target_country===selectedCountry)&&(!selectedProduct||x.product_category===selectedProduct)&&(!selectedDealType||(x.deal_type||"first_order")===selectedDealType)&&!x.excluded_from_dashboard);
         const periodRows=scoped.filter(x=>inRange(x.created_at,start,end));
@@ -2298,13 +2321,21 @@
       function addAiMessage(role,text){const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;$("#ai-assistant-messages").append(el);$("#ai-assistant-messages").scrollTop=$("#ai-assistant-messages").scrollHeight;}
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
       function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
-      function openSalesDashboardDetail(userId){
-        const member=dashboardState.profiles.find(x=>x.id===userId); if(!member)return;
-        const {start,end}=dashboardRange(), inquiries=dashboardState.rows.filter(x=>x.owner_id===userId&&inRange(x.created_at,start,end));
-        const closed=inquiries.filter(x=>["won","lost"].includes(x.status)), won=closed.filter(x=>x.status==="won"), overdue=inquiries.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&Date.now()-new Date(x.assigned_at)>1800000);
-        const amount=sumWonCny(won),usdCny=fxToCny("USD")||0;
-        openDashboardModal(`${member.full_name} · 业务详情`,`<div class="kpis" style="grid-template-columns:repeat(4,1fr)"><div class="card"><div class="kpi-label">处理询盘</div><div class="kpi-value">${inquiries.filter(x=>x.first_valid_contact_at).length}</div></div><div class="card"><div class="kpi-label">超时响应</div><div class="kpi-value">${overdue.length}</div></div><div class="card"><div class="kpi-label">成交率</div><div class="kpi-value">${pct(won.length,closed.length)}</div></div><div class="card"><div class="kpi-label">成交额</div><div class="money-pair"><b>${money(amount,'CNY')}</b><span>${usdCny?money(amount/usdCny,'USD'):'汇率待更新'}</span></div></div></div><h4>询盘明细与指标来源</h4><div class="dashboard-table-scroll"><table><thead><tr><th>询盘</th><th>状态</th><th>首次联系</th><th>响应时长</th><th>成交额</th></tr></thead><tbody>${inquiries.length?inquiries.map(x=>{const cny=amountCny(x,true);return `<tr><td>${esc(x.title)}</td><td>${esc(statusNames[x.status]||x.status)}</td><td>${x.first_valid_contact_at?fmtDate(x.first_valid_contact_at):'—'}</td><td>${x.assigned_at&&x.first_valid_contact_at?mins(new Date(x.first_valid_contact_at)-new Date(x.assigned_at)):'—'}</td><td>${x.status==='won'&&cny!==null?`${money(cny,'CNY')} / ${usdCny?money(cny/usdCny,'USD'):'汇率待更新'}`:'—'}</td></tr>`}).join(''):'<tr><td colspan="5">当前周期暂无数据</td></tr>'}</tbody></table></div><p class="hint">数据范围：${start.toLocaleDateString('zh-CN')}—${end.toLocaleDateString('zh-CN')}。处理量以首次有效联系为准；成交归属成交时负责人。</p>`);
+      function openSalesProfilePage(userId){
+        const member=dashboardState.profiles.find(x=>x.id===userId);if(!member)return toast("未找到该成员数据");
+        const allowed=profile.id===userId||["owner","marketing"].includes(profile.role)||profile.role==="sales_manager"&&(!profile.team||member.team===profile.team);if(!allowed)return toast("当前账号无权查看该业务员主页");
+        const {start,end}=dashboardRange(),allInquiries=dashboardState.rows.filter(x=>x.owner_id===userId),periodInquiries=allInquiries.filter(x=>inRange(x.created_at,start,end)),closed=periodInquiries.filter(x=>["won","lost"].includes(x.status)),won=periodInquiries.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,start,end)),assigned=periodInquiries.filter(x=>x.assigned_at),responded=assigned.filter(x=>x.first_valid_contact_at),fast=responded.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000),overdue=allInquiries.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&Date.now()-new Date(x.assigned_at)>1800000),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]),valid=periodInquiries.filter(x=>x.validity==="valid"),amount=sumWonCny(won),usd=fxToCny("USD")||0,memberFollowups=(dashboardState.followups||[]).filter(x=>x.author_id===userId),lateTasks=memberFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<new Date());
+        $("#dashboard-page").classList.add("hidden");$("#module-page").classList.add("hidden");$("#sales-profile-page").classList.remove("hidden");
+        $("#sales-profile-avatar").textContent=(member.full_name||"销").slice(0,1);$("#sales-profile-name").textContent=`${member.full_name} · 个人业务主页`;$("#sales-profile-meta").textContent=[member.english_name,member.job_title||roleNames[member.role],member.team,member.email].filter(Boolean).join(" · ");$("#sales-profile-period").textContent=`${start.toLocaleDateString("zh-CN")}—${end.toLocaleDateString("zh-CN")}`;
+        const kpis=[["询盘处理量",responded.length],["30分钟首次响应率",pct(fast.length,assigned.length)],["平均首次响应",mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN)],["有效询盘率",pct(valid.length,periodInquiries.filter(x=>x.validity!=="pending").length)],["报价率",pct(valid.filter(x=>quotedStages.has(x.status)).length,valid.length)],["成交率",pct(won.length,closed.length)],["成交额",`${money(amount,"CNY")}${usd?` / ${money(amount/usd,"USD")}`:""}`],["响应超时",overdue.length],["逾期跟进",lateTasks.length]];
+        $("#sales-profile-kpis").innerHTML=kpis.map(([label,value],i)=>`<div class="card"><div class="kpi-label">${label}</div><div class="kpi-value ${i>6&&Number(value)>0?"danger-text":""}">${value}</div></div>`).join("");
+        const stageKeys=["pending_assignment","received","qualified","contacted","quoted","sample_sent","negotiating","won","lost"];$("#sales-profile-pipeline").innerHTML=stageKeys.map(key=>`<div class="sales-profile-stage"><b>${allInquiries.filter(x=>x.status===key).length}</b><span>${statusNames[key]||key}</span></div>`).join("");
+        $("#sales-profile-inquiry-count").textContent=`${allInquiries.length} 条`;$("#sales-profile-inquiries").innerHTML=`<table><thead><tr><th>编号</th><th>询盘</th><th>阶段</th><th>国家</th><th>下次跟进</th><th>风险</th></tr></thead><tbody>${allInquiries.length?allInquiries.slice().sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at)).map(x=>`<tr data-profile-inquiry="${x.id}"><td>${String(x.inquiry_no||"").padStart(6,"0")}</td><td>${esc(x.title)}</td><td>${esc(statusNames[x.status]||x.status)}</td><td>${esc(x.target_country||"—")}</td><td>${x.next_follow_up_at?fmtDate(x.next_follow_up_at):"—"}</td><td>${x.risk_flag?'<span class="alert-level">高风险</span>':"—"}</td></tr>`).join(""):'<tr><td colspan="6">暂无负责询盘</td></tr>'}</tbody></table>`;
+        $$('[data-profile-inquiry]').forEach(row=>row.addEventListener("click",()=>openInquiryDetail(row.dataset.profileInquiry)));
+        $("#sales-profile-followup-count").textContent=`${memberFollowups.length} 条`;$("#sales-profile-followups").innerHTML=`<table><thead><tr><th>跟进时间</th><th>客户反馈</th><th>下次跟进</th><th>状态</th></tr></thead><tbody>${memberFollowups.length?memberFollowups.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,100).map(x=>`<tr><td>${fmtDate(x.created_at)}</td><td>${esc(x.customer_feedback||"—")}</td><td>${x.next_follow_up_at?fmtDate(x.next_follow_up_at):"—"}</td><td>${x.completed_at?x.next_follow_up_at&&new Date(x.completed_at)>new Date(x.next_follow_up_at)?"逾期完成":"已完成":x.next_follow_up_at&&new Date(x.next_follow_up_at)<new Date()?'<span class="danger-text">已逾期</span>':"待完成"}</td></tr>`).join(""):'<tr><td colspan="4">暂无跟进记录</td></tr>'}</tbody></table>`;
+        icons();
       }
+      const openSalesDashboardDetail=openSalesProfilePage;
       function openTargetEditor(){
         if(!["owner","sales_manager"].includes(profile?.role))return toast("仅老板或销售主管可设置目标");
         const memberOptions=dashboardState.profiles.filter(x=>["sales","sales_manager"].includes(x.role)).map(x=>`<option value="${x.id}">${x.full_name}</option>`).join('');
@@ -2361,7 +2392,7 @@
           return;
         }
         const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: channelCosts }, { data: salesTargets }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }] = await Promise.all([
-          supabase.from("profiles").select("id,full_name,role,team,active").eq("active", true),
+          supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active").eq("active", true),
           supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").limit(2000),
           supabase.from("channel_costs").select("*").limit(500),
           supabase.from("sales_targets").select("*").limit(500),
@@ -4041,12 +4072,14 @@
       $$(".period-tab").forEach(button=>button.addEventListener("click",()=>{$("#dashboard-period").value=button.dataset.period;$("#dashboard-period").dispatchEvent(new Event("change"))}));
       $$(".trend-tab").forEach(button=>button.addEventListener("click",()=>{dashboardState.trendGrain=button.dataset.trendGrain;renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)}));
       $("#sales-view-inquiries").addEventListener("click",()=>switchView("inquiries"));
+      $("#sales-open-profile").addEventListener("click",()=>openSalesProfilePage(profile.id));
       $("#sales-write-daily").addEventListener("click",openDailyReport);
       $("#manager-open-assignment").addEventListener("click",()=>switchView("assignment"));
       $("#manager-open-daily").addEventListener("click",openDailyReport);
       $("#marketing-open-email").addEventListener("click",()=>switchView("email"));
       $("#marketing-open-research").addEventListener("click",()=>switchView("research"));
       $("#marketing-open-assignment").addEventListener("click",()=>switchView("assignment"));
+      $("#sales-profile-back").addEventListener("click",()=>switchView("dashboard"));
       $("#dashboard-data-scope").addEventListener("change",event=>{const period=$("#dashboard-period");if(event.target.value==="legacy")period.value="all";else if(period.value==="all")period.value="month";$$(".period-tab").forEach(button=>button.classList.toggle("active",button.dataset.period===period.value));renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)});
       $("#dashboard-apply").addEventListener("click", () => renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups));
       $("#dashboard-targets").addEventListener("click", openTargetEditor);

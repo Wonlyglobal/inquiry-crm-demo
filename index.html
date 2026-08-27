@@ -324,6 +324,19 @@
       .dashboard-filter-group,.dashboard-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
       .input.compact { width:auto; min-width:110px; padding:9px 10px; }
       .dashboard-kpis { grid-template-columns:repeat(4,1fr); }
+      .sales-hero { display:grid; grid-template-columns:minmax(280px,.72fr) minmax(0,1.55fr); gap:14px; margin-bottom:14px; }
+      .sales-total-card { position:relative; overflow:hidden; color:#fff; background:linear-gradient(135deg,#1c382d 0%,#315f49 100%); border:0; min-height:230px; padding:25px; }
+      .sales-total-card::after { content:""; position:absolute; width:190px; height:190px; border-radius:50%; right:-55px; bottom:-85px; background:rgba(255,255,255,.07); }
+      .sales-total-card .kpi-label { color:#d4e1d8; font-size:14px; }
+      .sales-total-main { display:grid; gap:8px; margin-top:28px; }
+      .sales-total-main b { font-size:38px; line-height:1.05; letter-spacing:-1px; }
+      .sales-total-main span { color:#d4e1d8; font-size:17px; }
+      .sales-total-meta { position:absolute; left:25px; bottom:23px; display:flex; gap:8px; align-items:center; color:#d4e1d8; font-size:12px; }
+      .sales-total-meta strong { color:#fff; }
+      .sales-total-meta .trend-up { color:#bde7c7; } .sales-total-meta .trend-down { color:#ffd0ca; }
+      .featured-sales-ranking { box-shadow:0 12px 32px rgba(25,52,41,.08); }
+      .featured-sales-ranking .leaderboard-head { padding:18px 20px; }
+      .featured-sales-ranking table th,.featured-sales-ranking table td { padding:12px 16px; font-size:12px; }
       .metric-help { width:18px; height:18px; padding:0; margin-left:4px; border:1px solid #cbd6ce; border-radius:50%; background:#fff; color:#607268; font-size:10px; font-weight:800; cursor:pointer; vertical-align:middle; }
       .metric-help:hover { background:var(--soft); color:var(--rail); }
       .money-pair { display:grid; gap:4px; margin-top:10px; }
@@ -703,7 +716,7 @@
         .kpis {
           grid-template-columns: 1fr 1fr;
         }
-        .leaderboards,.dashboard-grid { grid-template-columns:1fr; }
+        .sales-hero,.leaderboards,.dashboard-grid { grid-template-columns:1fr; }
         .dashboard-toolbar { align-items:flex-start; flex-direction:column; }
         .grid2 {
           grid-template-columns: 1fr;
@@ -813,6 +826,14 @@
               <button id="dashboard-apply" class="primary">应用筛选</button>
             </div>
             <div class="dashboard-actions"><button id="dashboard-targets" class="ghost">设置目标</button><button id="dashboard-export-csv" class="ghost">导出 Excel</button><button id="dashboard-export-pdf" class="ghost">导出 PDF</button></div>
+          </div>
+          <div class="sales-hero">
+            <section class="card sales-total-card">
+              <div class="kpi-label">团队总销售额 <button class="metric-help" data-metric="won_amount">?</button></div>
+              <div class="sales-total-main"><b id="hero-sales-cny">¥0</b><span id="hero-sales-usd">$0</span></div>
+              <div class="sales-total-meta"><span id="hero-sales-period">本月</span><strong id="hero-sales-change">环比 —</strong></div>
+            </section>
+            <div id="hero-sales-ranking"></div>
           </div>
           <div class="kpis dashboard-kpis">
             <div class="card">
@@ -1755,7 +1776,7 @@
         const allowedIds=new Set(allowedProfiles.map(p=>p.id));
         const scoped=rows.filter(x=>(!x.owner_id||allowedIds.has(x.owner_id))&&(!selectedSource||(x.primary_source||x.source)===selectedSource)&&(!selectedCountry||x.target_country===selectedCountry)&&(!selectedProduct||x.product_category===selectedProduct)&&(!selectedDealType||(x.deal_type||"first_order")===selectedDealType)&&!x.excluded_from_dashboard);
         const periodRows=scoped.filter(x=>inRange(x.created_at,start,end));
-        const decided=periodRows.filter(x=>x.validity!=="pending"), closed=periodRows.filter(x=>["won","lost"].includes(x.status)), won=periodRows.filter(x=>x.status==="won");
+        const decided=periodRows.filter(x=>x.validity!=="pending"), closed=periodRows.filter(x=>["won","lost"].includes(x.status)), won=scoped.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,start,end));
         $("#kpi-total").textContent=periodRows.length; $("#kpi-pending").textContent=scoped.filter(x=>x.status==="pending_assignment").length;
         const assigned=scoped.filter(x=>x.assigned_at&&inRange(x.assigned_at,start,end));
         const responded=assigned.filter(x=>x.first_valid_contact_at);
@@ -1768,6 +1789,8 @@
         const validPeriod=periodRows.filter(x=>x.validity==="valid"),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]);$("#kpi-quote-rate").textContent=pct(validPeriod.filter(x=>quotedStages.has(x.status)).length,validPeriod.length);
         const wonCny=sumWonCny(won),usdCny=fxToCny("USD")||0;
         $("#kpi-won-cny").textContent=money(wonCny,"CNY"); $("#kpi-won-usd").textContent=usdCny?money(wonCny/usdCny,"USD"):"汇率待更新";
+        $("#hero-sales-cny").textContent=money(wonCny,"CNY"); $("#hero-sales-usd").textContent=usdCny?money(wonCny/usdCny,"USD"):"汇率待更新";
+        $("#hero-sales-period").textContent={today:"今日",week:"本周",month:"本月",quarter:"本季度",year:"本年度",custom:"自定义周期"}[type]||"当前周期";
         const minSamples={today:1,week:3,month:5,quarter:10,year:20,custom:1};
         const valueChange=(current,previous,lowerBetter=false)=>previous===0?(current===0?0:null):(current-previous)/Math.abs(previous)*100*(lowerBetter?-1:1);
         const stats=allowedProfiles.filter(p=>p.role==="sales"||p.role==="sales_manager").map(p=>{
@@ -1775,14 +1798,19 @@
           const previous=scoped.filter(x=>x.owner_id===p.id&&inRange(x.created_at,previousStart,previousEnd)), previousAssigned=previous.filter(x=>x.assigned_at), previousResponded=previousAssigned.filter(x=>x.first_valid_contact_at), previousClosed=previous.filter(x=>["won","lost"].includes(x.status));
           const processing=own.filter(x=>x.first_valid_contact_at).length;
           const response=ownResponded.length?ownResponded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/ownResponded.length:Number.MAX_SAFE_INTEGER;
-          const amount=sumWonCny(own.filter(x=>x.status==="won"));
+          const amount=sumWonCny(scoped.filter(x=>x.owner_id===p.id&&x.status==="won"&&inRange(x.won_at||x.created_at,start,end)));
           const conversion=ownClosed.length?ownClosed.filter(x=>x.status==="won").length/ownClosed.length*100:0;
           const prevProcessing=previous.filter(x=>x.first_valid_contact_at).length;
           const prevResponse=previousResponded.length?previousResponded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/previousResponded.length:Number.MAX_SAFE_INTEGER;
-          const prevAmount=sumWonCny(previous.filter(x=>x.status==="won"));
+          const prevAmount=sumWonCny(scoped.filter(x=>x.owner_id===p.id&&x.status==="won"&&inRange(x.won_at||x.created_at,previousStart,previousEnd)));
           const prevConversion=previousClosed.length?previousClosed.filter(x=>x.status==="won").length/previousClosed.length*100:0;
           return {id:p.id,name:p.full_name,processing,response,amount,conversion,closed:ownClosed.length,changes:{processing:valueChange(processing,prevProcessing),response:prevResponse===Number.MAX_SAFE_INTEGER?null:valueChange(response,prevResponse,true),amount:valueChange(amount,prevAmount),conversion:valueChange(conversion,prevConversion)}};
         });
+        const previousWonCny=sumWonCny(scoped.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,previousStart,previousEnd))),teamSalesChange=valueChange(wonCny,previousWonCny);
+        $("#hero-sales-change").textContent=teamSalesChange===null?"环比 —":teamSalesChange===0?"环比持平":`环比 ${teamSalesChange>0?'↑':'↓'} ${Math.abs(teamSalesChange).toFixed(1)}%`;
+        $("#hero-sales-change").className=teamSalesChange>0?"trend-up":teamSalesChange<0?"trend-down":"";
+        $("#hero-sales-ranking").innerHTML=renderLeaderboard("业务员销售额排名","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>`${money(v,"CNY")}<br><small>${usdCny?money(v/usdCny,"USD"):"汇率待更新"}</small>`);
+        $("#hero-sales-ranking").firstElementChild?.classList.add("featured-sales-ranking");
         $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:x.changes.processing})),v=>`${v} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:x.changes.response})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:x.changes.conversion,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`);
         $$("[data-stage]").forEach(el=>el.textContent=scoped.filter(x=>x.status===el.dataset.stage).length);
         $$("[data-stage]").forEach(el=>{const stageRows=scoped.filter(x=>x.status===el.dataset.stage),values=stageRows.map(x=>amountCny(x,x.status==="won")),known=values.filter(v=>v!==null),total=known.reduce((s,v)=>s+v,0),usdRate=fxToCny("USD");let moneyLine=el.parentElement.querySelector("[data-stage-money]");if(!moneyLine){moneyLine=document.createElement("small");moneyLine.dataset.stageMoney="";el.parentElement.append(moneyLine);}moneyLine.textContent=known.length?`${money(total,"CNY")} / ${usdRate?money(total/usdRate,"USD"):"汇率待更新"}`:"暂无金额";moneyLine.title=known.length<stageRows.length?`${stageRows.length-known.length} 条商机缺少金额或汇率`:"全部金额已折算";});

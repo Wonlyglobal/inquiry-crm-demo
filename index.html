@@ -1847,7 +1847,7 @@
         else $("#topease-preview").classList.add("hidden");
         currentInquiry.outreachDraftId = latestDraft?.id || null;
         $("#outreach-recipient").value = intake?.sender_email || latestDraft?.recipient_email || "";
-        const legacyDraftError = latestDraft ? validateCustomerFacingDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body || "") : "";
+        const legacyDraftError = latestDraft ? validateCustomerFacingDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body || "", preferredEnglishName()) : "";
         if (latestDraft && !legacyDraftError) {
           $("#outreach-subject-a").value = latestDraft.subject_a || ""; $("#outreach-subject-b").value = latestDraft.subject_b || "";
           $("#outreach-selected-subject").value = latestDraft.selected_subject === latestDraft.subject_b ? "b" : "a";
@@ -2879,18 +2879,31 @@
         if (!text || /[\u3400-\u9fff]/.test(text)) return fallback;
         return text.slice(0, max);
       }
-      function unifiedEnglishSignature() {
+      function preferredEnglishName() {
+        const local = String(profile?.email || "").toLowerCase().split("@")[0].replace(/[^a-z]/g, "");
+        const knownNames = {
+          sander: "Sander", chloelee: "Chloe Lee", lyle: "Lyle", jackson: "Jackson",
+          kevinli: "Kevin Li", yuna: "Yuna", megan: "Megan", lawrencewang: "Lawrence Wang",
+          alice: "Alice", haiyangliu: "Haiyang Liu", lily: "Lily", renee: "Renee",
+        };
+        return knownNames[local] || local.replace(/^[a-z]/, (letter) => letter.toUpperCase()) || "WONLY Sales";
+      }
+      function unifiedEnglishSignature(signerName = preferredEnglishName()) {
         return [
           "Best regards,",
+          signerName,
           "WONLY International Sales Team",
           "WONLY",
           "www.wonlygroup.com",
         ].join("\n");
       }
-      function validateCustomerFacingDraft(subject, body) {
+      function validateCustomerFacingDraft(subject, body, signerName = preferredEnglishName()) {
         if (/[\u3400-\u9fff]/.test(`${subject}\n${body}`)) return "英文开发信中包含中文或内部备注，请重新生成";
         if (/强制降级|高风险|低价值|成交概率|客户等级|内部判断|our recommended next step is to|\b(?:risk rating|value grade|lead score|internal assessment)\b/i.test(body)) {
           return "开发信中包含内部评分、风险或判断信息，请重新生成";
+        }
+        if (!body.includes(`Best regards,\n${signerName}\nWONLY International Sales Team`)) {
+          return "签名不是当前业务员的统一英文签名，请重新生成";
         }
         return "";
       }

@@ -406,6 +406,15 @@
       .sales-task-item:last-child { border-bottom:0; }
       .sales-task-item:hover b { color:var(--brand); }
       .sales-task-item small { color:var(--muted); }
+      .manager-workbench { margin-bottom:14px; }
+      .manager-workbench-body { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr); border-top:1px solid var(--line); }
+      .manager-priority-list { padding:8px 14px 14px; }
+      .manager-workload { border-left:1px solid var(--line); padding:14px; }
+      .manager-workload h4 { margin:0 0 10px; }
+      .workload-row { display:grid; grid-template-columns:minmax(90px,1fr) 2fr auto; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); }
+      .workload-row:last-child { border-bottom:0; }
+      .workload-bar { height:7px; background:var(--soft); border-radius:99px; overflow:hidden; }
+      .workload-bar i { display:block; height:100%; background:var(--brand); border-radius:inherit; }
       #dashboard-page.scope-current #legacy-dashboard,
       #dashboard-page.scope-legacy .current-dashboard-block { display:none !important; }
       #dashboard-page.sales-role-view .sales-hero { grid-template-columns:1fr; }
@@ -825,6 +834,8 @@
         .legacy-dashboard-panels { grid-template-columns:1fr; }
         .trend-charts { grid-template-columns:1fr; }
         .sales-workbench-kpis { grid-template-columns:repeat(2,1fr); }
+        .manager-workbench-body { grid-template-columns:1fr; }
+        .manager-workload { border-left:0; border-top:1px solid var(--line); }
       }
       @media (max-width: 850px) {
         .app {
@@ -995,6 +1006,11 @@
             <div class="sales-workbench-head"><div><b>我的今日工作台</b><p>按紧急程度排列本人负责的询盘和跟进任务</p></div><div class="sales-workbench-actions"><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
             <div id="sales-workbench-kpis" class="sales-workbench-kpis"></div>
             <div id="sales-task-list" class="sales-task-list"></div>
+          </section>
+          <section id="manager-workbench" class="dashboard-panel manager-workbench hidden">
+            <div class="sales-workbench-head"><div><b>团队管理工作台</b><p>优先处理分配、响应超时、跟进逾期与日报异常</p></div><div class="sales-workbench-actions"><button id="manager-open-assignment" class="primary">去分配询盘</button><button id="manager-open-daily" class="ghost">查看销售日报</button></div></div>
+            <div id="manager-workbench-kpis" class="sales-workbench-kpis"></div>
+            <div class="manager-workbench-body"><div><div class="panel-title"><b>团队紧急事项</b><span class="dashboard-scope-note">按严重程度与发生时间排序</span></div><div id="manager-priority-list" class="manager-priority-list"></div></div><div id="manager-workload" class="manager-workload"></div></div>
           </section>
           <section id="legacy-dashboard" class="hidden">
             <div class="table-head"><span>历史工程经营概览</span><span class="dashboard-scope-note">独立历史口径，不参与响应率、成交率或 ROI</span></div>
@@ -1746,11 +1762,12 @@
           "hidden",
           !["owner", "marketing"].includes(role),
         );
-        const salesView=role==="sales";
+        const salesView=role==="sales",managerView=role==="sales_manager";
         $("#dashboard-page").classList.toggle("sales-role-view",salesView);
         $("#sales-workbench").classList.toggle("hidden",!salesView);
+        $("#manager-workbench").classList.toggle("hidden",!managerView);
         $("#hero-sales-label").textContent=salesView?"我的销售额":"团队总销售额";
-        $("#dashboard-subtitle").textContent=salesView?"我的询盘、今日待办、响应效率与个人业绩":"询盘效率、销售转化、渠道 ROI 与风险预警";
+        $("#dashboard-subtitle").textContent=salesView?"我的询盘、今日待办、响应效率与个人业绩":managerView?"团队分配、响应效率、销售执行与业绩管理":"询盘效率、销售转化、渠道 ROI 与风险预警";
         ["#dashboard-team","#dashboard-sales","#dashboard-data-scope","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
         await Promise.all([loadInquiries(), loadNotifications()]);
         subscribeNotifications();
@@ -2025,7 +2042,7 @@
         legacy_amount:["历史工程合同额","旧 CRM 原表合同总金额汇总，单位为人民币万元。","仅用于历史工程分析，不等同于新 CRM 的已确认成交额。"],
         legacy_distribution:["历史工程分布","按旧 CRM 的国家/地区与产品类型统计项目数。","空值保留为未填写；历史项目不参与当前询盘转化指标。"]
       };
-      let dashboardState = { rows:[], profiles:[], history:[], followups:[], costs:[], targets:[], audits:[], rates:[], legacy:[], trendGrain:"day" };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[], costs:[], targets:[], audits:[], rates:[], legacy:[], dailyReports:[], trendGrain:"day" };
       function dashboardRange() {
         const now = new Date(), type = $("#dashboard-period")?.value || "month";
         let start = new Date(now), end = new Date(now);
@@ -2078,6 +2095,17 @@
         tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
         $("#sales-task-list").innerHTML=tasks.length?tasks.slice(0,10).map(t=>`<div class="sales-task-item" data-sales-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>今日暂无紧急待办</b><small>可以继续处理正常跟进或新增客户线索</small></div>';
         $$('[data-sales-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.salesTask)));
+      }
+      function renderManagerWorkbench(rows,profiles,followups){
+        if(profile?.role!=="sales_manager")return;
+        const now=new Date(),sales=(profiles||[]).filter(x=>x.role==="sales"&&(!profile.team||x.team===profile.team)),open=rows.filter(x=>!["won","lost"].includes(x.status)),pending=open.filter(x=>x.status==="pending_assignment"||!x.owner_id),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),overdueFollowups=(followups||[]).filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),submitted=new Set((dashboardState.dailyReports||[]).map(x=>x.sales_id)),missingReports=sales.filter(x=>!submitted.has(x.id)),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999),wonCny=sumWonCny(rows.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd))),usd=fxToCny("USD");
+        $("#manager-workbench-kpis").innerHTML=[["待分配询盘",pending.length],["首次响应超时",responseOverdue.length],["跟进已逾期",overdueFollowups.length],["今日未交日报",missingReports.length],["团队本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i<4&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
+        const priorities=[];pending.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"等待主管分配负责人",time:x.created_at,label:"待分配"}));responseOverdue.forEach(x=>priorities.push({priority:2,id:x.id,title:x.title,reason:"分配后超过 30 分钟未完成首次有效联系",time:x.assigned_at,label:"响应超时"}));overdueFollowups.forEach(f=>{const x=rows.find(row=>row.id===f.inquiry_id);if(x)priorities.push({priority:3,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===f.author_id)?.full_name||"业务员"}的跟进任务已逾期`,time:f.next_follow_up_at,label:"跟进逾期"})});
+        priorities.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
+        $("#manager-priority-list").innerHTML=priorities.length?priorities.slice(0,12).map(t=>`<div class="sales-task-item" data-manager-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无团队紧急事项</b><small>当前分配、响应和跟进均无异常</small></div>';
+        $$('[data-manager-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.managerTask)));
+        const loads=sales.map(member=>{const active=open.filter(x=>x.owner_id===member.id).length,late=responseOverdue.filter(x=>x.owner_id===member.id).length,tasks=overdueFollowups.filter(x=>x.author_id===member.id).length;return {name:member.full_name,active,late,tasks}}).sort((a,b)=>b.active-a.active),max=Math.max(...loads.map(x=>x.active),1);
+        $("#manager-workload").innerHTML=`<h4>业务员负载</h4>${loads.length?loads.map(x=>`<div class="workload-row"><span>${esc(x.name)}</span><div><div class="workload-bar"><i style="width:${Math.max(4,x.active/max*100)}%"></i></div><small>${x.late?`响应超时 ${x.late}`:"响应正常"}${x.tasks?` · 逾期任务 ${x.tasks}`:""}</small></div><b>${x.active} 条</b></div>`).join(""):'<div class="empty">暂无业务员数据</div>'}`;
       }
       function renderLegacyDashboard(){
         const scope=$("#dashboard-data-scope")?.value||"current",page=$("#dashboard-page"),legacy=dashboardState.legacy||[];
@@ -2154,6 +2182,7 @@
         $("#hero-sales-change").className=teamSalesChange>0?"trend-up":teamSalesChange<0?"trend-down":"";
         renderTrendCharts(scoped);
         renderSalesWorkbench(scoped,followups);
+        renderManagerWorkbench(scoped,profiles,followups);
         $("#hero-sales-ranking").innerHTML=renderLeaderboard("业务员销售额排名","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>`${money(v,"CNY")}<br><small>${usdCny?money(v/usdCny,"USD"):"汇率待更新"}</small>`);
         $("#hero-sales-ranking").firstElementChild?.classList.add("featured-sales-ranking");
         $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:x.changes.processing})),v=>`${v} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:x.changes.response})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:x.changes.conversion,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`);
@@ -2311,7 +2340,7 @@
           toast("阶段时间加载失败：" + historyError.message);
           return;
         }
-        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: channelCosts }, { data: salesTargets }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }] = await Promise.all([
+        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: channelCosts }, { data: salesTargets }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }] = await Promise.all([
           supabase.from("profiles").select("id,full_name,role,team,active").eq("active", true),
           supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").limit(2000),
           supabase.from("channel_costs").select("*").limit(500),
@@ -2319,6 +2348,7 @@
           supabase.from("audit_logs").select("entity_id,before_data,after_data,created_at").eq("entity_type","inquiry").order("created_at",{ascending:false}).limit(2000),
           supabase.from("exchange_rates").select("*").order("rate_date",{ascending:false}).limit(500),
           supabase.from("legacy_engineering_projects").select("legacy_project_id,country,partner_name,product_type,project_status,next_milestone_at,contract_amount_wan,legacy_owner_name,owner_id,source_created_at").limit(1000),
+          supabase.from("daily_sales_reports").select("sales_id,report_date,submitted_at").eq("report_date",chinaDate()).limit(500),
         ]);
         const teamSelect = $("#dashboard-team"), salesSelect = $("#dashboard-sales"), sourceSelect = $("#dashboard-source");
         if (teamSelect && teamSelect.options.length === 1) [...new Set((dashboardProfiles||[]).map(x=>x.team).filter(Boolean))].sort().forEach(v=>teamSelect.add(new Option(v,v)));
@@ -2328,7 +2358,7 @@
         if(countrySelect&&countrySelect.options.length===1)[...new Set([...rows.map(x=>x.target_country),...(legacyProjects||[]).map(x=>x.country)].filter(Boolean))].sort().forEach(v=>countrySelect.add(new Option(v,v)));
         if(productSelect&&productSelect.options.length===1)[...new Set([...rows.map(x=>x.product_category),...(legacyProjects||[]).map(x=>x.product_type)].filter(Boolean))].sort().forEach(v=>productSelect.add(new Option(v,v)));
         const syncedRates=await syncDailyExchangeRates(rows,exchangeRates||[]);
-        dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];
+        dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.dailyReports=dailyReports||[];
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         const latestByInquiry = new Map();
         const latestByStage = new Map();
@@ -3990,6 +4020,8 @@
       $$(".trend-tab").forEach(button=>button.addEventListener("click",()=>{dashboardState.trendGrain=button.dataset.trendGrain;renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)}));
       $("#sales-view-inquiries").addEventListener("click",()=>switchView("inquiries"));
       $("#sales-write-daily").addEventListener("click",openDailyReport);
+      $("#manager-open-assignment").addEventListener("click",()=>switchView("assignment"));
+      $("#manager-open-daily").addEventListener("click",openDailyReport);
       $("#dashboard-data-scope").addEventListener("change",event=>{const period=$("#dashboard-period");if(event.target.value==="legacy")period.value="all";else if(period.value==="all")period.value="month";$$(".period-tab").forEach(button=>button.classList.toggle("active",button.dataset.period===period.value));renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)});
       $("#dashboard-apply").addEventListener("click", () => renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups));
       $("#dashboard-targets").addEventListener("click", openTargetEditor);

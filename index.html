@@ -2187,11 +2187,12 @@
         const {data}=await supabase.from("exchange_rates").select("*").order("rate_date",{ascending:false}).limit(500);return data||currentRates||[];
       }
       function renderLeaderboard(title,metric,records,format,lowerBetter=false) {
-        const sorted=[...records].sort((a,b)=>lowerBetter?a.value-b.value:b.value-a.value);
+        const sorted=[...records].sort((a,b)=>{const diff=lowerBetter?a.value-b.value:b.value-a.value;return diff||String(a.name).localeCompare(String(b.name),"zh-CN")});
         const average=sorted.length?sorted.reduce((s,x)=>s+x.value,0)/sorted.length:0;
         const hasRankableValue=sorted.some(x=>Number.isFinite(x.value)&&x.value>0);
         const emptyText=metric==="avg_response"?"当前周期尚无人完成首次有效联系，暂不能计算响应速度排名":"当前筛选周期暂无可排名业务数据";
-        return `<section class="leaderboard"><div class="leaderboard-head"><b>${esc(title)}</b><button class="metric-help" data-metric="${metric}">?</button></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>环比</th><th>团队平均</th></tr></thead><tbody>${sorted.length?sorted.map((x,i)=>`<tr data-sales-detail="${x.id}" title="查看 ${esc(x.name)} 的业务详情"><td><span class="rank-pill ${hasRankableValue&&i<3?'top':''}">${hasRankableValue?i+1:'—'}</span></td><td>${esc(x.name)}</td><td>${x.insufficient?'<span class="tag">样本不足</span> ':''}${format(x.value)}</td><td class="${x.change>0?'trend-up':x.change<0?'trend-down':''}">${x.change===null?'—':x.change===0?'持平 0.0%':`${x.change>0?'↑':'↓'} ${Math.abs(x.change).toFixed(1)}%`}</td><td>${format(average)}</td></tr>`).join(''):`<tr><td colspan="5">${emptyText}</td></tr>`}</tbody></table></div></section>`;
+        let previousValue=null,rank=0;
+        return `<section class="leaderboard"><div class="leaderboard-head"><b>${esc(title)}</b><button class="metric-help" data-metric="${metric}">?</button></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>环比</th><th>团队平均</th></tr></thead><tbody>${sorted.length?sorted.map((x,i)=>{if(previousValue===null||x.value!==previousValue)rank=i+1;previousValue=x.value;return `<tr ${x.id?`data-sales-detail="${x.id}" title="查看 ${esc(x.name)} 的业务详情"`:''}><td><span class="rank-pill ${hasRankableValue&&rank<=3?'top':''}">${rank}</span></td><td>${esc(x.name)}${x.unmatched?' <span class="tag">账号待匹配</span>':''}</td><td>${x.insufficient?'<span class="tag">样本不足</span> ':''}${format(x.value)}</td><td class="${x.change>0?'trend-up':x.change<0?'trend-down':''}">${x.change===null?'—':x.change===0?'持平 0.0%':`${x.change>0?'↑':'↓'} ${Math.abs(x.change).toFixed(1)}%`}</td><td>${format(average)}</td></tr>`}).join(''):`<tr><td colspan="5">${emptyText}</td></tr>`}</tbody></table></div></section>`;
       }
       function renderAnnualTargetPlan(){
         const people=dashboardState.targetPeople||[],items=(dashboardState.targetPlanItems||[]).filter(x=>x.is_current!==false),metric=dashboardState.targetPlanMetric||"contract_count",month=new Date().getMonth()+1,selectedSales=$("#dashboard-sales")?.value||"";
@@ -2237,7 +2238,10 @@
         $("#hero-sales-period").textContent={today:"今日",week:"本周",month:"本月",quarter:"本季度",year:"本年度",all:"全部历史",custom:"自定义周期"}[type]||"当前周期";
         const minSamples={today:1,week:3,month:5,quarter:10,year:20,custom:1};
         const valueChange=(current,previous,lowerBetter=false)=>previous===0?(current===0?0:null):(current-previous)/Math.abs(previous)*100*(lowerBetter?-1:1);
-        const stats=allowedProfiles.filter(p=>p.role==="sales"||p.role==="sales_manager").map(p=>{
+        const directoryProfiles=profiles.filter(p=>p.role==="sales"||p.role==="sales_manager"),targetDirectory=(dashboardState.targetPeople||[]).filter(p=>!selectedTeam||p.department===selectedTeam).map(p=>p.profile_id?profiles.find(x=>x.id===p.profile_id):{id:null,full_name:p.display_name,role:"sales",team:p.department,unmatched:true}).filter(Boolean),statsProfiles=[...allowedProfiles.filter(p=>p.role==="sales"||p.role==="sales_manager")];
+        if(!selectedSales)targetDirectory.forEach(p=>{if(!statsProfiles.some(x=>x.id&&x.id===p.id||!x.id&&x.full_name===p.full_name))statsProfiles.push(p)});
+        if(!statsProfiles.length&&!selectedSales)directoryProfiles.forEach(p=>statsProfiles.push(p));
+        const stats=statsProfiles.map(p=>{
           const own=periodRows.filter(x=>x.owner_id===p.id), ownAssigned=own.filter(x=>x.assigned_at), ownResponded=ownAssigned.filter(x=>x.first_valid_contact_at), ownClosed=own.filter(x=>["won","lost"].includes(x.status));
           const previous=scoped.filter(x=>x.owner_id===p.id&&inRange(x.created_at,previousStart,previousEnd)), previousAssigned=previous.filter(x=>x.assigned_at), previousResponded=previousAssigned.filter(x=>x.first_valid_contact_at), previousClosed=previous.filter(x=>["won","lost"].includes(x.status));
           const processing=own.filter(x=>x.first_valid_contact_at).length;
@@ -2248,7 +2252,7 @@
           const prevResponse=previousResponded.length?previousResponded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/previousResponded.length:Number.MAX_SAFE_INTEGER;
           const prevAmount=sumWonCny(scoped.filter(x=>x.owner_id===p.id&&x.status==="won"&&inRange(x.won_at||x.created_at,previousStart,previousEnd)));
           const prevConversion=previousClosed.length?previousClosed.filter(x=>x.status==="won").length/previousClosed.length*100:0;
-          return {id:p.id,name:p.full_name,processing,response,amount,conversion,closed:ownClosed.length,changes:{processing:valueChange(processing,prevProcessing),response:prevResponse===Number.MAX_SAFE_INTEGER?null:valueChange(response,prevResponse,true),amount:valueChange(amount,prevAmount),conversion:valueChange(conversion,prevConversion)}};
+          return {id:p.id,name:p.full_name,unmatched:!!p.unmatched,processing,response,amount,conversion,closed:ownClosed.length,changes:{processing:valueChange(processing,prevProcessing),response:prevResponse===Number.MAX_SAFE_INTEGER?null:valueChange(response,prevResponse,true),amount:valueChange(amount,prevAmount),conversion:valueChange(conversion,prevConversion)}};
         });
         const previousWonCny=sumWonCny(scoped.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,previousStart,previousEnd))),teamSalesChange=valueChange(wonCny,previousWonCny);
         $("#hero-sales-change").textContent=teamSalesChange===null?"环比 —":teamSalesChange===0?"环比持平":`环比 ${teamSalesChange>0?'↑':'↓'} ${Math.abs(teamSalesChange).toFixed(1)}%`;

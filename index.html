@@ -356,12 +356,16 @@
       .rank-pill { display:inline-grid; place-items:center; width:24px; height:24px; border-radius:8px; background:#edf3ee; font-weight:800; }
       .rank-pill.top { background:#d6e4d9; color:#315c40; }
       .trend-up { color:#317a4b; } .trend-down { color:#b34f48; }
-      .dashboard-grid { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(300px,.8fr); gap:14px; margin-bottom:14px; }
+      .dashboard-grid { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(300px,.8fr); gap:14px; align-items:start; margin-bottom:14px; }
       .dashboard-panel { min-width:0; background:#fff; border:1px solid var(--line); border-radius:17px; overflow:hidden; }
       .dashboard-panel .pipeline { padding:14px; margin:0; }
-      .alert-list { padding:10px 14px; max-height:260px; overflow:auto; }
-      .alert-item { display:flex; justify-content:space-between; gap:10px; padding:10px 2px; border-bottom:1px solid #edf0ed; font-size:11px; }
-      .alert-level { flex:0 0 auto; border-radius:14px; padding:3px 7px; background:#f7e5e3; color:#a43e38; font-weight:700; }
+      .alert-list { padding:8px 14px; max-height:260px; overflow:auto; }
+      .alert-item { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding:13px 2px; border-bottom:1px solid #edf0ed; font-size:12px; line-height:1.45; }
+      .alert-item > div { min-width:0; }
+      .alert-item b { display:block; overflow-wrap:anywhere; }
+      .alert-item small { color:var(--muted); }
+      .alert-level { flex:0 0 auto; border-radius:999px; padding:5px 9px; background:#f7e5e3; color:#a43e38; font-size:10px; font-weight:800; white-space:nowrap; }
+      .alert-level.attention { background:#fff2d9; color:#946719; }
       .dashboard-table-scroll { overflow:auto; }
       .mini-metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:14px; }
       .mini-metric { border:1px solid var(--line); border-radius:12px; padding:13px; }
@@ -596,14 +600,18 @@
       }
       .pipeline {
         display: grid;
-        grid-template-columns: repeat(9, minmax(92px, 1fr));
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(150px, 1fr);
         gap: 8px;
         margin: 0 0 14px;
-        overflow: auto;
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        scrollbar-width: thin;
+        scrollbar-color: #bcc9c0 transparent;
       }
       .stage {
-        min-width: 92px;
-        padding: 12px;
+        min-width: 0;
+        padding: 14px;
         background: #fff;
         border: 1px solid var(--line);
         border-radius: 13px;
@@ -619,14 +627,16 @@
       }
       .stage span {
         color: var(--muted);
-        font-size: 10px;
+        font-size: 11px;
       }
       .stage small {
         display: block;
         margin-top: 7px;
         color: #8a978f;
-        font-size: 9px;
-        white-space: nowrap;
+        font-size: 10px;
+        line-height: 1.45;
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
       .checkline {
         display: flex;
@@ -1868,7 +1878,7 @@
         audits.filter(a=>scopedIds.has(a.entity_id)).forEach(a=>{const before=Number(a.before_data?.probability),after=Number(a.after_data?.probability);if(Number.isFinite(before)&&Number.isFinite(after)&&before-after>=10){const row=scoped.find(x=>x.id===a.entity_id);alerts.push(["红色",row?.title||"商机",`成交概率由 ${before}% 下调至 ${after}%`]);}});
         scoped.forEach(x=>{const entered=history.find(h=>h.inquiry_id===x.id&&h.to_status===x.status)?.entered_at||x.updated_at||x.created_at,limit=stageHours[x.status]; if(limit&&Date.now()-new Date(entered)>limit*3600000)alerts.push([Date.now()-new Date(entered)>limit*7200000?"红色":"黄色",x.title,`${statusNames[x.status]}阶段停留超时`]); if(x.next_follow_up_at&&new Date(x.next_follow_up_at)<new Date())alerts.push(["黄色",x.title,"计划跟进时间已过"]); if(x.expected_close_date&&new Date(x.expected_close_date)<new Date()&&!["won","lost"].includes(x.status))alerts.push(["黄色",x.title,"预计成交日期已过"]);});
         scoped.forEach(x=>{const ownFollowups=followups.filter(f=>f.inquiry_id===x.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));if(ownFollowups.length>=3&&ownFollowups.slice(0,3).every(f=>!f.customer_feedback?.trim()))alerts.push(["黄色",x.title,"连续 3 次有效跟进无客户回复"]);if(["quoted","sample_sent","negotiating"].includes(x.status)&&x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000&&!ownFollowups.some(f=>f.customer_feedback?.trim()&&new Date(f.created_at)>new Date(x.quoted_at)))alerts.push(["黄色",x.title,"报价后 7 天无客户反馈"]);});
-        $("#dashboard-alerts").innerHTML=alerts.length?alerts.slice(0,20).map(a=>`<div class="alert-item"><div><b>${esc(a[1])}</b><br><small>${esc(a[2])}</small></div><span class="alert-level">${a[0]}</span></div>`).join(''):`<div class="empty">暂无风险预警</div>`;
+        $("#dashboard-alerts").innerHTML=alerts.length?alerts.slice(0,20).map(a=>`<div class="alert-item"><div><b>${esc(a[1])}</b><small>${esc(a[2])}</small></div><span class="alert-level ${a[0]==='黄色'?'attention':''}">${a[0]==='红色'?'高风险':'需关注'}</span></div>`).join(''):`<div class="empty">暂无风险预警</div>`;
         const channels=["website","email","feishu","google_ads","meta_ads","linkedin","exhibition","self_developed","referral","other"];
         const channelLabels={website:"官网表单",email:"企业邮箱",feishu:"飞书",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",self_developed:"销售自主开发",referral:"经销商/客户转介绍",other:"其他"};
         $("#dashboard-channels").innerHTML=`<table><thead><tr><th>渠道</th><th>询盘量</th><th>有效率</th><th>成交额（人民币）</th><th>成本</th><th>ROI</th></tr></thead><tbody>${channels.map(c=>{const cr=periodRows.filter(x=>(x.primary_source||x.source)===c),cw=sumWonCny(cr.filter(x=>x.status==="won")),cost=costs.filter(x=>x.channel===c&&inRange(x.month,start,end)).reduce((s,x)=>s+(Number(x.amount_cny)||Number(x.amount)||0),0);return `<tr><td>${channelLabels[c]}</td><td>${cr.length}</td><td>${pct(cr.filter(x=>x.validity==="valid").length,cr.filter(x=>x.validity!=="pending").length)}</td><td>${money(cw,"CNY")}</td><td>${money(cost,"CNY")}</td><td>${cost?(cw/cost).toFixed(2):"—"}</td></tr>`}).join('')}</tbody></table>`;

@@ -1416,10 +1416,10 @@
     </div>
     <button id="ai-assistant-open" class="ai-fab hidden"><i data-lucide="sparkles"></i><span>AI 数据助手</span></button>
     <aside id="ai-assistant-panel" class="ai-panel hidden" aria-label="AI 数据助手">
-      <div class="ai-panel-head"><strong><i data-lucide="bot"></i> AI 数据助手</strong><div class="ai-panel-actions"><button id="ai-copy-result">复制</button><button id="ai-export-csv">导出 Excel</button><button id="ai-export-pdf">打印/PDF</button><button id="ai-assistant-close" class="close">×</button></div></div>
+      <div class="ai-panel-head"><strong><i data-lucide="bot"></i> AI 数据助手</strong><div class="ai-panel-actions"><button id="ai-clear-chat">清空</button><button id="ai-copy-result">复制</button><button id="ai-export-csv">导出 Excel</button><button id="ai-export-pdf">打印/PDF</button><button id="ai-assistant-close" class="close">×</button></div></div>
       <div id="ai-assistant-scope" class="ai-scope">读取当前权限及看板筛选范围</div>
       <div id="ai-assistant-messages" class="ai-messages"><div class="ai-message assistant">你好，我可以总结你有权限查看的 CRM 数据。所有数字均由系统实时计算，并附带统计周期。</div></div>
-      <div class="ai-suggestions"><button data-ai-question="总结当前经营情况">总结经营情况</button><button data-ai-question="业务员销售额排名">销售额排名</button><button data-ai-question="有哪些超时和风险询盘">风险询盘</button><button data-ai-question="分析当前商机漏斗">商机漏斗</button></div>
+      <div class="ai-suggestions"><button data-ai-question="生成今日销售日报">今日销售日报</button><button data-ai-question="生成本周销售周报">本周销售周报</button><button data-ai-question="总结当前经营情况">总结经营情况</button><button data-ai-question="业务员销售额排名">销售额排名</button><button data-ai-question="有哪些超时和风险询盘">风险询盘</button><button data-ai-question="分析当前商机漏斗">商机漏斗</button></div>
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
@@ -1862,9 +1862,21 @@
         $$("[data-sales-detail]").forEach(row=>row.addEventListener("click",()=>openSalesDashboardDetail(row.dataset.salesDetail)));
       }
       function bindMetricHelp(){ $$(".metric-help").forEach(b=>{b.title=dashboardMetricDefinitions[b.dataset.metric]?.[1]||"查看指标定义"; b.onclick=()=>{const d=dashboardMetricDefinitions[b.dataset.metric]; if(d) alert(`${d[0]}\n\n${d[1]}\n\n口径：${d[2]}\n更新时间：${new Date().toLocaleString('zh-CN',{hour12:false})}`)}}); }
-      function aiDataContext(){
+      function aiRangeFromQuestion(question=""){
+        const q=String(question),now=new Date(),end=new Date(now);end.setHours(23,59,59,999);
+        let type="",start;
+        if(/今天|今日/.test(q)){type="today";start=new Date(now);start.setHours(0,0,0,0);}
+        else if(/本周|这周|本星期/.test(q)){type="week";start=new Date(now);const day=(now.getDay()+6)%7;start.setDate(now.getDate()-day);start.setHours(0,0,0,0);}
+        else if(/本月|这个月/.test(q)){type="month";start=new Date(now.getFullYear(),now.getMonth(),1);}
+        else if(/本季度|这个季度|本季/.test(q)){type="quarter";start=new Date(now.getFullYear(),Math.floor(now.getMonth()/3)*3,1);}
+        else if(/今年|本年|本年度/.test(q)){type="year";start=new Date(now.getFullYear(),0,1);}
+        else return dashboardRange();
+        const duration=end-start+1,previousEnd=new Date(start-1),previousStart=new Date(previousEnd-duration+1);
+        return {type,start,end,previousStart,previousEnd};
+      }
+      function aiDataContext(question=""){
         const rows=dashboardState.rows||[],profiles=dashboardState.profiles||[],history=dashboardState.history||[],followups=dashboardState.followups||[];
-        const {type,start,end}=dashboardRange(),team=$("#dashboard-team")?.value||"",sales=$("#dashboard-sales")?.value||"",source=$("#dashboard-source")?.value||"",country=$("#dashboard-country")?.value||"",product=$("#dashboard-product")?.value||"",dealType=$("#dashboard-deal-type")?.value||"";
+        const {type,start,end}=aiRangeFromQuestion(question),team=$("#dashboard-team")?.value||"",sales=$("#dashboard-sales")?.value||"",source=$("#dashboard-source")?.value||"",country=$("#dashboard-country")?.value||"",product=$("#dashboard-product")?.value||"",dealType=$("#dashboard-deal-type")?.value||"";
         const people=profiles.filter(p=>(!team||p.team===team)&&(!sales||p.id===sales)),ids=new Set(people.map(p=>p.id));
         const scoped=rows.filter(x=>(!x.owner_id||ids.has(x.owner_id))&&(!source||(x.primary_source||x.source)===source)&&(!country||x.target_country===country)&&(!product||x.product_category===product)&&(!dealType||(x.deal_type||"first_order")===dealType)&&!x.excluded_from_dashboard);
         const created=scoped.filter(x=>inRange(x.created_at,start,end)),won=scoped.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,start,end)),closed=created.filter(x=>["won","lost"].includes(x.status));
@@ -1876,7 +1888,7 @@
         return {type,start,end,created,won,closed,assigned,responded,fast,overdue,totalCny,usd,salesStats,stages,risky,sources,followups,history,scope:[team&&`团队:${team}`,sales&&`成员:${people.find(p=>p.id===sales)?.full_name}`,source&&`来源:${sourceNames[source]||source}`,country&&`国家:${country}`,product&&`品类:${product}`].filter(Boolean).join("；")||"当前权限内全部数据"};
       }
       function aiAnswer(question){
-        const c=aiDataContext(),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,q=question.toLowerCase(),moneyLine=`${money(c.totalCny,'CNY')}${c.usd?` / ${money(c.totalCny/c.usd,'USD')}`:" / 美元汇率待更新"}`;
+        const c=aiDataContext(question),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,q=question.toLowerCase(),moneyLine=`${money(c.totalCny,'CNY')}${c.usd?` / ${money(c.totalCny/c.usd,'USD')}`:" / 美元汇率待更新"}`;
         const header=`统计周期：${period}\n数据范围：${c.scope}`;
         if(/排名|排行|销售额|成交额|ranking/.test(q)) return `${header}\n\n团队成交额：${moneyLine}\n业务员销售额排名：\n${c.salesStats.map((x,i)=>`${i+1}. ${x.name}：${money(x.amount,'CNY')}${c.usd?` / ${money(x.amount/c.usd,'USD')}`:""}（${x.won} 单）`).join('\n')||'暂无可排名数据'}\n\n口径：按成交时间与成交日锁定汇率统计。`;
         if(/风险|超时|预警|未跟进/.test(q)) return `${header}\n\n超时未首次响应：${c.overdue.length} 条\n高风险/逾期商机：${c.risky.length} 条\n${c.risky.slice(0,10).map((x,i)=>`${i+1}. ${x.title}（${statusNames[x.status]||x.status}）`).join('\n')||'当前没有可识别的风险商机'}\n\n建议：优先处理超时未响应，再核实预计成交日已过及跟进任务逾期的商机。`;
@@ -1884,13 +1896,13 @@
         if(/来源|渠道|roi/.test(q)) return `${header}\n\n渠道询盘分布：\n${c.sources.map(x=>`• ${x.name}：${x.count} 条`).join('\n')||'暂无渠道数据'}\n\nROI 需结合市场部录入的月度渠道成本，详见经营看板“渠道表现与 ROI”。`;
         return `${header}\n\n经营摘要：\n• 新增询盘 ${c.created.length} 条，已分配 ${c.assigned.length} 条\n• 30 分钟内首次有效响应率 ${pct(c.fast.length,c.assigned.length)}，超时未响应 ${c.overdue.length} 条\n• 成交 ${c.won.length} 单，成交率 ${pct(c.won.length,c.closed.length)}\n• 团队成交额 ${moneyLine}\n• 高风险或逾期商机 ${c.risky.length} 条\n• 当前销售额第一：${c.salesStats[0]?.name||'暂无'}${c.salesStats[0]?` （${money(c.salesStats[0].amount,'CNY')}）`:''}\n\n你可继续问：销售额排名、风险询盘、商机漏斗或渠道分布。`;
       }
-      function aiEvidence(){
-        const c=aiDataContext(),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,valid=c.created.filter(x=>x.validity!=="pending"),validCount=valid.filter(x=>x.validity==="valid").length;
+      function aiEvidence(question=""){
+        const c=aiDataContext(question),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,valid=c.created.filter(x=>x.validity!=="pending"),validCount=valid.filter(x=>x.validity==="valid").length;
         return [`统计周期：${period}`,`数据范围：${c.scope}`,`新增询盘：${c.created.length}`,`已分配询盘：${c.assigned.length}`,`30分钟内首次响应：${c.fast.length}；首次响应率：${pct(c.fast.length,c.assigned.length)}；超时未响应：${c.overdue.length}`,`有效询盘：${validCount}；有效询盘率：${pct(validCount,valid.length)}`,`成交：${c.won.length}；已关闭：${c.closed.length}；成交率：${pct(c.won.length,c.closed.length)}`,`团队成交额：${money(c.totalCny,'CNY')}${c.usd?` / ${money(c.totalCny/c.usd,'USD')}`:""}`,`业务员数据：\n${c.salesStats.map((x,i)=>`${i+1}. ${x.name}｜成交额 ${money(x.amount,'CNY')}${c.usd?`/${money(x.amount/c.usd,'USD')}`:""}｜成交 ${x.won}单｜处理 ${x.handled}条`).join('\n')||'暂无'}`,`商机阶段：${c.stages.map(x=>`${x.name}${x.count}条`).join('；')||'暂无'}`,`渠道分布：${c.sources.map(x=>`${x.name}${x.count}条`).join('；')||'暂无'}`,`风险或逾期商机：${c.risky.length}条${c.risky.length?`\n${c.risky.slice(0,20).map(x=>`• ${x.title}｜${statusNames[x.status]||x.status}｜负责人 ${dashboardState.profiles.find(p=>p.id===x.owner_id)?.full_name||'未分配'}`).join('\n')}`:''}`,`口径：成交额按成交时间、成交日锁定汇率和成交时负责人统计；未分配不计入业务员排名。`].join('\n\n');
       }
-      let aiConversation=[];
+      let aiConversation=[],aiLastContext=null;
       function latestAiAnswer(){return [...aiConversation].reverse().find(x=>x.role==="assistant")?.content||"";}
-      function aiExportRows(){const c=aiDataContext(),generated=new Date().toLocaleString('zh-CN',{hour12:false}),rows=[["生成时间",generated],["统计周期",`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`],["数据范围",c.scope],[],["角色","内容"]];aiConversation.forEach(x=>rows.push([x.role==="user"?"成员提问":"AI 回答",x.content]));return rows;}
+      function aiExportRows(){const c=aiLastContext||aiDataContext(),generated=new Date().toLocaleString('zh-CN',{hour12:false}),rows=[["生成时间",generated],["统计周期",`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`],["数据范围",c.scope],[],["角色","内容"]];aiConversation.forEach(x=>rows.push([x.role==="user"?"成员提问":"AI 回答",x.content]));return rows;}
       function exportAiCsv(){if(!aiConversation.length)return toast("请先向 AI 提问");const csv="\ufeff"+aiExportRows().map(row=>row.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`AI数据问答-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);}
       function printAiResult(){if(!aiConversation.length)return toast("请先向 AI 提问");const c=aiDataContext(),frame=document.createElement("iframe");frame.style.display="none";document.body.append(frame);const doc=frame.contentDocument;doc.write(`<meta charset="utf-8"><title>AI数据问答</title><style>body{font:14px/1.7 Arial,sans-serif;padding:32px;color:#17271f}h1{font-size:22px}.meta{color:#65766d;margin-bottom:22px}.msg{padding:12px 14px;border:1px solid #dfe5e0;border-radius:10px;margin:10px 0;white-space:pre-wrap}.user{background:#edf4ef}</style><h1>WONLY CRM·AI 数据问答</h1><div class="meta">统计周期：${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}<br>数据范围：${esc(c.scope)}<br>生成时间：${new Date().toLocaleString('zh-CN',{hour12:false})}</div>${aiConversation.map(x=>`<div class="msg ${x.role}"><b>${x.role==="user"?"成员提问":"AI 回答"}</b><br>${esc(x.content)}</div>`).join('')}`);doc.close();setTimeout(()=>{frame.contentWindow.focus();frame.contentWindow.print();setTimeout(()=>frame.remove(),1000)},300);}
       function addAiMessage(role,text){const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;$("#ai-assistant-messages").append(el);$("#ai-assistant-messages").scrollTop=$("#ai-assistant-messages").scrollHeight;}
@@ -3630,13 +3642,14 @@
       $("#dashboard-modal-close").addEventListener("click",()=>$("#dashboard-modal").classList.add("hidden"));
       $("#ai-assistant-open").addEventListener("click",openAiAssistant);
       $("#ai-assistant-close").addEventListener("click",()=>$("#ai-assistant-panel").classList.add("hidden"));
+      $("#ai-clear-chat").addEventListener("click",()=>{aiConversation=[];aiLastContext=null;$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制、导出 Excel 或打印为 PDF。</div>';toast("AI 对话已清空");});
       $("#ai-copy-result").addEventListener("click",async()=>{const text=latestAiAnswer();if(!text)return toast("请先向 AI 提问");await navigator.clipboard.writeText(text);toast("已复制最新 AI 回答");});
       $("#ai-export-csv").addEventListener("click",exportAiCsv);
       $("#ai-export-pdf").addEventListener("click",printAiResult);
       $$("[data-ai-question]").forEach(button=>button.addEventListener("click",()=>{$("#ai-assistant-input").value=button.dataset.aiQuestion;$("#ai-assistant-form").requestSubmit();}));
       $("#ai-assistant-form").addEventListener("submit",async event=>{
         event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
-        addAiMessage("user",question);input.value="";const grounded=aiAnswer(question),evidence=aiEvidence(),submit=event.submitter;submit.disabled=true;submit.textContent="分析中…";
+        addAiMessage("user",question);input.value="";aiLastContext=aiDataContext(question);const grounded=aiAnswer(question),evidence=aiEvidence(question),submit=event.submitter;submit.disabled=true;submit.textContent="分析中…";
         let answer=grounded,fallbackReason="";
         try{const {data,error}=await supabase.functions.invoke("crm-ai-assistant",{body:{question,grounded_answer:evidence,history:aiConversation.slice(-6)}});if(!error&&data?.answer)answer=data.answer;else{fallbackReason=data?.error||error?.message||"DeepSeek 服务未返回答案";if(error?.context)try{fallbackReason=(await error.context.clone().json())?.error||fallbackReason;}catch{}}}catch(error){fallbackReason=error?.message||String(error);}
         if(fallbackReason){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",fallbackReason);answer+=`\n\n⚠️ DeepSeek 暂未生效，本次使用 CRM 本地统计：${fallbackReason}`;}

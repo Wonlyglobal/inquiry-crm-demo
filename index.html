@@ -1311,6 +1311,13 @@
                 placeholder="USD / CNY / EUR"
               />
             </div>
+            <div class="field"><label>预计金额 <button class="metric-help" data-metric="estimated_amount" type="button">?</button></label><input id="detail-estimated-amount" class="input" type="number" min="0" step="0.01" /></div>
+            <div class="field"><label>预计币种</label><input id="detail-estimated-currency" class="input" placeholder="USD / CNY / EUR" /></div>
+            <div class="field"><label>成交概率 <button class="metric-help" data-metric="probability" type="button">?</button></label><input id="detail-probability" class="input" type="number" min="0" max="100" step="1" placeholder="0–100" /></div>
+            <div class="field"><label>预计成交日期 <button class="metric-help" data-metric="expected_close_date" type="button">?</button></label><input id="detail-expected-close" class="input" type="date" /></div>
+            <div class="field"><label>商机类型</label><select id="detail-deal-type" class="input"><option value="new">首次成交</option><option value="repeat">复购</option></select></div>
+            <div class="field"><label>主来源</label><select id="detail-primary-source" class="input"><option value="website">官网表单</option><option value="email">企业邮箱</option><option value="feishu">飞书</option><option value="google_ads">Google Ads</option><option value="meta_ads">Meta Ads</option><option value="linkedin">LinkedIn</option><option value="exhibition">展会</option><option value="self_developed">销售自主开发</option><option value="referral">经销商/客户转介绍</option><option value="other">其他</option></select></div>
+            <div class="field"><label><input id="detail-risk-flag" type="checkbox" /> 高风险客户（显示红色标识）</label></div>
           </div>
           <div class="field">
             <label>修改原因 *</label
@@ -1687,7 +1694,10 @@
         quote_rate:["报价率","统计期内进入已报价或更后阶段的有效询盘数 ÷ 统计期内有效询盘数。","已寄样、谈判、成交、丢单均视为已经发生过报价。"],
         won_amount:["成交额","统计期内成交商机按成交日汇率折算后的金额。","归属成交时负责人；排行榜默认按人民币金额。成交数据锁定成交日汇率。"],
         stage_pipeline:["商机阶段","当前筛选范围内各阶段商机数量及最近进入时间。","阶段停留超过阈值黄色预警，超过两倍阈值红色预警。"],
-        risk_alerts:["风险与待办","高风险、响应超时、计划跟进逾期、阶段停留超时、报价 7 天无反馈及预计成交日已过。","预警仅用于管理跟进，不自动修改客户或商机数据。"],
+        risk_alerts:["风险与待办","高风险、概率单次下调 10 个百分点以上、响应超时、计划跟进逾期、阶段停留超时、报价 7 天无反馈及预计成交日已过。","预警仅用于管理跟进，不自动修改客户或商机数据。"],
+        estimated_amount:["预计金额","未成交商机保留原币金额，看板按最新每日汇率动态折算。","成交后改用成交日锁定汇率。"],
+        probability:["成交概率","销售对当前商机成交可能性的 0–100% 评估。","单次下调 10 个百分点以上触发风险预警。"],
+        expected_close_date:["预计成交日期","当前预期商机成交或关闭的日期。","日期已过且未成交/丢单时触发预警。"],
         channel_roi:["渠道 ROI","渠道归因成交额 ÷ 渠道成本。","MVP 由主来源获得 100% 归因；渠道成本由市场部按月录入。"],
         followup_completion:["跟进任务完成率","按期或逾期完成的跟进任务数 ÷ 到期任务数。","逾期后完成计入完成率，并单独标注“逾期完成”。"]
         ,sales_targets:["目标完成进度","当前筛选周期内实际值 ÷ 已设置目标值。","支持个人、团队和全公司目标；目标由老板或销售主管设置。"]
@@ -1779,6 +1789,9 @@
         const latest=new Map(); history.filter(h=>scoped.some(x=>x.id===h.inquiry_id)).forEach(h=>{if(!latest.has(h.to_status))latest.set(h.to_status,h.entered_at)}); $$("[data-stage-time]").forEach(el=>el.textContent=latest.has(el.dataset.stageTime)?fmtDate(latest.get(el.dataset.stageTime)):"暂无记录");
         const stageHours={pending_assignment:.5,received:4,qualified:24,contacted:72,quoted:168,sample_sent:336,negotiating:336};
         const alerts=[]; overdue.forEach(x=>alerts.push(["红色",x.title,"首次响应已超 30 分钟"]));
+        scoped.filter(x=>x.risk_flag).forEach(x=>alerts.push(["红色",x.title,"已标记为高风险客户"]));
+        const scopedIds=new Set(scoped.map(x=>x.id));
+        audits.filter(a=>scopedIds.has(a.entity_id)).forEach(a=>{const before=Number(a.before_data?.probability),after=Number(a.after_data?.probability);if(Number.isFinite(before)&&Number.isFinite(after)&&before-after>=10){const row=scoped.find(x=>x.id===a.entity_id);alerts.push(["红色",row?.title||"商机",`成交概率由 ${before}% 下调至 ${after}%`]);}});
         scoped.forEach(x=>{const entered=history.find(h=>h.inquiry_id===x.id&&h.to_status===x.status)?.entered_at||x.updated_at||x.created_at,limit=stageHours[x.status]; if(limit&&Date.now()-new Date(entered)>limit*3600000)alerts.push([Date.now()-new Date(entered)>limit*7200000?"红色":"黄色",x.title,`${statusNames[x.status]}阶段停留超时`]); if(x.next_follow_up_at&&new Date(x.next_follow_up_at)<new Date())alerts.push(["黄色",x.title,"计划跟进时间已过"]); if(x.expected_close_date&&new Date(x.expected_close_date)<new Date()&&!["won","lost"].includes(x.status))alerts.push(["黄色",x.title,"预计成交日期已过"]);});
         scoped.forEach(x=>{const ownFollowups=followups.filter(f=>f.inquiry_id===x.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));if(ownFollowups.length>=3&&ownFollowups.slice(0,3).every(f=>!f.customer_feedback?.trim()))alerts.push(["黄色",x.title,"连续 3 次有效跟进无客户回复"]);if(["quoted","sample_sent","negotiating"].includes(x.status)&&x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000&&!ownFollowups.some(f=>f.customer_feedback?.trim()&&new Date(f.created_at)>new Date(x.quoted_at)))alerts.push(["黄色",x.title,"报价后 7 天无客户反馈"]);});
         $("#dashboard-alerts").innerHTML=alerts.length?alerts.slice(0,20).map(a=>`<div class="alert-item"><div><b>${esc(a[1])}</b><br><small>${esc(a[2])}</small></div><span class="alert-level">${a[0]}</span></div>`).join(''):`<div class="empty">暂无风险预警</div>`;
@@ -1821,7 +1834,7 @@
         const { data, error } = await supabase
           .from("inquiries")
           .select(
-            "id,inquiry_no,title,source,status,validity,created_at,updated_at,owner_id,target_country,product_category,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,contacts(email)",
+            "id,inquiry_no,title,source,status,validity,created_at,updated_at,owner_id,target_country,product_category,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,risk_flag,contacts(email)",
           )
           .order("created_at", { ascending: false })
           .limit(100);
@@ -1832,7 +1845,7 @@
         const rows = data || [];
         // Optional dashboard columns are loaded separately so the UI remains
         // usable while a newly deployed migration is being applied.
-        const { data: dashboardFields } = await supabase.from("inquiries").select("id,assigned_at,first_valid_contact_at,quoted_at,expected_close_date,probability,deal_type,primary_source,excluded_from_dashboard").limit(1000);
+        const { data: dashboardFields } = await supabase.from("inquiries").select("id,assigned_at,first_valid_contact_at,quoted_at,expected_close_date,probability,deal_type,primary_source,excluded_from_dashboard,risk_flag").limit(1000);
         if (dashboardFields) {
           const byId = new Map(dashboardFields.map(x => [x.id, x]));
           rows.forEach(x => Object.assign(x, byId.get(x.id) || {}));
@@ -1971,7 +1984,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,owner_id,validity,invalid_reason,lost_reason,won_amount,won_currency,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
+              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
             )
             .eq("id", id)
             .single(),
@@ -2012,6 +2025,13 @@
           inquiry.invalid_reason || inquiry.lost_reason || "";
         $("#detail-won-amount").value = inquiry.won_amount || "";
         $("#detail-won-currency").value = inquiry.won_currency || "";
+        $("#detail-estimated-amount").value = inquiry.estimated_amount || "";
+        $("#detail-estimated-currency").value = inquiry.currency || "";
+        $("#detail-probability").value = inquiry.probability ?? "";
+        $("#detail-expected-close").value = inquiry.expected_close_date || "";
+        $("#detail-deal-type").value = inquiry.deal_type || "new";
+        $("#detail-primary-source").value = inquiry.primary_source || inquiry.source || "other";
+        $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         $("#detail-original-message").value = inquiry.original_message || "";
         $("#detail-smart-country").value = inquiry.target_country || "";
         $("#detail-smart-name").value = inquiry.contact_name || "";
@@ -2638,6 +2658,13 @@
         const update = {
           status: $("#detail-status").value,
           validity: $("#detail-validity").value,
+          estimated_amount: Number($("#detail-estimated-amount").value) || null,
+          currency: $("#detail-estimated-currency").value.trim().toUpperCase() || null,
+          probability: $("#detail-probability").value === "" ? null : Number($("#detail-probability").value),
+          expected_close_date: $("#detail-expected-close").value || null,
+          deal_type: $("#detail-deal-type").value,
+          primary_source: $("#detail-primary-source").value,
+          risk_flag: $("#detail-risk-flag").checked,
           last_change_reason: reason,
           updated_by: profile.id,
           updated_at: new Date().toISOString(),
@@ -2666,7 +2693,17 @@
           }
           update.won_amount = amount;
           update.won_currency = currency;
-          update.won_at = new Date().toISOString();
+          if (currentInquiry.status !== "won" || !currentInquiry.won_exchange_rate) {
+            const lockedAt = new Date().toISOString();
+            const lockedRate = currency === "CNY" ? 1 : fxToCny(currency, lockedAt);
+            if (!lockedRate) {
+              toast(`缺少 ${currency}/CNY 汇率，请先同步当日汇率`);
+              button.disabled = false;
+              return;
+            }
+            update.won_at = lockedAt;
+            update.won_exchange_rate = lockedRate;
+          }
         }
         if (["owner", "sales_manager"].includes(profile.role))
           update.owner_id = $("#detail-owner").value || null;

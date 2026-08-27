@@ -1921,6 +1921,8 @@
           $("#register-for-assignment").classList.toggle("hidden", !canMarket || Boolean(intake.registered_at));
         }
         $("#detail-reason").value = "";
+        $$(".nav[data-view]").forEach((nav) => nav.classList.toggle("active", nav.dataset.view === "inquiries"));
+        await loadModule("inquiries");
         $("#dashboard-page").classList.add("hidden");
         $("#module-page").classList.add("hidden");
         $("#detail-modal").classList.remove("hidden");

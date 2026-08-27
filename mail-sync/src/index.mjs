@@ -76,6 +76,10 @@ async function applyMatchedMessage(row, connection){
     if(recipients.length)await db.from('notifications').insert([...new Set(recipients)].map(id=>({recipient_id:id,inquiry_id:inq.id,type:'customer_email_reply',title:'客户有新邮件回复',body:`${row.sender_email||''} · ${row.subject||inq.title}`})));
   }
   await db.from('communication_summaries').insert({inquiry_id:inq.id,source_message_id:row.id,summary_zh:ruleSummary(row),latest_customer_request:row.direction==='inbound'?(row.body_text||'').slice(0,2000):null,provider:'rules'});
+  try{
+    const response=await fetch(`${url}/functions/v1/email-communication-ai`,{method:'POST',headers:{Authorization:`Bearer ${key}`,apikey:key,'Content-Type':'application/json'},body:JSON.stringify({message_id:row.id}),signal:AbortSignal.timeout(30000)});
+    if(!response.ok)console.error(`AI summary ${row.id}: ${await response.text()}`);
+  }catch(error){console.error(`AI summary ${row.id}:`,error?.message||error)}
 }
 
 async function syncFolder(connection,password,folder){

@@ -717,6 +717,7 @@
         font-size: 12px;
         z-index: 80;
       }
+      .toast.error { background:#8d3c37; }
       .boot-shell {
         min-height: 100vh;
         display: grid;
@@ -752,9 +753,11 @@
       .ai-message.assistant { align-self:flex-start; background:#f0f4f1; color:#20352b; border-bottom-left-radius:5px; }
       .ai-message.user { align-self:flex-end; background:#315f49; color:#fff; border-bottom-right-radius:5px; }
       .ai-suggestions { display:flex; gap:6px; overflow:auto; padding:0 14px 10px; }
+      .ai-suggestions { scrollbar-width:none; }
+      .ai-suggestions::-webkit-scrollbar { display:none; }
       .ai-suggestions button { flex:0 0 auto; border:1px solid var(--line); border-radius:999px; background:#fff; padding:7px 10px; font-size:10px; cursor:pointer; }
       .ai-compose { display:grid; grid-template-columns:1fr auto; gap:8px; padding:12px; border-top:1px solid var(--line); }
-      .ai-compose textarea { resize:none; min-height:44px; max-height:100px; }
+      .ai-compose textarea { width:100%; min-width:0; resize:none; min-height:44px; max-height:100px; }
       @media (max-width: 1250px) {
         .dashboard-toolbar { align-items:flex-start; flex-direction:column; }
         .dashboard-actions { width:100%; justify-content:flex-end; border-top:1px solid var(--line); padding-top:10px; }
@@ -804,6 +807,11 @@
         .dashboard-kpis { grid-template-columns:1fr 1fr; }
         .daily-toolbar { align-items:flex-start; flex-direction:column; }
         .daily-summary-kpis { grid-template-columns:1fr 1fr; }
+        .ai-panel { right:10px; bottom:72px; width:calc(100vw - 84px); max-height:calc(100vh - 90px); }
+        .ai-panel-head { align-items:flex-start; gap:10px; }
+        .ai-panel-actions { flex-wrap:wrap; justify-content:flex-end; }
+        .ai-panel-actions button:not(.close) { padding:5px 7px; }
+        .ai-compose { grid-template-columns:minmax(0,1fr) auto; }
         .grid2 {
           grid-template-columns: 1fr;
         }
@@ -1239,7 +1247,7 @@
         </div>
       </div>
     </div>
-    <div id="toast" class="toast hidden"></div>
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
     <div id="detail-modal" class="modal-backdrop hidden">
       <div class="modal">
         <div class="modal-head">
@@ -1531,10 +1539,14 @@
       function icons() {
         window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
       }
+      let toastTimer = null;
       function toast(m) {
-        $("#toast").textContent = m;
-        $("#toast").classList.remove("hidden");
-        setTimeout(() => $("#toast").classList.add("hidden"), 2600);
+        const notice = $("#toast"), message = String(m || "");
+        notice.textContent = message;
+        notice.classList.toggle("error", /失败|错误|无法|无权|缺少|必须|不能|尚未|暂不能/.test(message));
+        notice.classList.remove("hidden");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => notice.classList.add("hidden"), 3600);
       }
       function updateDomainLink() {
         const link = $("#detail-research-domain-link");

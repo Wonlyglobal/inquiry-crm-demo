@@ -3623,8 +3623,9 @@
       $("#ai-assistant-form").addEventListener("submit",async event=>{
         event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
         addAiMessage("user",question);input.value="";const grounded=aiAnswer(question),submit=event.submitter;submit.disabled=true;submit.textContent="分析中…";
-        let answer=grounded;
-        try{const {data,error}=await supabase.functions.invoke("crm-ai-assistant",{body:{question,grounded_answer:grounded}});if(!error&&data?.answer)answer=data.answer;}catch(error){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",error);}
+        let answer=grounded,fallbackReason="";
+        try{const {data,error}=await supabase.functions.invoke("crm-ai-assistant",{body:{question,grounded_answer:grounded}});if(!error&&data?.answer)answer=data.answer;else{fallbackReason=data?.error||error?.message||"DeepSeek 服务未返回答案";if(error?.context)try{fallbackReason=(await error.context.clone().json())?.error||fallbackReason;}catch{}}}catch(error){fallbackReason=error?.message||String(error);}
+        if(fallbackReason){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",fallbackReason);answer+=`\n\n⚠️ DeepSeek 暂未生效，本次使用 CRM 本地统计：${fallbackReason}`;}
         submit.disabled=false;submit.textContent="提问";addAiMessage("assistant",answer);
       });
       $("#dashboard-export-csv").addEventListener("click", () => {

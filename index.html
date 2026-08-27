@@ -949,6 +949,7 @@
           />
         </div>
         <button class="primary" type="submit">登录</button>
+        <button id="forgot-password" class="ghost" type="button" style="width:100%;margin-top:10px">忘记密码</button>
         <div id="login-error" class="error"></div>
       </form>
     </section>
@@ -1162,7 +1163,7 @@
     </div>
     <div id="password-modal" class="modal-backdrop hidden">
       <div class="modal" style="max-width: 450px">
-        <div class="modal-head"><h3>首次登录，请修改密码</h3></div>
+        <div class="modal-head"><h3 id="password-modal-title">首次登录，请修改密码</h3></div>
         <form id="password-form" class="form-body">
           <p class="hint">
             新密码至少 8
@@ -1192,6 +1193,17 @@
             修改密码并进入系统
           </button>
           <div id="password-error" class="error"></div>
+        </form>
+      </div>
+    </div>
+    <div id="forgot-password-modal" class="modal-backdrop hidden">
+      <div class="modal" style="max-width:450px">
+        <div class="modal-head"><h3>重置登录密码</h3><button id="close-forgot-password" class="close" type="button">×</button></div>
+        <form id="forgot-password-form" class="form-body">
+          <p class="hint">输入成员的公司邮箱。系统会发送安全重置链接，点击邮件中的链接后可设置新密码。</p>
+          <div class="field"><label>公司邮箱</label><input id="forgot-password-email" class="input" type="email" autocomplete="email" required /></div>
+          <button class="primary" type="submit" style="width:100%">发送重置邮件</button>
+          <div id="forgot-password-message" class="error"></div>
         </form>
       </div>
     </div>
@@ -1666,6 +1678,7 @@
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
       let profile = null;
+      let passwordChangeMode = "initial";
       let currentInquiry = null;
       let notificationChannel = null;
       $(".main").appendChild($("#detail-modal"));
@@ -1777,6 +1790,8 @@
         }
         profile = data;
         if (data.must_change_password) {
+          passwordChangeMode = "initial";
+          $("#password-modal-title").textContent = "首次登录，请修改密码";
           $("#login").classList.add("hidden");
           $("#password-modal").classList.remove("hidden");
           return;
@@ -2865,6 +2880,29 @@
           await supabase.auth.signOut();
         }
       });
+      $("#forgot-password").addEventListener("click", () => {
+        $("#forgot-password-email").value = $("#login-email").value.trim();
+        $("#forgot-password-message").textContent = "";
+        $("#forgot-password-modal").classList.remove("hidden");
+      });
+      $("#close-forgot-password").addEventListener("click", () => $("#forgot-password-modal").classList.add("hidden"));
+      $("#forgot-password-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const button = e.submitter;
+        button.disabled = true;
+        $("#forgot-password-message").textContent = "";
+        const email = $("#forgot-password-email").value.trim().toLowerCase();
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${location.origin}${location.pathname}`,
+        });
+        button.disabled = false;
+        if (error) {
+          $("#forgot-password-message").textContent = "重置邮件发送失败，请稍后重试或联系管理员";
+          return;
+        }
+        $("#forgot-password-message").style.color = "var(--green)";
+        $("#forgot-password-message").textContent = "如果该邮箱已注册，重置邮件已发送，请检查收件箱和垃圾邮件。";
+      });
       $("#password-form").addEventListener("submit", async (e) => {
         e.preventDefault();
         const a = $("#new-password").value,
@@ -2881,12 +2919,21 @@
           btn.disabled = false;
           return;
         }
-        const { error: rpcError } = await supabase.rpc(
+        const { error: rpcError } = passwordChangeMode === "initial" ? await supabase.rpc(
           "finish_initial_password_change",
-        );
+        ) : { error: null };
         btn.disabled = false;
         if (rpcError) {
           $("#password-error").textContent = rpcError.message;
+          return;
+        }
+        if (passwordChangeMode === "recovery") {
+          await supabase.auth.signOut();
+          history.replaceState(null, "", location.pathname + location.search);
+          $("#password-modal").classList.add("hidden");
+          $("#login").classList.remove("hidden");
+          $("#login-error").style.color = "var(--green)";
+          $("#login-error").textContent = "密码已重置，请使用新密码登录。";
           return;
         }
         profile.must_change_password = false;
@@ -4216,11 +4263,29 @@
         window.print();
       });
       bindMetricHelp();
+      const openRecoveryPassword = () => {
+        passwordChangeMode = "recovery";
+        $("#password-modal-title").textContent = "设置新的登录密码";
+        $("#password-error").textContent = "";
+        $("#boot").classList.add("hidden");
+        $("#login").classList.add("hidden");
+        $("#app").classList.add("hidden");
+        $("#password-modal").classList.remove("hidden");
+      };
+      let recoveryActive = /(?:^|[&#?])type=recovery(?:&|$)/.test(`${location.hash}&${location.search}`);
+      supabase.auth.onAuthStateChange((event) => {
+        if (event === "PASSWORD_RECOVERY") {
+          recoveryActive = true;
+          openRecoveryPassword();
+        }
+      });
       const {
         data: { session },
       } = await supabase.auth.getSession();
       let sessionReady = false;
-      if (session) {
+      if (session && recoveryActive) {
+        openRecoveryPassword();
+      } else if (session) {
         try {
           await loadProfile(session.user);
           sessionReady = true;
@@ -4229,7 +4294,7 @@
         }
       }
       $("#boot").classList.add("hidden");
-      if (!sessionReady) $("#login").classList.remove("hidden");
+      if (!sessionReady && !recoveryActive) $("#login").classList.remove("hidden");
       const initialInquiry = location.hash.match(/^#inquiry\/(.+)$/);
       if (sessionReady && initialInquiry)
         await openInquiryDetail(initialInquiry[1]);

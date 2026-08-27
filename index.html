@@ -1029,7 +1029,7 @@
             </div>
           </div>
           <section id="sales-workbench" class="dashboard-panel sales-workbench hidden">
-            <div class="sales-workbench-head"><div><b>我的今日工作台</b><p>按紧急程度排列本人负责的询盘和跟进任务</p></div><div class="sales-workbench-actions"><button id="sales-open-profile" class="ghost">个人业务主页</button><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
+            <div class="sales-workbench-head"><div><b>我的今日工作台</b><p>按紧急程度排列本人负责的询盘和跟进任务</p></div><div class="sales-workbench-actions"><button id="sales-connect-mailbox" class="ghost">连接我的邮箱</button><button id="sales-open-profile" class="ghost">个人业务主页</button><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
             <div id="sales-workbench-kpis" class="sales-workbench-kpis"></div>
             <div id="sales-task-list" class="sales-task-list"></div>
           </section>
@@ -1191,7 +1191,7 @@
     </div>
     <div id="mailbox-modal" class="modal-backdrop hidden">
       <div class="modal" style="max-width:560px">
-        <div class="modal-head"><h3>连接业务员邮箱</h3><button id="close-mailbox" class="close">×</button></div>
+        <div class="modal-head"><h3 id="mailbox-modal-title">连接业务员邮箱</h3><button id="close-mailbox" class="close">×</button></div>
         <form id="mailbox-form" class="form-body">
           <p class="hint">使用业务员本人生成的阿里邮箱第三方客户端密码。密码仅提交到服务端 Vault，不会在页面中保存或回显。</p>
           <div class="field"><label>成员 *</label><select id="mailbox-user" class="input" required></select></div>
@@ -3992,22 +3992,29 @@
         toast("跟进记录已保存");
         await loadTimeline(currentInquiry.id);
       });
-      async function openMailboxBinding(selectedUserId = "") {
-        const { data, error } = await supabase.from("profiles").select("id,full_name,email,role").eq("active", true).order("full_name");
+      async function openMailboxBinding(selectedUserId = "", selfOnly = false) {
+        const { data, error } = selfOnly
+          ? { data: [profile], error: null }
+          : await supabase.from("profiles").select("id,full_name,email,role").eq("active", true).order("full_name");
         if (error) return toast("成员加载失败：" + error.message);
         const select = $("#mailbox-user");
-        select.replaceChildren(new Option("请选择成员", ""));
+        select.replaceChildren();
+        if (!selfOnly) select.add(new Option("请选择成员", ""));
         (data || []).forEach((member) => {
           const option = new Option(`${member.full_name} · ${member.email}`, member.id);
           option.dataset.email = member.email;
           select.add(option);
         });
-        select.value = selectedUserId || "";
+        select.value = selectedUserId || (selfOnly ? profile.id : "");
+        select.disabled = selfOnly;
+        $("#mailbox-email").readOnly = selfOnly;
+        $("#mailbox-modal-title").textContent = selfOnly ? "连接我的邮箱" : "连接业务员邮箱";
         $("#mailbox-email").value = select.selectedOptions[0]?.dataset.email || "";
         $("#mailbox-password").value = "";
         $("#mailbox-modal").classList.remove("hidden");
       }
       $("#module-primary").addEventListener("click", () => openMailboxBinding());
+      $("#sales-connect-mailbox").addEventListener("click", () => openMailboxBinding(profile.id, true));
       $("#add-member").addEventListener("click", () => {
         $("#member-form").reset();
         $("#member-modal").classList.remove("hidden");
@@ -4075,7 +4082,12 @@
       $("#mailbox-user").addEventListener("change", (event) => {
         $("#mailbox-email").value = event.target.selectedOptions[0]?.dataset.email || "";
       });
-      ["#close-mailbox", "#cancel-mailbox"].forEach((selector) => $(selector).addEventListener("click", () => $("#mailbox-modal").classList.add("hidden")));
+      ["#close-mailbox", "#cancel-mailbox"].forEach((selector) => $(selector).addEventListener("click", () => {
+        $("#mailbox-modal").classList.add("hidden");
+        $("#mailbox-user").disabled = false;
+        $("#mailbox-email").readOnly = false;
+        $("#mailbox-password").value = "";
+      }));
       $("#mailbox-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         const button = event.submitter;
@@ -4099,7 +4111,7 @@
         $("#mailbox-password").value = "";
         $("#mailbox-modal").classList.add("hidden");
         toast("邮箱连接成功");
-        await loadModule("settings");
+        if (profile.role === "owner" || ["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase())) await loadModule("settings");
       });
       $("#dashboard-period").addEventListener("change", (event) => {
         const custom = event.target.value === "custom";

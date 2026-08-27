@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
     const input = await req.json();
     const question = clean(input.question, 800);
     const groundedAnswer = clean(input.grounded_answer, 12000);
+    const history = Array.isArray(input.history) ? input.history.slice(-6).map((item: Record<string, unknown>) => ({ role: item.role === "assistant" ? "assistant" : "user", content: clean(item.content, 2000) })).filter((item: { content: string }) => item.content) : [];
     if (!question || !groundedAnswer) return new Response(JSON.stringify({ error: "问题或统计上下文不完整" }), { status: 400, headers: cors });
     const apiKey = Deno.env.get("DEEPSEEK_API_KEY") || "";
     if (!apiKey) return new Response(JSON.stringify({ error: "DeepSeek API Key 尚未配置" }), { status: 503, headers: cors });
@@ -35,6 +36,7 @@ Deno.serve(async (req) => {
         max_tokens: 900,
         messages: [
           { role: "system", content: "你是 WONLY CRM 数据助手。只能根据 CRM 已计算的可验证统计回答。严禁改动数字、币种、排名、时间和指标口径；严禁猜测缺失数据。用简洁中文，先结论后依据，保留统计周期、数据范围和口径。若用户问题超出已提供数据，明确说无法从当前数据确定。" },
+          ...history,
           { role: "user", content: `用户问题：${question}\n\nCRM 已验证统计：\n${groundedAnswer}` },
         ],
       }),

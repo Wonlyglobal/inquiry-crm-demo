@@ -320,8 +320,16 @@
         font-weight: 800;
         margin-top: 12px;
       }
-      .dashboard-toolbar { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:14px; padding:12px; }
-      .dashboard-filter-group,.dashboard-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+      .dashboard-toolbar { display:block; margin-bottom:14px; padding:14px 16px; }
+      .dashboard-toolbar-primary,.dashboard-toolbar-secondary { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+      .dashboard-toolbar-primary { padding-bottom:12px; border-bottom:1px solid var(--line); }
+      .dashboard-toolbar-secondary { padding-top:12px; }
+      .dashboard-filter-group,.dashboard-actions,.dashboard-scope-group { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+      .period-tabs { display:inline-flex; align-items:center; padding:4px; gap:3px; border:1px solid var(--line); border-radius:12px; background:var(--soft); }
+      .period-tab { border:0; background:transparent; color:var(--muted); padding:9px 15px; border-radius:9px; font-weight:700; cursor:pointer; white-space:nowrap; }
+      .period-tab:hover { color:var(--ink); }
+      .period-tab.active { color:#fff; background:var(--green); box-shadow:0 2px 7px rgba(31,75,56,.18); }
+      #dashboard-data-scope { min-width:122px; }
       .input.compact { width:auto; min-width:110px; padding:9px 10px; }
       .dashboard-kpis { grid-template-columns:repeat(4,1fr); }
       .sales-hero { display:grid; grid-template-columns:minmax(280px,.72fr) minmax(0,1.55fr); gap:14px; margin-bottom:14px; }
@@ -370,6 +378,21 @@
       .dashboard-scope-note { color:var(--muted); font-size:13px; }
       .legacy-dashboard-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
       .legacy-dashboard-panels { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+      .trend-panel { margin-bottom:14px; }
+      .trend-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line); }
+      .trend-tabs { display:flex; gap:5px; }
+      .trend-tab { border:1px solid var(--line); background:#fff; color:var(--muted); padding:7px 12px; border-radius:9px; font-weight:700; cursor:pointer; }
+      .trend-tab.active { background:var(--green); border-color:var(--green); color:#fff; }
+      .trend-charts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:14px; }
+      .trend-chart { border:1px solid var(--line); border-radius:13px; padding:13px; min-width:0; }
+      .trend-chart-head { display:flex; justify-content:space-between; gap:8px; align-items:baseline; margin-bottom:8px; }
+      .trend-chart-head span { color:var(--muted); font-size:11px; }
+      .trend-chart svg { width:100%; height:150px; overflow:visible; }
+      .trend-axis { stroke:#dce4df; stroke-width:1; }
+      .trend-line { fill:none; stroke:var(--green); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+      .trend-area { fill:rgba(80,126,100,.10); }
+      .trend-dot { fill:#fff; stroke:var(--green); stroke-width:2; }
+      .trend-labels { display:flex; justify-content:space-between; color:var(--muted); font-size:9px; margin-top:4px; }
       #dashboard-page.scope-current #legacy-dashboard,
       #dashboard-page.scope-legacy .current-dashboard-block { display:none !important; }
       .mini-metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:14px; }
@@ -772,8 +795,8 @@
       .ai-compose { display:grid; grid-template-columns:1fr auto; gap:8px; padding:12px; border-top:1px solid var(--line); }
       .ai-compose textarea { width:100%; min-width:0; resize:none; min-height:44px; max-height:100px; }
       @media (max-width: 1250px) {
-        .dashboard-toolbar { align-items:flex-start; flex-direction:column; }
-        .dashboard-actions { width:100%; justify-content:flex-end; border-top:1px solid var(--line); padding-top:10px; }
+        .dashboard-toolbar-primary,.dashboard-toolbar-secondary { align-items:flex-start; flex-direction:column; }
+        .dashboard-actions { width:100%; justify-content:flex-start; }
         .sales-hero { grid-template-columns:minmax(250px,.62fr) minmax(0,1.6fr); }
       }
       @media (max-width: 1050px) {
@@ -783,6 +806,7 @@
         .dashboard-kpis { grid-template-columns:repeat(3,1fr); }
         .legacy-dashboard-grid { grid-template-columns:repeat(2,1fr); }
         .legacy-dashboard-panels { grid-template-columns:1fr; }
+        .trend-charts { grid-template-columns:1fr; }
       }
       @media (max-width: 850px) {
         .app {
@@ -926,11 +950,18 @@
             <button id="new-inquiry" class="primary">+ 新建询盘</button>
           </div>
           <div class="dashboard-toolbar card">
+            <div class="dashboard-toolbar-primary">
+              <div class="dashboard-scope-group">
+                <div class="period-tabs" role="group" aria-label="统计周期"><button class="period-tab" data-period="today">今日</button><button class="period-tab" data-period="week">本周</button><button class="period-tab active" data-period="month">本月</button><button class="period-tab" data-period="quarter">本季度</button><button class="period-tab" data-period="year">本年度</button></div>
+                <select id="dashboard-period" class="input compact hidden"><option value="today">今日</option><option value="week">本周</option><option value="month" selected>本月</option><option value="quarter">本季度</option><option value="year">本年度</option><option value="all">全部历史</option><option value="custom">自定义</option></select>
+                <select id="dashboard-data-scope" class="input compact"><option value="current">当前 CRM</option><option value="legacy">历史工程</option><option value="combined">综合视图</option></select>
+                <input id="dashboard-start" class="input compact hidden" type="date" />
+                <input id="dashboard-end" class="input compact hidden" type="date" />
+              </div>
+              <div class="dashboard-actions"><button id="dashboard-targets" class="ghost">设置目标</button><button id="dashboard-export-csv" class="ghost">导出 Excel</button><button id="dashboard-export-pdf" class="ghost">导出 PDF</button></div>
+            </div>
+            <div class="dashboard-toolbar-secondary">
             <div class="dashboard-filter-group">
-              <select id="dashboard-period" class="input compact"><option value="today">今日</option><option value="week">本周</option><option value="month" selected>本月</option><option value="quarter">本季度</option><option value="year">本年度</option><option value="all">全部历史</option><option value="custom">自定义</option></select>
-              <select id="dashboard-data-scope" class="input compact"><option value="current">当前 CRM</option><option value="legacy">历史工程</option><option value="combined">综合视图</option></select>
-              <input id="dashboard-start" class="input compact hidden" type="date" />
-              <input id="dashboard-end" class="input compact hidden" type="date" />
               <select id="dashboard-team" class="input compact"><option value="">全部团队</option></select>
               <select id="dashboard-sales" class="input compact"><option value="">全部成员</option></select>
               <select id="dashboard-source" class="input compact"><option value="">全部来源</option></select>
@@ -939,7 +970,8 @@
               <select id="dashboard-deal-type" class="input compact"><option value="">首次成交＋复购</option><option value="first_order">首次成交</option><option value="repeat_order">复购</option></select>
               <button id="dashboard-apply" class="primary">应用筛选</button>
             </div>
-            <div class="dashboard-actions"><button id="dashboard-targets" class="ghost">设置目标</button><button id="dashboard-export-csv" class="ghost">导出 Excel</button><button id="dashboard-export-pdf" class="ghost">导出 PDF</button></div>
+            <span class="dashboard-scope-note">筛选条件会同步作用于看板、排名和导出</span>
+            </div>
           </div>
           <section id="legacy-dashboard" class="hidden">
             <div class="table-head"><span>历史工程经营概览</span><span class="dashboard-scope-note">独立历史口径，不参与响应率、成交率或 ROI</span></div>
@@ -980,6 +1012,10 @@
             <div class="card"><div class="kpi-label">报价率 <button class="metric-help" data-metric="quote_rate">?</button></div><div class="kpi-value" id="kpi-quote-rate">—</div></div>
             <div class="card"><div class="kpi-label">成交额 <button class="metric-help" data-metric="won_amount">?</button></div><div class="money-pair"><b id="kpi-won-cny">¥0</b><span id="kpi-won-usd">$0</span></div></div>
           </div>
+          <section class="dashboard-panel trend-panel current-dashboard-block">
+            <div class="trend-toolbar"><div><b>经营趋势</b><div class="dashboard-scope-note">随当前筛选条件同步更新</div></div><div class="trend-tabs"><button class="trend-tab active" data-trend-grain="day">每日</button><button class="trend-tab" data-trend-grain="month">每月</button><button class="trend-tab" data-trend-grain="year">每年</button></div></div>
+            <div id="dashboard-trend-charts" class="trend-charts"></div>
+          </section>
           <div class="leaderboards current-dashboard-block" id="dashboard-leaderboards"></div>
           <div class="dashboard-grid current-dashboard-block">
             <section class="dashboard-panel"><div class="panel-title"><b>商机阶段</b><button class="metric-help" data-metric="stage_pipeline">?</button></div><div class="pipeline" id="pipeline">
@@ -1959,7 +1995,7 @@
         legacy_amount:["历史工程合同额","旧 CRM 原表合同总金额汇总，单位为人民币万元。","仅用于历史工程分析，不等同于新 CRM 的已确认成交额。"],
         legacy_distribution:["历史工程分布","按旧 CRM 的国家/地区与产品类型统计项目数。","空值保留为未填写；历史项目不参与当前询盘转化指标。"]
       };
-      let dashboardState = { rows:[], profiles:[], history:[], followups:[], costs:[], targets:[], audits:[], rates:[], legacy:[] };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[], costs:[], targets:[], audits:[], rates:[], legacy:[], trendGrain:"day" };
       function dashboardRange() {
         const now = new Date(), type = $("#dashboard-period")?.value || "month";
         let start = new Date(now), end = new Date(now);
@@ -1991,6 +2027,18 @@
         return rate?amount*rate:null;
       }
       const sumWonCny=(rows)=>rows.reduce((sum,row)=>sum+(amountCny(row,true)||0),0);
+      function renderTrendCharts(rows){
+        const grain=dashboardState.trendGrain||"day",now=new Date(),buckets=[];
+        const keyFor=(date)=>{const d=new Date(date);return grain==="day"?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`:grain==="month"?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`:`${d.getFullYear()}`};
+        const count=grain==="day"?30:grain==="month"?12:5;
+        for(let i=count-1;i>=0;i--){const d=new Date(now);if(grain==="day")d.setDate(now.getDate()-i);else if(grain==="month")d.setMonth(now.getMonth()-i,1);else d.setFullYear(now.getFullYear()-i,0,1);buckets.push({key:keyFor(d),label:grain==="day"?`${d.getMonth()+1}/${d.getDate()}`:grain==="month"?`${d.getFullYear()}/${d.getMonth()+1}`:`${d.getFullYear()}`,inquiries:0,assigned:0,fast:0,sales:0})}
+        const map=new Map(buckets.map(x=>[x.key,x]));
+        rows.forEach(x=>{const created=map.get(keyFor(x.created_at));if(created)created.inquiries++;const assigned=map.get(keyFor(x.assigned_at));if(assigned&&x.assigned_at){assigned.assigned++;if(x.first_valid_contact_at&&new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000)assigned.fast++}const won=map.get(keyFor(x.won_at||x.created_at));if(won&&x.status==="won")won.sales+=amountCny(x,true)||0});
+        const charts=[{title:"新增询盘",unit:"条",values:buckets.map(x=>x.inquiries),format:v=>`${Math.round(v)} 条`},{title:"首次响应率",unit:"%",values:buckets.map(x=>x.assigned?x.fast/x.assigned*100:0),format:v=>`${v.toFixed(1)}%`},{title:"成交额",unit:"CNY",values:buckets.map(x=>x.sales),format:v=>money(v,"CNY")}];
+        const chartHtml=chart=>{const w=420,h=150,p=12,max=Math.max(...chart.values,1),points=chart.values.map((v,i)=>({x:p+(w-p*2)*(chart.values.length===1?0:i/(chart.values.length-1)),y:h-p-(h-p*2)*v/max,v})),line=points.map(q=>`${q.x},${q.y}`).join(" "),area=`${p},${h-p} ${line} ${w-p},${h-p}`,latest=chart.values.at(-1)||0,labels=[buckets[0]?.label,buckets[Math.floor((buckets.length-1)/2)]?.label,buckets.at(-1)?.label];return `<div class="trend-chart"><div class="trend-chart-head"><b>${chart.title}</b><span>最新 ${chart.format(latest)}</span></div><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${chart.title}趋势"><line class="trend-axis" x1="${p}" y1="${h-p}" x2="${w-p}" y2="${h-p}"/><polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${line}"/>${points.map(q=>`<circle class="trend-dot" cx="${q.x}" cy="${q.y}" r="3"><title>${chart.format(q.v)}</title></circle>`).join("")}</svg><div class="trend-labels"><span>${labels[0]||""}</span><span>${labels[1]||""}</span><span>${labels[2]||""}</span></div></div>`};
+        $("#dashboard-trend-charts").innerHTML=charts.map(chartHtml).join("");
+        $$(".trend-tab").forEach(button=>button.classList.toggle("active",button.dataset.trendGrain===grain));
+      }
       function renderLegacyDashboard(){
         const scope=$("#dashboard-data-scope")?.value||"current",page=$("#dashboard-page"),legacy=dashboardState.legacy||[];
         page.classList.remove("scope-current","scope-legacy","scope-combined");page.classList.add(`scope-${scope}`);
@@ -2024,7 +2072,7 @@
       }
       function renderDashboard(rows, profiles, history, followups) {
         const costs=dashboardState.costs||[], targets=dashboardState.targets||[],audits=dashboardState.audits||[],rates=dashboardState.rates||[];
-        dashboardState={rows,profiles,history,followups,costs,targets,audits,rates};
+        dashboardState={...dashboardState,rows,profiles,history,followups,costs,targets,audits,rates};
         const {type,start,end,previousStart,previousEnd}=dashboardRange();
         const selectedTeam=$("#dashboard-team")?.value||"", selectedSales=$("#dashboard-sales")?.value||"", selectedSource=$("#dashboard-source")?.value||"",selectedCountry=$("#dashboard-country")?.value||"",selectedProduct=$("#dashboard-product")?.value||"",selectedDealType=$("#dashboard-deal-type")?.value||"";
         const allowedProfiles=profiles.filter(p=>(!selectedTeam||p.team===selectedTeam)&&(!selectedSales||p.id===selectedSales));
@@ -2064,6 +2112,7 @@
         const previousWonCny=sumWonCny(scoped.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,previousStart,previousEnd))),teamSalesChange=valueChange(wonCny,previousWonCny);
         $("#hero-sales-change").textContent=teamSalesChange===null?"环比 —":teamSalesChange===0?"环比持平":`环比 ${teamSalesChange>0?'↑':'↓'} ${Math.abs(teamSalesChange).toFixed(1)}%`;
         $("#hero-sales-change").className=teamSalesChange>0?"trend-up":teamSalesChange<0?"trend-down":"";
+        renderTrendCharts(scoped);
         $("#hero-sales-ranking").innerHTML=renderLeaderboard("业务员销售额排名","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>`${money(v,"CNY")}<br><small>${usdCny?money(v/usdCny,"USD"):"汇率待更新"}</small>`);
         $("#hero-sales-ranking").firstElementChild?.classList.add("featured-sales-ranking");
         $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:x.changes.processing})),v=>`${v} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:x.changes.response})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:x.changes.conversion,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`);
@@ -3893,9 +3942,12 @@
         const custom = event.target.value === "custom";
         $("#dashboard-start").classList.toggle("hidden", !custom);
         $("#dashboard-end").classList.toggle("hidden", !custom);
+        $$(".period-tab").forEach(button=>button.classList.toggle("active",button.dataset.period===event.target.value));
         if (!custom) renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups);
       });
-      $("#dashboard-data-scope").addEventListener("change",event=>{if(event.target.value==="legacy")$("#dashboard-period").value="all";renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)});
+      $$(".period-tab").forEach(button=>button.addEventListener("click",()=>{$("#dashboard-period").value=button.dataset.period;$("#dashboard-period").dispatchEvent(new Event("change"))}));
+      $$(".trend-tab").forEach(button=>button.addEventListener("click",()=>{dashboardState.trendGrain=button.dataset.trendGrain;renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)}));
+      $("#dashboard-data-scope").addEventListener("change",event=>{const period=$("#dashboard-period");if(event.target.value==="legacy")period.value="all";else if(period.value==="all")period.value="month";$$(".period-tab").forEach(button=>button.classList.toggle("active",button.dataset.period===period.value));renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)});
       $("#dashboard-apply").addEventListener("click", () => renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups));
       $("#dashboard-targets").addEventListener("click", openTargetEditor);
       $("#dashboard-channel-cost").addEventListener("click", openChannelCostEditor);

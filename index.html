@@ -692,6 +692,20 @@
         animation: boot-spin 0.8s linear infinite;
       }
       @keyframes boot-spin { to { transform: rotate(360deg); } }
+      .ai-fab { position:fixed; right:26px; bottom:24px; z-index:60; display:flex; align-items:center; gap:9px; border:0; border-radius:999px; padding:13px 18px; background:#203d31; color:#fff; box-shadow:0 12px 34px rgba(19,48,36,.28); font-weight:800; cursor:pointer; }
+      .ai-fab svg { width:18px; height:18px; }
+      .ai-panel { position:fixed; z-index:70; right:24px; bottom:82px; width:min(430px,calc(100vw - 32px)); height:min(680px,calc(100vh - 115px)); display:flex; flex-direction:column; background:#fff; border:1px solid var(--line); border-radius:22px; box-shadow:0 24px 70px rgba(20,42,33,.24); overflow:hidden; }
+      .ai-panel-head { display:flex; align-items:center; justify-content:space-between; padding:17px 18px; border-bottom:1px solid var(--line); }
+      .ai-panel-head strong { display:flex; align-items:center; gap:8px; }
+      .ai-scope { padding:10px 18px; background:#f3f6f3; color:var(--muted); font-size:11px; }
+      .ai-messages { flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; gap:12px; }
+      .ai-message { max-width:88%; padding:11px 13px; border-radius:15px; white-space:pre-wrap; line-height:1.6; font-size:12px; }
+      .ai-message.assistant { align-self:flex-start; background:#f0f4f1; color:#20352b; border-bottom-left-radius:5px; }
+      .ai-message.user { align-self:flex-end; background:#315f49; color:#fff; border-bottom-right-radius:5px; }
+      .ai-suggestions { display:flex; gap:6px; overflow:auto; padding:0 14px 10px; }
+      .ai-suggestions button { flex:0 0 auto; border:1px solid var(--line); border-radius:999px; background:#fff; padding:7px 10px; font-size:10px; cursor:pointer; }
+      .ai-compose { display:grid; grid-template-columns:1fr auto; gap:8px; padding:12px; border-top:1px solid var(--line); }
+      .ai-compose textarea { resize:none; min-height:44px; max-height:100px; }
       @media (max-width: 850px) {
         .app {
           grid-template-columns: 64px 1fr;
@@ -1398,6 +1412,14 @@
     <div id="dashboard-modal" class="modal-backdrop hidden">
       <div class="modal" style="max-width:760px"><div class="modal-head"><h3 id="dashboard-modal-title">经营看板</h3><button id="dashboard-modal-close" class="close">×</button></div><div id="dashboard-modal-body" class="form-body"></div></div>
     </div>
+    <button id="ai-assistant-open" class="ai-fab hidden"><i data-lucide="sparkles"></i><span>AI 数据助手</span></button>
+    <aside id="ai-assistant-panel" class="ai-panel hidden" aria-label="AI 数据助手">
+      <div class="ai-panel-head"><strong><i data-lucide="bot"></i> AI 数据助手</strong><button id="ai-assistant-close" class="close">×</button></div>
+      <div id="ai-assistant-scope" class="ai-scope">读取当前权限及看板筛选范围</div>
+      <div id="ai-assistant-messages" class="ai-messages"><div class="ai-message assistant">你好，我可以总结你有权限查看的 CRM 数据。所有数字均由系统实时计算，并附带统计周期。</div></div>
+      <div class="ai-suggestions"><button data-ai-question="总结当前经营情况">总结经营情况</button><button data-ai-question="业务员销售额排名">销售额排名</button><button data-ai-question="有哪些超时和风险询盘">风险询盘</button><button data-ai-question="分析当前商机漏斗">商机漏斗</button></div>
+      <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
+    </aside>
     <script type="module">
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
       const supabase = createClient(
@@ -1523,6 +1545,7 @@
         $("#login").classList.add("hidden");
         $("#password-modal").classList.add("hidden");
         $("#app").classList.remove("hidden");
+        $("#ai-assistant-open").classList.remove("hidden");
         $("#user-name").textContent = profile.full_name;
         $("#user-role").textContent = profile.job_title || roleNames[profile.role] || profile.role;
         $("#avatar").textContent = profile.full_name.slice(0, 1);
@@ -1837,6 +1860,30 @@
         $$("[data-sales-detail]").forEach(row=>row.addEventListener("click",()=>openSalesDashboardDetail(row.dataset.salesDetail)));
       }
       function bindMetricHelp(){ $$(".metric-help").forEach(b=>{b.title=dashboardMetricDefinitions[b.dataset.metric]?.[1]||"查看指标定义"; b.onclick=()=>{const d=dashboardMetricDefinitions[b.dataset.metric]; if(d) alert(`${d[0]}\n\n${d[1]}\n\n口径：${d[2]}\n更新时间：${new Date().toLocaleString('zh-CN',{hour12:false})}`)}}); }
+      function aiDataContext(){
+        const rows=dashboardState.rows||[],profiles=dashboardState.profiles||[],history=dashboardState.history||[],followups=dashboardState.followups||[];
+        const {type,start,end}=dashboardRange(),team=$("#dashboard-team")?.value||"",sales=$("#dashboard-sales")?.value||"",source=$("#dashboard-source")?.value||"",country=$("#dashboard-country")?.value||"",product=$("#dashboard-product")?.value||"",dealType=$("#dashboard-deal-type")?.value||"";
+        const people=profiles.filter(p=>(!team||p.team===team)&&(!sales||p.id===sales)),ids=new Set(people.map(p=>p.id));
+        const scoped=rows.filter(x=>(!x.owner_id||ids.has(x.owner_id))&&(!source||(x.primary_source||x.source)===source)&&(!country||x.target_country===country)&&(!product||x.product_category===product)&&(!dealType||(x.deal_type||"first_order")===dealType)&&!x.excluded_from_dashboard);
+        const created=scoped.filter(x=>inRange(x.created_at,start,end)),won=scoped.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,start,end)),closed=created.filter(x=>["won","lost"].includes(x.status));
+        const assigned=scoped.filter(x=>x.assigned_at&&inRange(x.assigned_at,start,end)),responded=assigned.filter(x=>x.first_valid_contact_at),fast=responded.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000),overdue=assigned.filter(x=>!x.first_valid_contact_at&&Date.now()-new Date(x.assigned_at)>1800000);
+        const usd=fxToCny("USD")||0,totalCny=sumWonCny(won),salesStats=people.filter(p=>["sales","sales_manager"].includes(p.role)).map(p=>({name:p.full_name,amount:sumWonCny(won.filter(x=>x.owner_id===p.id)),won:won.filter(x=>x.owner_id===p.id).length,handled:created.filter(x=>x.owner_id===p.id&&x.first_valid_contact_at).length})).sort((a,b)=>b.amount-a.amount);
+        const stages=Object.keys(statusNames).map(key=>({name:statusNames[key],count:scoped.filter(x=>x.status===key).length})).filter(x=>x.count);
+        const risky=scoped.filter(x=>x.risk_flag||x.expected_close_date&&new Date(x.expected_close_date)<new Date()&&!['won','lost'].includes(x.status)||x.next_follow_up_at&&new Date(x.next_follow_up_at)<new Date());
+        const sources=[...new Set(created.map(x=>x.primary_source||x.source))].map(key=>({name:sourceNames[key]||key,count:created.filter(x=>(x.primary_source||x.source)===key).length})).sort((a,b)=>b.count-a.count);
+        return {type,start,end,created,won,closed,assigned,responded,fast,overdue,totalCny,usd,salesStats,stages,risky,sources,followups,history,scope:[team&&`团队:${team}`,sales&&`成员:${people.find(p=>p.id===sales)?.full_name}`,source&&`来源:${sourceNames[source]||source}`,country&&`国家:${country}`,product&&`品类:${product}`].filter(Boolean).join("；")||"当前权限内全部数据"};
+      }
+      function aiAnswer(question){
+        const c=aiDataContext(),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,q=question.toLowerCase(),moneyLine=`${money(c.totalCny,'CNY')}${c.usd?` / ${money(c.totalCny/c.usd,'USD')}`:" / 美元汇率待更新"}`;
+        const header=`统计周期：${period}\n数据范围：${c.scope}`;
+        if(/排名|排行|销售额|成交额|ranking/.test(q)) return `${header}\n\n团队成交额：${moneyLine}\n业务员销售额排名：\n${c.salesStats.map((x,i)=>`${i+1}. ${x.name}：${money(x.amount,'CNY')}${c.usd?` / ${money(x.amount/c.usd,'USD')}`:""}（${x.won} 单）`).join('\n')||'暂无可排名数据'}\n\n口径：按成交时间与成交日锁定汇率统计。`;
+        if(/风险|超时|预警|未跟进/.test(q)) return `${header}\n\n超时未首次响应：${c.overdue.length} 条\n高风险/逾期商机：${c.risky.length} 条\n${c.risky.slice(0,10).map((x,i)=>`${i+1}. ${x.title}（${statusNames[x.status]||x.status}）`).join('\n')||'当前没有可识别的风险商机'}\n\n建议：优先处理超时未响应，再核实预计成交日已过及跟进任务逾期的商机。`;
+        if(/漏斗|阶段|商机|转化/.test(q)) return `${header}\n\n当前商机阶段：\n${c.stages.map(x=>`• ${x.name}：${x.count} 条`).join('\n')||'暂无商机'}\n成交率：${pct(c.won.length,c.closed.length)}\n成交额：${moneyLine}\n\n口径：成交率=统计期内成交数÷已关闭数（成交+丢单）。`;
+        if(/来源|渠道|roi/.test(q)) return `${header}\n\n渠道询盘分布：\n${c.sources.map(x=>`• ${x.name}：${x.count} 条`).join('\n')||'暂无渠道数据'}\n\nROI 需结合市场部录入的月度渠道成本，详见经营看板“渠道表现与 ROI”。`;
+        return `${header}\n\n经营摘要：\n• 新增询盘 ${c.created.length} 条，已分配 ${c.assigned.length} 条\n• 30 分钟内首次有效响应率 ${pct(c.fast.length,c.assigned.length)}，超时未响应 ${c.overdue.length} 条\n• 成交 ${c.won.length} 单，成交率 ${pct(c.won.length,c.closed.length)}\n• 团队成交额 ${moneyLine}\n• 高风险或逾期商机 ${c.risky.length} 条\n• 当前销售额第一：${c.salesStats[0]?.name||'暂无'}${c.salesStats[0]?` （${money(c.salesStats[0].amount,'CNY')}）`:''}\n\n你可继续问：销售额排名、风险询盘、商机漏斗或渠道分布。`;
+      }
+      function addAiMessage(role,text){const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;$("#ai-assistant-messages").append(el);$("#ai-assistant-messages").scrollTop=$("#ai-assistant-messages").scrollHeight;}
+      function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
       function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
       function openSalesDashboardDetail(userId){
         const member=dashboardState.profiles.find(x=>x.id===userId); if(!member)return;
@@ -3570,6 +3617,16 @@
       $("#dashboard-targets").addEventListener("click", openTargetEditor);
       $("#dashboard-channel-cost").addEventListener("click", openChannelCostEditor);
       $("#dashboard-modal-close").addEventListener("click",()=>$("#dashboard-modal").classList.add("hidden"));
+      $("#ai-assistant-open").addEventListener("click",openAiAssistant);
+      $("#ai-assistant-close").addEventListener("click",()=>$("#ai-assistant-panel").classList.add("hidden"));
+      $$("[data-ai-question]").forEach(button=>button.addEventListener("click",()=>{$("#ai-assistant-input").value=button.dataset.aiQuestion;$("#ai-assistant-form").requestSubmit();}));
+      $("#ai-assistant-form").addEventListener("submit",async event=>{
+        event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
+        addAiMessage("user",question);input.value="";const grounded=aiAnswer(question),submit=event.submitter;submit.disabled=true;submit.textContent="分析中…";
+        let answer=grounded;
+        try{const {data,error}=await supabase.functions.invoke("crm-ai-assistant",{body:{question,grounded_answer:grounded}});if(!error&&data?.answer)answer=data.answer;}catch(error){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",error);}
+        submit.disabled=false;submit.textContent="提问";addAiMessage("assistant",answer);
+      });
       $("#dashboard-export-csv").addEventListener("click", () => {
         if (!["owner","sales_manager"].includes(profile?.role)) return toast("仅老板或销售主管可导出看板");
         const tableRows=[["榜单","名次","成员","实际值","环比","团队平均"]];

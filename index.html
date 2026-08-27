@@ -848,6 +848,7 @@
             <section class="dashboard-panel"><div class="panel-title"><b>渠道表现与 ROI</b><span><button id="dashboard-channel-cost" class="table-action">录入月度成本</button><button class="metric-help" data-metric="channel_roi">?</button></span></div><div id="dashboard-channels" class="dashboard-table-scroll"></div></section>
             <section class="dashboard-panel"><div class="panel-title"><b>跟进任务</b><button class="metric-help" data-metric="followup_completion">?</button></div><div id="dashboard-followups" class="mini-metrics"></div></section>
           </div>
+          <section class="dashboard-panel" style="margin-bottom:14px"><div class="panel-title"><b>目标完成进度</b><button class="metric-help" data-metric="sales_targets">?</button></div><div id="dashboard-target-progress" class="dashboard-table-scroll"></div></section>
           <div class="table-wrap">
             <div class="table-head">
               <span>最新询盘</span
@@ -1689,8 +1690,9 @@
         risk_alerts:["风险与待办","高风险、响应超时、计划跟进逾期、阶段停留超时、报价 7 天无反馈及预计成交日已过。","预警仅用于管理跟进，不自动修改客户或商机数据。"],
         channel_roi:["渠道 ROI","渠道归因成交额 ÷ 渠道成本。","MVP 由主来源获得 100% 归因；渠道成本由市场部按月录入。"],
         followup_completion:["跟进任务完成率","按期或逾期完成的跟进任务数 ÷ 到期任务数。","逾期后完成计入完成率，并单独标注“逾期完成”。"]
+        ,sales_targets:["目标完成进度","当前筛选周期内实际值 ÷ 已设置目标值。","支持个人、团队和全公司目标；目标由老板或销售主管设置。"]
       };
-      let dashboardState = { rows:[], profiles:[], history:[], followups:[], costs:[], targets:[] };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[], costs:[], targets:[], audits:[], rates:[] };
       function dashboardRange() {
         const now = new Date(), type = $("#dashboard-period")?.value || "month";
         let start = new Date(now), end = new Date(now);
@@ -1715,8 +1717,8 @@
         return `<section class="leaderboard"><div class="leaderboard-head"><b>${esc(title)}</b><button class="metric-help" data-metric="${metric}">?</button></div><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>环比</th><th>团队平均</th></tr></thead><tbody>${sorted.length?sorted.map((x,i)=>`<tr data-sales-detail="${x.id}"><td><span class="rank-pill ${i<3?'top':''}">${i+1}</span></td><td>${esc(x.name)}</td><td>${x.insufficient?'<span class="tag">样本不足</span> ':''}${format(x.value)}</td><td class="${x.change>0?'trend-up':x.change<0?'trend-down':''}">${x.change===null?'—':x.change===0?'持平 0.0%':`${x.change>0?'↑':'↓'} ${Math.abs(x.change).toFixed(1)}%`}</td><td>${format(average)}</td></tr>`).join(''):`<tr><td colspan="5">暂无可排名数据</td></tr>`}</tbody></table></section>`;
       }
       function renderDashboard(rows, profiles, history, followups) {
-        const costs=dashboardState.costs||[], targets=dashboardState.targets||[];
-        dashboardState={rows,profiles,history,followups,costs,targets};
+        const costs=dashboardState.costs||[], targets=dashboardState.targets||[],audits=dashboardState.audits||[],rates=dashboardState.rates||[];
+        dashboardState={rows,profiles,history,followups,costs,targets,audits,rates};
         const {type,start,end,previousStart,previousEnd}=dashboardRange();
         const selectedTeam=$("#dashboard-team")?.value||"", selectedSales=$("#dashboard-sales")?.value||"", selectedSource=$("#dashboard-source")?.value||"",selectedCountry=$("#dashboard-country")?.value||"",selectedProduct=$("#dashboard-product")?.value||"",selectedDealType=$("#dashboard-deal-type")?.value||"";
         const allowedProfiles=profiles.filter(p=>(!selectedTeam||p.team===selectedTeam)&&(!selectedSales||p.id===selectedSales));
@@ -1757,12 +1759,16 @@
         const stageHours={pending_assignment:.5,received:4,qualified:24,contacted:72,quoted:168,sample_sent:336,negotiating:336};
         const alerts=[]; overdue.forEach(x=>alerts.push(["红色",x.title,"首次响应已超 30 分钟"]));
         scoped.forEach(x=>{const entered=history.find(h=>h.inquiry_id===x.id&&h.to_status===x.status)?.entered_at||x.updated_at||x.created_at,limit=stageHours[x.status]; if(limit&&Date.now()-new Date(entered)>limit*3600000)alerts.push([Date.now()-new Date(entered)>limit*7200000?"红色":"黄色",x.title,`${statusNames[x.status]}阶段停留超时`]); if(x.next_follow_up_at&&new Date(x.next_follow_up_at)<new Date())alerts.push(["黄色",x.title,"计划跟进时间已过"]); if(x.expected_close_date&&new Date(x.expected_close_date)<new Date()&&!["won","lost"].includes(x.status))alerts.push(["黄色",x.title,"预计成交日期已过"]);});
+        scoped.forEach(x=>{const ownFollowups=followups.filter(f=>f.inquiry_id===x.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));if(ownFollowups.length>=3&&ownFollowups.slice(0,3).every(f=>!f.customer_feedback?.trim()))alerts.push(["黄色",x.title,"连续 3 次有效跟进无客户回复"]);if(["quoted","sample_sent","negotiating"].includes(x.status)&&x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000&&!ownFollowups.some(f=>f.customer_feedback?.trim()&&new Date(f.created_at)>new Date(x.quoted_at)))alerts.push(["黄色",x.title,"报价后 7 天无客户反馈"]);});
         $("#dashboard-alerts").innerHTML=alerts.length?alerts.slice(0,20).map(a=>`<div class="alert-item"><div><b>${esc(a[1])}</b><br><small>${esc(a[2])}</small></div><span class="alert-level">${a[0]}</span></div>`).join(''):`<div class="empty">暂无风险预警</div>`;
         const channels=["website","email","feishu","google_ads","meta_ads","linkedin","exhibition","self_developed","referral","other"];
         const channelLabels={website:"官网表单",email:"企业邮箱",feishu:"飞书",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",self_developed:"销售自主开发",referral:"经销商/客户转介绍",other:"其他"};
         $("#dashboard-channels").innerHTML=`<table><thead><tr><th>渠道</th><th>询盘量</th><th>有效率</th><th>成交额（人民币）</th><th>成本</th><th>ROI</th></tr></thead><tbody>${channels.map(c=>{const cr=periodRows.filter(x=>(x.primary_source||x.source)===c),cw=cr.filter(x=>x.status==="won").reduce((s,x)=>s+(Number(x.won_amount)||0)*(x.won_currency==="CNY"?1:Number(x.won_exchange_rate)||0),0),cost=costs.filter(x=>x.channel===c&&inRange(x.month,start,end)).reduce((s,x)=>s+(Number(x.amount_cny)||Number(x.amount)||0),0);return `<tr><td>${channelLabels[c]}</td><td>${cr.length}</td><td>${pct(cr.filter(x=>x.validity==="valid").length,cr.filter(x=>x.validity!=="pending").length)}</td><td>${money(cw,"CNY")}</td><td>${money(cost,"CNY")}</td><td>${cost?(cw/cost).toFixed(2):"—"}</td></tr>`}).join('')}</tbody></table>`;
         const due=followups.filter(f=>f.next_follow_up_at&&inRange(f.next_follow_up_at,start,end)), completed=due.filter(f=>f.completed_at), late=completed.filter(f=>new Date(f.completed_at)>new Date(f.next_follow_up_at));
         $("#dashboard-followups").innerHTML=`<div class="mini-metric"><span>到期任务</span><b>${due.length}</b></div><div class="mini-metric"><span>完成率</span><b>${pct(completed.length,due.length)}</b></div><div class="mini-metric"><span>逾期完成</span><b>${late.length}</b></div><div class="mini-metric"><span>仍未完成</span><b>${due.length-completed.length}</b></div>`;
+        const activeTargets=targets.filter(t=>new Date(t.period_start)<=end&&new Date(t.period_end)>=start);
+        const targetLabels={inquiries:"询盘处理量",response_rate:"首次响应率",won_amount:"成交额",conversion_rate:"成交率"};
+        $("#dashboard-target-progress").innerHTML=`<table><thead><tr><th>范围</th><th>对象</th><th>指标</th><th>目标值</th><th>实际值</th><th>完成率</th></tr></thead><tbody>${activeTargets.length?activeTargets.map(t=>{let related=periodRows;if(t.target_scope==="member")related=periodRows.filter(x=>x.owner_id===t.target_key);else if(t.target_scope==="team"){const ids=new Set(profiles.filter(p=>p.team===t.target_key).map(p=>p.id));related=periodRows.filter(x=>ids.has(x.owner_id));}const ra=related.filter(x=>x.assigned_at),rr=ra.filter(x=>x.first_valid_contact_at),rc=related.filter(x=>["won","lost"].includes(x.status));let actual=t.metric==="inquiries"?related.filter(x=>x.first_valid_contact_at).length:t.metric==="response_rate"?(ra.length?rr.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000).length/ra.length*100:0):t.metric==="won_amount"?related.filter(x=>x.status==="won").reduce((s,x)=>s+(Number(x.won_amount)||0)*(x.won_currency==="CNY"?1:Number(x.won_exchange_rate)||0),0):(rc.length?rc.filter(x=>x.status==="won").length/rc.length*100:0);const target=Number(t.target_value)||0,ratio=target?actual/target*100:0,object=t.target_scope==="company"?"全公司":t.target_scope==="team"?t.target_key:(profiles.find(p=>p.id===t.target_key)?.full_name||"未知成员");return `<tr><td>${{company:"公司",team:"团队",member:"个人"}[t.target_scope]}</td><td>${esc(object)}</td><td>${targetLabels[t.metric]||t.metric}</td><td>${t.metric==="won_amount"?money(target,"CNY"):target.toFixed(t.metric==="inquiries"?0:1)+(t.metric.includes("rate")?"%":"")}</td><td>${t.metric==="won_amount"?money(actual,"CNY"):actual.toFixed(t.metric==="inquiries"?0:1)+(t.metric.includes("rate")?"%":"")}</td><td><span class="tag">${ratio.toFixed(1)}%</span></td></tr>`}).join(''):'<tr><td colspan="6">当前周期尚未设置目标</td></tr>'}</tbody></table>`;
         bindMetricHelp();
         $$("[data-sales-detail]").forEach(row=>row.addEventListener("click",()=>openSalesDashboardDetail(row.dataset.salesDetail)));
       }
@@ -1830,11 +1836,13 @@
           toast("阶段时间加载失败：" + historyError.message);
           return;
         }
-        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: channelCosts }, { data: salesTargets }] = await Promise.all([
+        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: channelCosts }, { data: salesTargets }, { data: dashboardAudits }, { data: exchangeRates }] = await Promise.all([
           supabase.from("profiles").select("id,full_name,role,team,active").eq("active", true),
-          supabase.from("follow_ups").select("id,inquiry_id,author_id,next_follow_up_at,created_at").limit(2000),
+          supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").limit(2000),
           supabase.from("channel_costs").select("*").limit(500),
           supabase.from("sales_targets").select("*").limit(500),
+          supabase.from("audit_logs").select("entity_id,before_data,after_data,created_at").eq("entity_type","inquiry").order("created_at",{ascending:false}).limit(2000),
+          supabase.from("exchange_rates").select("*").order("rate_date",{ascending:false}).limit(500),
         ]);
         const teamSelect = $("#dashboard-team"), salesSelect = $("#dashboard-sales"), sourceSelect = $("#dashboard-source");
         if (teamSelect && teamSelect.options.length === 1) [...new Set((dashboardProfiles||[]).map(x=>x.team).filter(Boolean))].sort().forEach(v=>teamSelect.add(new Option(v,v)));
@@ -1843,7 +1851,7 @@
         const countrySelect=$("#dashboard-country"),productSelect=$("#dashboard-product");
         if(countrySelect&&countrySelect.options.length===1)[...new Set(rows.map(x=>x.target_country).filter(Boolean))].sort().forEach(v=>countrySelect.add(new Option(v,v)));
         if(productSelect&&productSelect.options.length===1)[...new Set(rows.map(x=>x.product_category).filter(Boolean))].sort().forEach(v=>productSelect.add(new Option(v,v)));
-        dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];
+        dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=exchangeRates||[];
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         const latestByInquiry = new Map();
         const latestByStage = new Map();
@@ -2105,7 +2113,7 @@
           supabase
             .from("follow_ups")
             .select(
-              "method,content,customer_feedback,next_follow_up_at,created_at,profiles(full_name)",
+              "id,author_id,method,content,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at,profiles(full_name)",
             )
             .eq("inquiry_id", id)
             .order("created_at", { ascending: false }),
@@ -2141,9 +2149,11 @@
           ...(follows || []).map((x) => ({
             time: x.created_at,
             text: `${x.profiles?.full_name || "成员"} · ${x.method}：${x.content}`,
-            sub: x.next_follow_up_at
-              ? `下次跟进 ${fmtDate(x.next_follow_up_at)}`
+            sub: x.completed_at ? `${x.completion_status === "overdue" ? "逾期完成" : "按期完成"} · ${fmtDate(x.completed_at)}` : x.next_follow_up_at
+              ? `待办：${fmtDate(x.next_follow_up_at)}`
               : x.customer_feedback || "跟进记录",
+            followId: x.id,
+            canComplete: Boolean(x.next_follow_up_at && !x.completed_at && (x.author_id === profile.id || ["owner","sales_manager"].includes(profile.role))),
           })),
         ].sort((a, b) => new Date(b.time) - new Date(a.time));
         const box = $("#detail-timeline");
@@ -2163,6 +2173,20 @@
           const small = document.createElement("small");
           small.textContent = `${fmtDate(event.time)} · ${event.sub}`;
           content.append(strong, document.createElement("br"), small);
+          if (event.canComplete) {
+            const complete = document.createElement("button");
+            complete.className = "table-action";
+            complete.style.marginTop = "8px";
+            complete.textContent = "标记已完成";
+            complete.addEventListener("click", async () => {
+              complete.disabled = true;
+              const { error } = await supabase.rpc("complete_follow_up_task", { target_follow_up_id: event.followId });
+              if (error) { complete.disabled = false; return toast("任务完成失败：" + error.message); }
+              toast("跟进任务已完成");
+              await Promise.all([loadTimeline(id), loadInquiries()]);
+            });
+            content.append(complete);
+          }
           item.append(dot, content);
           box.append(item);
         });

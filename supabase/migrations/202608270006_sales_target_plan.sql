@@ -31,6 +31,10 @@ create table if not exists public.sales_target_plan_items (
 
 alter table public.sales_target_people enable row level security;
 alter table public.sales_target_plan_items enable row level security;
+drop policy if exists sales_target_people_read on public.sales_target_people;
+drop policy if exists sales_target_plan_items_read on public.sales_target_plan_items;
+drop policy if exists sales_target_people_write on public.sales_target_people;
+drop policy if exists sales_target_plan_items_insert on public.sales_target_plan_items;
 create policy sales_target_people_read on public.sales_target_people for select to authenticated using (true);
 create policy sales_target_plan_items_read on public.sales_target_plan_items for select to authenticated using (true);
 create policy sales_target_people_write on public.sales_target_people for all to authenticated
@@ -79,7 +83,7 @@ with source(display_name,metric,vals) as (values
  ('王大平','crm_collection',array[0,0,0,0,0,0,0,30,30,30,30,30]::numeric[]),
  ('郝晓阳','crm_collection',array[0,0,0,0,0,0,0,30,30,30,30,30]::numeric[])
 ), expanded as (
- select p.id person_id,s.metric,m month_no,s.val target_value
+ select p.id person_id,s.metric,m.month_no,m.val target_value
  from source s join public.sales_target_people p on p.display_name=s.display_name
  cross join lateral unnest(s.vals) with ordinality as m(val,month_no)
 )
@@ -87,4 +91,3 @@ insert into public.sales_target_plan_items(person_id,target_year,target_month,me
 select person_id,2026,month_no,metric,target_value,'目标文件夹截图（2026海外事业部指标）','首次导入用户提供的年度目标表'
 from expanded where target_value>0
 on conflict(person_id,target_year,target_month,metric,revision) do nothing;
-

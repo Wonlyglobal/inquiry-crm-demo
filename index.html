@@ -375,6 +375,10 @@
       .alert-level { flex:0 0 auto; border-radius:999px; padding:5px 9px; background:#f7e5e3; color:#a43e38; font-size:10px; font-weight:800; white-space:nowrap; }
       .alert-level.attention { background:#fff2d9; color:#946719; }
       .dashboard-table-scroll { overflow:auto; }
+      .target-plan-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line)}
+      .target-plan-tabs{display:flex;gap:6px;flex-wrap:wrap}.target-plan-tab{border:1px solid var(--line);background:#fff;color:var(--muted);padding:8px 13px;border-radius:10px;font-weight:700}.target-plan-tab.active{background:#e9f0eb;color:#c76a28;border-color:#c9d9ce}
+      .target-plan-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:16px}.target-plan-summary .card{padding:14px}.target-plan-summary b{display:block;font-size:22px;margin-top:7px}
+      .target-plan-name{display:flex;flex-direction:column;gap:3px}.target-plan-name small{color:var(--muted)}.target-month-current{background:#fff6ed!important;color:#a95318!important}.target-total{font-weight:800;color:#315b45}
       .dashboard-scope-note { color:var(--muted); font-size:13px; }
       .legacy-dashboard-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
       .legacy-dashboard-panels { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
@@ -1087,7 +1091,8 @@
             <section id="dashboard-channel-panel" class="dashboard-panel"><div class="panel-title"><b>渠道表现与 ROI</b><span><button id="dashboard-channel-cost" class="table-action">录入月度成本</button><button class="metric-help" data-metric="channel_roi">?</button></span></div><div id="dashboard-channels" class="dashboard-table-scroll"></div></section>
             <section class="dashboard-panel"><div class="panel-title"><b>跟进任务</b><button class="metric-help" data-metric="followup_completion">?</button></div><div id="dashboard-followups" class="mini-metrics"></div></section>
           </div>
-          <section class="dashboard-panel current-dashboard-block" style="margin-bottom:14px"><div class="panel-title"><b>目标完成进度</b><button class="metric-help" data-metric="sales_targets">?</button></div><div id="dashboard-target-progress" class="dashboard-table-scroll"></div></section>
+          <section id="annual-target-plan" class="dashboard-panel current-dashboard-block" style="margin-bottom:14px"><div class="panel-title"><b>2026 海外事业部目标</b><button class="metric-help" data-metric="annual_target_plan">?</button></div><div class="target-plan-toolbar"><div class="target-plan-tabs"><button class="target-plan-tab active" data-target-plan-metric="contract_count">签约指标</button><button class="target-plan-tab" data-target-plan-metric="customer_development">客户开发</button><button class="target-plan-tab" data-target-plan-metric="crm_collection">CRM 信息收集</button></div><span id="target-plan-scope" class="dashboard-scope-note"></span></div><div id="target-plan-summary" class="target-plan-summary"></div><div id="target-plan-table" class="dashboard-table-scroll"></div></section>
+          <section class="dashboard-panel current-dashboard-block" style="margin-bottom:14px"><div class="panel-title"><b>经营指标完成进度</b><button class="metric-help" data-metric="sales_targets">?</button></div><div id="dashboard-target-progress" class="dashboard-table-scroll"></div></section>
           <div class="table-wrap current-dashboard-block">
             <div class="table-head">
               <span>最新询盘</span
@@ -2070,10 +2075,11 @@
         channel_roi:["渠道 ROI","渠道归因成交额 ÷ 渠道成本。","MVP 由主来源获得 100% 归因；渠道成本由市场部按月录入。"],
         followup_completion:["跟进任务完成率","按期或逾期完成的跟进任务数 ÷ 到期任务数。","逾期后完成计入完成率，并单独标注“逾期完成”。"]
         ,sales_targets:["目标完成进度","当前筛选周期内实际值 ÷ 已设置目标值。","支持个人、团队和全公司目标；目标由老板或销售主管设置。"],
+        annual_target_plan:["年度目标计划","用户提供的 2026 海外事业部月度目标，分别记录签约、客户开发和 CRM 信息收集。","个人只看本人；主管、市场和老板可看全部。源表中的大区合计由个人目标动态汇总，修改需新增修订并保留原值、修改人、时间和原因。"],
         legacy_amount:["历史工程合同额","旧 CRM 原表合同总金额汇总，单位为人民币万元。","仅用于历史工程分析，不等同于新 CRM 的已确认成交额。"],
         legacy_distribution:["历史工程分布","按旧 CRM 的国家/地区与产品类型统计项目数。","空值保留为未填写；历史项目不参与当前询盘转化指标。"]
       };
-      let dashboardState = { rows:[], profiles:[], history:[], followups:[], costs:[], targets:[], audits:[], rates:[], legacy:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
       function dashboardRange() {
         const now = new Date(), type = $("#dashboard-period")?.value || "month";
         let start = new Date(now), end = new Date(now);
@@ -2181,6 +2187,20 @@
         const emptyText=metric==="avg_response"?"当前周期尚无人完成首次有效联系，暂不能计算响应速度排名":"当前筛选周期暂无可排名业务数据";
         return `<section class="leaderboard"><div class="leaderboard-head"><b>${esc(title)}</b><button class="metric-help" data-metric="${metric}">?</button></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>环比</th><th>团队平均</th></tr></thead><tbody>${sorted.length?sorted.map((x,i)=>`<tr data-sales-detail="${x.id}" title="查看 ${esc(x.name)} 的业务详情"><td><span class="rank-pill ${hasRankableValue&&i<3?'top':''}">${hasRankableValue?i+1:'—'}</span></td><td>${esc(x.name)}</td><td>${x.insufficient?'<span class="tag">样本不足</span> ':''}${format(x.value)}</td><td class="${x.change>0?'trend-up':x.change<0?'trend-down':''}">${x.change===null?'—':x.change===0?'持平 0.0%':`${x.change>0?'↑':'↓'} ${Math.abs(x.change).toFixed(1)}%`}</td><td>${format(average)}</td></tr>`).join(''):`<tr><td colspan="5">${emptyText}</td></tr>`}</tbody></table></div></section>`;
       }
+      function renderAnnualTargetPlan(){
+        const people=dashboardState.targetPeople||[],items=(dashboardState.targetPlanItems||[]).filter(x=>x.is_current!==false),metric=dashboardState.targetPlanMetric||"contract_count",month=new Date().getMonth()+1,selectedSales=$("#dashboard-sales")?.value||"";
+        let visible=people;
+        if(profile?.role==="sales")visible=people.filter(x=>x.profile_id===profile.id);
+        else if(selectedSales)visible=people.filter(x=>x.profile_id===selectedSales);
+        const visibleIds=new Set(visible.map(x=>x.id)),metricItems=items.filter(x=>x.metric===metric&&visibleIds.has(x.person_id)),annual=metricItems.reduce((s,x)=>s+Number(x.target_value||0),0),current=metricItems.filter(x=>x.target_month===month).reduce((s,x)=>s+Number(x.target_value||0),0),regions=new Set(visible.map(x=>x.sales_region)).size,unmatched=visible.filter(x=>!x.profile_id).length;
+        $("#target-plan-scope").textContent=profile?.role==="sales"?"仅显示本人目标":selectedSales?"当前成员目标":"全部成员及大区汇总";
+        $("#target-plan-summary").innerHTML=[["年度目标",annual],[`${month} 月目标`,current],["目标成员",visible.length],["未匹配账号",unmatched]].map(([l,v])=>`<div class="card"><span class="kpi-label">${l}</span><b>${Number(v).toLocaleString("zh-CN")}</b></div>`).join("");
+        const regionRows=[...new Set(visible.map(x=>x.sales_region))].sort().map(region=>{const ids=new Set(visible.filter(p=>p.sales_region===region).map(p=>p.id));const vals=Array.from({length:12},(_,i)=>metricItems.filter(x=>ids.has(x.person_id)&&x.target_month===i+1).reduce((s,x)=>s+Number(x.target_value||0),0));return {name:region,sub:"大区汇总",vals,total:vals.reduce((a,b)=>a+b,0),group:true};});
+        const personRows=visible.map(p=>{const vals=Array.from({length:12},(_,i)=>metricItems.filter(x=>x.person_id===p.id&&x.target_month===i+1).reduce((s,x)=>s+Number(x.target_value||0),0));return{name:p.display_name,sub:[p.sales_region,p.job_title,p.note,!p.profile_id&&"账号待匹配"].filter(Boolean).join(" · "),vals,total:vals.reduce((a,b)=>a+b,0)};});
+        const rows=[...regionRows,...personRows];
+        $("#target-plan-table").innerHTML=`<table><thead><tr><th>人员/大区</th>${Array.from({length:12},(_,i)=>`<th class="${i+1===month?'target-month-current':''}">${i+1}月</th>`).join("")}<th>合计</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr><td><span class="target-plan-name"><b>${esc(r.name)}</b><small>${esc(r.sub)}</small></span></td>${r.vals.map((v,i)=>`<td class="${i+1===month?'target-month-current':''}">${v||"—"}</td>`).join("")}<td class="target-total">${r.total}</td></tr>`).join(""):'<tr><td colspan="14">暂无目标数据</td></tr>'}</tbody></table>`;
+        $$("[data-target-plan-metric]").forEach(btn=>btn.classList.toggle("active",btn.dataset.targetPlanMetric===metric));
+      }
       function renderDashboard(rows, profiles, history, followups) {
         const costs=dashboardState.costs||[], targets=dashboardState.targets||[],audits=dashboardState.audits||[],rates=dashboardState.rates||[];
         dashboardState={...dashboardState,rows,profiles,history,followups,costs,targets,audits,rates};
@@ -2227,6 +2247,7 @@
         renderSalesWorkbench(scoped,followups);
         renderManagerWorkbench(scoped,profiles,followups);
         renderMarketingWorkbench(scoped);
+        renderAnnualTargetPlan();
         $("#hero-sales-ranking").innerHTML=renderLeaderboard("业务员销售额排名","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>`${money(v,"CNY")}<br><small>${usdCny?money(v/usdCny,"USD"):"汇率待更新"}</small>`);
         $("#hero-sales-ranking").firstElementChild?.classList.add("featured-sales-ranking");
         $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:x.changes.processing})),v=>`${v} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:x.changes.response})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:x.changes.conversion,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`);
@@ -2392,11 +2413,13 @@
           toast("阶段时间加载失败：" + historyError.message);
           return;
         }
-        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: channelCosts }, { data: salesTargets }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }] = await Promise.all([
+        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }] = await Promise.all([
           supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active").eq("active", true),
           supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").limit(2000),
           supabase.from("channel_costs").select("*").limit(500),
           supabase.from("sales_targets").select("*").limit(500),
+          supabase.from("sales_target_people").select("*").order("sales_region").order("display_name"),
+          supabase.from("sales_target_plan_items").select("*").eq("target_year",2026).eq("is_current",true).limit(1000),
           supabase.from("audit_logs").select("entity_id,before_data,after_data,created_at").eq("entity_type","inquiry").order("created_at",{ascending:false}).limit(2000),
           supabase.from("exchange_rates").select("*").order("rate_date",{ascending:false}).limit(500),
           supabase.from("legacy_engineering_projects").select("legacy_project_id,country,partner_name,product_type,project_status,next_milestone_at,contract_amount_wan,legacy_owner_name,owner_id,source_created_at").limit(1000),
@@ -2412,7 +2435,7 @@
         if(countrySelect&&countrySelect.options.length===1)[...new Set([...rows.map(x=>x.target_country),...(legacyProjects||[]).map(x=>x.country)].filter(Boolean))].sort().forEach(v=>countrySelect.add(new Option(v,v)));
         if(productSelect&&productSelect.options.length===1)[...new Set([...rows.map(x=>x.product_category),...(legacyProjects||[]).map(x=>x.product_type)].filter(Boolean))].sort().forEach(v=>productSelect.add(new Option(v,v)));
         const syncedRates=await syncDailyExchangeRates(rows,exchangeRates||[]);
-        dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];
+        dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         const latestByInquiry = new Map();
         const latestByStage = new Map();
@@ -4072,6 +4095,7 @@
       });
       $$(".period-tab").forEach(button=>button.addEventListener("click",()=>{$("#dashboard-period").value=button.dataset.period;$("#dashboard-period").dispatchEvent(new Event("change"))}));
       $$(".trend-tab").forEach(button=>button.addEventListener("click",()=>{dashboardState.trendGrain=button.dataset.trendGrain;renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)}));
+      $$("[data-target-plan-metric]").forEach(button=>button.addEventListener("click",()=>{dashboardState.targetPlanMetric=button.dataset.targetPlanMetric;renderAnnualTargetPlan()}));
       $("#sales-view-inquiries").addEventListener("click",()=>switchView("inquiries"));
       $("#sales-open-profile").addEventListener("click",()=>openSalesProfilePage(profile.id));
       $("#sales-write-daily").addEventListener("click",openDailyReport);

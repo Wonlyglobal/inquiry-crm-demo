@@ -400,6 +400,14 @@
       .module-retry { margin-top:14px; }
       .module-loading-icon { animation:module-spin .9s linear infinite; }
       @keyframes module-spin { to { transform:rotate(360deg); } }
+      .module-insights { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:11px; margin-bottom:14px; }
+      .module-insight { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 15px; }
+      .module-insight span { display:block; margin-bottom:8px; color:var(--muted); font-size:11px; }
+      .module-insight b { font-size:21px; }
+      .legacy-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 22px; }
+      .legacy-detail-item { padding:11px 0; border-bottom:1px solid var(--line); }
+      .legacy-detail-item span { display:block; margin-bottom:5px; color:var(--muted); font-size:11px; }
+      .legacy-detail-item b,.legacy-detail-item div { line-height:1.55; overflow-wrap:anywhere; }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -796,6 +804,8 @@
         .module-table-toolbar { align-items:stretch; flex-direction:column; }
         .module-search-wrap { max-width:none; }
         #module-filter-summary { align-self:flex-start; }
+        .module-insights { grid-template-columns:1fr 1fr; }
+        .legacy-detail-grid { grid-template-columns:1fr; }
         #detail-modal { padding: 16px 0; }
         .detail-kpis { grid-template-columns: 1fr 1fr; }
         .kpis {
@@ -868,6 +878,8 @@
           <i data-lucide="users-round"></i><span>客户公海</span></button
         ><button class="nav" data-view="research">
           <i data-lucide="scan-search"></i><span>客户背调</span></button
+        ><button class="nav" data-view="legacy-projects">
+          <i data-lucide="folder-kanban"></i><span>历史工程</span></button
         ><button id="daily-report-button" class="nav" data-view="daily">
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
         ><button class="nav bottom" data-view="settings">
@@ -999,6 +1011,7 @@
               <button id="module-primary" class="primary hidden"></button>
             </div>
           </div>
+          <div id="module-insights" class="module-insights hidden"></div>
           <div class="table-wrap">
             <div class="table-head"><span id="module-table-title">数据列表</span><span id="module-count" class="tag">0 条</span></div>
             <div id="module-toolbar" class="module-table-toolbar hidden">
@@ -1731,6 +1744,7 @@
           assignment: ["待分配池", "主管按国家、语言、产品线和工作量进行分配", "等待分配的询盘"],
           "public-pool": ["客户公海", "展示当前无负责人的可认领客户", "公海客户"],
           research: ["客户背调", "公司基础信息、风险提示与 AI 调查结果", "公司调查记录"],
+          "legacy-projects": ["历史工程管控", "原 CRM 工程项目独立归档，不计入新询盘转化口径", "历史工程项目"],
           settings: ["系统设置", "成员、角色与首次登录状态", "成员账号"],
         }[view];
         if (!config) return;
@@ -1744,6 +1758,7 @@
         $("#module-toolbar").classList.add("hidden");
         $("#module-filter-summary").classList.add("hidden");
         $("#module-count").textContent = "—";
+        $("#module-insights").classList.add("hidden");
         setModuleState("loading");
         const modulePrimary = $("#module-primary");
         modulePrimary.classList.toggle("hidden", view !== "settings");
@@ -1774,6 +1789,10 @@
           query = supabase.from("companies").select("id,name,domain,country,company_type,main_business,risk_level,ai_summary,updated_at").order("updated_at", { ascending: false }).limit(200);
           columns = ["公司", "域名", "国家", "公司类型", "主营业务", "风险", "AI 摘要"];
           mapper = (x) => ({ cells: [x.name, x.domain, x.country, x.company_type, x.main_business, x.risk_level, x.ai_summary] });
+        } else if (view === "legacy-projects") {
+          query = supabase.from("legacy_engineering_projects").select("legacy_project_id,country,partner_name,partner_province,partner_city,customer_type,project_name,product_type,funnel_bucket,factory_price_amount,contract_no,contract_quantity,contract_amount_wan,website,project_status,next_milestone_at,project_total_quantity,lead_source,follow_up_status,contact_name,contact_details,contact_title,lost_reason,lost_reason_description,legacy_owner_name,legacy_creator_name,source_created_at,legacy_modifier_name,source_updated_at,department").order("legacy_project_id", { ascending: false }).limit(1000);
+          columns = ["旧 ID", "国家/地区", "合作方", "项目名称", "产品", "分类", "项目状态", "负责人", "下一节点", "合同金额（万元）", "操作"];
+          mapper = (x) => ({ cells: [x.legacy_project_id, x.country, x.partner_name, x.project_name, x.product_type, x.funnel_bucket, x.project_status, x.legacy_owner_name === "石舒" ? "石奕舒" : x.legacy_owner_name, x.next_milestone_at || "—", x.contract_amount_wan ?? "—"], actions: [{ label: "查看", onClick: () => openLegacyProject(x) }] });
         } else {
           query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,disabled_reason_type,disabled_reason,disabled_at,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,error_message)").order("created_at", { ascending: true });
           columns = ["姓名", "邮箱", "职称", "部门", "CRM 权限角色", "状态", "邮箱连接", "最后测试", "操作"];
@@ -1792,12 +1811,30 @@
         const { data, error } = await query;
         if (loadVersion !== moduleLoadVersion || view !== activeModuleView) return;
         if (error) { moduleColumns = columns; moduleRows = []; moduleRowClick = null; setModuleState("error", error.message); toast("页面加载失败：" + error.message); return; }
+        if (view === "legacy-projects") renderLegacyInsights(data || []);
         renderModuleTable(columns, (data || []).map(mapper), clickable ? (row) => row.id && openInquiryDetail(row.id) : null);
         icons();
       }
       $("#module-search").addEventListener("input", filterModuleRows);
       $("#module-search-clear").addEventListener("click", () => { $("#module-search").value = ""; $("#module-search").focus(); filterModuleRows(); });
       $("#module-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
+      function renderLegacyInsights(rows) {
+        const partners = new Set(rows.map(x => String(x.partner_name || "").trim().toLowerCase()).filter(Boolean)).size;
+        const amount = rows.reduce((sum, x) => sum + (Number(x.contract_amount_wan) || 0), 0);
+        const now = new Date(), next30 = new Date(now.getTime() + 30 * 86400000);
+        const upcoming = rows.filter(x => x.next_milestone_at && new Date(x.next_milestone_at) >= new Date(now.toDateString()) && new Date(x.next_milestone_at) <= next30).length;
+        const active = rows.filter(x => !/未中标|已竣工|已验收|已收质保金/.test(x.project_status || "")).length;
+        const items = [["历史项目", rows.length.toLocaleString("zh-CN")], ["合作方", partners.toLocaleString("zh-CN")], ["在推进项目", active.toLocaleString("zh-CN")], ["未来 30 天节点", upcoming.toLocaleString("zh-CN")], ["合同总额（万元）", amount.toLocaleString("zh-CN", { maximumFractionDigits: 2 })]];
+        $("#module-insights").innerHTML = items.map(([label,value]) => `<div class="module-insight"><span>${label}</span><b>${value}</b></div>`).join("");
+        $("#module-insights").classList.remove("hidden");
+      }
+      function openLegacyProject(project) {
+        const normalizedOwner = project.legacy_owner_name === "石舒" ? "石奕舒" : project.legacy_owner_name;
+        const fields = [["旧系统 ID",project.legacy_project_id],["国家/地区",project.country],["合作方",project.partner_name],["省份 / 城市",[project.partner_province,project.partner_city].filter(Boolean).join(" / ")],["客户类型",project.customer_type],["项目名称",project.project_name],["产品类型",project.product_type],["原系统分类",project.funnel_bucket],["项目状态",project.project_status],["预计下一节点",project.next_milestone_at],["工程总数量",project.project_total_quantity],["合同号",project.contract_no],["合同数量",project.contract_quantity],["合同金额（人民币万元）",project.contract_amount_wan],["工程信息来源",project.lead_source],["负责人",normalizedOwner],["部门",project.department],["联系人",project.contact_name],["联系人职务",project.contact_title],["联系方式",project.contact_details],["跟进情况",project.follow_up_status],["未中标原因",project.lost_reason],["原因描述",project.lost_reason_description],["创建人 / 时间",[project.legacy_creator_name,project.source_created_at ? fmtDate(project.source_created_at) : null].filter(Boolean).join(" · ")],["修改人 / 时间",[project.legacy_modifier_name,project.source_updated_at ? fmtDate(project.source_updated_at) : null].filter(Boolean).join(" · ")]];
+        let website = "";
+        if (project.website && !/^无$/i.test(project.website)) { try { const url = new URL(/^https?:\/\//i.test(project.website) ? project.website : `https://${project.website}`); website = `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(project.website)} ↗</a>`; } catch {} }
+        openDashboardModal(`历史工程 #${project.legacy_project_id} · ${project.partner_name || project.project_name || "项目详情"}`, `<div class="legacy-detail-grid">${fields.map(([label,value]) => `<div class="legacy-detail-item"><span>${esc(label)}</span><div>${value === null || value === undefined || value === "" ? "—" : esc(value)}</div></div>`).join("")}${website ? `<div class="legacy-detail-item"><span>网站</span><div>${website}</div></div>` : ""}</div><p class="hint" style="margin-top:16px">该记录来自旧 CRM 文件，仅用于历史工程管理，不计入新询盘响应率、成交率和渠道 ROI。</p>`);
+      }
       async function switchView(view) {
         $$(".nav[data-view]").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
         if (view === "daily") {

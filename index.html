@@ -429,6 +429,32 @@
       #detail-modal .modal-head { padding: 0 0 18px; }
       #detail-modal .form-body,
       #detail-modal .detail-pipeline-wrap { margin-bottom: 14px; border: 1px solid var(--line); border-radius: 17px; background: #fff; }
+      .detail-tabs {
+        position: sticky;
+        top: 0;
+        z-index: 8;
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        margin: 0 0 14px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(10px);
+      }
+      .detail-tab {
+        flex: 0 0 auto;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 10px 16px;
+        color: var(--muted);
+        background: transparent;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .detail-tab:hover { background: var(--soft); color: var(--ink); }
+      .detail-tab.active { background: var(--rail); color: #fff; }
       .detail-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
       .detail-kpi { padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
       .detail-kpi span { color: var(--muted); font-size: 11px; }
@@ -1089,11 +1115,18 @@
           <div class="detail-kpi"><span>询盘时间</span><b id="detail-kpi-time">—</b></div>
           <div class="detail-kpi"><span>有效性</span><b id="detail-kpi-validity">—</b></div>
         </div>
-        <div class="detail-pipeline-wrap">
+        <nav class="detail-tabs" aria-label="询盘详情分区">
+          <button class="detail-tab active" type="button" data-detail-tab="pipeline">流水线</button>
+          <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
+          <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
+          <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
+          <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
+        </nav>
+        <div class="detail-pipeline-wrap detail-section" data-detail-section="pipeline">
           <h4>询盘流水线</h4>
           <div id="detail-pipeline" class="detail-pipeline"></div>
         </div>
-        <div class="form-body">
+        <div class="form-body detail-section hidden" data-detail-section="summary">
           <h4>客户原文</h4>
           <textarea id="detail-original-message" class="input" rows="9" readonly></textarea>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px">
@@ -1111,14 +1144,13 @@
           <div class="field"><label>补充/修改原因（选填）</label><input id="detail-smart-reason" class="input" placeholder="可填写补充或修改说明" /></div>
           <div class="form-actions"><button id="save-smart-summary" class="primary">保存智能整理</button></div>
         </div>
-        <div class="form-body">
+        <div class="form-body detail-section hidden" data-detail-section="research">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
             <h4 style="margin:0">客户背调</h4>
             <div class="form-actions" style="margin:0">
               <button id="run-business-research" class="ghost hidden" type="button" aria-hidden="true">自动背调</button>
               <button id="upload-topease-report" class="ghost" type="button">导入特易报告</button>
               <button id="paste-topease-report" class="ghost" type="button">粘贴特易报告</button>
-              <button id="generate-outreach" class="ghost" type="button">一键生成开发信</button>
               <button id="complete-detail-research" class="ghost" type="button">完成本次背调</button>
             </div>
           </div>
@@ -1179,6 +1211,12 @@
           <div class="field"><label>推荐跟进策略</label><textarea id="detail-recommended-strategy" class="input" rows="4"></textarea></div>
           <div class="field"><label>补充/修改原因 *</label><input id="detail-research-reason" class="input" /></div>
           <div class="form-actions"><button id="calculate-research-score" class="ghost" type="button">重新计算评分</button><button id="save-detail-research" class="primary">保存背调信息</button></div>
+        </div>
+        <div class="form-body detail-section hidden" data-detail-section="outreach">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div><h4 style="margin:0">开发信</h4><p class="hint" style="margin:8px 0 0">独立使用已确认的背调证据生成英文草稿，不会自动发送。</p></div>
+            <button id="generate-outreach" class="primary" type="button">生成开发信草稿</button>
+          </div>
           <div id="outreach-draft" class="hidden" style="margin-top:24px">
             <h4>开发信草稿 <span class="tag">待人工审核</span></h4>
             <div class="detail-grid">
@@ -1194,7 +1232,7 @@
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
           </div>
         </div>
-        <div class="form-body">
+        <div class="form-body detail-section hidden" data-detail-section="followup">
           <div class="detail-grid">
             <div class="field">
               <label>当前阶段</label
@@ -1886,6 +1924,7 @@
         $("#dashboard-page").classList.add("hidden");
         $("#module-page").classList.add("hidden");
         $("#detail-modal").classList.remove("hidden");
+        setDetailTab("pipeline");
         const detailHash = `#inquiry/${id}`;
         if (location.hash !== detailHash)
           history.pushState({ inquiryId: id }, "", detailHash);
@@ -2159,6 +2198,11 @@
           );
         }),
       );
+      function setDetailTab(name = "pipeline") {
+        $$(".detail-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.detailTab === name));
+        $$(".detail-section").forEach((section) => section.classList.toggle("hidden", section.dataset.detailSection !== name));
+      }
+      $$(".detail-tab").forEach((tab) => tab.addEventListener("click", () => setDetailTab(tab.dataset.detailTab)));
       function domainOf(e) {
         return e.split("@")[1]?.toLowerCase() || null;
       }
@@ -2907,26 +2951,66 @@
         }
         return "";
       }
-      $("#generate-outreach").addEventListener("click", () => {
+      $("#generate-outreach").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const company = $("#detail-research-company").value.trim();
         const research = $("#detail-research-summary").value.trim();
         if (!company || !research) return toast("请先完成并确认客户背调");
-        const name = customerFacingEnglish($("#detail-smart-name").value, "", 80);
-        const demand = customerFacingEnglish($("#detail-smart-demand").value, "the door and locking products described in your inquiry", 320);
-        const project = customerFacingEnglish($("#detail-smart-project").value || currentInquiry.title, "your door and locking project", 140);
-        const objective = $("#outreach-objective").value;
-        const tone = $("#outreach-tone").value;
-        const greeting = name ? `Dear ${name},` : "Dear Purchasing Team,";
-        $("#outreach-subject-a").value = `Re: ${project}`;
-        $("#outreach-subject-b").value = objective === "meeting" ? `Technical discussion for ${project}` : objective === "quote" ? `Quotation details for ${project}` : `Specifications and next steps for ${project}`;
-        const ask = objective === "meeting" ? "Would a 20-minute online meeting this week be convenient to review the technical requirements?" : objective === "quote" ? "Please confirm the dimensions, finish, quantity, destination port, Incoterm and required delivery date so we can finalize the quotation." : "Could you please confirm the dimensions, finish, locking configuration, quantity, destination port and expected delivery schedule?";
-        const opener = tone === "direct" ? `We received your inquiry for ${project}.` : tone === "project" ? `Thank you for sharing the ${project} requirement. We are ready to move the project to the next technical step.` : `Thank you for your inquiry regarding ${project}. Based on our initial review, we would like to help your team define an accurate and commercially suitable solution.`;
-        $("#outreach-body").value = `${greeting}\n\n${opener}\n\nWe understand that you are evaluating ${demand}. We would be pleased to prepare the most suitable technical and commercial proposal based on your confirmed requirements.\n\n${ask}\n\nOnce confirmed, we can provide the recommended configuration, quotation or Proforma Invoice, sample plan and quality-inspection checklist.\n\n${unifiedEnglishSignature()}`;
-        $("#outreach-recipient").value = currentInquiry.email_intake?.sender_email || "";
-        $("#outreach-status").textContent = "新草稿 · 待人工审核";
-        $("#outreach-draft").classList.remove("hidden");
-        toast("开发信草稿已生成，状态为待人工审核，不会自动发送");
+        const button = $("#generate-outreach");
+        const recipient = currentInquiry.email_intake?.sender_email || $("#outreach-recipient").value.trim();
+        if (!recipient) return toast("缺少客户邮箱，无法通过联系人质量门槛");
+        button.disabled = true;
+        button.textContent = "调用开发信系统中…";
+        $("#outreach-status").textContent = "正在使用 wonly-personalized-outreach 生成并质检…";
+        try {
+          const companyRecord = currentInquiry.companies || {};
+          const response = await fetch("https://letter.foreverdoodle.com/api/outreach", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              company: {
+                ...companyRecord,
+                companyName: company,
+                website: $("#detail-research-domain").value.trim(),
+                country: $("#detail-smart-country").value.trim(),
+                contactName: $("#detail-smart-name").value.trim(),
+                contactTitle: $("#detail-smart-title").value.trim(),
+                contactRole: $("#detail-smart-title").value.trim(),
+                email: recipient,
+                emailVerificationStatus: "valid",
+              },
+              companyText: [
+                `Inquiry: ${currentInquiry.title || ""}`,
+                `Project: ${$("#detail-smart-project").value.trim()}`,
+                `Demand: ${$("#detail-smart-demand").value.trim()}`,
+                `Confirmed research summary: ${research}`,
+              ].join("\n"),
+              tone: $("#outreach-tone").value === "direct" ? "简洁直接" : $("#outreach-tone").value === "project" ? "项目推进式" : "专业顾问式",
+              targetLanguage: "英文",
+              length: "简短",
+              brandCompany: "WONLY GROUP",
+              replyPoints: `邮件目标：${$("#outreach-objective").selectedOptions[0]?.textContent || "确认需求"}。只使用已确认的询盘与背调事实。`,
+            }),
+          });
+          const generated = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(generated.error || `开发信系统返回 ${response.status}`);
+          const bodyWithSignature = `${generated.body || ""}\n\n${unifiedEnglishSignature()}`.trim();
+          const qualityError = validateCustomerFacingDraft(generated.subject || "", bodyWithSignature);
+          if (qualityError) throw new Error(qualityError);
+          $("#outreach-subject-a").value = generated.subject || "";
+          $("#outreach-subject-b").value = generated.subjectB || generated.subject || "";
+          $("#outreach-body").value = bodyWithSignature;
+          $("#outreach-recipient").value = recipient;
+          $("#outreach-status").textContent = "已通过开发信系统质检 · 待人工审核";
+          $("#outreach-draft").classList.remove("hidden");
+          toast("已使用邮件回复系统的个性化开发信逻辑生成并质检");
+        } catch (error) {
+          $("#outreach-status").textContent = "生成失败，未保存草稿";
+          toast("开发信生成失败：" + (error.message || error));
+        } finally {
+          button.disabled = false;
+          button.textContent = "生成开发信草稿";
+        }
       });
       $("#copy-outreach").addEventListener("click", async () => {
         const text = `Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`;

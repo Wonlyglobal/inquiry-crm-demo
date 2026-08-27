@@ -478,6 +478,23 @@
         box-shadow: none;
       }
       #detail-modal .modal-head { padding: 0 0 18px; }
+      #daily-modal { position:static; inset:auto; display:block; overflow:visible; padding:24px 0 48px; background:transparent; z-index:auto; }
+      #daily-modal.hidden { display:none; }
+      #daily-modal .modal { width:100%; max-width:none; max-height:none; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
+      #daily-modal .modal-head { padding:0 0 18px; }
+      #daily-modal .modal-head h3 { font-size:25px; }
+      #daily-modal .form-body { padding:0; }
+      .daily-toolbar { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:14px; padding:14px 16px; }
+      .daily-toolbar p { margin:4px 0 0; color:var(--muted); font-size:11px; }
+      .daily-date-control { display:flex; align-items:center; gap:8px; }
+      .daily-date-control label { color:var(--muted); font-size:11px; font-weight:700; }
+      .daily-summary-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
+      .daily-summary-kpis .card { padding:15px; }
+      .daily-summary-kpis span { display:block; color:var(--muted); font-size:11px; margin-bottom:8px; }
+      .daily-summary-kpis b { font-size:24px; }
+      .daily-content-card { padding:20px; }
+      .daily-report-table th,.daily-report-table td { vertical-align:top; }
+      .daily-report-table td:nth-child(4),.daily-report-table td:nth-child(5),.daily-report-table td:nth-child(6) { min-width:180px; white-space:normal; line-height:1.55; }
       #detail-modal .form-body,
       #detail-modal .detail-pipeline-wrap { margin-bottom: 14px; border: 1px solid var(--line); border-radius: 17px; background: #fff; }
       .detail-tabs {
@@ -764,6 +781,8 @@
         .dashboard-toolbar { align-items:flex-start; flex-direction:column; }
         .dashboard-actions { justify-content:flex-start; }
         .dashboard-kpis { grid-template-columns:1fr 1fr; }
+        .daily-toolbar { align-items:flex-start; flex-direction:column; }
+        .daily-summary-kpis { grid-template-columns:1fr 1fr; }
         .grid2 {
           grid-template-columns: 1fr;
         }
@@ -1122,14 +1141,13 @@
     <div id="daily-modal" class="modal-backdrop hidden">
       <div class="modal">
         <div class="modal-head">
-          <h3>销售日报</h3>
-          <button id="close-daily" class="close">×</button>
+          <div><h3>销售日报</h3><p>每日工作记录、提交进度与团队汇总</p></div>
+          <button id="close-daily" class="ghost">← 返回看板</button>
         </div>
         <div class="form-body">
+          <section class="daily-toolbar card"><div><b>日报日期</b><p>按中国自然日统计，历史日报可通过日期查看。</p></div><div class="daily-date-control"><label for="daily-date">选择日期</label><input id="daily-date" class="input compact" type="date" /></div></section>
           <div id="sales-daily-form">
-            <p class="hint">
-              每日按中国自然日提交。系统会自动统计今日跟进数量，主管可查看团队汇总。
-            </p>
+            <section class="card daily-content-card"><p class="hint">系统自动统计所选日期的跟进数量。已经提交的日报会自动带入，可以补充后再次保存。</p>
             <div class="detail-grid">
               <div class="field">
                 <label>今日新增客户线索</label
@@ -1165,11 +1183,13 @@
               ><textarea id="daily-plan" class="input" rows="2"></textarea>
             </div>
             <div class="form-actions">
-              <button id="submit-daily" class="primary">提交今日日报</button>
+              <button id="submit-daily" class="primary">保存日报</button>
             </div>
+            </section>
           </div>
           <div id="manager-daily-view" class="hidden">
-            <div class="table-wrap">
+            <div class="daily-summary-kpis"><div class="card"><span>应提交成员</span><b id="daily-kpi-total">0</b></div><div class="card"><span>已提交</span><b id="daily-kpi-submitted">0</b></div><div class="card"><span>新增线索</span><b id="daily-kpi-leads">0</b></div><div class="card"><span>跟进次数</span><b id="daily-kpi-followups">0</b></div></div>
+            <div class="table-wrap daily-report-table">
               <div class="table-head">
                 <span>今日团队日报</span
                 ><span id="daily-summary" class="tag">0/0 已提交</span>
@@ -1181,6 +1201,8 @@
                     <th>新增线索</th>
                     <th>跟进</th>
                     <th>关键进展</th>
+                    <th>困难与支持</th>
+                    <th>明日计划</th>
                     <th>提交时间</th>
                   </tr>
                 </thead>
@@ -1462,6 +1484,7 @@
       let currentInquiry = null;
       let notificationChannel = null;
       $(".main").appendChild($("#detail-modal"));
+      $(".main").appendChild($("#daily-modal"));
       const roleNames = {
         owner: "老板",
         sales_manager: "销售主管",
@@ -1712,9 +1735,12 @@
             await switchView("dashboard");
             return;
           }
+          $("#dashboard-page").classList.add("hidden");
+          $("#module-page").classList.add("hidden");
           await openDailyReport();
           return;
         }
+        $("#daily-modal").classList.add("hidden");
         const dashboard = view === "dashboard";
         $("#dashboard-page").classList.toggle("hidden", !dashboard);
         $("#module-page").classList.toggle("hidden", dashboard);
@@ -2452,6 +2478,8 @@
       }
       async function openDailyReport() {
         $("#daily-modal").classList.remove("hidden");
+        if (!$("#daily-date").value) $("#daily-date").value = chinaDate();
+        const selectedDate = $("#daily-date").value;
         const isManager = ["owner", "sales_manager"].includes(profile.role);
         $("#sales-daily-form").classList.toggle(
           "hidden",
@@ -2468,13 +2496,18 @@
             supabase
               .from("daily_sales_reports")
               .select(
-                "sales_id,new_leads_count,follow_up_count,key_progress,submitted_at,profiles(full_name)",
+                "sales_id,new_leads_count,follow_up_count,key_progress,blockers,tomorrow_plan,submitted_at,profiles(full_name)",
               )
-              .eq("report_date", chinaDate())
+              .eq("report_date", selectedDate)
               .order("submitted_at", { ascending: false }),
           ]);
+          const totalSales=sales?.length||0,totalReports=reports?.length||0;
           $("#daily-summary").textContent =
-            `${reports?.length || 0}/${sales?.length || 0} 已提交`;
+            `${totalReports}/${totalSales} 已提交`;
+          $("#daily-kpi-total").textContent=totalSales;
+          $("#daily-kpi-submitted").textContent=totalReports;
+          $("#daily-kpi-leads").textContent=(reports||[]).reduce((s,x)=>s+(Number(x.new_leads_count)||0),0);
+          $("#daily-kpi-followups").textContent=(reports||[]).reduce((s,x)=>s+(Number(x.follow_up_count)||0),0);
           const body = $("#daily-report-body");
           body.replaceChildren();
           $("#daily-empty").classList.toggle(
@@ -2488,6 +2521,8 @@
               x.new_leads_count,
               x.follow_up_count,
               x.key_progress || "—",
+              x.blockers || "—",
+              x.tomorrow_plan || "—",
               fmtDate(x.submitted_at),
             ].forEach((v) => {
               const td = document.createElement("td");
@@ -2497,17 +2532,16 @@
             body.append(tr);
           });
         } else if (profile.role === "sales") {
-          const date = chinaDate();
+          const date = selectedDate;
           const start = `${date}T00:00:00+08:00`;
           const nextDate = new Date(`${date}T00:00:00+08:00`);
           nextDate.setDate(nextDate.getDate() + 1);
-          const { count } = await supabase
-            .from("follow_ups")
-            .select("id", { count: "exact", head: true })
-            .eq("author_id", profile.id)
-            .gte("created_at", start)
-            .lt("created_at", nextDate.toISOString());
+          const [{count},{data:existing}]=await Promise.all([supabase.from("follow_ups").select("id",{count:"exact",head:true}).eq("author_id",profile.id).gte("created_at",start).lt("created_at",nextDate.toISOString()),supabase.from("daily_sales_reports").select("new_leads_count,follow_up_count,key_progress,blockers,tomorrow_plan").eq("sales_id",profile.id).eq("report_date",date).maybeSingle()]);
+          $("#daily-new-leads").value=existing?.new_leads_count||0;
           $("#daily-followups").value = count || 0;
+          $("#daily-progress").value=existing?.key_progress||"";
+          $("#daily-blockers").value=existing?.blockers||"";
+          $("#daily-plan").value=existing?.tomorrow_plan||"";
         }
       }
       $$(".nav[data-view]").forEach((item) =>
@@ -2519,13 +2553,12 @@
           switchView(item.dataset.view);
         }),
       );
-      $("#close-daily").addEventListener("click", () =>
-        $("#daily-modal").classList.add("hidden"),
-      );
+      $("#close-daily").addEventListener("click", () => switchView("dashboard"));
+      $("#daily-date").addEventListener("change",openDailyReport);
       $("#submit-daily").addEventListener("click", async () => {
         const payload = {
           sales_id: profile.id,
-          report_date: chinaDate(),
+          report_date: $("#daily-date").value || chinaDate(),
           new_leads_count: Number($("#daily-new-leads").value) || 0,
           follow_up_count: Number($("#daily-followups").value) || 0,
           key_progress: $("#daily-progress").value.trim() || null,
@@ -2540,8 +2573,8 @@
           toast("日报提交失败：" + error.message);
           return;
         }
-        toast("今日日报已提交给主管");
-        $("#daily-modal").classList.add("hidden");
+        toast("日报已保存并同步给主管");
+        await openDailyReport();
       });
       function localDateTimeValue(date = new Date()) {
         const offset = date.getTimezoneOffset() * 60000;

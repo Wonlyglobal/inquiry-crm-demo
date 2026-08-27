@@ -145,14 +145,26 @@ Deno.serve(async (req) => {
 
     const endpoint = await testMailbox(email, password);
 
-    const { data: connection, error: saveError } = await admin.from("mailbox_connections").upsert({
-      user_id: userId, email, smtp_host: endpoint.smtp, imap_host: endpoint.imap,
-      mailbox_kind: mailboxKind === "shared_inquiry" ? "shared_inquiry" : "personal",
+    const isSharedInquiry = mailboxKind === "shared_inquiry";
+    const connectionPayload = {
+      user_id: isSharedInquiry ? null : userId, email, smtp_host: endpoint.smtp, imap_host: endpoint.imap,
+      mailbox_kind: isSharedInquiry ? "shared_inquiry" : "personal",
       managed_team: mailboxKind === "shared_inquiry" ? "市场部" : null,
       sync_enabled: true,
       status: "connected", last_tested_at: new Date().toISOString(),
       error_message: null, created_by: user.id, updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id" }).select("id,email,status,last_tested_at").single();
+    };
+    let connectionQuery;
+    if (isSharedInquiry) {
+      const { data: existing, error: existingError } = await admin.from("mailbox_connections").select("id").eq("email", email).maybeSingle();
+      if (existingError) throw existingError;
+      connectionQuery = existing
+        ? admin.from("mailbox_connections").update(connectionPayload).eq("id", existing.id)
+        : admin.from("mailbox_connections").insert(connectionPayload);
+    } else {
+      connectionQuery = admin.from("mailbox_connections").upsert(connectionPayload, { onConflict: "user_id" });
+    }
+    const { data: connection, error: saveError } = await connectionQuery.select("id,email,status,last_tested_at").single();
     if (saveError) throw saveError;
     const { error: vaultError } = await admin.rpc("store_mailbox_secret", { target_connection_id: connection.id, secret_value: password });
     if (vaultError) throw vaultError;

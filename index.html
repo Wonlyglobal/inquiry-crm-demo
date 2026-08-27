@@ -414,6 +414,10 @@
       .sales-workbench-kpi { border:1px solid var(--line); border-radius:12px; padding:13px; }
       .sales-workbench-kpi span { color:var(--muted); font-size:11px; display:block; margin-bottom:7px; }
       .sales-workbench-kpi b { font-size:24px; }
+      .sales-workbench-kpi-link { width:100%; background:#fff; color:var(--ink); font:inherit; text-align:left; cursor:pointer; transition:border-color .18s,box-shadow .18s,transform .18s; }
+      .sales-workbench-kpi-link:hover { border-color:#8eaa98; box-shadow:0 8px 22px rgba(39,78,57,.10); transform:translateY(-1px); }
+      .sales-workbench-kpi-link:focus-visible { outline:3px solid rgba(209,115,50,.28); outline-offset:2px; }
+      .sales-workbench-kpi-link span::after { content:" →"; color:var(--brand); font-weight:800; }
       .sales-task-list { border-top:1px solid var(--line); padding:8px 14px 14px; }
       .sales-task-item { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; align-items:center; padding:11px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
       .sales-task-item:last-child { border-bottom:0; }
@@ -1846,7 +1850,7 @@
           })
           .subscribe();
       }
-      let activeModuleView = "", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
+      let activeModuleView = "", activeInquiryScope = "", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
       const inquiryManagementDefinitions = {
         "编号":["询盘编号","系统自动生成的唯一流水号，不因负责人、阶段或内容修改而改变。"],
         "询盘主题":["询盘主题","客户需求或邮件主题的简要标题；不代表系统已确认需求真实性。"],
@@ -1928,7 +1932,9 @@
         $("#module-empty").classList.toggle("hidden", rows.length > 0);
         if (!rows.length && !filtered) setModuleState("empty", `当前暂无${$("#module-table-title").textContent}`);
       }
-      async function loadModule(view) {
+      async function loadModule(view, options = {}) {
+        if (view !== "inquiries") activeInquiryScope = "";
+        if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
         const config = {
           inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
           email: ["邮件待处理", "查看由客户邮件进入的询盘和解析状态", "邮件收件记录"],
@@ -1986,6 +1992,12 @@
         let query, columns, mapper, clickable = false;
         if (["inquiries", "assignment", "public-pool"].includes(view)) {
           query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,source,owner_id,target_country,created_at").order("created_at", { ascending: false }).limit(200);
+          if (view === "inquiries" && activeInquiryScope === "open") {
+            query = query.not("status", "in", "(won,lost)");
+            $("#module-table-title").textContent = "进行中询盘";
+            $("#module-filter-summary").textContent = "已筛选：未成交、未丢单的进行中询盘";
+            $("#module-filter-summary").classList.remove("hidden");
+          }
           if (view === "assignment") query = query.eq("status", "pending_assignment");
           if (view === "public-pool") query = query.is("owner_id", null).neq("status", "pending_assignment");
           columns = ["编号", "询盘主题", "国家/地区", "来源", "阶段", "有效性", "创建时间"];
@@ -2047,7 +2059,7 @@
         if (project.website && !/^无$/i.test(project.website)) { try { const url = new URL(/^https?:\/\//i.test(project.website) ? project.website : `https://${project.website}`); website = `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(project.website)} ↗</a>`; } catch {} }
         openDashboardModal(`历史工程 #${project.legacy_project_id} · ${project.partner_name || project.project_name || "项目详情"}`, `<div class="legacy-detail-grid">${fields.map(([label,value]) => `<div class="legacy-detail-item"><span>${esc(label)}</span><div>${value === null || value === undefined || value === "" ? "—" : esc(value)}</div></div>`).join("")}${website ? `<div class="legacy-detail-item"><span>网站</span><div>${website}</div></div>` : ""}</div><p class="hint" style="margin-top:16px">该记录来自旧 CRM 文件，仅用于历史工程管理，不计入新询盘响应率、成交率和渠道 ROI。</p>`);
       }
-      async function switchView(view) {
+      async function switchView(view, options = {}) {
         $("#sales-profile-page").classList.add("hidden");
         $$(".nav[data-view]").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
         if (view === "daily") {
@@ -2065,7 +2077,7 @@
         const dashboard = view === "dashboard";
         $("#dashboard-page").classList.toggle("hidden", !dashboard);
         $("#module-page").classList.toggle("hidden", dashboard);
-        if (!dashboard) await loadModule(view);
+        if (!dashboard) await loadModule(view, options);
       }
       async function loadNotifications() {
         const { data, error } = await supabase
@@ -2176,7 +2188,8 @@
         if(profile?.role!=="sales")return;
         const mine=rows.filter(x=>x.owner_id===profile.id),open=mine.filter(x=>!["won","lost"].includes(x.status)),now=new Date(),today=chinaDate(),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
         const responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),ownFollowups=(followups||[]).filter(x=>x.author_id===profile.id),followupOverdue=ownFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),dueToday=ownFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.next_follow_up_at))===today),wonMonth=mine.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd)),wonCny=sumWonCny(wonMonth),usd=fxToCny("USD");
-        $("#sales-workbench-kpis").innerHTML=[["进行中询盘",open.length],["今日待跟进",dueToday.length],["首次响应超时",responseOverdue.length],["跟进已逾期",followupOverdue.length],["本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i===2||i===3?"danger-text":""}">${value}</b></div>`).join("");
+        $("#sales-workbench-kpis").innerHTML=[["进行中询盘",open.length],["今日待跟进",dueToday.length],["首次响应超时",responseOverdue.length],["跟进已逾期",followupOverdue.length],["本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>i===0?`<button type="button" class="sales-workbench-kpi sales-workbench-kpi-link" data-open-active-inquiries aria-label="查看 ${value} 条进行中询盘"><span>${label}</span><b>${value}</b></button>`:`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i===2||i===3?"danger-text":""}">${value}</b></div>`).join("");
+        $("[data-open-active-inquiries]")?.addEventListener("click",()=>switchView("inquiries",{inquiryScope:"open"}));
         const tasks=[];responseOverdue.forEach(x=>tasks.push({priority:1,id:x.id,title:x.title,reason:"首次有效联系已超过 30 分钟",time:x.assigned_at,label:"立即联系"}));followupOverdue.forEach(f=>{const x=mine.find(row=>row.id===f.inquiry_id);if(x)tasks.push({priority:2,id:x.id,title:x.title,reason:"计划跟进时间已过",time:f.next_follow_up_at,label:"补充跟进"})});open.filter(x=>x.risk_flag).forEach(x=>tasks.push({priority:3,id:x.id,title:x.title,reason:"高风险客户，需核验后继续",time:x.updated_at,label:"查看风险"}));dueToday.forEach(f=>{const x=mine.find(row=>row.id===f.inquiry_id);if(x&&!tasks.some(t=>t.id===x.id))tasks.push({priority:4,id:x.id,title:x.title,reason:"今日计划跟进",time:f.next_follow_up_at,label:"去跟进"})});
         tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
         $("#sales-task-list").innerHTML=tasks.length?tasks.slice(0,10).map(t=>`<div class="sales-task-item" data-sales-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>今日暂无紧急待办</b><small>可以继续处理正常跟进或新增客户线索</small></div>';

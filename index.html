@@ -807,6 +807,9 @@
               <select id="dashboard-team" class="input compact"><option value="">全部团队</option></select>
               <select id="dashboard-sales" class="input compact"><option value="">全部成员</option></select>
               <select id="dashboard-source" class="input compact"><option value="">全部来源</option></select>
+              <select id="dashboard-country" class="input compact"><option value="">全部国家/地区</option></select>
+              <select id="dashboard-product" class="input compact"><option value="">全部产品品类</option></select>
+              <select id="dashboard-deal-type" class="input compact"><option value="">首次成交＋复购</option><option value="first_order">首次成交</option><option value="repeat_order">复购</option></select>
               <button id="dashboard-apply" class="primary">应用筛选</button>
             </div>
             <div class="dashboard-actions"><button id="dashboard-targets" class="ghost">设置目标</button><button id="dashboard-export-csv" class="ghost">导出 Excel</button><button id="dashboard-export-pdf" class="ghost">导出 PDF</button></div>
@@ -831,6 +834,7 @@
             <div class="card"><div class="kpi-label">首次响应率 <button class="metric-help" data-metric="response_rate">?</button></div><div class="kpi-value" id="kpi-response-rate">—</div></div>
             <div class="card"><div class="kpi-label">平均首次响应 <button class="metric-help" data-metric="avg_response">?</button></div><div class="kpi-value" id="kpi-avg-response">—</div></div>
             <div class="card"><div class="kpi-label">成交率 <button class="metric-help" data-metric="conversion_rate">?</button></div><div class="kpi-value" id="kpi-conversion">—</div></div>
+            <div class="card"><div class="kpi-label">报价率 <button class="metric-help" data-metric="quote_rate">?</button></div><div class="kpi-value" id="kpi-quote-rate">—</div></div>
             <div class="card"><div class="kpi-label">成交额 <button class="metric-help" data-metric="won_amount">?</button></div><div class="money-pair"><b id="kpi-won-cny">¥0</b><span id="kpi-won-usd">$0</span></div></div>
           </div>
           <div class="leaderboards" id="dashboard-leaderboards"></div>
@@ -1679,6 +1683,7 @@
         response_rate:["首次响应率","分配后 30 分钟内完成首次有效联系的询盘数 ÷ 已分配询盘数。","转交后仍归属首位完成有效联系者。"],
         avg_response:["平均首次响应时长","首次有效联系时间减分配时间的平均值。","仅统计两个时间均有记录的询盘，越低越好。"],
         conversion_rate:["成交率","统计期内成交商机数 ÷ 统计期内已关闭商机数（成交＋丢单）。","今日/周/月/季/年正式排名最低关闭样本分别为 1/3/5/10/20。"],
+        quote_rate:["报价率","统计期内进入已报价或更后阶段的有效询盘数 ÷ 统计期内有效询盘数。","已寄样、谈判、成交、丢单均视为已经发生过报价。"],
         won_amount:["成交额","统计期内成交商机按成交日汇率折算后的金额。","归属成交时负责人；排行榜默认按人民币金额。成交数据锁定成交日汇率。"],
         stage_pipeline:["商机阶段","当前筛选范围内各阶段商机数量及最近进入时间。","阶段停留超过阈值黄色预警，超过两倍阈值红色预警。"],
         risk_alerts:["风险与待办","高风险、响应超时、计划跟进逾期、阶段停留超时、报价 7 天无反馈及预计成交日已过。","预警仅用于管理跟进，不自动修改客户或商机数据。"],
@@ -1713,10 +1718,10 @@
         const costs=dashboardState.costs||[], targets=dashboardState.targets||[];
         dashboardState={rows,profiles,history,followups,costs,targets};
         const {type,start,end,previousStart,previousEnd}=dashboardRange();
-        const selectedTeam=$("#dashboard-team")?.value||"", selectedSales=$("#dashboard-sales")?.value||"", selectedSource=$("#dashboard-source")?.value||"";
+        const selectedTeam=$("#dashboard-team")?.value||"", selectedSales=$("#dashboard-sales")?.value||"", selectedSource=$("#dashboard-source")?.value||"",selectedCountry=$("#dashboard-country")?.value||"",selectedProduct=$("#dashboard-product")?.value||"",selectedDealType=$("#dashboard-deal-type")?.value||"";
         const allowedProfiles=profiles.filter(p=>(!selectedTeam||p.team===selectedTeam)&&(!selectedSales||p.id===selectedSales));
         const allowedIds=new Set(allowedProfiles.map(p=>p.id));
-        const scoped=rows.filter(x=>(!x.owner_id||allowedIds.has(x.owner_id))&&(!selectedSource||(x.primary_source||x.source)===selectedSource)&&!x.excluded_from_dashboard);
+        const scoped=rows.filter(x=>(!x.owner_id||allowedIds.has(x.owner_id))&&(!selectedSource||(x.primary_source||x.source)===selectedSource)&&(!selectedCountry||x.target_country===selectedCountry)&&(!selectedProduct||x.product_category===selectedProduct)&&(!selectedDealType||(x.deal_type||"first_order")===selectedDealType)&&!x.excluded_from_dashboard);
         const periodRows=scoped.filter(x=>inRange(x.created_at,start,end));
         const decided=periodRows.filter(x=>x.validity!=="pending"), closed=periodRows.filter(x=>["won","lost"].includes(x.status)), won=periodRows.filter(x=>x.status==="won");
         $("#kpi-total").textContent=periodRows.length; $("#kpi-pending").textContent=scoped.filter(x=>x.status==="pending_assignment").length;
@@ -1728,6 +1733,7 @@
         $("#kpi-response-rate").textContent=pct(fast.length,assigned.length);
         $("#kpi-avg-response").textContent=mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN);
         $("#kpi-conversion").textContent=pct(won.length,closed.length);
+        const validPeriod=periodRows.filter(x=>x.validity==="valid"),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]);$("#kpi-quote-rate").textContent=pct(validPeriod.filter(x=>quotedStages.has(x.status)).length,validPeriod.length);
         const wonCny=won.reduce((s,x)=>s+(Number(x.won_amount)||0)*(x.won_currency==="CNY"?1:Number(x.won_exchange_rate)||0),0);
         $("#kpi-won-cny").textContent=money(wonCny,"CNY"); $("#kpi-won-usd").textContent=money(wonCny/7.15,"USD");
         const minSamples={today:1,week:3,month:5,quarter:10,year:20,custom:1};
@@ -1788,7 +1794,7 @@
         const { data, error } = await supabase
           .from("inquiries")
           .select(
-            "id,inquiry_no,title,source,status,validity,created_at,updated_at,owner_id,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,contacts(email)",
+            "id,inquiry_no,title,source,status,validity,created_at,updated_at,owner_id,target_country,product_category,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,contacts(email)",
           )
           .order("created_at", { ascending: false })
           .limit(100);
@@ -1834,6 +1840,9 @@
         if (teamSelect && teamSelect.options.length === 1) [...new Set((dashboardProfiles||[]).map(x=>x.team).filter(Boolean))].sort().forEach(v=>teamSelect.add(new Option(v,v)));
         if (salesSelect && salesSelect.options.length === 1) (dashboardProfiles||[]).filter(x=>["sales","sales_manager"].includes(x.role)).forEach(x=>salesSelect.add(new Option(x.full_name,x.id)));
         if (sourceSelect && sourceSelect.options.length === 1) Object.entries({...sourceNames,feishu:"飞书",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",self_developed:"销售自主开发",referral:"经销商/客户转介绍",other:"其他"}).forEach(([v,l])=>sourceSelect.add(new Option(l,v)));
+        const countrySelect=$("#dashboard-country"),productSelect=$("#dashboard-product");
+        if(countrySelect&&countrySelect.options.length===1)[...new Set(rows.map(x=>x.target_country).filter(Boolean))].sort().forEach(v=>countrySelect.add(new Option(v,v)));
+        if(productSelect&&productSelect.options.length===1)[...new Set(rows.map(x=>x.product_category).filter(Boolean))].sort().forEach(v=>productSelect.add(new Option(v,v)));
         dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         const latestByInquiry = new Map();

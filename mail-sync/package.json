@@ -1,0 +1,11 @@
+{
+  "name": "wonly-crm-mail-sync",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node src/index.mjs" },
+  "dependencies": {
+    "@supabase/supabase-js": "2.57.4",
+    "imapflow": "1.7.6",
+    "mailparser": "3.9.16"
+  }
+}

@@ -132,17 +132,24 @@ Deno.serve(async (req) => {
     const userId = String(body.user_id || "");
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
+    const mailboxKind = String(body.mailbox_kind || "personal");
     if (!userId || !email || !password) return new Response(JSON.stringify({ error: "成员、邮箱和客户端密码均为必填" }), { status: 400, headers: cors });
     const canManageOthers = caller.role === "owner" || mailboxAdministrators.has(callerEmail);
     const canSelfConnect = ["sales", "sales_manager"].includes(String(caller.role || ""));
     if (!canManageOthers && (!canSelfConnect || userId !== user.id || email !== callerEmail)) {
       return new Response(JSON.stringify({ error: "业务员只能连接自己的企业邮箱" }), { status: 403, headers: cors });
     }
+    if (mailboxKind === "shared_inquiry" && (!canManageOthers || email !== "inquiry@wonlyglobal.com")) {
+      return new Response(JSON.stringify({ error: "公共询盘邮箱只能由授权管理员配置" }), { status: 403, headers: cors });
+    }
 
     const endpoint = await testMailbox(email, password);
 
     const { data: connection, error: saveError } = await admin.from("mailbox_connections").upsert({
       user_id: userId, email, smtp_host: endpoint.smtp, imap_host: endpoint.imap,
+      mailbox_kind: mailboxKind === "shared_inquiry" ? "shared_inquiry" : "personal",
+      managed_team: mailboxKind === "shared_inquiry" ? "市场部" : null,
+      sync_enabled: true,
       status: "connected", last_tested_at: new Date().toISOString(),
       error_message: null, created_by: user.id, updated_at: new Date().toISOString(),
     }, { onConflict: "user_id" }).select("id,email,status,last_tested_at").single();

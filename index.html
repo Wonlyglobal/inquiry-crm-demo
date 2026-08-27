@@ -791,6 +791,7 @@
       .timeline-item small {
         color: var(--muted);
       }
+      .mail-thread{display:grid;gap:10px;margin-bottom:22px}.mail-message{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--white)}.mail-message.inbound{border-left:4px solid #c97424}.mail-message.outbound{border-left:4px solid var(--green)}.mail-message-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px}.mail-message p{margin:8px 0 0;white-space:pre-wrap;line-height:1.6;color:#33443c}.mail-summary{margin-top:10px;padding:10px;border-radius:10px;background:var(--soft);color:var(--muted)}
       .toast {
         position: fixed;
         right: 24px;
@@ -1632,6 +1633,9 @@
           <div class="form-actions">
             <button id="add-follow" class="primary">保存跟进</button>
           </div>
+          <h4>邮件沟通记录</h4>
+          <p class="hint">同步 CRM 发信、阿里邮箱 App 已发送邮件和客户回信；无法可靠关联的邮件不会混入此处。</p>
+          <div id="detail-mail-thread" class="mail-thread"></div>
           <h4>时间线（精确到秒）</h4>
           <div id="detail-timeline" class="timeline"></div>
         </div>
@@ -2710,7 +2714,7 @@
         }, 0);
       }
       async function loadTimeline(id) {
-        const [{ data: stages }, { data: follows }] = await Promise.all([
+        const [{ data: stages }, { data: follows }, { data: messages }, { data: summaries }] = await Promise.all([
           supabase
             .from("inquiry_stage_history")
             .select("to_status,entered_at")
@@ -2723,7 +2727,24 @@
             )
             .eq("inquiry_id", id)
             .order("created_at", { ascending: false }),
+          supabase.from("email_messages").select("id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,attachment_count,association_method").eq("inquiry_id",id).order("created_at",{ascending:true}),
+          supabase.from("communication_summaries").select("source_message_id,summary_zh,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}),
         ]);
+        const summaryByMessage=new Map((summaries||[]).map(x=>[x.source_message_id,x.summary_zh]));
+        const mailThread=$("#detail-mail-thread");mailThread.replaceChildren();
+        if(!messages?.length)mailThread.textContent="暂无已关联邮件";
+        else messages.forEach(message=>{
+          const item=document.createElement("article");item.className=`mail-message ${message.direction}`;
+          const head=document.createElement("div");head.className="mail-message-head";
+          const who=document.createElement("b");who.textContent=message.direction==="inbound"?`客户来信 · ${message.sender_email||"未知发件人"}`:`业务员发信 · 至 ${(message.recipient_emails||[]).join(", ")}`;
+          const time=document.createElement("small");time.textContent=fmtDate(message.received_at||message.sent_at);
+          head.append(who,time);const subject=document.createElement("strong");subject.textContent=message.subject||"无主题";
+          const body=document.createElement("p");body.textContent=(message.body_text||"").slice(0,4000)||"（无纯文本正文）";
+          item.append(head,subject,body);
+          if(message.attachment_count){const attachment=document.createElement("small");attachment.textContent=`附件 ${message.attachment_count} 个`;item.append(attachment)}
+          if(summaryByMessage.has(message.id)){const summary=document.createElement("div");summary.className="mail-summary";summary.textContent=`智能总结：${summaryByMessage.get(message.id)}`;item.append(summary)}
+          mailThread.append(item);
+        });
         const pipelineStatuses = [
           "pending_assignment", "received", "qualified", "contacted", "quoted",
           "sample_sent", "negotiating", "won", "lost",

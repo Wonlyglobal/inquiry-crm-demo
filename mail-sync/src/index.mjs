@@ -79,7 +79,8 @@ async function applyMatchedMessage(row, connection){
 }
 
 async function syncFolder(connection,password,folder){
-  const client=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false});
+  console.log(`${connection.email} syncing ${folder}`);
+  const client=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:15000,greetingTimeout:15000,socketTimeout:45000});
   await client.connect();
   try{
     const lock=await client.getMailboxLock(folder);
@@ -87,26 +88,34 @@ async function syncFolder(connection,password,folder){
       const {data:cursor}=await db.from('email_sync_cursors').select('*').eq('mailbox_connection_id',connection.id).eq('folder',folder).maybeSingle();
       const uidValidity=String(client.mailbox.uidValidity||'');
       const last=cursor?.uid_validity===uidValidity?Number(cursor.last_uid||0):0;
+      if(!cursor&&isSentFolder(folder)){
+        const baseline=Math.max(0,Number(client.mailbox.uidNext||1)-1);
+        await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:baseline,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
+        console.log(`${connection.email} initialized ${folder} at UID ${baseline}`);
+        return;
+      }
       const start=last?last+1:Math.max(1,Number(client.mailbox.uidNext||1)-initialLimit);
       let maxUid=last;
-      for await(const msg of client.fetch(`${start}:*`,{uid:true,source:true,envelope:true,headers:['message-id','in-reply-to','references']})){
+      for await(const msg of client.fetch(`${start}:*`,{uid:true,source:{start:0,maxLength:2_000_000},envelope:true,headers:['message-id','in-reply-to','references']})){
         if(msg.uid<=last)continue;
         maxUid=Math.max(maxUid,msg.uid);
         const parsed=await simpleParser(msg.source);
         const sent=isSentFolder(folder);
-        const record={mailbox_connection_id:connection.id,folder,uid:msg.uid,message_id:headerId(parsed.messageId),in_reply_to:headerId(parsed.inReplyTo),reference_ids:(parsed.references||[]).map(headerId),direction:sent?'outbound':'inbound',sender_email:cleanEmail(parsed.from?.value?.[0]?.address),recipient_emails:addrList(parsed.to),cc_emails:addrList(parsed.cc),subject:parsed.subject||'',body_text:parsed.text||'',body_html:typeof parsed.html==='string'?parsed.html:'',sent_at:sent?(parsed.date||new Date()).toISOString():null,received_at:sent?null:(parsed.date||new Date()).toISOString(),attachment_count:parsed.attachments?.length||0,raw_headers:{message_id:parsed.messageId||null,in_reply_to:parsed.inReplyTo||null,references:parsed.references||[]}};
+        const references=Array.isArray(parsed.references)?parsed.references:(parsed.references?[parsed.references]:[]);
+        const record={mailbox_connection_id:connection.id,folder,uid:msg.uid,message_id:headerId(parsed.messageId),in_reply_to:headerId(parsed.inReplyTo),reference_ids:references.map(headerId),direction:sent?'outbound':'inbound',sender_email:cleanEmail(parsed.from?.value?.[0]?.address),recipient_emails:addrList(parsed.to),cc_emails:addrList(parsed.cc),subject:parsed.subject||'',body_text:parsed.text||'',body_html:typeof parsed.html==='string'?parsed.html:'',sent_at:sent?(parsed.date||new Date()).toISOString():null,received_at:sent?null:(parsed.date||new Date()).toISOString(),attachment_count:parsed.attachments?.length||0,raw_headers:{message_id:parsed.messageId||null,in_reply_to:parsed.inReplyTo||null,references}};
         let match=await matchInquiry(record,connection);if(!match.id)match=await createInquiryFromShared(record,connection)||match;
         const {data:row,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
         if(error)throw error;if(row?.inquiry_id)await applyMatchedMessage(row,connection);
       }
       await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:maxUid,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
+      console.log(`${connection.email} finished ${folder} at UID ${maxUid}`);
     }finally{lock.release()}
   }finally{await client.logout().catch(()=>{})}
 }
 
 async function syncMailbox(connection){
   const password=await secretFor(connection.id);
-  const probe=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false});
+  const probe=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:15000,greetingTimeout:15000,socketTimeout:45000});
   await probe.connect();const boxes=await probe.list();await probe.logout();
   const inbox=boxes.find(x=>x.specialUse==='\\Inbox')?.path||'INBOX';
   const sent=boxes.find(x=>x.specialUse==='\\Sent')?.path||boxes.find(x=>isSentFolder(x.path))?.path;
@@ -116,7 +125,7 @@ async function syncMailbox(connection){
 
 async function cycle(){
   const {data,error}=await db.from('mailbox_connections').select('*').eq('status','connected').eq('sync_enabled',true);if(error)throw error;
-  for(const connection of data||[]){try{await syncMailbox(connection)}catch(error){console.error(connection.email,error);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}
+  await Promise.allSettled((data||[]).map(async connection=>{try{await syncMailbox(connection);console.log(`${connection.email} synced`)}catch(error){console.error(connection.email,error);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}));
   await writeFile('/tmp/healthy',new Date().toISOString());
 }
 

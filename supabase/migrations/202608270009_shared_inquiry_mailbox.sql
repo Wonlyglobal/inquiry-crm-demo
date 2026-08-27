@@ -17,7 +17,8 @@ create policy mailbox_connections_read on public.mailbox_connections for select 
       mailbox_kind = 'shared_inquiry'
       and lower(coalesce((select auth.jwt() ->> 'email'), '')) in (
         'chloelee@wonlyglobal.com',
-        'lyle@wonlyglobal.com'
+        'lyle@wonlyglobal.com',
+        'lingzx@wonlyglobal.com'
       )
     )
   );

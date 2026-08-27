@@ -10,6 +10,7 @@ const cors = {
 const mailboxAdministrators = new Set([
   "chloelee@wonlyglobal.com",
   "lyle@wonlyglobal.com",
+  "lingzx@wonlyglobal.com",
 ]);
 
 function envKey(groupedName: string, standardName: string) {

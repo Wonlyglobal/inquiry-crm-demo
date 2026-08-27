@@ -697,6 +697,8 @@
       .ai-panel { position:fixed; z-index:70; right:24px; bottom:82px; width:min(430px,calc(100vw - 32px)); height:min(680px,calc(100vh - 115px)); display:flex; flex-direction:column; background:#fff; border:1px solid var(--line); border-radius:22px; box-shadow:0 24px 70px rgba(20,42,33,.24); overflow:hidden; }
       .ai-panel-head { display:flex; align-items:center; justify-content:space-between; padding:17px 18px; border-bottom:1px solid var(--line); }
       .ai-panel-head strong { display:flex; align-items:center; gap:8px; }
+      .ai-panel-actions { display:flex; align-items:center; gap:5px; }
+      .ai-panel-actions button:not(.close) { border:1px solid var(--line); background:#fff; border-radius:9px; padding:6px 8px; font-size:10px; cursor:pointer; }
       .ai-scope { padding:10px 18px; background:#f3f6f3; color:var(--muted); font-size:11px; }
       .ai-messages { flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; gap:12px; }
       .ai-message { max-width:88%; padding:11px 13px; border-radius:15px; white-space:pre-wrap; line-height:1.6; font-size:12px; }
@@ -1414,7 +1416,7 @@
     </div>
     <button id="ai-assistant-open" class="ai-fab hidden"><i data-lucide="sparkles"></i><span>AI 数据助手</span></button>
     <aside id="ai-assistant-panel" class="ai-panel hidden" aria-label="AI 数据助手">
-      <div class="ai-panel-head"><strong><i data-lucide="bot"></i> AI 数据助手</strong><button id="ai-assistant-close" class="close">×</button></div>
+      <div class="ai-panel-head"><strong><i data-lucide="bot"></i> AI 数据助手</strong><div class="ai-panel-actions"><button id="ai-copy-result">复制</button><button id="ai-export-csv">导出 Excel</button><button id="ai-export-pdf">打印/PDF</button><button id="ai-assistant-close" class="close">×</button></div></div>
       <div id="ai-assistant-scope" class="ai-scope">读取当前权限及看板筛选范围</div>
       <div id="ai-assistant-messages" class="ai-messages"><div class="ai-message assistant">你好，我可以总结你有权限查看的 CRM 数据。所有数字均由系统实时计算，并附带统计周期。</div></div>
       <div class="ai-suggestions"><button data-ai-question="总结当前经营情况">总结经营情况</button><button data-ai-question="业务员销售额排名">销售额排名</button><button data-ai-question="有哪些超时和风险询盘">风险询盘</button><button data-ai-question="分析当前商机漏斗">商机漏斗</button></div>
@@ -1887,6 +1889,10 @@
         return [`统计周期：${period}`,`数据范围：${c.scope}`,`新增询盘：${c.created.length}`,`已分配询盘：${c.assigned.length}`,`30分钟内首次响应：${c.fast.length}；首次响应率：${pct(c.fast.length,c.assigned.length)}；超时未响应：${c.overdue.length}`,`有效询盘：${validCount}；有效询盘率：${pct(validCount,valid.length)}`,`成交：${c.won.length}；已关闭：${c.closed.length}；成交率：${pct(c.won.length,c.closed.length)}`,`团队成交额：${money(c.totalCny,'CNY')}${c.usd?` / ${money(c.totalCny/c.usd,'USD')}`:""}`,`业务员数据：\n${c.salesStats.map((x,i)=>`${i+1}. ${x.name}｜成交额 ${money(x.amount,'CNY')}${c.usd?`/${money(x.amount/c.usd,'USD')}`:""}｜成交 ${x.won}单｜处理 ${x.handled}条`).join('\n')||'暂无'}`,`商机阶段：${c.stages.map(x=>`${x.name}${x.count}条`).join('；')||'暂无'}`,`渠道分布：${c.sources.map(x=>`${x.name}${x.count}条`).join('；')||'暂无'}`,`风险或逾期商机：${c.risky.length}条${c.risky.length?`\n${c.risky.slice(0,20).map(x=>`• ${x.title}｜${statusNames[x.status]||x.status}｜负责人 ${dashboardState.profiles.find(p=>p.id===x.owner_id)?.full_name||'未分配'}`).join('\n')}`:''}`,`口径：成交额按成交时间、成交日锁定汇率和成交时负责人统计；未分配不计入业务员排名。`].join('\n\n');
       }
       let aiConversation=[];
+      function latestAiAnswer(){return [...aiConversation].reverse().find(x=>x.role==="assistant")?.content||"";}
+      function aiExportRows(){const c=aiDataContext(),generated=new Date().toLocaleString('zh-CN',{hour12:false}),rows=[["生成时间",generated],["统计周期",`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`],["数据范围",c.scope],[],["角色","内容"]];aiConversation.forEach(x=>rows.push([x.role==="user"?"成员提问":"AI 回答",x.content]));return rows;}
+      function exportAiCsv(){if(!aiConversation.length)return toast("请先向 AI 提问");const csv="\ufeff"+aiExportRows().map(row=>row.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`AI数据问答-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);}
+      function printAiResult(){if(!aiConversation.length)return toast("请先向 AI 提问");const c=aiDataContext(),frame=document.createElement("iframe");frame.style.display="none";document.body.append(frame);const doc=frame.contentDocument;doc.write(`<meta charset="utf-8"><title>AI数据问答</title><style>body{font:14px/1.7 Arial,sans-serif;padding:32px;color:#17271f}h1{font-size:22px}.meta{color:#65766d;margin-bottom:22px}.msg{padding:12px 14px;border:1px solid #dfe5e0;border-radius:10px;margin:10px 0;white-space:pre-wrap}.user{background:#edf4ef}</style><h1>WONLY CRM·AI 数据问答</h1><div class="meta">统计周期：${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}<br>数据范围：${esc(c.scope)}<br>生成时间：${new Date().toLocaleString('zh-CN',{hour12:false})}</div>${aiConversation.map(x=>`<div class="msg ${x.role}"><b>${x.role==="user"?"成员提问":"AI 回答"}</b><br>${esc(x.content)}</div>`).join('')}`);doc.close();setTimeout(()=>{frame.contentWindow.focus();frame.contentWindow.print();setTimeout(()=>frame.remove(),1000)},300);}
       function addAiMessage(role,text){const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;$("#ai-assistant-messages").append(el);$("#ai-assistant-messages").scrollTop=$("#ai-assistant-messages").scrollHeight;}
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
       function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
@@ -3624,6 +3630,9 @@
       $("#dashboard-modal-close").addEventListener("click",()=>$("#dashboard-modal").classList.add("hidden"));
       $("#ai-assistant-open").addEventListener("click",openAiAssistant);
       $("#ai-assistant-close").addEventListener("click",()=>$("#ai-assistant-panel").classList.add("hidden"));
+      $("#ai-copy-result").addEventListener("click",async()=>{const text=latestAiAnswer();if(!text)return toast("请先向 AI 提问");await navigator.clipboard.writeText(text);toast("已复制最新 AI 回答");});
+      $("#ai-export-csv").addEventListener("click",exportAiCsv);
+      $("#ai-export-pdf").addEventListener("click",printAiResult);
       $$("[data-ai-question]").forEach(button=>button.addEventListener("click",()=>{$("#ai-assistant-input").value=button.dataset.aiQuestion;$("#ai-assistant-form").requestSubmit();}));
       $("#ai-assistant-form").addEventListener("submit",async event=>{
         event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;

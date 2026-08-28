@@ -1654,6 +1654,7 @@
           <p class="hint">市场部、主管和老板可直接判断；业务员提交无效申请，由主管确认后关闭并计入经营看板。所有操作保留修改前内容、操作人、时间与原因。</p>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="followup">
+          <div id="detail-workflow-lock" class="notice hidden" style="margin-bottom:16px">请先在“有效性判断”中确认询盘有效；确认前不能推进阶段、分配负责人或新增跟进。</div>
           <div class="detail-grid">
             <div class="field">
               <label>当前阶段</label
@@ -3080,6 +3081,9 @@
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign || inquiry.validity!=="valid";
         owner.title = inquiry.validity!=="valid" ? "请先在“有效性判断”中确认有效" : "";
+        const workflowReady=inquiry.validity==="valid"&&inquiry.invalid_review_status!=="pending";
+        $("#detail-workflow-lock").classList.toggle("hidden",workflowReady);
+        ["detail-status","detail-won-amount","detail-won-currency","detail-estimated-amount","detail-estimated-currency","detail-probability","detail-expected-close","detail-deal-type","detail-primary-source","detail-risk-flag","detail-won-evidence","detail-reason","save-detail","follow-method","follow-next","follow-content","follow-feedback","add-follow"].forEach(id=>{const element=$("#"+id);if(element)element.disabled=!workflowReady});
         inquiry.email_intake = intake || null;
         const workflow = $("#email-workflow");
         workflow.classList.toggle("hidden", !intake);

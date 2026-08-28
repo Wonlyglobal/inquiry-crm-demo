@@ -4200,7 +4200,8 @@
         $("#mailbox-password").value = "";
         $("#mailbox-modal").classList.remove("hidden");
         requestAnimationFrame(() => {
-          $("#mailbox-email").value = sharedInquiry ? "inquiry@wonlyglobal.com" : selectedMemberEmail;
+          if (sharedInquiry) $("#mailbox-email").value = "inquiry@wonlyglobal.com";
+          else select.dispatchEvent(new Event("change"));
         });
       }
       $("#module-primary").addEventListener("click", () => openMailboxBinding());

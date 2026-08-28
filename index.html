@@ -1480,6 +1480,7 @@
           <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
+          <button class="detail-tab" type="button" data-detail-tab="audit">修改记录</button>
         </nav>
         <div class="detail-pipeline-wrap detail-section" data-detail-section="pipeline">
           <h4>询盘流水线</h4>
@@ -1712,6 +1713,10 @@
           <div id="detail-mail-thread" class="mail-thread"></div>
           <h4>时间线（精确到秒）</h4>
           <div id="detail-timeline" class="timeline"></div>
+        </div>
+        <div class="form-body detail-section hidden" data-detail-section="audit">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h4 style="margin:0">修改记录</h4><p class="hint" style="margin:8px 0 0">保留修改前内容、修改后内容、修改人、时间和原因；记录不可在此页面删除。</p></div><span id="detail-audit-count" class="tag">0 条</span></div>
+          <div id="detail-audit-list" class="timeline" style="margin-top:18px"></div>
         </div>
       </div>
     </div>
@@ -2941,8 +2946,11 @@
         el.textContent=`已停留 ${exactDuration(entered)}${limit?` · 建议时限 ${limit<1?`${limit*60}分钟`:`${limit}小时`}`:''}${overdue?' · 已超时':''}`;
         el.classList.toggle("danger-text",Boolean(overdue));
       }
+      const auditFieldLabels={status:"当前阶段",owner_id:"负责人",validity:"询盘有效性",invalid_reason:"无效原因",lost_reason:"丢单原因",estimated_amount:"预计金额",currency:"预计币种",won_amount:"成交金额",won_currency:"成交币种",probability:"成交概率",expected_close_date:"预计成交日期",deal_type:"商机类型",primary_source:"主来源",risk_flag:"高风险标识",target_country:"国家/地区",contact_name:"联系人姓名",contact_job_title:"联系人职称",demand_summary:"需求",project_name:"项目名"};
+      function auditValue(key,value){if(value===null||value===undefined||value==="")return "—";if(key==="status")return statusNames[value]||value;if(key==="owner_id")return dashboardState.profiles.find(x=>x.id===value)?.full_name||"未分配";if(key==="validity")return {pending:"待确认",valid:"有效",invalid:"无效"}[value]||value;if(key==="risk_flag")return value?"是":"否";if(key==="deal_type")return {new:"首次成交",first_order:"首次成交",repeat:"复购",repeat_order:"复购"}[value]||value;if(key==="invalid_reason"||key==="lost_reason"){const parsed=parseOutcomeReason(value);return [outcomeReasonNames[parsed.type],parsed.detail].filter(Boolean).join("：")||String(value)}if(typeof value==="object")return "已更新";return String(value)}
+      function renderAuditTrail(audits=[]){const list=$("#detail-audit-list"),visibleFields=Object.keys(auditFieldLabels);$("#detail-audit-count").textContent=`${audits.length} 条`;list.innerHTML=audits.length?audits.map(a=>{const before=a.before_data||{},after=a.after_data||{},changes=visibleFields.filter(key=>JSON.stringify(before[key])!==JSON.stringify(after[key])&&(key in before||key in after));const actor=dashboardState.profiles.find(x=>x.id===a.actor_id)?.full_name||(a.actor_id===profile?.id?profile.full_name:"系统/未知成员"),action={update:"更新询盘",research_completed:"完成背调",smart_summary:"保存智能整理",assignment:"分配询盘"}[a.action]||"更新记录";return `<article><strong>${esc(action)} · ${esc(actor)}</strong><small>${fmtDate(a.created_at)} · 原因：${esc(a.reason||"未填写")}</small>${changes.length?`<div class="dashboard-table-scroll" style="margin-top:10px"><table><thead><tr><th>字段</th><th>修改前</th><th>修改后</th></tr></thead><tbody>${changes.map(key=>`<tr><td>${auditFieldLabels[key]}</td><td>${esc(auditValue(key,before[key]))}</td><td>${esc(auditValue(key,after[key]))}</td></tr>`).join("")}</tbody></table></div>`:`<p class="hint" style="margin:8px 0 0">该操作已留痕，未涉及可公开展示的业务字段。</p>`}</article>`}).join(""):`<div class="empty">暂无修改记录</div>`}
       async function loadTimeline(id) {
-        const [{ data: stages }, { data: follows }, { data: messages }, { data: summaries }] = await Promise.all([
+        const [{ data: stages }, { data: follows }, { data: messages }, { data: summaries }, { data: audits }] = await Promise.all([
           supabase
             .from("inquiry_stage_history")
             .select("to_status,entered_at")
@@ -2957,7 +2965,9 @@
             .order("created_at", { ascending: false }),
           supabase.from("email_messages").select("id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,attachment_count,association_method").eq("inquiry_id",id).order("created_at",{ascending:true}),
           supabase.from("communication_summaries").select("source_message_id,summary_zh,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}),
+          supabase.from("audit_logs").select("id,actor_id,action,reason,before_data,after_data,created_at").eq("entity_type","inquiry").eq("entity_id",id).order("created_at",{ascending:false}).limit(200),
         ]);
+        renderAuditTrail(audits||[]);
         const communicationTimes=[...(messages||[]).map(x=>x.received_at||x.sent_at).filter(Boolean),...(follows||[]).map(x=>x.created_at).filter(Boolean)].sort((a,b)=>new Date(b)-new Date(a)),lastContact=communicationTimes[0],nextFollow=[...(follows||[])].filter(x=>x.next_follow_up_at&&!x.completed_at).sort((a,b)=>new Date(a.next_follow_up_at)-new Date(b.next_follow_up_at))[0];
         const lastContactEl=$("#detail-kpi-last-contact"),nextFollowEl=$("#detail-kpi-next-followup");
         lastContactEl.textContent=lastContact?taskTimeText(lastContact):"暂无沟通记录";lastContactEl.classList.toggle("danger-text",Boolean(lastContact&&Date.now()-new Date(lastContact)>7*86400000));

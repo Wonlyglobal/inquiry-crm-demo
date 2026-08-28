@@ -651,7 +651,7 @@
       }
       .detail-tab:hover { background: var(--soft); color: var(--ink); }
       .detail-tab.active { background: var(--rail); color: #fff; }
-      .detail-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+      .detail-kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap: 12px; margin-bottom: 14px; }
       .detail-kpi { padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
       .detail-kpi span { color: var(--muted); font-size: 11px; }
       .detail-kpi b { display: block; margin-top: 9px; font-size: 17px; }
@@ -1459,6 +1459,8 @@
           <div class="detail-kpi"><span>负责人</span><b id="detail-kpi-owner">—</b></div>
           <div class="detail-kpi"><span>询盘时间</span><b id="detail-kpi-time">—</b></div>
           <div class="detail-kpi"><span>有效性</span><b id="detail-kpi-validity">—</b></div>
+          <div class="detail-kpi"><span>最近沟通</span><b id="detail-kpi-last-contact">—</b></div>
+          <div class="detail-kpi"><span>下次跟进</span><b id="detail-kpi-next-followup">—</b></div>
         </div>
         <nav class="detail-tabs" aria-label="询盘详情分区">
           <button class="detail-tab active" type="button" data-detail-tab="pipeline">流水线</button>
@@ -2928,6 +2930,10 @@
           supabase.from("email_messages").select("id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,attachment_count,association_method").eq("inquiry_id",id).order("created_at",{ascending:true}),
           supabase.from("communication_summaries").select("source_message_id,summary_zh,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}),
         ]);
+        const communicationTimes=[...(messages||[]).map(x=>x.received_at||x.sent_at).filter(Boolean),...(follows||[]).map(x=>x.created_at).filter(Boolean)].sort((a,b)=>new Date(b)-new Date(a)),lastContact=communicationTimes[0],nextFollow=[...(follows||[])].filter(x=>x.next_follow_up_at&&!x.completed_at).sort((a,b)=>new Date(a.next_follow_up_at)-new Date(b.next_follow_up_at))[0];
+        const lastContactEl=$("#detail-kpi-last-contact"),nextFollowEl=$("#detail-kpi-next-followup");
+        lastContactEl.textContent=lastContact?taskTimeText(lastContact):"暂无沟通记录";lastContactEl.classList.toggle("danger-text",Boolean(lastContact&&Date.now()-new Date(lastContact)>7*86400000));
+        nextFollowEl.textContent=nextFollow?taskTimeText(nextFollow.next_follow_up_at):(['won','lost'].includes(currentInquiry?.status)?"商机已关闭":"尚未安排");nextFollowEl.classList.toggle("danger-text",Boolean(nextFollow&&new Date(nextFollow.next_follow_up_at)<new Date()));
         const summaryByMessage=new Map((summaries||[]).map(x=>[x.source_message_id,x.summary_zh]));
         const mailThread=$("#detail-mail-thread");mailThread.replaceChildren();
         if(!messages?.length)mailThread.textContent="暂无已关联邮件";

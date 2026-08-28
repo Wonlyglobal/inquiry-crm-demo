@@ -665,6 +665,11 @@
         overflow-x: auto;
         padding-bottom: 12px;
       }
+      .next-action-card { margin-top:14px; padding:16px; border:1px solid #cfdcd3; border-radius:14px; background:linear-gradient(135deg,#f4f8f5,#fff); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; align-items:center; }
+      .next-action-card.urgent { border-color:#e7b3ac; background:linear-gradient(135deg,#fff4f2,#fff); }
+      .next-action-card span { display:block; color:var(--muted); font-size:11px; margin-bottom:5px; }
+      .next-action-card b { display:block; font-size:17px; }
+      .next-action-card p { margin:6px 0 0; color:var(--muted); font-size:12px; }
       .pipeline-step {
         min-width: 112px;
         flex: 1;
@@ -1457,6 +1462,7 @@
         <div class="detail-pipeline-wrap detail-section" data-detail-section="pipeline">
           <h4>询盘流水线</h4>
           <div id="detail-pipeline" class="detail-pipeline"></div>
+          <div id="detail-next-action" class="next-action-card"><div><span>系统建议的下一步</span><b>正在分析…</b><p>根据阶段、邮件和跟进记录生成，不会自动修改数据。</p></div></div>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="summary">
           <h4>客户原文</h4>
@@ -2848,6 +2854,25 @@
           }
         }, 0);
       }
+      function renderNextBestAction(stages=[],follows=[],messages=[]){
+        const box=$("#detail-next-action");if(!box||!currentInquiry)return;
+        const now=new Date(),latestMessage=[...messages].sort((a,b)=>new Date(b.received_at||b.sent_at)-new Date(a.received_at||a.sent_at))[0],overdueFollow=[...follows].filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now).sort((a,b)=>new Date(a.next_follow_up_at)-new Date(b.next_follow_up_at))[0];
+        let title="继续维护客户关系",detail="检查最新沟通记录，并设置明确的下次跟进时间。",tab="followup",label="记录跟进",urgent=false;
+        if(!currentInquiry.owner_id){title="分配询盘负责人";detail="询盘尚未分配，主管应先指定负责业务员。";label="去分配";urgent=true}
+        else if(currentInquiry.validity==="pending"){title="确认询盘有效性";detail="核验联系方式、产品需求、数量或项目信息，并记录无效原因。";label="判断有效性";urgent=true}
+        else if(currentInquiry.validity==="valid"&&currentInquiry.companies?.research_status!=="completed"&&currentInquiry.companies?.research_status!=="ready"){title="完成客户前置背调";detail="核验公司身份、业务匹配、采购信号、风险和联系人。";tab="research";label="去背调"}
+        else if(currentInquiry.assigned_at&&!currentInquiry.first_valid_contact_at){const deadline=new Date(new Date(currentInquiry.assigned_at).getTime()+1800000);title=deadline<now?"首次有效联系已超时":"完成首次有效联系";detail=`响应截止：${fmtDate(deadline)}。联系后请记录客户反馈和下次跟进时间。`;label="立即联系";urgent=deadline<now}
+        else if(latestMessage?.direction==="inbound"){title="回复客户最新邮件";detail=`客户于 ${fmtDate(latestMessage.received_at||latestMessage.created_at)} 发来回复，建议优先处理。`;label="查看并回复";urgent=true}
+        else if(overdueFollow){title="补做逾期跟进";detail=`原计划跟进时间：${fmtDate(overdueFollow.next_follow_up_at)}。完成后请更新结果。`;label="补充跟进";urgent=true}
+        else if(currentInquiry.expected_close_date&&new Date(currentInquiry.expected_close_date)<now&&!['won','lost'].includes(currentInquiry.status)){title="重新确认成交计划";detail=`预计成交日期 ${currentInquiry.expected_close_date} 已过，请更新日期、概率或关闭结果。`;label="更新商机";urgent=true}
+        else if(["quoted","sample_sent","negotiating"].includes(currentInquiry.status)&&currentInquiry.quoted_at&&now-new Date(currentInquiry.quoted_at)>7*86400000&&!messages.some(x=>x.direction==="inbound"&&new Date(x.received_at||x.created_at)>new Date(currentInquiry.quoted_at))){title="跟进报价反馈";detail="报价后已超过 7 天未收到客户反馈，建议确认技术、价格或项目障碍。";label="再次跟进";urgent=true}
+        else if(currentInquiry.status==="qualified"){title="准备首次有效联系";detail="结合客户原文和背调证据确认需求、规格、数量、目的港及交期。";label="准备联系"}
+        else if(currentInquiry.status==="contacted"){title="推进报价条件确认";detail="补齐规格、数量、贸易条款、目的港和交期后再进入报价阶段。";label="更新商机"}
+        else if(currentInquiry.status==="won"){title="创建复购商机";detail="首次成交数据已锁定；后续采购应创建新的复购商机。";label="查看记录"}
+        else if(currentInquiry.status==="lost"){title="复盘丢单原因";detail="确认丢单原因和可重新激活的时间窗口，避免覆盖历史记录。";label="查看记录"}
+        box.classList.toggle("urgent",urgent);box.innerHTML=`<div><span>系统建议的下一步</span><b>${esc(title)}</b><p>${esc(detail)}</p></div><button class="${urgent?'primary':'ghost'}" type="button" data-next-action-tab="${tab}">${esc(label)}</button>`;
+        box.querySelector("[data-next-action-tab]")?.addEventListener("click",event=>setDetailTab(event.currentTarget.dataset.nextActionTab));
+      }
       async function loadTimeline(id) {
         const [{ data: stages }, { data: follows }, { data: messages }, { data: summaries }] = await Promise.all([
           supabase
@@ -2902,6 +2927,7 @@
           step.append(name, time);
           pipeline.append(step);
         });
+        renderNextBestAction(stages||[],follows||[],messages||[]);
         const events = [
           ...(stages || []).map((x) => ({
             time: x.entered_at,

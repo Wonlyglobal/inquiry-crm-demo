@@ -535,6 +535,20 @@
       .module-table-heading small { display:block; margin-top:4px; color:var(--muted); font-size:10px; font-weight:500; }
       .module-filter-group { display:flex; align-items:center; gap:8px; }
       .module-filter-select { height:38px; min-width:126px; padding:0 31px 0 11px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font:inherit; }
+      .module-refresh { display:inline-flex; align-items:center; gap:6px; height:38px; }
+      .module-refresh svg { width:15px; height:15px; }
+      .module-refresh.loading svg { animation:module-spin .9s linear infinite; }
+      .module-stale { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 16px; border-bottom:1px solid #f2d7b8; background:#fff7ec; color:#91501f; font-size:11px; }
+      .validity-quick { margin-bottom:18px; padding:16px; border:1px solid var(--line); border-radius:14px; background:#fafbfa; }
+      .validity-quick-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:13px; }
+      .validity-quick-head b { display:block; margin-bottom:4px; }
+      .validity-quick-head small { color:var(--muted); }
+      .validity-quick-actions { display:flex; gap:8px; flex-wrap:wrap; }
+      .validity-choice { min-height:38px; padding:8px 14px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font-weight:700; cursor:pointer; }
+      .validity-choice.active[data-validity="valid"] { border-color:#5d876d; background:#e7f1e9; color:#315f49; }
+      .validity-choice.active[data-validity="invalid"] { border-color:#c8756c; background:#f9e8e6; color:#a33f35; }
+      .validity-choice.active[data-validity="pending"] { border-color:#d49a58; background:#fff4e8; color:#a9571e; }
+      .validity-quick-reason { display:grid; grid-template-columns:minmax(180px,.75fr) minmax(240px,1.25fr) auto; gap:10px; align-items:end; margin-top:13px; padding-top:13px; border-top:1px solid var(--line); }
       #module-table thead th { position:sticky; top:0; z-index:1; background:#fafbfa; }
       .legacy-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 22px; }
       .legacy-detail-item { padding:11px 0; border-bottom:1px solid var(--line); }
@@ -967,6 +981,7 @@
         .inquiry-stage-tabs { grid-template-columns:1fr 1fr; }
         .module-filter-group { display:grid; grid-template-columns:1fr 1fr; }
         .module-filter-select { min-width:0; width:100%; }
+        .validity-quick-reason { grid-template-columns:1fr; }
         .legacy-detail-grid { grid-template-columns:1fr; }
         #detail-modal { padding: 16px 0; }
         .detail-kpis { grid-template-columns: 1fr 1fr; }
@@ -1226,7 +1241,10 @@
               <div class="module-search-wrap"><i data-lucide="search"></i><input id="module-search" class="module-search" type="search" autocomplete="off" placeholder="搜索当前列表"><button id="module-search-clear" class="module-search-clear hidden" type="button" aria-label="清除搜索">×</button></div>
               <div id="inquiry-filter-group" class="module-filter-group hidden"><select id="inquiry-validity-filter" class="module-filter-select" aria-label="筛选有效性"><option value="">全部有效性</option><option value="pending">待确认</option><option value="valid">有效</option><option value="invalid">无效</option></select><select id="inquiry-source-filter" class="module-filter-select" aria-label="筛选来源"><option value="">全部来源</option></select></div>
               <span id="module-filter-summary" class="tag hidden"></span>
+              <button id="module-reset-filters" class="table-action hidden" type="button">清除筛选</button>
+              <button id="module-refresh" class="table-action module-refresh" type="button" title="刷新当前列表"><i data-lucide="refresh-cw"></i><span>刷新</span></button>
             </div>
+            <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
             <div class="module-table-scroll"><table id="module-table"><thead><tr id="module-head"></tr></thead><tbody id="module-body"></tbody></table></div>
           </div>
@@ -1508,6 +1526,7 @@
         <nav class="detail-tabs" aria-label="询盘详情分区">
           <button class="detail-tab active" type="button" data-detail-tab="pipeline">流水线</button>
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
+          <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
           <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
@@ -1625,6 +1644,14 @@
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
           </div>
         </div>
+        <div class="form-body detail-section hidden" data-detail-section="validity">
+          <div class="validity-quick">
+            <div class="validity-quick-head"><div><b>询盘有效性判断</b><small>这是独立业务步骤，不要求同时补齐产品、数量、金额、概率或跟进信息。</small></div><span id="detail-validity-current" class="tag">待确认</span></div>
+            <div class="validity-quick-actions"><button class="validity-choice" type="button" data-validity="valid">✓ 有效询盘</button><button class="validity-choice" type="button" data-validity="invalid">× 无效询盘</button><button class="validity-choice" type="button" data-validity="pending">? 待核实</button></div>
+            <div id="detail-validity-reason" class="validity-quick-reason hidden"><div class="field"><label>无效原因 *</label><select id="detail-quick-invalid-type" class="input"><option value="">请选择原因</option><option value="invalid_contact">联系方式无效</option><option value="irrelevant_business">与门锁业务无关</option><option value="unclear_demand">无明确产品、数量或项目</option><option value="spam">垃圾或养号邮件</option><option value="supplier_sales">供应商推销</option><option value="job_application">求职信息</option><option value="target_mismatch">国家或客户类型不符合</option><option value="duplicate">重复询盘</option><option value="other">其他</option></select></div><div class="field"><label>补充说明（业务员必填）</label><input id="detail-quick-invalid-detail" class="input" placeholder="写明核验过程或判定依据；选择“其他”时所有角色必填" /></div><button id="detail-save-invalid" class="primary" type="button">确认无效</button></div>
+          </div>
+          <p class="hint">无效判断将记录操作人、时间、原因和修改前内容，并自动进入经营看板“无效与丢单原因”统计。</p>
+        </div>
         <div class="form-body detail-section hidden" data-detail-section="followup">
           <div class="detail-grid">
             <div class="field">
@@ -1647,7 +1674,7 @@
                 <option value="">暂未分配</option>
               </select>
             </div>
-            <div class="field">
+            <div class="field hidden">
               <label>询盘有效性</label
               ><select id="detail-validity" class="input">
                 <option value="pending">待确认</option>
@@ -1655,10 +1682,10 @@
                 <option value="invalid">无效</option>
               </select>
             </div>
-            <div class="field">
+            <div id="detail-outcome-type-field" class="field hidden">
               <label>无效/丢单原因类型</label><select id="detail-outcome-reason-type" class="input"><option value="">请选择原因</option><optgroup label="无效询盘"><option value="invalid_contact">联系方式无效</option><option value="irrelevant_business">与门锁业务无关</option><option value="unclear_demand">无明确产品、数量或项目</option><option value="spam">垃圾或养号邮件</option><option value="supplier_sales">供应商推销</option><option value="job_application">求职信息</option><option value="target_mismatch">国家或客户类型不符合</option><option value="duplicate">重复询盘</option></optgroup><optgroup label="丢单"><option value="budget">预算不足</option><option value="competitor">选择竞争对手</option><option value="project_cancelled">项目取消或延期</option><option value="no_response">客户长期无回复</option><option value="requirements_unmet">产品或交期无法满足</option></optgroup><option value="other">其他</option></select>
             </div>
-            <div class="field">
+            <div id="detail-outcome-detail-field" class="field hidden">
               <label>原因补充说明</label><input
                 id="detail-invalid-reason"
                 class="input"
@@ -1973,6 +2000,7 @@
           .subscribe();
       }
       let activeModuleView = "", activeInquiryScope = "", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
+      const moduleMemoryCache = new Map();
       const inquiryManagementDefinitions = {
         "编号":["询盘编号","系统自动生成的唯一流水号，不因负责人、阶段或内容修改而改变。"],
         "询盘主题":["询盘主题","客户需求或邮件主题的简要标题；不代表系统已确认需求真实性。"],
@@ -2037,6 +2065,7 @@
         renderModuleTable(moduleColumns, filteredRows, moduleRowClick, true);
         const hasFilter = Boolean(query || validity || source || (activeInquiryScope && activeInquiryScope !== "all"));
         $("#module-filter-summary").classList.toggle("hidden", !hasFilter);
+        $("#module-reset-filters").classList.toggle("hidden", !hasFilter);
         if (hasFilter) $("#module-filter-summary").textContent = `显示 ${filteredRows.length} / ${moduleRows.length} 条`;
         $("#module-table-context").textContent = hasFilter ? "已应用筛选 · 点击任意记录查看完整详情" : "按最新创建时间排列 · 点击记录查看完整详情";
         if (hasFilter && !filteredRows.length) setModuleState("filtered");
@@ -2122,6 +2151,10 @@
         if (!config) return;
         activeModuleView = view;
         const loadVersion = ++moduleLoadVersion;
+        const refreshButton = $("#module-refresh");
+        refreshButton.classList.add("loading");
+        refreshButton.disabled = true;
+        $("#module-stale").classList.add("hidden");
         $("#module-title").textContent = config[0];
         $("#module-subtitle").textContent = config[1];
         $("#module-table-title").textContent = config[2];
@@ -2167,6 +2200,9 @@
             !["owner", "sales_manager", "marketing"].includes(profile.role));
         if (denied) {
           renderModuleTable(["提示"], [{ cells: ["当前账号无权查看此页面"] }]);
+          refreshButton.classList.remove("loading");
+          refreshButton.disabled = false;
+          icons();
           return;
         }
         let query, columns, mapper, clickable = false, ownerNames = {};
@@ -2215,10 +2251,24 @@
         const { data, error } = await runModuleQuery(query);
         if (loadVersion !== moduleLoadVersion || view !== activeModuleView) return;
         if (error) {
-          moduleColumns = columns; moduleRows = []; moduleRowClick = null;
           const networkFailure = /failed to fetch|networkerror|load failed/i.test(String(error.message || error));
           const detail = networkFailure ? "暂时无法连接数据服务，系统已自动重试。请检查网络后点击重新加载。" : error.message;
-          setModuleState("error", detail); toast("页面加载失败：" + detail); return;
+          const cached = moduleMemoryCache.get(view);
+          if (cached) {
+            renderModuleTable(cached.columns, cached.rows, cached.onRowClick);
+            if (view === "inquiries") { renderInquiryCommand(cached.rows); filterModuleRows(); }
+            $("#module-stale-text").textContent = `数据服务暂时不可用，显示 ${fmtDate(cached.loadedAt)} 成功加载的数据。`;
+            $("#module-stale").classList.remove("hidden");
+            $("#module-table-context").textContent = `暂存数据 · 最近成功更新 ${fmtDate(cached.loadedAt)}`;
+            toast("连接暂时中断，已保留最近一次成功加载的数据");
+          } else {
+            moduleColumns = columns; moduleRows = []; moduleRowClick = null;
+            setModuleState("error", detail); toast("页面加载失败：" + detail);
+          }
+          refreshButton.classList.remove("loading");
+          refreshButton.disabled = false;
+          icons();
+          return;
         }
         if (["inquiries", "assignment", "public-pool"].includes(view)) {
           const ownerIds = [...new Set((data || []).map((item) => item.owner_id).filter(Boolean))];
@@ -2231,15 +2281,30 @@
         }
         if (view === "legacy-projects") renderLegacyInsights(data || []);
         const mappedRows = (data || []).map(mapper);
-        renderModuleTable(columns, mappedRows, clickable ? (row) => row.id && openInquiryDetail(row.id) : null);
+        const onRowClick = clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
+        renderModuleTable(columns, mappedRows, onRowClick);
+        moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, loadedAt:new Date().toISOString() });
+        $("#module-table-context").textContent = `按最新创建时间排列 · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
         if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
+        refreshButton.classList.remove("loading");
+        refreshButton.disabled = false;
         icons();
       }
       $("#module-search").addEventListener("input", filterModuleRows);
       $("#inquiry-validity-filter").addEventListener("change", filterModuleRows);
       $("#inquiry-source-filter").addEventListener("change", filterModuleRows);
       $("#module-search-clear").addEventListener("click", () => { $("#module-search").value = ""; $("#module-search").focus(); filterModuleRows(); });
+      $("#module-reset-filters").addEventListener("click", () => {
+        $("#module-search").value = "";
+        $("#inquiry-validity-filter").value = "";
+        $("#inquiry-source-filter").value = "";
+        activeInquiryScope = activeModuleView === "inquiries" ? "all" : "";
+        $$("#inquiry-stage-tabs button").forEach((item) => item.classList.toggle("active", item.dataset.scope === "all"));
+        filterModuleRows();
+      });
       $("#module-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
+      $("#module-refresh").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
+      $("#module-stale-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       function renderLegacyInsights(rows) {
         const partners = new Set(rows.map(x => String(x.partner_name || "").trim().toLowerCase()).filter(Boolean)).size;
         const amount = rows.reduce((sum, x) => sum + (Number(x.contract_amount_wan) || 0), 0);
@@ -2924,6 +2989,10 @@
         $("#detail-kpi-validity").textContent = { pending: "待确认", valid: "有效", invalid: "无效" }[inquiry.validity] || inquiry.validity;
         $("#detail-validity").value = inquiry.validity;
         const savedOutcome=parseOutcomeReason(inquiry.invalid_reason||inquiry.lost_reason||"");$("#detail-outcome-reason-type").value=outcomeReasonNames[savedOutcome.type]?savedOutcome.type:(savedOutcome.detail?"other":"");$("#detail-invalid-reason").value=savedOutcome.detail;
+        $("#detail-quick-invalid-type").value=outcomeReasonNames[savedOutcome.type]?savedOutcome.type:(savedOutcome.detail?"other":"");
+        $("#detail-quick-invalid-detail").value=savedOutcome.detail;
+        renderQuickValidity(inquiry.validity);
+        syncDetailedOutcomeVisibility();
         $("#detail-won-amount").value = inquiry.won_amount || "";
         $("#detail-won-currency").value = inquiry.won_currency || "";
         $("#detail-estimated-amount").value = inquiry.estimated_amount || "";
@@ -3059,7 +3128,7 @@
         const now=new Date(),latestMessage=[...messages].sort((a,b)=>new Date(b.received_at||b.sent_at)-new Date(a.received_at||a.sent_at))[0],overdueFollow=[...follows].filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now).sort((a,b)=>new Date(a.next_follow_up_at)-new Date(b.next_follow_up_at))[0];
         let title="继续维护客户关系",detail="检查最新沟通记录，并设置明确的下次跟进时间。",tab="followup",label="记录跟进",urgent=false;
         if(!currentInquiry.owner_id){title="分配询盘负责人";detail="询盘尚未分配，主管应先指定负责业务员。";label="去分配";urgent=true}
-        else if(currentInquiry.validity==="pending"){title="确认询盘有效性";detail="核验联系方式、产品需求、数量或项目信息，并记录无效原因。";label="判断有效性";urgent=true}
+        else if(currentInquiry.validity==="pending"){title="确认询盘有效性";detail="在独立的有效性判断页签确认结果；判为无效时必须记录原因。";tab="validity";label="判断有效性";urgent=true}
         else if(currentInquiry.validity==="valid"&&currentInquiry.companies?.research_status!=="completed"&&currentInquiry.companies?.research_status!=="ready"){title="完成客户前置背调";detail="核验公司身份、业务匹配、采购信号、风险和联系人。";tab="research";label="去背调"}
         else if(currentInquiry.assigned_at&&!currentInquiry.first_valid_contact_at){const deadline=new Date(new Date(currentInquiry.assigned_at).getTime()+1800000);title=deadline<now?"首次有效联系已超时":"完成首次有效联系";detail=`响应截止：${fmtDate(deadline)}。联系后请记录客户反馈和下次跟进时间。`;label="立即联系";urgent=deadline<now}
         else if(latestMessage?.direction==="inbound"){title="回复客户最新邮件";detail=`客户于 ${fmtDate(latestMessage.received_at||latestMessage.created_at)} 发来回复，建议优先处理。`;label="查看并回复";urgent=true}
@@ -3727,6 +3796,49 @@
         else closeInquiryPage();
       });
       async function reviewWonRequest(approve){const request=currentInquiry?.latestWonRequest,data=request?.after_data||{},reason=$("#detail-reason").value.trim();if(!request)return toast("没有待审核的成交申请");if(approve&&!data.evidence_path)return toast("该成交申请缺少凭证，不能确认成交；请先驳回并要求业务员重新提交");if(approve&&!currentInquiry.wonEvidenceReviewed)return toast("请先点击“查看成交凭证”完成核验，再确认成交");if(!reason)return toast("审核成交申请必须填写修改原因");const button=$(approve?"#approve-won-request":"#reject-won-request");button.disabled=true;let error;if(approve){const currency=String(data.won_currency||"").toUpperCase(),amount=Number(data.won_amount),lockedAt=new Date().toISOString(),lockedRate=currency==="CNY"?1:fxToCny(currency,lockedAt);if(!amount||!currency||!lockedRate){button.disabled=false;return toast("成交金额、币种或当日汇率不完整")};({error}=await supabase.from("inquiries").update({status:"won",won_amount:amount,won_currency:currency,won_at:lockedAt,won_exchange_rate:lockedRate,last_change_reason:reason,updated_by:profile.id,updated_at:lockedAt}).eq("id",currentInquiry.id))}if(!error){({error}=await supabase.from("audit_logs").insert({actor_id:profile.id,entity_type:"inquiry",entity_id:currentInquiry.id,action:approve?"won_approved":"won_rejected",reason,before_data:{status:currentInquiry.status,request_id:request.id},after_data:{status:approve?"won":currentInquiry.status,request_id:request.id,won_amount:data.won_amount,won_currency:data.won_currency,evidence_reviewed:approve}}))}if(!error&&currentInquiry.owner_id){const notice=await supabase.from("notifications").insert({recipient_id:currentInquiry.owner_id,inquiry_id:currentInquiry.id,type:approve?"won_approval_approved":"won_approval_rejected",title:approve?"成交申请已通过":"成交申请被驳回",body:reason});if(notice.error)toast("审核已保存，但业务员系统通知失败："+notice.error.message)}button.disabled=false;if(error)return toast("审核失败："+error.message);toast(approve?"成交已确认并锁定成交日汇率":"成交申请已驳回");$("#detail-reason").value="";await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries(),loadNotifications()])}
+      function renderQuickValidity(validity) {
+        const names={pending:"待确认",valid:"有效",invalid:"无效"};
+        const canFullJudge=["owner","sales_manager","marketing"].includes(profile?.role),canInvalidate=canFullJudge||profile?.role==="sales";
+        $("#detail-validity-current").textContent=names[validity]||"待确认";
+        $$(".validity-choice").forEach(button=>{button.classList.toggle("active",button.dataset.validity===validity);button.disabled=button.dataset.validity==="invalid"?!canInvalidate:!canFullJudge});
+        $("#detail-save-invalid").disabled=!canInvalidate;
+        $("#detail-validity-reason").classList.toggle("hidden",validity!=="invalid");
+      }
+      function syncDetailedOutcomeVisibility(){
+        const show=$("#detail-status").value==="lost";
+        $("#detail-outcome-type-field").classList.toggle("hidden",!show);
+        $("#detail-outcome-detail-field").classList.toggle("hidden",!show);
+      }
+      async function saveQuickValidity(validity) {
+        if(!currentInquiry)return;
+        const canFullJudge=["owner","sales_manager","marketing"].includes(profile?.role);
+        if(!canFullJudge&&!(profile?.role==="sales"&&validity==="invalid"))return toast("业务员只能将负责的询盘判定为无效，并且必须填写原因");
+        let invalidReason=null;
+        if(validity==="invalid"){
+          const type=$("#detail-quick-invalid-type").value,detail=$("#detail-quick-invalid-detail").value.trim();
+          if(!type)return toast("请选择无效原因");
+          if(profile?.role==="sales"&&!detail)return toast("业务员判定无效时必须填写补充说明和判定依据");
+          if(type==="other"&&!detail)return toast("选择其他原因时请填写补充说明");
+          invalidReason=`[${type}] ${detail}`.trim();
+        }
+        const buttons=$$(".validity-choice"),saveInvalid=$("#detail-save-invalid");buttons.forEach(button=>button.disabled=true);saveInvalid.disabled=true;
+        const reason=validity==="valid"?"确认询盘有效":validity==="invalid"?`判定询盘无效：${outcomeReasonNames[$("#detail-quick-invalid-type").value]||"其他"}${$("#detail-quick-invalid-detail").value.trim()?`；${$("#detail-quick-invalid-detail").value.trim()}`:""}`:"标记为待核实";
+        const {error}=await supabase.from("inquiries").update({validity,invalid_reason:invalidReason,last_change_reason:reason,updated_by:profile.id,updated_at:new Date().toISOString()}).eq("id",currentInquiry.id);
+        buttons.forEach(button=>button.disabled=false);saveInvalid.disabled=false;
+        if(error)return toast("有效性保存失败："+error.message);
+        toast(validity==="valid"?"已确认有效，无需补填其他字段":validity==="invalid"?"已记录为无效询盘":"已标记为待核实");
+        await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries()]);
+        if(activeModuleView==="inquiries")await loadModule("inquiries");
+      }
+      $$(".validity-choice").forEach(button=>button.addEventListener("click",()=>{
+        const validity=button.dataset.validity;
+        $("#detail-validity").value=validity;
+        renderQuickValidity(validity);
+        if(validity!=="invalid")saveQuickValidity(validity);
+        else $("#detail-quick-invalid-type").focus();
+      }));
+      $("#detail-save-invalid").addEventListener("click",()=>saveQuickValidity("invalid"));
+      $("#detail-status").addEventListener("change",syncDetailedOutcomeVisibility);
       $("#save-detail").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const reason = $("#detail-reason").value.trim();

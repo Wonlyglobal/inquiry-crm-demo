@@ -2211,7 +2211,7 @@
         }
         let query, columns, mapper, clickable = false, ownerNames = {};
         if (["inquiries", "assignment", "public-pool"].includes(view)) {
-          query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at").order("created_at", { ascending: false }).limit(200);
+          query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason").order("created_at", { ascending: false }).limit(200);
           if (view === "inquiries" && activeInquiryScope === "open") {
             query = query.eq("validity", "valid").not("status", "in", "(won,lost)");
             $("#module-table-title").textContent = "进行中询盘";
@@ -2220,8 +2220,8 @@
           }
           if (view === "assignment") query = query.eq("validity", "valid").eq("status", "pending_assignment");
           if (view === "public-pool") query = query.eq("validity", "valid").is("owner_id", null).not("status", "in", "(pending_assignment,won,lost)");
-          columns = ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
-          mapper = (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity, source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
+          columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
+          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写";return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,x.target_country,fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions:[{label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)}]}} : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity, source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
           clickable = true;
         } else if (view === "email") {
           query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,received_at,created_at,inquiry_id").order("created_at", { ascending: false }).limit(200);
@@ -2284,11 +2284,13 @@
           }
         }
         if (view === "legacy-projects") renderLegacyInsights(data || []);
-        const mappedRows = (data || []).map(mapper);
+        if (view === "public-pool") renderPublicPoolInsights(data || []);
+        const sourceRows=view==="public-pool"?[...(data||[])].sort((a,b)=>new Date(b.public_pool_entered_at||b.updated_at)-new Date(a.public_pool_entered_at||a.updated_at)):(data||[]);
+        const mappedRows = sourceRows.map(mapper);
         const onRowClick = clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, loadedAt:new Date().toISOString() });
-        $("#module-table-context").textContent = `按最新创建时间排列 · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
+        $("#module-table-context").textContent = `${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
         if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
         refreshButton.classList.remove("loading");
         refreshButton.disabled = false;
@@ -2319,6 +2321,13 @@
         $("#module-insights").innerHTML = items.map(([label,value]) => `<div class="module-insight"><span>${label}</span><b>${value}</b></div>`).join("");
         $("#module-insights").classList.remove("hidden");
       }
+      function renderPublicPoolInsights(rows){
+        const today=chinaDate(),now=Date.now(),todayCount=rows.filter(x=>x.public_pool_entered_at&&new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.public_pool_entered_at))===today).length,over7=rows.filter(x=>x.public_pool_entered_at&&now-new Date(x.public_pool_entered_at)>=7*86400000).length,over30=rows.filter(x=>x.public_pool_entered_at&&now-new Date(x.public_pool_entered_at)>=30*86400000).length;
+        const items=[["公海客户",rows.length],["今日进入",todayCount],["等待超过 7 天",over7],["等待超过 30 天",over30]];
+        $("#module-insights").innerHTML=items.map(([label,value])=>`<div class="module-insight"><span>${label}</span><b>${value}</b></div>`).join("");
+        $("#module-insights").classList.remove("hidden");
+      }
+      async function openPublicPoolInquiry(id){await openInquiryDetail(id);if(currentInquiry?.id===id)setDetailTab("followup")}
       function openLegacyProject(project) {
         const normalizedOwner = project.legacy_owner_name === "石舒" ? "石奕舒" : project.legacy_owner_name;
         const fields = [["旧系统 ID",project.legacy_project_id],["国家/地区",project.country],["合作方",project.partner_name],["省份 / 城市",[project.partner_province,project.partner_city].filter(Boolean).join(" / ")],["客户类型",project.customer_type],["项目名称",project.project_name],["产品类型",project.product_type],["原系统分类",project.funnel_bucket],["项目状态",project.project_status],["预计下一节点",project.next_milestone_at],["工程总数量",project.project_total_quantity],["合同号",project.contract_no],["合同数量",project.contract_quantity],["合同金额（人民币万元）",project.contract_amount_wan],["工程信息来源",project.lead_source],["负责人",normalizedOwner],["部门",project.department],["联系人",project.contact_name],["联系人职务",project.contact_title],["联系方式",project.contact_details],["跟进情况",project.follow_up_status],["未中标原因",project.lost_reason],["原因描述",project.lost_reason_description],["创建人 / 时间",[project.legacy_creator_name,project.source_created_at ? fmtDate(project.source_created_at) : null].filter(Boolean).join(" · ")],["修改人 / 时间",[project.legacy_modifier_name,project.source_updated_at ? fmtDate(project.source_updated_at) : null].filter(Boolean).join(" · ")]];

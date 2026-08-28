@@ -2225,6 +2225,29 @@
         if(!time)return false;
         return (dashboardState.emailMessages||[]).some(x=>x.inquiry_id===inquiryId&&x.direction==="inbound"&&new Date(x.received_at||x.created_at)>new Date(time));
       }
+      function stageWarningTasks(rows){
+        const limits={pending_assignment:.5,received:4,qualified:24,contacted:72,quoted:168,sample_sent:336,negotiating:336},history=dashboardState.history||[],now=Date.now(),tasks=[];
+        rows.forEach(x=>{
+          const entered=history.find(h=>h.inquiry_id===x.id&&h.to_status===x.status)?.entered_at||x.updated_at||x.created_at,limit=limits[x.status];
+          if(limit&&now-new Date(entered)>limit*3600000)tasks.push({priority:5,id:x.id,title:x.title,reason:`${statusNames[x.status]||x.status}阶段停留已超过 ${limit<1?`${limit*60}分钟`:`${limit}小时`}`,time:entered,label:"阶段超时"});
+          if(x.expected_close_date&&new Date(x.expected_close_date)<new Date()&&!['won','lost'].includes(x.status))tasks.push({priority:4,id:x.id,title:x.title,reason:`预计成交日期 ${x.expected_close_date} 已过`,time:x.expected_close_date,label:"成交逾期"});
+        });
+        return tasks;
+      }
+      function consolidateTasks(tasks){
+        const map=new Map();
+        tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time)).forEach(task=>{
+          const key=task.id||`${task.title}-${task.label}`,current=map.get(key);
+          if(!current)map.set(key,{...task});
+          else if(!current.reason.includes(task.reason))current.reason+=`；${task.reason}`;
+        });
+        return [...map.values()].sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
+      }
+      function taskTimeText(value){
+        if(!value)return "未设置时间";
+        const diff=Date.now()-new Date(value),abs=Math.abs(diff),unit=abs<3600000?`${Math.max(1,Math.round(abs/60000))}分钟`:abs<86400000?`${Math.round(abs/3600000)}小时`:`${Math.round(abs/86400000)}天`;
+        return `${fmtDate(value)} · ${diff>=0?`已过 ${unit}`:`剩余 ${unit}`}`;
+      }
       function renderSalesWorkbench(rows,followups){
         if(profile?.role!=="sales")return;
         const mine=rows.filter(x=>x.owner_id===profile.id),open=mine.filter(x=>!["won","lost"].includes(x.status)),now=new Date(),today=chinaDate(),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
@@ -2232,8 +2255,8 @@
         $("#sales-workbench-kpis").innerHTML=[["进行中询盘",open.length],["客户新回复",customerReplies.length],["今日待跟进",dueToday.length],["首次响应超时",responseOverdue.length],["跟进已逾期",followupOverdue.length],["本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>i===0?`<button type="button" class="sales-workbench-kpi sales-workbench-kpi-link" data-open-active-inquiries aria-label="查看 ${value} 条进行中询盘"><span>${label}</span><b>${value}</b></button>`:`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i>0&&i<5&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         $("[data-open-active-inquiries]")?.addEventListener("click",()=>switchView("inquiries",{inquiryScope:"open"}));
         const tasks=[];customerReplies.forEach(x=>tasks.push({priority:1,id:x.id,title:x.title,reason:"客户有新回复，等待查看并回复",time:x.latestInboundAt,label:"查看回复"}));responseOverdue.forEach(x=>tasks.push({priority:2,id:x.id,title:x.title,reason:"首次有效联系已超过 30 分钟",time:x.assigned_at,label:"立即联系"}));followupOverdue.forEach(f=>{const x=mine.find(row=>row.id===f.inquiry_id);if(x)tasks.push({priority:3,id:x.id,title:x.title,reason:"计划跟进时间已过",time:f.next_follow_up_at,label:"补充跟进"})});quoteNoFeedback.forEach(x=>tasks.push({priority:4,id:x.id,title:x.title,reason:"报价后超过 7 天未收到客户反馈",time:x.quoted_at,label:"再次跟进"}));open.filter(x=>x.risk_flag).forEach(x=>tasks.push({priority:5,id:x.id,title:x.title,reason:"高风险客户，需核验后继续",time:x.updated_at,label:"查看风险"}));dueToday.forEach(f=>{const x=mine.find(row=>row.id===f.inquiry_id);if(x&&!tasks.some(t=>t.id===x.id))tasks.push({priority:6,id:x.id,title:x.title,reason:"今日计划跟进",time:f.next_follow_up_at,label:"去跟进"})});
-        tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
-        $("#sales-task-list").innerHTML=tasks.length?tasks.slice(0,10).map(t=>`<div class="sales-task-item" data-sales-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>今日暂无紧急待办</b><small>可以继续处理正常跟进或新增客户线索</small></div>';
+        tasks.push(...stageWarningTasks(open));const consolidated=consolidateTasks(tasks);
+        $("#sales-task-list").innerHTML=consolidated.length?consolidated.slice(0,10).map(t=>`<div class="sales-task-item" data-sales-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${taskTimeText(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>今日暂无紧急待办</b><small>可以继续处理正常跟进或新增客户线索</small></div>';
         $$('[data-sales-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.salesTask)));
       }
       function renderManagerWorkbench(rows,profiles,followups){
@@ -2241,8 +2264,8 @@
         const now=new Date(),sales=(profiles||[]).filter(x=>x.role==="sales"),open=rows.filter(x=>!["won","lost"].includes(x.status)),pending=open.filter(x=>x.status==="pending_assignment"||!x.owner_id),customerReplies=latestInboundTasks(open),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),overdueFollowups=(followups||[]).filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),submitted=new Set((dashboardState.dailyReports||[]).map(x=>x.sales_id)),missingReports=sales.filter(x=>!submitted.has(x.id)),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999),wonCny=sumWonCny(rows.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd))),usd=fxToCny("USD");
         $("#manager-workbench-kpis").innerHTML=[["待分配询盘",pending.length],["客户回复待处理",customerReplies.length],["首次响应超时",responseOverdue.length],["跟进已逾期",overdueFollowups.length],["今日未交日报",missingReports.length],["团队本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i<5&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         const priorities=[];pending.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"等待主管分配负责人",time:x.created_at,label:"待分配"}));customerReplies.forEach(x=>priorities.push({priority:2,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===x.owner_id)?.full_name||"负责人"}有客户新回复待处理`,time:x.latestInboundAt,label:"客户回复"}));responseOverdue.forEach(x=>priorities.push({priority:3,id:x.id,title:x.title,reason:"分配后超过 30 分钟未完成首次有效联系",time:x.assigned_at,label:"响应超时"}));overdueFollowups.forEach(f=>{const x=rows.find(row=>row.id===f.inquiry_id);if(x)priorities.push({priority:4,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===f.author_id)?.full_name||"业务员"}的跟进任务已逾期`,time:f.next_follow_up_at,label:"跟进逾期"})});
-        priorities.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
-        $("#manager-priority-list").innerHTML=priorities.length?priorities.slice(0,12).map(t=>`<div class="sales-task-item" data-manager-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无团队紧急事项</b><small>当前分配、响应和跟进均无异常</small></div>';
+        priorities.push(...stageWarningTasks(open));const consolidated=consolidateTasks(priorities);
+        $("#manager-priority-list").innerHTML=consolidated.length?consolidated.slice(0,12).map(t=>`<div class="sales-task-item" data-manager-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${taskTimeText(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无团队紧急事项</b><small>当前分配、响应和跟进均无异常</small></div>';
         $$('[data-manager-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.managerTask)));
         const loads=sales.map(member=>{const active=open.filter(x=>x.owner_id===member.id).length,late=responseOverdue.filter(x=>x.owner_id===member.id).length,tasks=overdueFollowups.filter(x=>x.author_id===member.id).length;return {name:member.full_name,active,late,tasks}}).sort((a,b)=>b.active-a.active),max=Math.max(...loads.map(x=>x.active),1);
         $("#manager-workload").innerHTML=`<h4>业务员负载</h4>${loads.length?loads.map(x=>`<div class="workload-row" data-sales-profile-name="${esc(x.name)}" role="button" tabindex="0"><span>${esc(x.name)}</span><div><div class="workload-bar"><i style="width:${Math.max(4,x.active/max*100)}%"></i></div><small>${x.late?`响应超时 ${x.late}`:"响应正常"}${x.tasks?` · 逾期任务 ${x.tasks}`:""}</small></div><b>${x.active} 条</b></div>`).join(""):'<div class="empty">暂无业务员数据</div>'}`;

@@ -683,6 +683,9 @@
       .detail-completeness-items { display:flex; flex-wrap:wrap; gap:7px; }
       .completeness-chip { padding:5px 9px; border-radius:999px; background:#eef4ef; color:#356047; font-size:11px; }
       .completeness-chip.missing { background:#fff0ed; color:#a4473d; }
+      .duplicate-warning { margin-top:12px; padding:13px 15px; border:1px solid #e4b5aa; border-radius:12px; background:#fff3f0; color:#803e36; font-size:12px; }
+      .duplicate-warning b { display:block; margin-bottom:6px; }
+      .duplicate-warning ul { margin:6px 0 10px; padding-left:18px; }
       .pipeline-step {
         min-width: 112px;
         flex: 1;
@@ -1340,6 +1343,7 @@
             ><input name="notify" type="checkbox" checked />
             登记后提醒销售主管分配</label
           >
+          <div class="duplicate-warning hidden" data-duplicate-warning></div>
           <div class="form-actions">
             <button type="button" class="ghost cancel-modal">取消</button
             ><button class="primary" type="submit">创建询盘</button>
@@ -1370,6 +1374,7 @@
             ><input name="notify" type="checkbox" checked />
             生成后提醒销售主管分配</label
           >
+          <div class="duplicate-warning hidden" data-duplicate-warning></div>
           <div class="form-actions">
             <button type="button" class="ghost cancel-modal">取消</button
             ><button class="primary" type="submit">解析并生成询盘</button>
@@ -3305,6 +3310,22 @@
             .replace(/\b\w/g, (c) => c.toUpperCase()) || "待确认公司"
         );
       }
+      async function duplicateInquiryCandidates(email,company){
+        const domain=domainOf(email),companyName=String(company||"").trim(),[{data:contact},{data:domainCompany},{data:nameCompany}]=await Promise.all([
+          supabase.from("contacts").select("id,full_name,email,company_id").ilike("email",email).maybeSingle(),
+          domain?supabase.from("companies").select("id,name,domain").eq("domain",domain).maybeSingle():Promise.resolve({data:null}),
+          companyName?supabase.from("companies").select("id,name,domain").ilike("name",companyName).limit(1).maybeSingle():Promise.resolve({data:null}),
+        ]),companyIds=[...new Set([contact?.company_id,domainCompany?.id,nameCompany?.id].filter(Boolean))];
+        let inquiries=[];if(contact?.id||companyIds.length){let query=supabase.from("inquiries").select("id,inquiry_no,title,status,created_at").order("created_at",{ascending:false}).limit(8);const filters=[];if(contact?.id)filters.push(`contact_id.eq.${contact.id}`);companyIds.forEach(id=>filters.push(`company_id.eq.${id}`));const result=await query.or(filters.join(","));inquiries=result.data||[]}
+        return {contact,companies:[domainCompany,nameCompany].filter((x,i,a)=>x&&a.findIndex(y=>y.id===x.id)===i),inquiries};
+      }
+      async function ensureDuplicateConfirmed(form,email,company){
+        const warning=form.querySelector("[data-duplicate-warning]"),confirmed=form.querySelector('[name="duplicate_confirm"]:checked');if(confirmed)return true;
+        const matches=await duplicateInquiryCandidates(email,company),hasMatch=matches.contact||matches.companies.length||matches.inquiries.length;
+        if(!hasMatch){warning.classList.add("hidden");warning.replaceChildren();return true}
+        const facts=[matches.contact&&`相同邮箱联系人：${matches.contact.full_name||matches.contact.email}`,matches.companies.map(x=>`匹配公司：${x.name}${x.domain?`（${x.domain}）`:""}`).join("；"),...matches.inquiries.map(x=>`#${String(x.inquiry_no||"").padStart(6,"0")} ${x.title}｜${statusNames[x.status]||x.status}`)].filter(Boolean);
+        warning.innerHTML=`<b>发现可能重复的客户或商机，请人工确认</b><ul>${facts.map(x=>`<li>${esc(x)}</li>`).join("")}</ul><label class="checkline"><input name="duplicate_confirm" type="checkbox" /> 已核对公司域名、公司名称和联系人，确认为新的询盘/商机</label>`;warning.classList.remove("hidden");warning.scrollIntoView({behavior:"smooth",block:"center"});toast("发现可能重复记录，请确认后再次提交");return false;
+      }
       async function createInquiry({
         email,
         contact,
@@ -3411,6 +3432,7 @@
           btn = e.submitter;
         btn.disabled = true;
         try {
+          if(!await ensureDuplicateConfirmed(form,fd.get("email").trim(),fd.get("company"))){btn.disabled=false;return}
           await createInquiry({
             email: fd.get("email").trim(),
             contact: fd.get("contact"),
@@ -3423,6 +3445,7 @@
             notify: fd.get("notify") === "on",
           });
           form.reset();
+          form.querySelector("[data-duplicate-warning]")?.classList.add("hidden");
           $("#inquiry-modal").classList.add("hidden");
           toast("询盘已创建并进入待分配池");
           await loadInquiries();
@@ -3466,6 +3489,7 @@
           btn = e.submitter;
         btn.disabled = true;
         try {
+          if(!await ensureDuplicateConfirmed(form,email,companyFromEmail(email))){btn.disabled=false;return}
           const inquiry = await createInquiry({
             email,
             company: companyFromEmail(email),
@@ -3487,6 +3511,7 @@
             created_by: profile.id,
           });
           form.reset();
+          form.querySelector("[data-duplicate-warning]")?.classList.add("hidden");
           $("#inquiry-modal").classList.add("hidden");
           toast("邮件已解析并生成询盘");
           await loadInquiries();

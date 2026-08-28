@@ -670,6 +670,14 @@
       .next-action-card span { display:block; color:var(--muted); font-size:11px; margin-bottom:5px; }
       .next-action-card b { display:block; font-size:17px; }
       .next-action-card p { margin:6px 0 0; color:var(--muted); font-size:12px; }
+      .detail-completeness { margin-top:12px; padding:14px 16px; border:1px solid var(--line); border-radius:14px; background:#fff; }
+      .detail-completeness-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+      .detail-completeness-head span { color:var(--muted); font-size:12px; }
+      .detail-completeness-bar { height:7px; margin:10px 0; border-radius:999px; background:#e8eeea; overflow:hidden; }
+      .detail-completeness-bar i { display:block; height:100%; border-radius:inherit; background:var(--green); transition:width .25s ease; }
+      .detail-completeness-items { display:flex; flex-wrap:wrap; gap:7px; }
+      .completeness-chip { padding:5px 9px; border-radius:999px; background:#eef4ef; color:#356047; font-size:11px; }
+      .completeness-chip.missing { background:#fff0ed; color:#a4473d; }
       .pipeline-step {
         min-width: 112px;
         flex: 1;
@@ -1463,6 +1471,7 @@
           <h4>询盘流水线</h4>
           <div id="detail-pipeline" class="detail-pipeline"></div>
           <div id="detail-next-action" class="next-action-card"><div><span>系统建议的下一步</span><b>正在分析…</b><p>根据阶段、邮件和跟进记录生成，不会自动修改数据。</p></div></div>
+          <div id="detail-completeness" class="detail-completeness"></div>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="summary">
           <h4>客户原文</h4>
@@ -2872,6 +2881,24 @@
         else if(currentInquiry.status==="lost"){title="复盘丢单原因";detail="确认丢单原因和可重新激活的时间窗口，避免覆盖历史记录。";label="查看记录"}
         box.classList.toggle("urgent",urgent);box.innerHTML=`<div><span>系统建议的下一步</span><b>${esc(title)}</b><p>${esc(detail)}</p></div><button class="${urgent?'primary':'ghost'}" type="button" data-next-action-tab="${tab}">${esc(label)}</button>`;
         box.querySelector("[data-next-action-tab]")?.addEventListener("click",event=>setDetailTab(event.currentTarget.dataset.nextActionTab));
+        renderInquiryCompleteness(follows);
+      }
+      function renderInquiryCompleteness(follows=[]){
+        const box=$("#detail-completeness");if(!box||!currentInquiry)return;
+        const needsAmount=["quoted","sample_sent","negotiating","won"].includes(currentInquiry.status),open=!['won','lost'].includes(currentInquiry.status),futureFollow=(follows||[]).some(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)>new Date());
+        const checks=[
+          ["客户原文",Boolean(currentInquiry.original_message?.trim())],
+          ["公司身份",Boolean(currentInquiry.company_id&&currentInquiry.companies?.name)],
+          ["联系人",Boolean(currentInquiry.contact_name||currentInquiry.email_intake?.sender_email)],
+          ["需求信息",Boolean(currentInquiry.demand_summary?.trim())],
+          ["有效性",currentInquiry.validity!=="pending"],
+          ["负责人",Boolean(currentInquiry.owner_id)],
+          ["首次有效联系",Boolean(currentInquiry.first_valid_contact_at)||!currentInquiry.owner_id],
+          ["预计金额与币种",!needsAmount||Boolean(currentInquiry.estimated_amount&&currentInquiry.currency)],
+          ["下次跟进",!open||!currentInquiry.owner_id||futureFollow],
+        ];
+        const done=checks.filter(x=>x[1]).length,percent=Math.round(done/checks.length*100),missing=checks.filter(x=>!x[1]).map(x=>x[0]);
+        box.innerHTML=`<div class="detail-completeness-head"><b>关键资料完整度</b><span>${done}/${checks.length} · ${percent}%</span></div><div class="detail-completeness-bar"><i style="width:${percent}%"></i></div><div class="detail-completeness-items">${checks.map(([label,ok])=>`<span class="completeness-chip ${ok?'':'missing'}">${ok?'✓':'待补'} ${esc(label)}</span>`).join('')}</div>${missing.length?`<p class="hint" style="margin:10px 0 0">建议补充：${esc(missing.join('、'))}</p>`:''}`;
       }
       async function loadTimeline(id) {
         const [{ data: stages }, { data: follows }, { data: messages }, { data: summaries }] = await Promise.all([

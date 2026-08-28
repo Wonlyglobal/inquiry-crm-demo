@@ -1321,7 +1321,7 @@
       <div class="modal" style="max-width:620px">
         <div class="modal-head"><h3>新增 CRM 成员</h3><button id="close-member" class="close">×</button></div>
         <form id="member-form" class="form-body">
-          <p class="hint">初始密码为 <b>wonly123</b>，新成员首次登录后必须修改密码。CRM 权限角色仅决定系统权限，对外展示仍使用职称。</p>
+          <p class="hint">系统将生成一次性强随机临时密码，并仅在创建成功后显示一次；新成员首次登录后必须修改。CRM 权限角色仅决定系统权限，对外展示仍使用职称。</p>
           <div class="grid2">
             <div class="field"><label>姓名 *</label><input id="member-name" class="input" required /></div>
             <div class="field"><label>公司邮箱 *</label><input id="member-email" class="input" type="email" required /></div>
@@ -1731,7 +1731,7 @@
             <p id="email-workflow-status" class="hint"></p>
             <div class="form-actions">
               <button id="complete-research" class="ghost">完成背调</button>
-              <button id="forward-original-email" class="ghost">转发原邮件给凌子学</button>
+              <button id="forward-original-email" class="ghost">转发原邮件给销售主管</button>
               <button id="register-for-assignment" class="primary">已登记并提醒主管</button>
             </div>
           </div>
@@ -1760,6 +1760,7 @@
             <label>客户反馈</label
             ><textarea id="follow-feedback" class="input" rows="2"></textarea>
           </div>
+          <label id="follow-first-contact-wrap" class="checkline"><input id="follow-first-contact" type="checkbox" /> 计为首次有效联系 <small class="hint">仅在已完成可核验的邮件、电话、WhatsApp 或会议联系时勾选；该记录会进入30分钟首次响应率。</small></label>
           <div class="form-actions">
             <button id="add-follow" class="primary">保存跟进</button>
           </div>
@@ -1960,7 +1961,7 @@
         $("#user-role").textContent = profile.job_title || roleNames[profile.role] || profile.role;
         $("#avatar").textContent = profile.full_name.slice(0, 1);
         const role = profile.role;
-        const canConfigureMailboxes = role === "owner" || ["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com", "lingzx@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase());
+        const canConfigureMailboxes = ["owner", "sales_manager", "marketing"].includes(role);
         const visibility = {
           email: ["owner", "sales_manager", "marketing"].includes(role),
           assignment: ["owner", "sales_manager", "marketing"].includes(role),
@@ -2008,7 +2009,7 @@
         "询盘主题":["询盘主题","客户需求或邮件主题的简要标题；不代表系统已确认需求真实性。"],
         "国家/地区":["目标国家/地区","根据客户邮件、公司资料或人工确认记录；自动识别结果允许补充和纠错，但保留审计记录。"],
         "来源":["主来源","销售或市场确认的主要获客来源。MVP 中主来源获得 100% 成交归因，多触点另行保留。"],
-        "阶段":["商机阶段","待分配→收到询盘→有效询盘→已联系→已报价→已寄样→谈判→成交/丢单；进入时间精确到秒并保留历史。"],
+        "阶段":["商机阶段","先独立确认有效性；确认有效后进入待分配→收到询盘→有效询盘→已联系→已报价→已寄样→谈判→成交/丢单。待确认和无效询盘不进入销售流水线；进入时间精确到秒并保留历史。"],
         "有效性":["询盘有效性","有效：联系方式可信、需求与门锁业务相关，且有明确产品、数量或项目并符合目标市场；无效必须记录原因。"],
         "创建时间":["创建时间","询盘首次进入 CRM 的系统时间。邮件询盘同时保留原始收件时间，后续修改不覆盖创建时间。"]
       };
@@ -2174,7 +2175,7 @@
         setModuleState("loading");
         const modulePrimary = $("#module-primary");
         modulePrimary.classList.toggle("hidden", view !== "settings");
-        const canManageSharedInquiry = profile.role === "owner" || ["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com", "lingzx@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase());
+        const canManageSharedInquiry = ["owner", "sales_manager", "marketing"].includes(profile.role);
         const sharedInquiryButton = $("#connect-shared-inquiry");
         sharedInquiryButton.classList.toggle("hidden", view !== "settings" || !canManageSharedInquiry);
         sharedInquiryButton.textContent = "连接公共询盘邮箱";
@@ -2194,10 +2195,10 @@
           }
         }
         $("#inquiry-definitions").classList.toggle("hidden",view!=="inquiries");
-        $("#add-member").classList.toggle("hidden", view !== "settings");
+        $("#add-member").classList.toggle("hidden", view !== "settings" || profile.role !== "owner");
         if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";
         const denied =
-          (view === "settings" && profile.role !== "owner" && !["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com", "lingzx@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase())) ||
+          (view === "settings" && !["owner", "sales_manager", "marketing"].includes(profile.role)) ||
           (["email", "assignment", "public-pool", "research"].includes(view) &&
             !["owner", "sales_manager", "marketing"].includes(profile.role));
         if (denied) {
@@ -2217,7 +2218,7 @@
             $("#module-filter-summary").classList.remove("hidden");
           }
           if (view === "assignment") query = query.eq("validity", "valid").eq("status", "pending_assignment");
-          if (view === "public-pool") query = query.is("owner_id", null).neq("status", "pending_assignment");
+          if (view === "public-pool") query = query.eq("validity", "valid").is("owner_id", null).not("status", "in", "(pending_assignment,won,lost)");
           columns = ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
           mapper = (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity, source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
           clickable = true;
@@ -2245,8 +2246,8 @@
               actions: x.active ? [
                 ...(x.role === "sales" ? [{ label: "业务主页", onClick: () => openSalesProfilePage(x.id) }] : []),
                 { label: connected ? "重新连接" : "连接", onClick: () => openMailboxBinding(x.id) },
-                { label: "禁用", onClick: () => openDisableMember(x) },
-              ] : [{ label: "恢复", onClick: () => enableMember(x) }],
+                ...(profile.role === "owner" ? [{ label: "禁用", onClick: () => openDisableMember(x) }] : []),
+              ] : profile.role === "owner" ? [{ label: "恢复", onClick: () => enableMember(x) }] : [],
             };
           };
         }
@@ -3074,17 +3075,20 @@
         owner.title = inquiry.validity!=="valid" ? "请先在“有效性判断”中确认有效" : "";
         const workflowReady=inquiry.validity==="valid"&&inquiry.invalid_review_status!=="pending";
         $("#detail-workflow-lock").classList.toggle("hidden",workflowReady);
-        ["detail-status","detail-won-amount","detail-won-currency","detail-estimated-amount","detail-estimated-currency","detail-probability","detail-expected-close","detail-deal-type","detail-primary-source","detail-risk-flag","detail-won-evidence","detail-reason","save-detail","follow-method","follow-next","follow-content","follow-feedback","add-follow"].forEach(id=>{const element=$("#"+id);if(element)element.disabled=!workflowReady});
+        ["detail-status","detail-won-amount","detail-won-currency","detail-estimated-amount","detail-estimated-currency","detail-probability","detail-expected-close","detail-deal-type","detail-primary-source","detail-risk-flag","detail-won-evidence","detail-reason","save-detail","follow-method","follow-next","follow-content","follow-feedback","follow-first-contact","add-follow"].forEach(id=>{const element=$("#"+id);if(element)element.disabled=!workflowReady});
+        $("#follow-first-contact").checked=false;
+        $("#follow-first-contact").disabled=!workflowReady||Boolean(inquiry.first_valid_contact_at);
+        $("#follow-first-contact-wrap").title=inquiry.first_valid_contact_at?`已于 ${fmtDate(inquiry.first_valid_contact_at)} 记录首次有效联系`:"勾选后该跟进将作为首次响应证据";
         inquiry.email_intake = intake || null;
         const workflow = $("#email-workflow");
         workflow.classList.toggle("hidden", !intake);
         if (intake) {
           const labels = {
-            pending_review: "待李铧燕背调与登记",
+            pending_review: "待市场部背调与登记",
             researching: "背调中",
             researched: "背调已完成，待登记",
-            registered: "已登记，待凌子学分配",
-            forwarded: "原邮件已转发给凌子学",
+            registered: "已登记，待销售主管分配",
+            forwarded: "原邮件已转发给销售主管",
             converted: "已生成询盘",
             failed: "自动处理失败",
           };
@@ -3183,7 +3187,7 @@
           supabase
             .from("follow_ups")
             .select(
-              "id,author_id,method,content,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at,profiles(full_name)",
+              "id,author_id,method,content,customer_feedback,next_follow_up_at,is_first_valid_contact,completed_at,completion_status,created_at,profiles(full_name)",
             )
             .eq("inquiry_id", id)
             .order("created_at", { ascending: false }),
@@ -3247,9 +3251,9 @@
           ...(follows || []).map((x) => ({
             time: x.created_at,
             text: `${x.profiles?.full_name || "成员"} · ${x.method}：${x.content}`,
-            sub: x.completed_at ? `${x.completion_status === "overdue" ? "逾期完成" : "按期完成"} · ${fmtDate(x.completed_at)}` : x.next_follow_up_at
+            sub: `${x.is_first_valid_contact ? "首次有效联系 · " : ""}${x.completed_at ? `${x.completion_status === "overdue" ? "逾期完成" : "按期完成"} · ${fmtDate(x.completed_at)}` : x.next_follow_up_at
               ? `待办：${fmtDate(x.next_follow_up_at)}`
-              : x.customer_feedback || "跟进记录",
+              : x.customer_feedback || "跟进记录"}`,
             followId: x.id,
             canComplete: Boolean(x.next_follow_up_at && !x.completed_at && (x.author_id === profile.id || ["owner","sales_manager"].includes(profile.role))),
           })),
@@ -4608,27 +4612,18 @@
         }
         const next = $("#follow-next").value;
         if(!next&&!['won','lost'].includes(currentInquiry.status))return toast("进行中商机必须设置下次跟进时间");
+        const markFirst=$("#follow-first-contact").checked;
+        if(markFirst&&currentInquiry.first_valid_contact_at)return toast("该询盘已记录首次有效联系，请勿重复勾选");
         const button = $("#add-follow");
         button.disabled = true;
-        const { error } = await supabase.from("follow_ups").insert({
-          inquiry_id: currentInquiry.id,
-          author_id: profile.id,
-          method: $("#follow-method").value,
-          content,
-          customer_feedback: $("#follow-feedback").value.trim() || null,
-          next_follow_up_at: next ? new Date(next).toISOString() : null,
+        const { error } = await supabase.rpc("record_inquiry_followup",{
+          target_inquiry_id:currentInquiry.id,
+          follow_method:$("#follow-method").value,
+          follow_content:content,
+          customer_response:$("#follow-feedback").value.trim()||null,
+          next_follow_at:next?new Date(next).toISOString():null,
+          mark_first_valid_contact:markFirst,
         });
-        if (!error) await supabase.from("inquiries").update({ first_valid_contact_at: new Date().toISOString(), updated_by: profile.id, last_change_reason: "完成首次有效联系" }).eq("id", currentInquiry.id).is("first_valid_contact_at", null);
-        if (!error && next)
-          await supabase
-            .from("inquiries")
-            .update({
-              next_follow_up_at: new Date(next).toISOString(),
-              updated_by: profile.id,
-              last_change_reason: "新增跟进记录",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", currentInquiry.id);
         button.disabled = false;
         if (error) {
           toast("跟进保存失败：" + error.message);
@@ -4637,8 +4632,9 @@
         $("#follow-content").value = "";
         $("#follow-feedback").value = "";
         $("#follow-next").value = "";
-        toast("跟进记录已保存");
-        await loadTimeline(currentInquiry.id);
+        $("#follow-first-contact").checked=false;
+        toast(markFirst?"跟进已保存，并计为首次有效联系":"跟进记录已保存");
+        await openInquiryDetail(currentInquiry.id);
       });
       let mailboxBindingKind = "personal";
       async function openMailboxBinding(selectedUserId = "", selfOnly = false, sharedInquiry = false) {
@@ -4741,7 +4737,8 @@
         }
         if (message) return toast("成员创建失败：" + message);
         $("#member-modal").classList.add("hidden");
-        toast("成员账号已创建，初始密码为 wonly123");
+        window.prompt("成员账号已创建。请立即复制临时密码（关闭后不再显示）：", data.temporary_password || "");
+        toast("成员账号已创建，临时密码仅显示一次");
         await loadModule("settings");
       });
       $("#mailbox-user").addEventListener("change", (event) => {
@@ -4777,7 +4774,7 @@
         $("#mailbox-password").value = "";
         $("#mailbox-modal").classList.add("hidden");
         toast("邮箱连接成功");
-        if (profile.role === "owner" || ["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com", "lingzx@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase())) await loadModule("settings");
+        if (["owner", "sales_manager", "marketing"].includes(profile.role)) await loadModule("settings");
       });
       $("#dashboard-period").addEventListener("change", (event) => {
         const custom = event.target.value === "custom";

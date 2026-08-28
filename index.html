@@ -970,7 +970,7 @@
               type="password"
               autocomplete="current-password"
               required
-            /><button class="password-visibility" type="button" data-password-target="login-password" aria-label="显示密码" title="显示密码"><i data-lucide="eye"></i></button></div>
+            /><button class="password-visibility" type="button" data-password-target="login-password" aria-label="显示密码" title="显示密码"><i data-lucide="eye-off"></i></button></div>
         </div>
         <button class="primary" type="submit">登录</button>
         <button id="forgot-password" class="ghost" type="button" style="width:100%;margin-top:10px">忘记密码</button>
@@ -1202,7 +1202,7 @@
                 autocomplete="new-password"
                 minlength="8"
                 required
-              /><button class="password-visibility" type="button" data-password-target="new-password" aria-label="显示新密码" title="显示新密码"><i data-lucide="eye"></i></button></div>
+              /><button class="password-visibility" type="button" data-password-target="new-password" aria-label="显示新密码" title="显示新密码"><i data-lucide="eye-off"></i></button></div>
           </div>
           <div class="field">
             <label>再次输入</label
@@ -1213,7 +1213,7 @@
                 autocomplete="new-password"
                 minlength="8"
                 required
-              /><button class="password-visibility" type="button" data-password-target="new-password-confirm" aria-label="显示确认密码" title="显示确认密码"><i data-lucide="eye"></i></button></div>
+              /><button class="password-visibility" type="button" data-password-target="new-password-confirm" aria-label="显示确认密码" title="显示确认密码"><i data-lucide="eye-off"></i></button></div>
           </div>
           <button class="primary" type="submit" style="width: 100%">
             修改密码并进入系统
@@ -2926,7 +2926,7 @@
         const label = visible ? "显示密码" : "隐藏密码";
         button.setAttribute("aria-label", label);
         button.setAttribute("title", label);
-        button.innerHTML = `<i data-lucide="${visible ? "eye" : "eye-off"}"></i>`;
+        button.innerHTML = `<i data-lucide="${visible ? "eye-off" : "eye"}"></i>`;
         window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
         input.focus({ preventScroll: true });
       });

@@ -430,7 +430,7 @@
       .sales-workbench-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px; border-bottom:1px solid var(--line); }
       .sales-workbench-head p { margin:4px 0 0; color:var(--muted); font-size:12px; }
       .sales-workbench-actions { display:flex; gap:8px; }
-      .sales-workbench-kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; padding:14px; }
+      .sales-workbench-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; padding:14px; }
       .sales-workbench-kpi { border:1px solid var(--line); border-radius:12px; padding:13px; }
       .sales-workbench-kpi span { color:var(--muted); font-size:11px; display:block; margin-bottom:7px; }
       .sales-workbench-kpi b { font-size:24px; }
@@ -1059,17 +1059,17 @@
             </div>
           </div>
           <section id="sales-workbench" class="dashboard-panel sales-workbench hidden">
-            <div class="sales-workbench-head"><div><b>我的今日工作台</b><p>按紧急程度排列本人负责的询盘和跟进任务</p></div><div class="sales-workbench-actions"><button id="sales-connect-mailbox" class="ghost">连接我的邮箱</button><button id="sales-open-profile" class="ghost">个人业务主页</button><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
+            <div class="sales-workbench-head"><div><b>我的任务中心</b><p>统一处理客户新回复、首次响应、计划跟进和风险事项</p></div><div class="sales-workbench-actions"><button id="sales-connect-mailbox" class="ghost">连接我的邮箱</button><button id="sales-open-profile" class="ghost">个人业务主页</button><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
             <div id="sales-workbench-kpis" class="sales-workbench-kpis"></div>
             <div id="sales-task-list" class="sales-task-list"></div>
           </section>
           <section id="manager-workbench" class="dashboard-panel manager-workbench hidden">
-            <div class="sales-workbench-head"><div><b>团队管理工作台</b><p>优先处理分配、响应超时、跟进逾期与日报异常</p></div><div class="sales-workbench-actions"><button id="manager-open-assignment" class="primary">去分配询盘</button><button id="manager-open-daily" class="ghost">查看销售日报</button></div></div>
+            <div class="sales-workbench-head"><div><b>团队任务中心</b><p>优先处理分配、客户回复、响应超时、跟进逾期与日报异常</p></div><div class="sales-workbench-actions"><button id="manager-open-assignment" class="primary">去分配询盘</button><button id="manager-open-daily" class="ghost">查看销售日报</button></div></div>
             <div id="manager-workbench-kpis" class="sales-workbench-kpis"></div>
             <div class="manager-workbench-body"><div><div class="panel-title"><b>团队紧急事项</b><span class="dashboard-scope-note">按严重程度与发生时间排序</span></div><div id="manager-priority-list" class="manager-priority-list"></div></div><div id="manager-workload" class="manager-workload"></div></div>
           </section>
           <section id="marketing-workbench" class="dashboard-panel manager-workbench hidden">
-            <div class="sales-workbench-head"><div><b>市场询盘工作台</b><p>从邮件接收、有效性判断、客户背调到提交分配</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">连接询盘邮箱</button><button id="marketing-open-email" class="primary">处理新邮件</button><button id="marketing-open-research" class="ghost">客户背调</button><button id="marketing-open-assignment" class="ghost">查看待分配</button></div></div>
+            <div class="sales-workbench-head"><div><b>市场任务中心</b><p>从邮件接收、有效性判断、客户背调到提交分配</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">连接询盘邮箱</button><button id="marketing-open-email" class="primary">处理新邮件</button><button id="marketing-open-research" class="ghost">客户背调</button><button id="marketing-open-assignment" class="ghost">查看待分配</button></div></div>
             <div id="marketing-workbench-kpis" class="sales-workbench-kpis"></div>
             <div class="manager-workbench-body"><div><div class="panel-title"><b>市场待处理事项</b><span class="dashboard-scope-note">按流程优先级排列</span></div><div id="marketing-priority-list" class="manager-priority-list"></div></div><div id="marketing-source-overview" class="manager-workload"></div></div>
           </section>
@@ -2169,7 +2169,7 @@
         legacy_amount:["历史工程合同额","旧 CRM 原表合同总金额汇总，单位为人民币万元。","仅用于历史工程分析，不等同于新 CRM 的已确认成交额。"],
         legacy_distribution:["历史工程分布","按旧 CRM 的国家/地区与产品类型统计项目数。","空值保留为未填写；历史项目不参与当前询盘转化指标。"]
       };
-      let dashboardState = { rows:[], profiles:[], history:[], followups:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
       function dashboardRange() {
         const now = new Date(), type = $("#dashboard-period")?.value || "month";
         let start = new Date(now), end = new Date(now);
@@ -2213,22 +2213,34 @@
         $("#dashboard-trend-charts").innerHTML=charts.map(chartHtml).join("");
         $$(".trend-tab").forEach(button=>button.classList.toggle("active",button.dataset.trendGrain===grain));
       }
+      function latestInboundTasks(rows){
+        const ids=new Set(rows.map(x=>x.id)),latest=new Map();
+        for(const message of dashboardState.emailMessages||[]){
+          if(!ids.has(message.inquiry_id)||latest.has(message.inquiry_id))continue;
+          latest.set(message.inquiry_id,message);
+        }
+        return rows.filter(x=>latest.get(x.id)?.direction==="inbound").map(x=>({...x,latestInboundAt:latest.get(x.id).received_at||latest.get(x.id).created_at}));
+      }
+      function hasInboundAfter(inquiryId,time){
+        if(!time)return false;
+        return (dashboardState.emailMessages||[]).some(x=>x.inquiry_id===inquiryId&&x.direction==="inbound"&&new Date(x.received_at||x.created_at)>new Date(time));
+      }
       function renderSalesWorkbench(rows,followups){
         if(profile?.role!=="sales")return;
         const mine=rows.filter(x=>x.owner_id===profile.id),open=mine.filter(x=>!["won","lost"].includes(x.status)),now=new Date(),today=chinaDate(),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
-        const responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),ownFollowups=(followups||[]).filter(x=>x.author_id===profile.id),followupOverdue=ownFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),dueToday=ownFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.next_follow_up_at))===today),wonMonth=mine.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd)),wonCny=sumWonCny(wonMonth),usd=fxToCny("USD");
-        $("#sales-workbench-kpis").innerHTML=[["进行中询盘",open.length],["今日待跟进",dueToday.length],["首次响应超时",responseOverdue.length],["跟进已逾期",followupOverdue.length],["本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>i===0?`<button type="button" class="sales-workbench-kpi sales-workbench-kpi-link" data-open-active-inquiries aria-label="查看 ${value} 条进行中询盘"><span>${label}</span><b>${value}</b></button>`:`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i===2||i===3?"danger-text":""}">${value}</b></div>`).join("");
+        const customerReplies=latestInboundTasks(open),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),ownFollowups=(followups||[]).filter(x=>x.author_id===profile.id),followupOverdue=ownFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),dueToday=ownFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.next_follow_up_at))===today),quoteNoFeedback=open.filter(x=>x.quoted_at&&now-new Date(x.quoted_at)>7*86400000&&!hasInboundAfter(x.id,x.quoted_at)),wonMonth=mine.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd)),wonCny=sumWonCny(wonMonth),usd=fxToCny("USD");
+        $("#sales-workbench-kpis").innerHTML=[["进行中询盘",open.length],["客户新回复",customerReplies.length],["今日待跟进",dueToday.length],["首次响应超时",responseOverdue.length],["跟进已逾期",followupOverdue.length],["本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>i===0?`<button type="button" class="sales-workbench-kpi sales-workbench-kpi-link" data-open-active-inquiries aria-label="查看 ${value} 条进行中询盘"><span>${label}</span><b>${value}</b></button>`:`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i>0&&i<5&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         $("[data-open-active-inquiries]")?.addEventListener("click",()=>switchView("inquiries",{inquiryScope:"open"}));
-        const tasks=[];responseOverdue.forEach(x=>tasks.push({priority:1,id:x.id,title:x.title,reason:"首次有效联系已超过 30 分钟",time:x.assigned_at,label:"立即联系"}));followupOverdue.forEach(f=>{const x=mine.find(row=>row.id===f.inquiry_id);if(x)tasks.push({priority:2,id:x.id,title:x.title,reason:"计划跟进时间已过",time:f.next_follow_up_at,label:"补充跟进"})});open.filter(x=>x.risk_flag).forEach(x=>tasks.push({priority:3,id:x.id,title:x.title,reason:"高风险客户，需核验后继续",time:x.updated_at,label:"查看风险"}));dueToday.forEach(f=>{const x=mine.find(row=>row.id===f.inquiry_id);if(x&&!tasks.some(t=>t.id===x.id))tasks.push({priority:4,id:x.id,title:x.title,reason:"今日计划跟进",time:f.next_follow_up_at,label:"去跟进"})});
+        const tasks=[];customerReplies.forEach(x=>tasks.push({priority:1,id:x.id,title:x.title,reason:"客户有新回复，等待查看并回复",time:x.latestInboundAt,label:"查看回复"}));responseOverdue.forEach(x=>tasks.push({priority:2,id:x.id,title:x.title,reason:"首次有效联系已超过 30 分钟",time:x.assigned_at,label:"立即联系"}));followupOverdue.forEach(f=>{const x=mine.find(row=>row.id===f.inquiry_id);if(x)tasks.push({priority:3,id:x.id,title:x.title,reason:"计划跟进时间已过",time:f.next_follow_up_at,label:"补充跟进"})});quoteNoFeedback.forEach(x=>tasks.push({priority:4,id:x.id,title:x.title,reason:"报价后超过 7 天未收到客户反馈",time:x.quoted_at,label:"再次跟进"}));open.filter(x=>x.risk_flag).forEach(x=>tasks.push({priority:5,id:x.id,title:x.title,reason:"高风险客户，需核验后继续",time:x.updated_at,label:"查看风险"}));dueToday.forEach(f=>{const x=mine.find(row=>row.id===f.inquiry_id);if(x&&!tasks.some(t=>t.id===x.id))tasks.push({priority:6,id:x.id,title:x.title,reason:"今日计划跟进",time:f.next_follow_up_at,label:"去跟进"})});
         tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
         $("#sales-task-list").innerHTML=tasks.length?tasks.slice(0,10).map(t=>`<div class="sales-task-item" data-sales-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>今日暂无紧急待办</b><small>可以继续处理正常跟进或新增客户线索</small></div>';
         $$('[data-sales-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.salesTask)));
       }
       function renderManagerWorkbench(rows,profiles,followups){
         if(profile?.role!=="sales_manager")return;
-        const now=new Date(),sales=(profiles||[]).filter(x=>x.role==="sales"),open=rows.filter(x=>!["won","lost"].includes(x.status)),pending=open.filter(x=>x.status==="pending_assignment"||!x.owner_id),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),overdueFollowups=(followups||[]).filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),submitted=new Set((dashboardState.dailyReports||[]).map(x=>x.sales_id)),missingReports=sales.filter(x=>!submitted.has(x.id)),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999),wonCny=sumWonCny(rows.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd))),usd=fxToCny("USD");
-        $("#manager-workbench-kpis").innerHTML=[["待分配询盘",pending.length],["首次响应超时",responseOverdue.length],["跟进已逾期",overdueFollowups.length],["今日未交日报",missingReports.length],["团队本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i<4&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
-        const priorities=[];pending.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"等待主管分配负责人",time:x.created_at,label:"待分配"}));responseOverdue.forEach(x=>priorities.push({priority:2,id:x.id,title:x.title,reason:"分配后超过 30 分钟未完成首次有效联系",time:x.assigned_at,label:"响应超时"}));overdueFollowups.forEach(f=>{const x=rows.find(row=>row.id===f.inquiry_id);if(x)priorities.push({priority:3,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===f.author_id)?.full_name||"业务员"}的跟进任务已逾期`,time:f.next_follow_up_at,label:"跟进逾期"})});
+        const now=new Date(),sales=(profiles||[]).filter(x=>x.role==="sales"),open=rows.filter(x=>!["won","lost"].includes(x.status)),pending=open.filter(x=>x.status==="pending_assignment"||!x.owner_id),customerReplies=latestInboundTasks(open),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),overdueFollowups=(followups||[]).filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),submitted=new Set((dashboardState.dailyReports||[]).map(x=>x.sales_id)),missingReports=sales.filter(x=>!submitted.has(x.id)),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999),wonCny=sumWonCny(rows.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd))),usd=fxToCny("USD");
+        $("#manager-workbench-kpis").innerHTML=[["待分配询盘",pending.length],["客户回复待处理",customerReplies.length],["首次响应超时",responseOverdue.length],["跟进已逾期",overdueFollowups.length],["今日未交日报",missingReports.length],["团队本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i<5&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
+        const priorities=[];pending.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"等待主管分配负责人",time:x.created_at,label:"待分配"}));customerReplies.forEach(x=>priorities.push({priority:2,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===x.owner_id)?.full_name||"负责人"}有客户新回复待处理`,time:x.latestInboundAt,label:"客户回复"}));responseOverdue.forEach(x=>priorities.push({priority:3,id:x.id,title:x.title,reason:"分配后超过 30 分钟未完成首次有效联系",time:x.assigned_at,label:"响应超时"}));overdueFollowups.forEach(f=>{const x=rows.find(row=>row.id===f.inquiry_id);if(x)priorities.push({priority:4,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===f.author_id)?.full_name||"业务员"}的跟进任务已逾期`,time:f.next_follow_up_at,label:"跟进逾期"})});
         priorities.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
         $("#manager-priority-list").innerHTML=priorities.length?priorities.slice(0,12).map(t=>`<div class="sales-task-item" data-manager-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无团队紧急事项</b><small>当前分配、响应和跟进均无异常</small></div>';
         $$('[data-manager-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.managerTask)));
@@ -2417,7 +2429,7 @@
       }
       function aiEvidence(question=""){
         const c=aiDataContext(question),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,valid=c.created.filter(x=>x.validity!=="pending"),validCount=valid.filter(x=>x.validity==="valid").length;
-        return [`统计周期：${period}`,`对比周期：${c.previousStart.toLocaleDateString('zh-CN')}—${c.previousEnd.toLocaleDateString('zh-CN')}`,`数据范围：${c.scope}`,`新增询盘：${c.created.length}；上期：${c.comparison.created}`,`已分配询盘：${c.assigned.length}；上期：${c.comparison.assigned}`,`30分钟内首次响应：${c.fast.length}；首次响应率：${pct(c.fast.length,c.assigned.length)}；上期首次响应率：${pct(c.comparison.fast,c.comparison.assigned)}；超时未响应：${c.overdue.length}`,`有效询盘：${validCount}；有效询盘率：${pct(validCount,valid.length)}`,`成交：${c.won.length}；已关闭：${c.closed.length}；成交率：${pct(c.won.length,c.closed.length)}；上期成交：${c.comparison.won}；上期成交率：${pct(c.comparison.won,c.comparison.closed)}`,`团队成交额：${money(c.totalCny,'CNY')}${c.usd?` / ${money(c.totalCny/c.usd,'USD')}`:""}；上期成交额：${money(c.comparison.totalCny,'CNY')}`,`业务员数据：\n${c.salesStats.map((x,i)=>`${i+1}. ${x.name}｜成交额 ${money(x.amount,'CNY')}${c.usd?`/${money(x.amount/c.usd,'USD')}`:""}｜成交 ${x.won}单｜处理 ${x.handled}条`).join('\n')||'暂无'}`,`商机阶段：${c.stages.map(x=>`${x.name}${x.count}条`).join('；')||'暂无'}`,`渠道分布：${c.sources.map(x=>`${x.name}${x.count}条`).join('；')||'暂无'}`,`风险或逾期商机：${c.risky.length}条${c.risky.length?`\n${c.risky.slice(0,20).map(x=>`• ${x.title}｜${statusNames[x.status]||x.status}｜负责人 ${dashboardState.profiles.find(p=>p.id===x.owner_id)?.full_name||'未分配'}`).join('\n')}`:''}`,`口径：成交额按成交时间、成交日锁定汇率和成交时负责人统计；未分配不计入业务员排名。`].join('\n\n');
+        return [`统计周期：${period}`,`对比周期：${c.previousStart.toLocaleDateString('zh-CN')}—${c.previousEnd.toLocaleDateString('zh-CN')}`,`数据范围：${c.scope}`,`新增询盘：${c.created.length}；上期：${c.comparison.created}`,`进行中询盘明细：${c.active.length}条${c.active.length?`\n${c.active.slice(0,50).map(x=>`• #${String(x.inquiry_no||"").padStart(6,"0")}｜${x.title}｜${statusNames[x.status]||x.status}｜国家 ${x.target_country||"未填写"}｜下次跟进 ${x.next_follow_up_at?fmtDate(x.next_follow_up_at):"未安排"}`).join('\n')}`:""}`,`已分配询盘：${c.assigned.length}；上期：${c.comparison.assigned}`,`30分钟内首次响应：${c.fast.length}；首次响应率：${pct(c.fast.length,c.assigned.length)}；上期首次响应率：${pct(c.comparison.fast,c.comparison.assigned)}；超时未响应：${c.overdue.length}`,`有效询盘：${validCount}；有效询盘率：${pct(validCount,valid.length)}`,`成交：${c.won.length}；已关闭：${c.closed.length}；成交率：${pct(c.won.length,c.closed.length)}；上期成交：${c.comparison.won}；上期成交率：${pct(c.comparison.won,c.comparison.closed)}`,`团队成交额：${money(c.totalCny,'CNY')}${c.usd?` / ${money(c.totalCny/c.usd,'USD')}`:""}；上期成交额：${money(c.comparison.totalCny,'CNY')}`,`业务员数据：\n${c.salesStats.map((x,i)=>`${i+1}. ${x.name}｜成交额 ${money(x.amount,'CNY')}${c.usd?`/${money(x.amount/c.usd,'USD')}`:""}｜成交 ${x.won}单｜处理 ${x.handled}条`).join('\n')||'暂无'}`,`商机阶段：${c.stages.map(x=>`${x.name}${x.count}条`).join('；')||'暂无'}`,`渠道分布：${c.sources.map(x=>`${x.name}${x.count}条`).join('；')||'暂无'}`,`风险或逾期商机：${c.risky.length}条${c.risky.length?`\n${c.risky.slice(0,20).map(x=>`• ${x.title}｜${statusNames[x.status]||x.status}｜负责人 ${dashboardState.profiles.find(p=>p.id===x.owner_id)?.full_name||'未分配'}`).join('\n')}`:''}`,`口径：成交额按成交时间、成交日锁定汇率和成交时负责人统计；未分配不计入业务员排名。`].join('\n\n');
       }
       let aiConversation=[],aiLastContext=null,aiLastQuestion="";
       function latestAiAnswer(){return [...aiConversation].reverse().find(x=>x.role==="assistant")?.content||"";}
@@ -2516,9 +2528,10 @@
           toast("阶段时间加载失败：" + historyError.message);
           return;
         }
-        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }] = await Promise.all([
+        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: dashboardEmailMessages }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }] = await Promise.all([
           supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active").eq("active", true),
           supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").limit(2000),
+          supabase.from("email_messages").select("id,inquiry_id,direction,received_at,sent_at,created_at").order("created_at",{ascending:false}).limit(2000),
           supabase.from("channel_costs").select("*").limit(500),
           supabase.from("sales_targets").select("*").limit(500),
           supabase.from("sales_target_people").select("*").order("sales_region").order("display_name"),
@@ -2542,7 +2555,7 @@
         if(countrySelect&&countrySelect.options.length===1)[...new Set([...rows.map(x=>x.target_country),...(legacyProjects||[]).map(x=>x.country)].filter(Boolean))].sort().forEach(v=>countrySelect.add(new Option(v,v)));
         if(productSelect&&productSelect.options.length===1)[...new Set([...rows.map(x=>x.product_category),...(legacyProjects||[]).map(x=>x.product_type)].filter(Boolean))].sort().forEach(v=>productSelect.add(new Option(v,v)));
         const syncedRates=await syncDailyExchangeRates(rows,exchangeRates||[]);
-        dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];
+        dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         const latestByInquiry = new Map();
         const latestByStage = new Map();
@@ -2643,7 +2656,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
+              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,assigned_at,first_valid_contact_at,quoted_at,next_follow_up_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
             )
             .eq("id", id)
             .single(),
@@ -3413,6 +3426,21 @@
           updated_at: new Date().toISOString(),
         };
         const outcomeReason = $("#detail-invalid-reason").value.trim();
+        if (update.status === "qualified" && update.validity !== "valid") {
+          toast("进入有效询盘前，必须先确认询盘有效");
+          button.disabled = false;
+          return;
+        }
+        if (update.status === "contacted" && !currentInquiry.first_valid_contact_at && !["contacted","quoted","sample_sent","negotiating","won","lost"].includes(currentInquiry.status)) {
+          toast("进入已联系前，必须先完成首次有效联系");
+          button.disabled = false;
+          return;
+        }
+        if (["quoted","sample_sent","negotiating"].includes(update.status) && (!update.estimated_amount || !update.currency)) {
+          toast("进入已报价及后续阶段前，必须填写预计金额和币种");
+          button.disabled = false;
+          return;
+        }
         if (update.validity === "invalid" && !outcomeReason) {
           toast("无效询盘必须填写原因");
           button.disabled = false;

@@ -506,6 +506,12 @@
       #module-table { min-width:880px; }
       #module-table tbody tr[data-clickable="true"] { cursor:pointer; }
       #module-table tbody tr[data-clickable="true"]:hover td:first-child { color:#315f49; }
+      #module-table tbody tr[data-clickable="true"]:hover { background:#fbfcfb; }
+      .module-cell-primary { max-width:430px; font-weight:700; line-height:1.4; color:var(--ink); }
+      .module-status-pill { display:inline-flex; align-items:center; min-height:25px; padding:3px 9px; border-radius:999px; background:var(--soft); color:#315f49; font-size:10px; font-weight:750; white-space:nowrap; }
+      .module-status-pill.pending { background:#fff4e8; color:#a9571e; }
+      .module-status-pill.invalid { background:#f9e8e6; color:#a33f35; }
+      .module-owner-unassigned { color:#a9571e; font-weight:700; }
       .module-state-title { display:block; margin-bottom:5px; color:var(--ink); }
       .module-retry { margin-top:14px; }
       .module-loading-icon { animation:module-spin .9s linear infinite; }
@@ -2021,7 +2027,19 @@
         columns.forEach((label) => { const th = document.createElement("th"); th.textContent = label; const definition=inquiryManagementDefinitions[label]; if(activeModuleView==="inquiries"&&definition){const help=document.createElement("button");help.type="button";help.className="metric-help";help.textContent="?";help.title=definition[0];help.addEventListener("click",event=>{event.stopPropagation();openInquiryDefinition(label)});th.append(" ",help)} head.append(th); });
         rows.forEach((row) => {
           const tr = document.createElement("tr");
-          row.cells.forEach((value) => { const td = document.createElement("td"); td.textContent = value ?? "—"; tr.append(td); });
+          row.cells.forEach((value, index) => {
+            const td = document.createElement("td"), label = columns[index];
+            if (activeModuleView === "inquiries" && label === "询盘主题") td.className = "module-cell-primary";
+            if (activeModuleView === "inquiries" && ["阶段", "有效性"].includes(label)) {
+              const pill = document.createElement("span");
+              pill.className = `module-status-pill ${label === "有效性" && value === "无效" ? "invalid" : /待|未/.test(String(value || "")) ? "pending" : ""}`;
+              pill.textContent = value ?? "—"; td.append(pill);
+            } else {
+              td.textContent = value ?? "—";
+              if (activeModuleView === "inquiries" && label === "负责人" && !value) { td.textContent = "待分配"; td.className = "module-owner-unassigned"; }
+            }
+            tr.append(td);
+          });
           const actions = row.actions || (row.action ? [row.action] : []);
           if (actions.length) {
             const td = document.createElement("td");
@@ -2111,7 +2129,7 @@
           renderModuleTable(["提示"], [{ cells: ["当前账号无权查看此页面"] }]);
           return;
         }
-        let query, columns, mapper, clickable = false;
+        let query, columns, mapper, clickable = false, ownerNames = {};
         if (["inquiries", "assignment", "public-pool"].includes(view)) {
           query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,source,owner_id,target_country,created_at").order("created_at", { ascending: false }).limit(200);
           if (view === "inquiries" && activeInquiryScope === "open") {
@@ -2122,8 +2140,8 @@
           }
           if (view === "assignment") query = query.eq("status", "pending_assignment");
           if (view === "public-pool") query = query.is("owner_id", null).neq("status", "pending_assignment");
-          columns = ["编号", "询盘主题", "国家/地区", "来源", "阶段", "有效性", "创建时间"];
-          mapper = (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity, source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, sourceNames[x.source] || x.source, statusNames[x.status] || x.status, {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, fmtDate(x.created_at)] });
+          columns = ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
+          mapper = (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity, source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, ownerNames[x.owner_id] || "", statusNames[x.status] || x.status, {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
           clickable = true;
         } else if (view === "email") {
           query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,received_at,created_at,inquiry_id").order("created_at", { ascending: false }).limit(200);
@@ -2157,6 +2175,13 @@
         const { data, error } = await query;
         if (loadVersion !== moduleLoadVersion || view !== activeModuleView) return;
         if (error) { moduleColumns = columns; moduleRows = []; moduleRowClick = null; setModuleState("error", error.message); toast("页面加载失败：" + error.message); return; }
+        if (["inquiries", "assignment", "public-pool"].includes(view)) {
+          const ownerIds = [...new Set((data || []).map((item) => item.owner_id).filter(Boolean))];
+          if (ownerIds.length) {
+            const { data: owners } = await supabase.from("profiles").select("id,full_name").in("id", ownerIds);
+            ownerNames = Object.fromEntries((owners || []).map((owner) => [owner.id, owner.full_name]));
+          }
+        }
         if (view === "legacy-projects") renderLegacyInsights(data || []);
         const mappedRows = (data || []).map(mapper);
         renderModuleTable(columns, mappedRows, clickable ? (row) => row.id && openInquiryDetail(row.id) : null);

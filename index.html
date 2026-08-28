@@ -1721,6 +1721,7 @@
       let profile = null;
       let passwordChangeMode = "initial";
       let currentInquiry = null;
+      let detailStageTicker = null;
       let notificationChannel = null;
       let detailOriginView = "dashboard";
       $(".main").appendChild($("#detail-modal"));
@@ -2694,7 +2695,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,assigned_at,first_valid_contact_at,quoted_at,next_follow_up_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
+              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,updated_at,assigned_at,first_valid_contact_at,quoted_at,next_follow_up_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
             )
             .eq("id", id)
             .single(),
@@ -2900,6 +2901,16 @@
         const done=checks.filter(x=>x[1]).length,percent=Math.round(done/checks.length*100),missing=checks.filter(x=>!x[1]).map(x=>x[0]);
         box.innerHTML=`<div class="detail-completeness-head"><b>关键资料完整度</b><span>${done}/${checks.length} · ${percent}%</span></div><div class="detail-completeness-bar"><i style="width:${percent}%"></i></div><div class="detail-completeness-items">${checks.map(([label,ok])=>`<span class="completeness-chip ${ok?'':'missing'}">${ok?'✓':'待补'} ${esc(label)}</span>`).join('')}</div>${missing.length?`<p class="hint" style="margin:10px 0 0">建议补充：${esc(missing.join('、'))}</p>`:''}`;
       }
+      function exactDuration(from){
+        const seconds=Math.max(0,Math.floor((Date.now()-new Date(from))/1000)),days=Math.floor(seconds/86400),hours=Math.floor(seconds%86400/3600),minutes=Math.floor(seconds%3600/60),secs=seconds%60;
+        return `${days?`${days}天 `:''}${String(hours).padStart(2,'0')}时 ${String(minutes).padStart(2,'0')}分 ${String(secs).padStart(2,'0')}秒`;
+      }
+      function updateDetailStageClock(){
+        const el=$("[data-current-stage-elapsed]");if(!el)return;
+        const entered=el.dataset.enteredAt,limit=Number(el.dataset.limitHours||0),elapsed=Date.now()-new Date(entered),overdue=limit&&elapsed>limit*3600000;
+        el.textContent=`已停留 ${exactDuration(entered)}${limit?` · 建议时限 ${limit<1?`${limit*60}分钟`:`${limit}小时`}`:''}${overdue?' · 已超时':''}`;
+        el.classList.toggle("danger-text",Boolean(overdue));
+      }
       async function loadTimeline(id) {
         const [{ data: stages }, { data: follows }, { data: messages }, { data: summaries }] = await Promise.all([
           supabase
@@ -2942,6 +2953,7 @@
         }
         const pipeline = $("#detail-pipeline");
         pipeline.replaceChildren();
+        const detailStageLimits={pending_assignment:.5,received:4,qualified:24,contacted:72,quoted:168,sample_sent:336,negotiating:336};
         pipelineStatuses.forEach((status) => {
           const step = document.createElement("div");
           step.className = "pipeline-step";
@@ -2950,10 +2962,12 @@
           const name = document.createElement("b");
           name.textContent = statusNames[status] || status;
           const time = document.createElement("small");
-          time.textContent = stageTimes.has(status) ? fmtDate(stageTimes.get(status)) : "尚未进入";
+          time.textContent = stageTimes.has(status) ? `进入：${fmtDate(stageTimes.get(status))}` : "尚未进入";
           step.append(name, time);
+          if(currentInquiry?.status===status){const elapsed=document.createElement("small"),entered=stageTimes.get(status)||currentInquiry.updated_at||currentInquiry.created_at;elapsed.dataset.currentStageElapsed="";elapsed.dataset.enteredAt=entered;elapsed.dataset.limitHours=detailStageLimits[status]||"";step.append(elapsed)}
           pipeline.append(step);
         });
+        if(detailStageTicker)clearInterval(detailStageTicker);updateDetailStageClock();detailStageTicker=setInterval(updateDetailStageClock,1000);
         renderNextBestAction(stages||[],follows||[],messages||[]);
         const events = [
           ...(stages || []).map((x) => ({
@@ -3458,6 +3472,7 @@
       });
       function closeInquiryPage() {
         $("#detail-modal").classList.add("hidden");
+        if (detailStageTicker) { clearInterval(detailStageTicker); detailStageTicker = null; }
         currentInquiry = null;
         if (detailOriginView === "sales-profile") {
           $("#dashboard-page").classList.add("hidden");

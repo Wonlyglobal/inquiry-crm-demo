@@ -1549,6 +1549,7 @@
             <div><h4 style="margin:0">开发信</h4><p class="hint" style="margin:8px 0 0">独立使用已确认的背调证据生成英文草稿，不会自动发送。</p></div>
             <button id="generate-outreach" class="primary" type="button">生成开发信草稿</button>
           </div>
+          <p id="outreach-status" class="hint" style="margin-top:16px">草稿尚未生成</p>
           <div id="outreach-draft" class="hidden" style="margin-top:24px">
             <h4>开发信草稿 <span class="tag">待人工审核</span></h4>
             <div class="detail-grid">
@@ -1560,7 +1561,6 @@
               <div class="field"><label>发送主题</label><select id="outreach-selected-subject" class="input"><option value="a">主题 A</option><option value="b">主题 B</option></select></div>
             </div>
             <div class="field"><label>英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea></div>
-            <p id="outreach-status" class="hint">草稿尚未保存</p>
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
           </div>
         </div>
@@ -2395,13 +2395,15 @@
         const risky=scoped.filter(x=>x.risk_flag||x.expected_close_date&&new Date(x.expected_close_date)<new Date()&&!['won','lost'].includes(x.status)||x.next_follow_up_at&&new Date(x.next_follow_up_at)<new Date());
         const sources=[...new Set(created.map(x=>x.primary_source||x.source))].map(key=>({name:sourceNames[key]||key,count:created.filter(x=>(x.primary_source||x.source)===key).length})).sort((a,b)=>b.count-a.count);
         const previousCreated=scoped.filter(x=>inRange(x.created_at,previousStart,previousEnd)),previousWon=scoped.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,previousStart,previousEnd)),previousClosed=previousCreated.filter(x=>["won","lost"].includes(x.status)),previousAssigned=scoped.filter(x=>x.assigned_at&&inRange(x.assigned_at,previousStart,previousEnd)),previousFast=previousAssigned.filter(x=>x.first_valid_contact_at&&new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000),previousTotalCny=sumWonCny(previousWon);
-        return {type,start,end,previousStart,previousEnd,created,won,closed,assigned,responded,fast,overdue,totalCny,usd,salesStats,stages,risky,sources,followups,history,comparison:{created:previousCreated.length,won:previousWon.length,closed:previousClosed.length,assigned:previousAssigned.length,fast:previousFast.length,totalCny:previousTotalCny},scope:[team&&`团队:${team}`,sales&&`成员:${people.find(p=>p.id===sales)?.full_name||namedMember?.full_name}`,source&&`来源:${sourceNames[source]||source}`,country&&`国家:${country}`,product&&`品类:${product}`].filter(Boolean).join("；")||"当前权限内全部数据"};
+        const active=scoped.filter(x=>!["won","lost"].includes(x.status));
+        return {type,start,end,previousStart,previousEnd,created,active,won,closed,assigned,responded,fast,overdue,totalCny,usd,salesStats,stages,risky,sources,followups,history,comparison:{created:previousCreated.length,won:previousWon.length,closed:previousClosed.length,assigned:previousAssigned.length,fast:previousFast.length,totalCny:previousTotalCny},scope:[team&&`团队:${team}`,sales&&`成员:${people.find(p=>p.id===sales)?.full_name||namedMember?.full_name}`,source&&`来源:${sourceNames[source]||source}`,country&&`国家:${country}`,product&&`品类:${product}`].filter(Boolean).join("；")||"当前权限内全部数据"};
       }
       function aiAnswer(question){
         const c=aiDataContext(question),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,q=question.toLowerCase(),moneyLine=`${money(c.totalCny,'CNY')}${c.usd?` / ${money(c.totalCny/c.usd,'USD')}`:" / 美元汇率待更新"}`;
         const change=(current,previous)=>previous?`${current>=previous?'上升':'下降'} ${Math.abs((current-previous)/previous*100).toFixed(1)}%`:(current?"上期为 0":"持平"),header=`统计周期：${period}\n数据范围：${c.scope}`;
         if(/排名|排行|销售额|成交额|ranking/.test(q)) return `${header}\n\n团队成交额：${moneyLine}\n业务员销售额排名：\n${c.salesStats.map((x,i)=>`${i+1}. ${x.name}：${money(x.amount,'CNY')}${c.usd?` / ${money(x.amount/c.usd,'USD')}`:""}（${x.won} 单）`).join('\n')||'暂无可排名数据'}\n\n口径：按成交时间与成交日锁定汇率统计。`;
         if(/风险|超时|预警|未跟进/.test(q)) return `${header}\n\n超时未首次响应：${c.overdue.length} 条\n高风险/逾期商机：${c.risky.length} 条\n${c.risky.slice(0,10).map((x,i)=>`${i+1}. ${x.title}（${statusNames[x.status]||x.status}）`).join('\n')||'当前没有可识别的风险商机'}\n\n建议：优先处理超时未响应，再核实预计成交日已过及跟进任务逾期的商机。`;
+        if(/进行中|询盘编号|列出编号|下一步建议/.test(q)) return `${header}\n\n进行中询盘：${c.active.length} 条\n${c.active.map((x,i)=>`${i+1}. #${String(x.inquiry_no||"").padStart(6,"0")}｜${x.title}｜阶段：${statusNames[x.status]||x.status}｜下一步：${x.next_follow_up_at?`按计划于 ${fmtDate(x.next_follow_up_at)} 跟进`:x.status==="received"?"核实需求并完成首次有效联系":"根据当前阶段安排下一次跟进"}`).join('\n')||'暂无进行中询盘'}`;
         if(/漏斗|阶段|商机|转化/.test(q)) return `${header}\n\n当前商机阶段：\n${c.stages.map(x=>`• ${x.name}：${x.count} 条`).join('\n')||'暂无商机'}\n成交率：${pct(c.won.length,c.closed.length)}\n成交额：${moneyLine}\n\n口径：成交率=统计期内成交数÷已关闭数（成交+丢单）。`;
         if(/来源|渠道|roi/.test(q)) return `${header}\n\n渠道询盘分布：\n${c.sources.map(x=>`• ${x.name}：${x.count} 条`).join('\n')||'暂无渠道数据'}\n\nROI 需结合市场部录入的月度渠道成本，详见经营看板“渠道表现与 ROI”。`;
         return `${header}\n\n经营摘要：\n• 新增询盘 ${c.created.length} 条，较上期${change(c.created.length,c.comparison.created)}\n• 已分配 ${c.assigned.length} 条，30 分钟内首次有效响应率 ${pct(c.fast.length,c.assigned.length)}（上期 ${pct(c.comparison.fast,c.comparison.assigned)}），超时未响应 ${c.overdue.length} 条\n• 成交 ${c.won.length} 单，较上期${change(c.won.length,c.comparison.won)}；成交率 ${pct(c.won.length,c.closed.length)}（上期 ${pct(c.comparison.won,c.comparison.closed)}）\n• 团队成交额 ${moneyLine}，较上期${change(c.totalCny,c.comparison.totalCny)}\n• 高风险或逾期商机 ${c.risky.length} 条\n• 当前销售额第一：${c.salesStats[0]?.name||'暂无'}${c.salesStats[0]?` （${money(c.salesStats[0].amount,'CNY')}）`:''}\n\n你可继续问：销售额排名、风险询盘、商机漏斗或渠道分布。`;
@@ -3741,18 +3743,8 @@
         $("#detail-research-status").textContent = "背调状态：正在查询 WONLY Business…";
         try {
           const base = "https://raw.githubusercontent.com/chloe19980401/businesswonly/main/api/";
-          const indexResponse = await fetch(base + "index.json", { cache: "no-store" });
-          if (!indexResponse.ok) throw new Error(`背调索引读取失败（${indexResponse.status}）`);
-          const index = await indexResponse.json();
-          const hit = (index.companies || []).find((item) => normalizeDomain(item.domain) === domain);
-          let record;
-          if (hit) {
-            const detailResponse = await fetch(base + hit.file, { cache: "no-store" });
-            if (!detailResponse.ok) throw new Error(`公司背调读取失败（${detailResponse.status}）`);
-            record = await detailResponse.json();
-            record.researchStatus = "ready";
-            record.dataUpdatedAt = record.addedDate || index.generatedAt || "";
-          } else if (domain === "imprac.com.ar") {
+          let index = { companies: [] }, hit = null, record;
+          if (domain === "imprac.com.ar") {
             record = {
               company: "Imprac", countryName: "阿根廷", city: "Buenos Aires",
               categoryName: "门体自动化设备及配件制造与分销商",
@@ -3765,6 +3757,18 @@
               addedDate: "2026-08-26", researchStatus: "ready", dataUpdatedAt: "2026-08-26",
             };
           } else {
+            const indexResponse = await fetch(base + "index.json", { cache: "no-store" });
+            if (!indexResponse.ok) throw new Error(`背调索引读取失败（${indexResponse.status}）`);
+            index = await indexResponse.json();
+            hit = (index.companies || []).find((item) => normalizeDomain(item.domain) === domain);
+          }
+          if (hit) {
+            const detailResponse = await fetch(base + hit.file, { cache: "no-store" });
+            if (!detailResponse.ok) throw new Error(`公司背调读取失败（${detailResponse.status}）`);
+            record = await detailResponse.json();
+            record.researchStatus = "ready";
+            record.dataUpdatedAt = record.addedDate || index.generatedAt || "";
+          } else if (!record) {
             $("#detail-research-company").value ||= domain;
             $("#detail-research-domain").value = domain;
             updateDomainLink();
@@ -3909,10 +3913,10 @@
         if (!currentInquiry) return;
         const company = $("#detail-research-company").value.trim();
         const research = $("#detail-research-summary").value.trim();
-        if (!company || !research) return toast("请先完成并确认客户背调");
+        if (!company || !research) { $("#outreach-status").textContent = "无法生成：请先完成并确认客户背调"; return toast("请先完成并确认客户背调"); }
         const button = $("#generate-outreach");
         const recipient = currentInquiry.email_intake?.sender_email || $("#outreach-recipient").value.trim();
-        if (!recipient) return toast("缺少客户邮箱，无法通过联系人质量门槛");
+        if (!recipient) { $("#outreach-status").textContent = "无法生成：缺少客户邮箱"; return toast("缺少客户邮箱，无法通过联系人质量门槛"); }
         button.disabled = true;
         button.textContent = "调用开发信系统中…";
         $("#outreach-status").textContent = "正在使用 wonly-personalized-outreach 生成并质检…";
@@ -4154,7 +4158,7 @@
         $("#mailbox-email").readOnly = selfOnly || sharedInquiry;
         $("#mailbox-modal-title").textContent = sharedInquiry ? "连接公共询盘邮箱" : selfOnly ? "连接我的邮箱" : "连接业务员邮箱";
         const targetUserId = selectedUserId || (selfOnly ? profile.id : select.value);
-        const selectedMemberEmail = (data || []).find((member) => member.id === targetUserId)?.email || "";
+        const selectedMemberEmail = (data || []).find((member) => member.id === targetUserId)?.email || dashboardState.profiles?.find((member) => member.id === targetUserId)?.email || profile.email || "";
         $("#mailbox-email").value = sharedInquiry ? "inquiry@wonlyglobal.com" : selectedMemberEmail;
         $("#mailbox-password").value = "";
         $("#mailbox-modal").classList.remove("hidden");
@@ -4297,6 +4301,7 @@
       $("#ai-assistant-form").addEventListener("submit",async event=>{
         event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
         addAiMessage("user",question);input.value="";aiLastQuestion=question;aiLastContext=aiDataContext(question);const grounded=aiAnswer(question),evidence=aiEvidence(question),submit=event.submitter||$("#ai-assistant-form button[type='submit']");submit.disabled=true;submit.textContent="分析中…";
+        if(/进行中|询盘编号|列出编号|下一步建议/.test(question.toLowerCase())){submit.disabled=false;submit.textContent="提问";addAiMessage("assistant",grounded);aiConversation.push({role:"user",content:question},{role:"assistant",content:grounded});return;}
         let answer=grounded,fallbackReason="";
         try{const {data,error}=await supabase.functions.invoke("crm-ai-assistant",{body:{question,grounded_answer:evidence,history:aiConversation.slice(-6)}});if(!error&&data?.answer)answer=data.answer;else{fallbackReason=data?.error||error?.message||"DeepSeek 服务未返回答案";if(error?.context)try{fallbackReason=(await error.context.clone().json())?.error||fallbackReason;}catch{}}}catch(error){fallbackReason=error?.message||String(error);}
         if(fallbackReason){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",fallbackReason);answer+=`\n\n⚠️ DeepSeek 暂未生效，本次使用 CRM 本地统计：${fallbackReason}`;}

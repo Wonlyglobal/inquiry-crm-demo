@@ -1984,6 +1984,20 @@
         $("#module-empty").classList.remove("hidden"); $("#module-table").classList.add("hidden");
         icons();
       }
+      async function runModuleQuery(query, attempts = 3) {
+        let lastError;
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          try {
+            const result = await query;
+            if (!result?.error || !/failed to fetch|networkerror|load failed/i.test(String(result.error.message || ""))) return result;
+            lastError = result.error;
+          } catch (error) {
+            lastError = error;
+          }
+          if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, attempt * 450));
+        }
+        return { data:null, error:lastError || new Error("网络请求失败") };
+      }
       function filterModuleRows() {
         const query = $("#module-search").value.trim().toLocaleLowerCase();
         const validity = activeModuleView === "inquiries" ? $("#inquiry-validity-filter").value : "";
@@ -2172,14 +2186,21 @@
             };
           };
         }
-        const { data, error } = await query;
+        const { data, error } = await runModuleQuery(query);
         if (loadVersion !== moduleLoadVersion || view !== activeModuleView) return;
-        if (error) { moduleColumns = columns; moduleRows = []; moduleRowClick = null; setModuleState("error", error.message); toast("页面加载失败：" + error.message); return; }
+        if (error) {
+          moduleColumns = columns; moduleRows = []; moduleRowClick = null;
+          const networkFailure = /failed to fetch|networkerror|load failed/i.test(String(error.message || error));
+          const detail = networkFailure ? "暂时无法连接数据服务，系统已自动重试。请检查网络后点击重新加载。" : error.message;
+          setModuleState("error", detail); toast("页面加载失败：" + detail); return;
+        }
         if (["inquiries", "assignment", "public-pool"].includes(view)) {
           const ownerIds = [...new Set((data || []).map((item) => item.owner_id).filter(Boolean))];
           if (ownerIds.length) {
-            const { data: owners } = await supabase.from("profiles").select("id,full_name").in("id", ownerIds);
-            ownerNames = Object.fromEntries((owners || []).map((owner) => [owner.id, owner.full_name]));
+            try {
+              const { data: owners } = await runModuleQuery(supabase.from("profiles").select("id,full_name").in("id", ownerIds), 2);
+              ownerNames = Object.fromEntries((owners || []).map((owner) => [owner.id, owner.full_name]));
+            } catch (error) { console.warn("负责人姓名加载失败，保留询盘列表", error); }
           }
         }
         if (view === "legacy-projects") renderLegacyInsights(data || []);

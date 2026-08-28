@@ -1623,11 +1623,13 @@
               </select>
             </div>
             <div class="field">
-              <label>无效/丢单原因</label
-              ><input
+              <label>无效/丢单原因类型</label><select id="detail-outcome-reason-type" class="input"><option value="">请选择原因</option><optgroup label="无效询盘"><option value="invalid_contact">联系方式无效</option><option value="irrelevant_business">与门锁业务无关</option><option value="unclear_demand">无明确产品、数量或项目</option><option value="spam">垃圾或养号邮件</option><option value="supplier_sales">供应商推销</option><option value="job_application">求职信息</option><option value="target_mismatch">国家或客户类型不符合</option><option value="duplicate">重复询盘</option></optgroup><optgroup label="丢单"><option value="budget">预算不足</option><option value="competitor">选择竞争对手</option><option value="project_cancelled">项目取消或延期</option><option value="no_response">客户长期无回复</option><option value="requirements_unmet">产品或交期无法满足</option></optgroup><option value="other">其他</option></select>
+            </div>
+            <div class="field">
+              <label>原因补充说明</label><input
                 id="detail-invalid-reason"
                 class="input"
-                placeholder="无效或丢单时必填"
+                placeholder="选择“其他”时必填；其他类型可补充细节"
               />
             </div>
             <div class="field">
@@ -1758,6 +1760,8 @@
         lost: "丢单",
       };
       const sourceNames = { email: "企业邮箱", manual: "手工录入", website: "官网表单", feishu: "飞书", google_ads: "Google Ads", meta_ads: "Meta Ads", linkedin: "LinkedIn", exhibition: "展会", outbound: "销售自主开发", referral: "经销商/客户转介绍", other: "其他" };
+      const outcomeReasonNames={invalid_contact:"联系方式无效",irrelevant_business:"与门锁业务无关",unclear_demand:"无明确产品、数量或项目",spam:"垃圾或养号邮件",supplier_sales:"供应商推销",job_application:"求职信息",target_mismatch:"国家或客户类型不符合",duplicate:"重复询盘",budget:"预算不足",competitor:"选择竞争对手",project_cancelled:"项目取消或延期",no_response:"客户长期无回复",requirements_unmet:"产品或交期无法满足",other:"其他"};
+      function parseOutcomeReason(value=""){const match=String(value).match(/^\[([a-z_]+)\]\s*(.*)$/s);return match?{type:match[1],detail:match[2]}:{type:value?"other":"",detail:value}}
       function icons() {
         window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
       }
@@ -2752,8 +2756,7 @@
         $("#detail-kpi-time").textContent = fmtDate(intake?.received_at || inquiry.created_at);
         $("#detail-kpi-validity").textContent = { pending: "待确认", valid: "有效", invalid: "无效" }[inquiry.validity] || inquiry.validity;
         $("#detail-validity").value = inquiry.validity;
-        $("#detail-invalid-reason").value =
-          inquiry.invalid_reason || inquiry.lost_reason || "";
+        const savedOutcome=parseOutcomeReason(inquiry.invalid_reason||inquiry.lost_reason||"");$("#detail-outcome-reason-type").value=outcomeReasonNames[savedOutcome.type]?savedOutcome.type:(savedOutcome.detail?"other":"");$("#detail-invalid-reason").value=savedOutcome.detail;
         $("#detail-won-amount").value = inquiry.won_amount || "";
         $("#detail-won-currency").value = inquiry.won_currency || "";
         $("#detail-estimated-amount").value = inquiry.estimated_amount || "";
@@ -3567,7 +3570,7 @@
           updated_by: profile.id,
           updated_at: new Date().toISOString(),
         };
-        const outcomeReason = $("#detail-invalid-reason").value.trim();
+        const outcomeReasonType=$("#detail-outcome-reason-type").value,outcomeReasonDetail=$("#detail-invalid-reason").value.trim(),requiresOutcome=update.validity==="invalid"||update.status==="lost",outcomeReason=outcomeReasonType?`[${outcomeReasonType}] ${outcomeReasonDetail}`.trim():"";
         if (update.status === "qualified" && update.validity !== "valid") {
           toast("进入有效询盘前，必须先确认询盘有效");
           button.disabled = false;
@@ -3583,13 +3586,13 @@
           button.disabled = false;
           return;
         }
-        if (update.validity === "invalid" && !outcomeReason) {
-          toast("无效询盘必须填写原因");
+        if (requiresOutcome && !outcomeReasonType) {
+          toast("无效或丢单时必须选择原因类型");
           button.disabled = false;
           return;
         }
-        if (update.status === "lost" && !outcomeReason) {
-          toast("丢单必须填写原因");
+        if (requiresOutcome && outcomeReasonType==="other" && !outcomeReasonDetail) {
+          toast("选择其他原因时必须填写补充说明");
           button.disabled = false;
           return;
         }

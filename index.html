@@ -1707,6 +1707,7 @@
       let passwordChangeMode = "initial";
       let currentInquiry = null;
       let notificationChannel = null;
+      let detailOriginView = "dashboard";
       $(".main").appendChild($("#detail-modal"));
       $(".main").appendChild($("#daily-modal"));
       const roleNames = {
@@ -2127,6 +2128,12 @@
           const time = document.createElement("small");
           time.textContent = fmtDate(item.created_at);
           row.append(title, detail, time);
+          if (item.inquiry_id) {
+            const linkHint = document.createElement("small");
+            linkHint.textContent = "查看询盘 →";
+            linkHint.style.cssText = "display:block;margin-top:5px;color:var(--green);font-weight:700";
+            row.append(linkHint);
+          }
           row.addEventListener("click", async () => {
             if (!item.read_at)
               await supabase
@@ -2526,7 +2533,11 @@
         const teamSelect = $("#dashboard-team"), salesSelect = $("#dashboard-sales"), sourceSelect = $("#dashboard-source");
         if (teamSelect && teamSelect.options.length === 1) [...new Set((dashboardProfiles||[]).map(x=>x.team).filter(Boolean))].sort().forEach(v=>teamSelect.add(new Option(v,v)));
         if (salesSelect && salesSelect.options.length === 1) (dashboardProfiles||[]).filter(x=>["sales","sales_manager"].includes(x.role)).forEach(x=>salesSelect.add(new Option(x.full_name,x.id)));
-        if (sourceSelect && sourceSelect.options.length === 1) Object.entries({...sourceNames,feishu:"飞书",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",self_developed:"销售自主开发",referral:"经销商/客户转介绍",other:"其他"}).forEach(([v,l])=>sourceSelect.add(new Option(l,v)));
+        if (sourceSelect && sourceSelect.options.length === 1) [
+          ["website","官网表单"],["email","企业邮箱"],["feishu","飞书"],["google_ads","Google Ads"],
+          ["meta_ads","Meta Ads"],["linkedin","LinkedIn"],["exhibition","展会"],["outbound","销售自主开发"],
+          ["referral","经销商/客户转介绍"],["other","其他"]
+        ].forEach(([v,l])=>sourceSelect.add(new Option(l,v)));
         const countrySelect=$("#dashboard-country"),productSelect=$("#dashboard-product");
         if(countrySelect&&countrySelect.options.length===1)[...new Set([...rows.map(x=>x.target_country),...(legacyProjects||[]).map(x=>x.country)].filter(Boolean))].sort().forEach(v=>countrySelect.add(new Option(v,v)));
         if(productSelect&&productSelect.options.length===1)[...new Set([...rows.map(x=>x.product_category),...(legacyProjects||[]).map(x=>x.product_type)].filter(Boolean))].sort().forEach(v=>productSelect.add(new Option(v,v)));
@@ -2625,6 +2636,9 @@
         });
       }
       async function openInquiryDetail(id) {
+        detailOriginView = $("#sales-profile-page").classList.contains("hidden")
+          ? ($(".nav[data-view].active")?.dataset.view || "dashboard")
+          : "sales-profile";
         const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: latestDraft }] = await Promise.all([
           supabase
             .from("inquiries")
@@ -2742,6 +2756,8 @@
           $("#outreach-selected-subject").value = latestDraft.selected_subject === latestDraft.subject_b ? "b" : "a";
           $("#outreach-body").value = latestDraft.body || ""; $("#outreach-tone").value = latestDraft.tone || "consultative"; $("#outreach-objective").value = latestDraft.objective || "qualify";
           $("#outreach-status").textContent = latestDraft.status === "sent" ? `已发送 · ${fmtDate(latestDraft.sent_at)}` : latestDraft.status === "failed" ? "发送失败，可修改后重试" : `草稿已保存 · ${fmtDate(latestDraft.created_at)}`;
+          $("#send-outreach").disabled = latestDraft.status === "sent";
+          $("#send-outreach").classList.toggle("hidden", latestDraft.status === "sent");
           $("#outreach-draft").classList.remove("hidden");
         } else if (latestDraft) {
           $("#outreach-subject-a").value = ""; $("#outreach-subject-b").value = ""; $("#outreach-body").value = "";
@@ -2749,6 +2765,11 @@
           $("#outreach-draft").classList.remove("hidden");
         } else {
           $("#outreach-draft").classList.add("hidden"); $("#outreach-status").textContent = "草稿尚未保存";
+        }
+        if (latestDraft?.status !== "sent") {
+          $("#send-outreach").disabled = false;
+          $("#send-outreach").classList.remove("hidden");
+          $("#send-outreach").textContent = "用我的邮箱发送";
         }
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign;
@@ -2776,6 +2797,7 @@
         await loadModule("inquiries");
         $("#dashboard-page").classList.add("hidden");
         $("#module-page").classList.add("hidden");
+        $("#sales-profile-page").classList.add("hidden");
         $("#detail-modal").classList.remove("hidden");
         setDetailTab("pipeline");
         const detailHash = `#inquiry/${id}`;
@@ -3348,6 +3370,12 @@
       function closeInquiryPage() {
         $("#detail-modal").classList.add("hidden");
         currentInquiry = null;
+        if (detailOriginView === "sales-profile") {
+          $("#dashboard-page").classList.add("hidden");
+          $("#module-page").classList.add("hidden");
+          $("#sales-profile-page").classList.remove("hidden");
+          return;
+        }
         const activeView = $(".nav[data-view].active")?.dataset.view || "dashboard";
         $("#dashboard-page").classList.toggle("hidden", activeView !== "dashboard");
         $("#module-page").classList.toggle("hidden", activeView === "dashboard");
@@ -4007,13 +4035,14 @@
           if (error) throw error;
           if (data?.sent) {
             $("#outreach-status").textContent = `已发送 · ${fmtDate(data.sent_at || data.queued_at)}`;
+            button.classList.add("hidden");
             toast("开发信已从当前业务员邮箱发送");
           } else {
             $("#outreach-status").textContent = `等待邮件服务发送 · ${fmtDate(data?.queued_at)}`;
             toast("开发信已加入发送队列");
           }
         } catch (error) { $("#outreach-status").textContent = "发送失败，可修改后重试"; toast("开发信发送失败：" + (error.message || error)); }
-        finally { button.disabled = false; button.textContent = "确认并发送"; }
+        finally { if (!button.classList.contains("hidden")) button.disabled = false; button.textContent = "用我的邮箱发送"; }
       });
       $("#save-detail-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
@@ -4163,10 +4192,16 @@
         $("#mailbox-email").readOnly = selfOnly || sharedInquiry;
         $("#mailbox-modal-title").textContent = sharedInquiry ? "连接公共询盘邮箱" : selfOnly ? "连接我的邮箱" : "连接业务员邮箱";
         const targetUserId = selectedUserId || (selfOnly ? profile.id : select.value);
-        const selectedMemberEmail = select.selectedOptions[0]?.dataset.email || (data || []).find((member) => member.id === targetUserId)?.email || dashboardState.profiles?.find((member) => member.id === targetUserId)?.email || profile.email || "";
+        const selectedMember = (data || []).find((member) => member.id === targetUserId)
+          || dashboardState.profiles?.find((member) => member.id === targetUserId)
+          || (selfOnly ? profile : null);
+        const selectedMemberEmail = selectedMember?.email || select.selectedOptions[0]?.dataset.email || profile.email || "";
         $("#mailbox-email").value = sharedInquiry ? "inquiry@wonlyglobal.com" : selectedMemberEmail;
         $("#mailbox-password").value = "";
         $("#mailbox-modal").classList.remove("hidden");
+        requestAnimationFrame(() => {
+          $("#mailbox-email").value = sharedInquiry ? "inquiry@wonlyglobal.com" : selectedMemberEmail;
+        });
       }
       $("#module-primary").addEventListener("click", () => openMailboxBinding());
       $("#connect-shared-inquiry").addEventListener("click", () => openMailboxBinding(profile.id, true, true));

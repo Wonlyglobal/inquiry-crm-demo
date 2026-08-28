@@ -99,6 +99,26 @@
         border-color: #74917e;
         box-shadow: 0 0 0 3px #edf2ee;
       }
+      .password-input-wrap { position: relative; }
+      .password-input-wrap .input { padding-right: 48px; }
+      .password-visibility {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        width: 36px;
+        height: 36px;
+        transform: translateY(-50%);
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 8px;
+        color: var(--muted);
+        background: transparent;
+        cursor: pointer;
+      }
+      .password-visibility:hover { background: #f1f4f2; color: var(--ink); }
+      .password-visibility:focus-visible { outline: 2px solid #74917e; outline-offset: 1px; }
+      .password-visibility svg { width: 18px; height: 18px; }
       .primary {
         border: 0;
         border-radius: 11px;
@@ -944,13 +964,13 @@
         </div>
         <div class="field">
           <label>密码</label
-          ><input
-            id="login-password"
-            class="input"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
+          ><div class="password-input-wrap"><input
+              id="login-password"
+              class="input"
+              type="password"
+              autocomplete="current-password"
+              required
+            /><button class="password-visibility" type="button" data-password-target="login-password" aria-label="显示密码" title="显示密码"><i data-lucide="eye"></i></button></div>
         </div>
         <button class="primary" type="submit">登录</button>
         <button id="forgot-password" class="ghost" type="button" style="width:100%;margin-top:10px">忘记密码</button>
@@ -1175,23 +1195,25 @@
           </p>
           <div class="field">
             <label>新密码</label
-            ><input
-              id="new-password"
-              class="input"
-              type="password"
-              minlength="8"
-              required
-            />
+            ><div class="password-input-wrap"><input
+                id="new-password"
+                class="input"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+              /><button class="password-visibility" type="button" data-password-target="new-password" aria-label="显示新密码" title="显示新密码"><i data-lucide="eye"></i></button></div>
           </div>
           <div class="field">
             <label>再次输入</label
-            ><input
-              id="new-password-confirm"
-              class="input"
-              type="password"
-              minlength="8"
-              required
-            />
+            ><div class="password-input-wrap"><input
+                id="new-password-confirm"
+                class="input"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+              /><button class="password-visibility" type="button" data-password-target="new-password-confirm" aria-label="显示确认密码" title="显示确认密码"><i data-lucide="eye"></i></button></div>
           </div>
           <button class="primary" type="submit" style="width: 100%">
             修改密码并进入系统
@@ -2893,6 +2915,20 @@
           $("#login-error").textContent = "账号档案未配置：" + err.message;
           await supabase.auth.signOut();
         }
+      });
+      document.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-password-target]");
+        if (!button) return;
+        const input = document.getElementById(button.dataset.passwordTarget);
+        if (!input) return;
+        const visible = input.type === "text";
+        input.type = visible ? "password" : "text";
+        const label = visible ? "显示密码" : "隐藏密码";
+        button.setAttribute("aria-label", label);
+        button.setAttribute("title", label);
+        button.innerHTML = `<i data-lucide="${visible ? "eye" : "eye-off"}"></i>`;
+        window.lucide?.createIcons({ attrs: { "stroke-width": 1.8 } });
+        input.focus({ preventScroll: true });
       });
       $("#forgot-password").addEventListener("click", () => {
         $("#forgot-password-email").value = $("#login-email").value.trim();

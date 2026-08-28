@@ -2351,6 +2351,8 @@
         catch (error) { console.warn("消息中心加载失败", error); return null; }
       }
       async function loadNotificationsUnsafe() {
+        const reminderSync=await supabase.rpc("sync_retention_notifications");
+        if(reminderSync.error&&!/schema cache|could not find the function/i.test(reminderSync.error.message||""))console.warn("客户保留期提醒同步失败",reminderSync.error);
         const { data, error } = await supabase
           .from("notifications")
           .select("id,inquiry_id,title,body,read_at,created_at")

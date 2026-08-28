@@ -514,6 +514,22 @@
       .module-insight { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 15px; }
       .module-insight span { display:block; margin-bottom:8px; color:var(--muted); font-size:11px; }
       .module-insight b { font-size:21px; }
+      .inquiry-command { margin-bottom:14px; padding:17px; border:1px solid var(--line); border-radius:17px; background:#fff; }
+      .inquiry-command-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:14px; }
+      .inquiry-command-head h2 { margin:0 0 5px; font-size:17px; }
+      .inquiry-command-head p { margin:0; color:var(--muted); font-size:12px; }
+      .inquiry-stage-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
+      .inquiry-stage-tab { min-height:76px; padding:12px 13px; border:1px solid var(--line); border-radius:13px; background:#fafbfa; color:var(--ink); text-align:left; cursor:pointer; }
+      .inquiry-stage-tab:hover { border-color:#91aa9a; background:#fff; }
+      .inquiry-stage-tab.active { border-color:var(--green); background:var(--soft); box-shadow:inset 0 0 0 1px var(--green); }
+      .inquiry-stage-tab span { display:block; margin-bottom:7px; color:var(--muted); font-size:11px; }
+      .inquiry-stage-tab b { display:block; font-size:22px; line-height:1; }
+      .module-table-heading { min-width:0; }
+      .module-table-heading strong { display:block; font-size:15px; }
+      .module-table-heading small { display:block; margin-top:4px; color:var(--muted); font-size:10px; font-weight:500; }
+      .module-filter-group { display:flex; align-items:center; gap:8px; }
+      .module-filter-select { height:38px; min-width:126px; padding:0 31px 0 11px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font:inherit; }
+      #module-table thead th { position:sticky; top:0; z-index:1; background:#fafbfa; }
       .legacy-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 22px; }
       .legacy-detail-item { padding:11px 0; border-bottom:1px solid var(--line); }
       .legacy-detail-item span { display:block; margin-bottom:5px; color:var(--muted); font-size:11px; }
@@ -941,6 +957,10 @@
         .module-search-wrap { max-width:none; }
         #module-filter-summary { align-self:flex-start; }
         .module-insights { grid-template-columns:1fr 1fr; }
+        .inquiry-command-head { flex-direction:column; }
+        .inquiry-stage-tabs { grid-template-columns:1fr 1fr; }
+        .module-filter-group { display:grid; grid-template-columns:1fr 1fr; }
+        .module-filter-select { min-width:0; width:100%; }
         .legacy-detail-grid { grid-template-columns:1fr; }
         #detail-modal { padding: 16px 0; }
         .detail-kpis { grid-template-columns: 1fr 1fr; }
@@ -1190,10 +1210,15 @@
             </div>
           </div>
           <div id="module-insights" class="module-insights hidden"></div>
+          <section id="inquiry-command" class="inquiry-command hidden">
+            <div class="inquiry-command-head"><div><h2>询盘状态总览</h2><p>先定位待处理环节，再进入具体询盘；数字随当前数据权限实时更新。</p></div><span class="tag">点击状态可快速筛选</span></div>
+            <div id="inquiry-stage-tabs" class="inquiry-stage-tabs"></div>
+          </section>
           <div class="table-wrap">
-            <div class="table-head"><span id="module-table-title">数据列表</span><span id="module-count" class="tag">0 条</span></div>
+            <div class="table-head"><div class="module-table-heading"><strong id="module-table-title">数据列表</strong><small id="module-table-context">按最新创建时间排列</small></div><span id="module-count" class="tag">0 条</span></div>
             <div id="module-toolbar" class="module-table-toolbar hidden">
               <div class="module-search-wrap"><i data-lucide="search"></i><input id="module-search" class="module-search" type="search" autocomplete="off" placeholder="搜索当前列表"><button id="module-search-clear" class="module-search-clear hidden" type="button" aria-label="清除搜索">×</button></div>
+              <div id="inquiry-filter-group" class="module-filter-group hidden"><select id="inquiry-validity-filter" class="module-filter-select" aria-label="筛选有效性"><option value="">全部有效性</option><option value="pending">待确认</option><option value="valid">有效</option><option value="invalid">无效</option></select><select id="inquiry-source-filter" class="module-filter-select" aria-label="筛选来源"><option value="">全部来源</option></select></div>
               <span id="module-filter-summary" class="tag hidden"></span>
             </div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
@@ -1955,12 +1980,39 @@
       }
       function filterModuleRows() {
         const query = $("#module-search").value.trim().toLocaleLowerCase();
+        const validity = activeModuleView === "inquiries" ? $("#inquiry-validity-filter").value : "";
+        const source = activeModuleView === "inquiries" ? $("#inquiry-source-filter").value : "";
         $("#module-search-clear").classList.toggle("hidden", !query);
-        const filteredRows = query ? moduleRows.filter((row) => row.cells.some((value) => String(value ?? "").toLocaleLowerCase().includes(query))) : moduleRows;
+        const filteredRows = moduleRows.filter((row) => {
+          const matchesQuery = !query || row.cells.some((value) => String(value ?? "").toLocaleLowerCase().includes(query));
+          const matchesStage = !activeInquiryScope || activeInquiryScope === "all" || (activeInquiryScope === "open" ? !["won","lost"].includes(row.meta?.status) : activeInquiryScope === "risk" ? row.meta?.risk : row.meta?.status === activeInquiryScope);
+          return matchesQuery && matchesStage && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source);
+        });
         renderModuleTable(moduleColumns, filteredRows, moduleRowClick, true);
-        $("#module-filter-summary").classList.toggle("hidden", !query);
-        if (query) $("#module-filter-summary").textContent = `${filteredRows.length} / ${moduleRows.length} 条`;
-        if (query && !filteredRows.length) setModuleState("filtered");
+        const hasFilter = Boolean(query || validity || source || (activeInquiryScope && activeInquiryScope !== "all"));
+        $("#module-filter-summary").classList.toggle("hidden", !hasFilter);
+        if (hasFilter) $("#module-filter-summary").textContent = `显示 ${filteredRows.length} / ${moduleRows.length} 条`;
+        $("#module-table-context").textContent = hasFilter ? "已应用筛选 · 点击任意记录查看完整详情" : "按最新创建时间排列 · 点击记录查看完整详情";
+        if (hasFilter && !filteredRows.length) setModuleState("filtered");
+      }
+      function renderInquiryCommand(rows) {
+        const counts = { all: rows.length, pending_assignment: 0, open: 0, risk: 0 };
+        rows.forEach((row) => {
+          if (row.meta?.status === "pending_assignment") counts.pending_assignment += 1;
+          if (!["won", "lost"].includes(row.meta?.status)) counts.open += 1;
+          if (row.meta?.risk) counts.risk += 1;
+        });
+        const items = [["all","全部询盘"],["pending_assignment","待主管分配"],["open","进行中"],["risk","无效 / 已丢单"]];
+        $("#inquiry-stage-tabs").innerHTML = items.map(([key,label]) => `<button class="inquiry-stage-tab ${(activeInquiryScope || "all") === key ? "active" : ""}" type="button" data-scope="${key}"><span>${label}</span><b>${counts[key]}</b></button>`).join("");
+        $("#inquiry-stage-tabs").querySelectorAll("button").forEach((button) => button.addEventListener("click", () => {
+          activeInquiryScope = button.dataset.scope;
+          $("#inquiry-stage-tabs").querySelectorAll("button").forEach((item) => item.classList.toggle("active", item === button));
+          filterModuleRows();
+        }));
+        const sourceSelect = $("#inquiry-source-filter"), selected = sourceSelect.value;
+        const sources = [...new Set(rows.map((row) => row.meta?.source).filter(Boolean))];
+        sourceSelect.innerHTML = `<option value="">全部来源</option>${sources.map((value) => `<option value="${esc(value)}">${esc(sourceNames[value] || value)}</option>`).join("")}`;
+        sourceSelect.value = sources.includes(selected) ? selected : "";
       }
       function renderModuleTable(columns, rows, onRowClick, filtered = false) {
         if (!filtered) { moduleColumns = columns; moduleRows = rows; moduleRowClick = onRowClick; }
@@ -1991,7 +2043,7 @@
           if (onRowClick) { tr.dataset.clickable = "true"; tr.tabIndex = 0; tr.addEventListener("click", () => onRowClick(row)); tr.addEventListener("keydown", (event) => { if (event.key === "Enter") onRowClick(row); }); }
           body.append(tr);
         });
-        $("#module-count").textContent = `${filtered ? moduleRows.length : rows.length} 条`;
+        $("#module-count").textContent = `${rows.length} 条`;
         $("#module-toolbar").classList.toggle("hidden", moduleRows.length === 0);
         $("#module-table").classList.toggle("hidden", rows.length === 0);
         $("#module-empty").classList.toggle("hidden", rows.length > 0);
@@ -2021,6 +2073,11 @@
         $("#module-filter-summary").classList.add("hidden");
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
+        $("#inquiry-command").classList.toggle("hidden", view !== "inquiries");
+        $("#inquiry-filter-group").classList.toggle("hidden", view !== "inquiries");
+        $("#inquiry-validity-filter").value = "";
+        $("#inquiry-source-filter").innerHTML = '<option value="">全部来源</option>';
+        $("#module-table-context").textContent = "按最新创建时间排列";
         setModuleState("loading");
         const modulePrimary = $("#module-primary");
         modulePrimary.classList.toggle("hidden", view !== "settings");
@@ -2066,7 +2123,7 @@
           if (view === "assignment") query = query.eq("status", "pending_assignment");
           if (view === "public-pool") query = query.is("owner_id", null).neq("status", "pending_assignment");
           columns = ["编号", "询盘主题", "国家/地区", "来源", "阶段", "有效性", "创建时间"];
-          mapper = (x) => ({ id: x.id, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, sourceNames[x.source] || x.source, statusNames[x.status] || x.status, {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, fmtDate(x.created_at)] });
+          mapper = (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity, source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, x.target_country, sourceNames[x.source] || x.source, statusNames[x.status] || x.status, {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, fmtDate(x.created_at)] });
           clickable = true;
         } else if (view === "email") {
           query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,received_at,created_at,inquiry_id").order("created_at", { ascending: false }).limit(200);
@@ -2101,10 +2158,14 @@
         if (loadVersion !== moduleLoadVersion || view !== activeModuleView) return;
         if (error) { moduleColumns = columns; moduleRows = []; moduleRowClick = null; setModuleState("error", error.message); toast("页面加载失败：" + error.message); return; }
         if (view === "legacy-projects") renderLegacyInsights(data || []);
-        renderModuleTable(columns, (data || []).map(mapper), clickable ? (row) => row.id && openInquiryDetail(row.id) : null);
+        const mappedRows = (data || []).map(mapper);
+        renderModuleTable(columns, mappedRows, clickable ? (row) => row.id && openInquiryDetail(row.id) : null);
+        if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
         icons();
       }
       $("#module-search").addEventListener("input", filterModuleRows);
+      $("#inquiry-validity-filter").addEventListener("change", filterModuleRows);
+      $("#inquiry-source-filter").addEventListener("change", filterModuleRows);
       $("#module-search-clear").addEventListener("click", () => { $("#module-search").value = ""; $("#module-search").focus(); filterModuleRows(); });
       $("#module-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       function renderLegacyInsights(rows) {

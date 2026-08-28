@@ -4197,6 +4197,7 @@
           || (selfOnly ? profile : null);
         const selectedMemberEmail = selectedMember?.email || select.selectedOptions[0]?.dataset.email || profile.email || "";
         const mailboxEmailValue = sharedInquiry ? "inquiry@wonlyglobal.com" : selectedMemberEmail;
+        $("#mailbox-email").placeholder = mailboxEmailValue;
         $("#mailbox-email").defaultValue = mailboxEmailValue;
         $("#mailbox-email").value = mailboxEmailValue;
         $("#mailbox-password").value = "";
@@ -4291,7 +4292,7 @@
         button.textContent = "正在测试 IMAP/SMTP…";
         const { data, error } = await supabase.functions.invoke("mailbox-connect", { body: {
           user_id: $("#mailbox-user").value,
-          email: $("#mailbox-email").value.trim(),
+          email: $("#mailbox-email").value.trim() || $("#mailbox-email").placeholder.trim(),
           password: $("#mailbox-password").value,
           mailbox_kind: mailboxBindingKind,
         }});

@@ -1766,9 +1766,24 @@
     </aside>
     <script type="module">
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+      async function resilientFetch(input, init = {}) {
+        const method = String(init.method || (input instanceof Request ? input.method : "GET") || "GET").toUpperCase();
+        const retryable = method === "GET" || method === "HEAD";
+        const attempts = retryable ? 3 : 1;
+        let lastError;
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          try { return await fetch(input, init); }
+          catch (error) {
+            lastError = error;
+            if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, attempt * 450));
+          }
+        }
+        throw lastError;
+      }
       const supabase = createClient(
           "https://plhverjihjilnuhlhlxi.supabase.co",
           "sb_publishable_uDiOI4MTIoHbsQDAqHsH1A_4Db3Hmmw",
+          { global: { fetch: resilientFetch } },
         ),
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
@@ -1813,6 +1828,15 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => notice.classList.add("hidden"), 3600);
       }
+      window.addEventListener("offline", () => toast("网络已断开；只读页面会自动重试，提交操作请在网络恢复后进行"));
+      window.addEventListener("online", () => toast("网络已恢复，可以重新加载或继续操作"));
+      window.addEventListener("unhandledrejection", (event) => {
+        const message = String(event.reason?.message || event.reason || "");
+        if (/failed to fetch|networkerror|load failed/i.test(message)) {
+          event.preventDefault();
+          toast("数据服务连接失败，请检查网络后重试；系统不会自动重复提交写入操作");
+        }
+      });
       function updateDomainLink() {
         const link = $("#detail-research-domain-link");
         const raw = $("#detail-research-domain").value.trim();
@@ -1911,6 +1935,7 @@
         const visibility = {
           email: ["owner", "sales_manager", "marketing"].includes(role),
           assignment: ["owner", "sales_manager", "marketing"].includes(role),
+          "public-pool": ["owner", "sales_manager", "marketing"].includes(role),
           research: ["owner", "sales_manager", "marketing"].includes(role),
           daily: ["owner", "sales_manager", "sales"].includes(role),
           "legacy-projects": ["owner", "sales_manager", "marketing"].includes(role),
@@ -1933,7 +1958,8 @@
         $("#dashboard-subtitle").textContent=salesView?"我的询盘、今日待办、响应效率与个人业绩":managerView?"团队分配、响应效率、销售执行与业绩管理":marketingView?"询盘接收、有效性判断、客户背调与渠道质量":"询盘效率、销售转化、渠道 ROI 与风险预警";
         ["#dashboard-team","#dashboard-sales","#dashboard-data-scope","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
         ["#dashboard-team","#dashboard-sales","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
-        await Promise.all([loadInquiries(), loadNotifications()]);
+        const startup = await Promise.allSettled([loadInquiries(), loadNotifications()]);
+        if (startup.some((result) => result.status === "rejected")) toast("部分数据暂时未加载，系统已保留可用页面；可稍后重试");
         subscribeNotifications();
         icons();
       }
@@ -2137,7 +2163,7 @@
         if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";
         const denied =
           (view === "settings" && profile.role !== "owner" && !["chloelee@wonlyglobal.com", "lyle@wonlyglobal.com", "lingzx@wonlyglobal.com"].includes(String(profile.email || "").toLowerCase())) ||
-          (["email", "assignment", "research"].includes(view) &&
+          (["email", "assignment", "public-pool", "research"].includes(view) &&
             !["owner", "sales_manager", "marketing"].includes(profile.role));
         if (denied) {
           renderModuleTable(["提示"], [{ cells: ["当前账号无权查看此页面"] }]);
@@ -2252,6 +2278,10 @@
         if (!dashboard) await loadModule(view, options);
       }
       async function loadNotifications() {
+        try { return await loadNotificationsUnsafe(); }
+        catch (error) { console.warn("消息中心加载失败", error); return null; }
+      }
+      async function loadNotificationsUnsafe() {
         const { data, error } = await supabase
           .from("notifications")
           .select("id,inquiry_id,title,body,read_at,created_at")
@@ -2672,6 +2702,14 @@
         $("#channel-cost-form").onsubmit=async e=>{e.preventDefault();const currency=$("#cost-currency").value,amount=Number($("#cost-amount").value),rate=fxToCny(currency);if(currency!=="CNY"&&!rate)return toast("今日汇率尚未同步，暂不能保存该币种成本");const payload={month:$("#cost-month").value+"-01",channel:$("#cost-channel").value,amount,currency,amount_cny:amount*(rate||1),entered_by:profile.id};const {error}=await supabase.from("channel_costs").upsert(payload,{onConflict:"month,channel"});if(error)return toast("渠道成本保存失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("渠道成本已保存");await loadInquiries();};
       }
       async function loadInquiries() {
+        try { return await loadInquiriesUnsafe(); }
+        catch (error) {
+          console.error("经营看板加载异常", error);
+          toast(/failed to fetch|networkerror|load failed/i.test(String(error?.message || error)) ? "数据服务连接不稳定，系统已自动重试；请稍后重新加载" : `经营看板加载失败：${error?.message || error}`);
+          return null;
+        }
+      }
+      async function loadInquiriesUnsafe() {
         const { data, error } = await supabase
           .from("inquiries")
           .select(
@@ -2833,6 +2871,14 @@
         });
       }
       async function openInquiryDetail(id) {
+        try { return await openInquiryDetailUnsafe(id); }
+        catch (error) {
+          console.error("询盘详情加载异常", error);
+          toast(/failed to fetch|networkerror|load failed/i.test(String(error?.message || error)) ? "询盘详情连接失败，系统已自动重试；请稍后再试" : `询盘详情加载失败：${error?.message || error}`);
+          return null;
+        }
+      }
+      async function openInquiryDetailUnsafe(id) {
         detailOriginView = $("#sales-profile-page").classList.contains("hidden")
           ? ($(".nav[data-view].active")?.dataset.view || "dashboard")
           : "sales-profile";
@@ -3061,6 +3107,10 @@
       async function openWonEvidence(path){if(!path)return toast("该申请没有可查看的成交凭证");const preview=window.open("","_blank");if(!preview)return toast("浏览器阻止了凭证窗口，请允许本站打开新窗口后重试");preview.opener=null;preview.document.body.textContent="正在生成安全查看链接…";const {data,error}=await supabase.storage.from("research-attachments").createSignedUrl(path,60);if(error||!data?.signedUrl){preview.close();return toast("成交凭证暂时无法打开："+(error?.message||"未生成安全链接"))}currentInquiry.wonEvidenceReviewed=true;preview.location.replace(data.signedUrl);toast("成交凭证已打开，请核验后再确认成交")}
       function renderWonApproval(audits=[]){const box=$("#detail-won-approval"),latest=[...audits].find(a=>a.action==="won_requested"&&!audits.some(x=>["won_approved","won_rejected"].includes(x.action)&&new Date(x.created_at)>new Date(a.created_at)));currentInquiry.latestWonRequest=latest||null;currentInquiry.wonEvidenceReviewed=false;if(!latest){box.classList.add("hidden");box.innerHTML="";return}const data=latest.after_data||{},requester=dashboardState.profiles.find(x=>x.id===latest.actor_id)?.full_name||"业务员",canReview=["owner","sales_manager"].includes(profile.role),evidenceButton=data.evidence_path?`<button class="table-action" id="open-won-evidence" type="button">查看成交凭证</button>`:`<span class="danger-text">缺少成交凭证</span>`;box.classList.remove("hidden");box.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><b>待主管确认的成交申请</b><p class="hint" style="margin:6px 0">${esc(requester)} · ${fmtDate(latest.created_at)} · ${esc(data.won_currency||"")} ${Number(data.won_amount||0).toLocaleString("zh-CN")}</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><small>${esc(data.evidence_name||"未记录凭证名称")}</small>${evidenceButton}</div></div>${canReview?`<div class="form-actions" style="margin:0"><button class="ghost" id="reject-won-request" type="button">驳回</button><button class="primary" id="approve-won-request" type="button">确认成交</button></div>`:`<span class="tag">等待主管审核</span>`}</div>`;$("#open-won-evidence")?.addEventListener("click",()=>openWonEvidence(data.evidence_path));if(canReview){$("#approve-won-request").onclick=()=>reviewWonRequest(true);$("#reject-won-request").onclick=()=>reviewWonRequest(false)}}
       async function loadTimeline(id) {
+        try { return await loadTimelineUnsafe(id); }
+        catch (error) { console.warn("询盘流水线加载失败", error); toast("流水线部分数据暂时未加载，请稍后重试"); return null; }
+      }
+      async function loadTimelineUnsafe(id) {
         const [{ data: stages }, { data: follows }, { data: messages }, { data: summaries }, { data: audits }] = await Promise.all([
           supabase
             .from("inquiry_stage_history")

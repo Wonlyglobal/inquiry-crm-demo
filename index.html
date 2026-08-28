@@ -1649,8 +1649,9 @@
             <div class="validity-quick-head"><div><b>询盘有效性判断</b><small>这是独立业务步骤，不要求同时补齐产品、数量、金额、概率或跟进信息。</small></div><span id="detail-validity-current" class="tag">待确认</span></div>
             <div class="validity-quick-actions"><button class="validity-choice" type="button" data-validity="valid">✓ 有效询盘</button><button class="validity-choice" type="button" data-validity="invalid">× 无效询盘</button><button class="validity-choice" type="button" data-validity="pending">? 待核实</button></div>
             <div id="detail-validity-reason" class="validity-quick-reason hidden"><div class="field"><label>无效原因 *</label><select id="detail-quick-invalid-type" class="input"><option value="">请选择原因</option><option value="invalid_contact">联系方式无效</option><option value="irrelevant_business">与门锁业务无关</option><option value="unclear_demand">无明确产品、数量或项目</option><option value="spam">垃圾或养号邮件</option><option value="supplier_sales">供应商推销</option><option value="job_application">求职信息</option><option value="target_mismatch">国家或客户类型不符合</option><option value="duplicate">重复询盘</option><option value="other">其他</option></select></div><div class="field"><label>补充说明（业务员必填）</label><input id="detail-quick-invalid-detail" class="input" placeholder="写明核验过程或判定依据；选择“其他”时所有角色必填" /></div><button id="detail-save-invalid" class="primary" type="button">确认无效</button></div>
+            <div id="detail-invalid-review" class="hidden" style="margin-top:13px;padding:14px;border:1px solid #e4c589;border-radius:12px;background:#fff8eb"></div>
           </div>
-          <p class="hint">无效判断将记录操作人、时间、原因和修改前内容，并自动进入经营看板“无效与丢单原因”统计。</p>
+          <p class="hint">市场部、主管和老板可直接判断；业务员提交无效申请，由主管确认后关闭并计入经营看板。所有操作保留修改前内容、操作人、时间与原因。</p>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="followup">
           <div class="detail-grid">
@@ -1674,16 +1675,9 @@
                 <option value="">暂未分配</option>
               </select>
             </div>
-            <div class="field hidden">
-              <label>询盘有效性</label
-              ><select id="detail-validity" class="input">
-                <option value="pending">待确认</option>
-                <option value="valid">有效</option>
-                <option value="invalid">无效</option>
-              </select>
-            </div>
+            <input id="detail-validity" type="hidden" value="pending" />
             <div id="detail-outcome-type-field" class="field hidden">
-              <label>无效/丢单原因类型</label><select id="detail-outcome-reason-type" class="input"><option value="">请选择原因</option><optgroup label="无效询盘"><option value="invalid_contact">联系方式无效</option><option value="irrelevant_business">与门锁业务无关</option><option value="unclear_demand">无明确产品、数量或项目</option><option value="spam">垃圾或养号邮件</option><option value="supplier_sales">供应商推销</option><option value="job_application">求职信息</option><option value="target_mismatch">国家或客户类型不符合</option><option value="duplicate">重复询盘</option></optgroup><optgroup label="丢单"><option value="budget">预算不足</option><option value="competitor">选择竞争对手</option><option value="project_cancelled">项目取消或延期</option><option value="no_response">客户长期无回复</option><option value="requirements_unmet">产品或交期无法满足</option></optgroup><option value="other">其他</option></select>
+              <label>丢单原因类型</label><select id="detail-outcome-reason-type" class="input"><option value="">请选择原因</option><option value="budget">预算不足</option><option value="competitor">选择竞争对手</option><option value="project_cancelled">项目取消或延期</option><option value="no_response">客户长期无回复</option><option value="requirements_unmet">产品或交期无法满足</option><option value="other">其他</option></select>
             </div>
             <div id="detail-outcome-detail-field" class="field hidden">
               <label>原因补充说明</label><input
@@ -2478,7 +2472,7 @@
       }
       function stageWarningTasks(rows){
         const limits={pending_assignment:.5,received:4,qualified:24,contacted:72,quoted:168,sample_sent:336,negotiating:336},history=dashboardState.history||[],now=Date.now(),tasks=[];
-        rows.forEach(x=>{
+        rows.filter(x=>x.validity!=="invalid").forEach(x=>{
           const entered=history.find(h=>h.inquiry_id===x.id&&h.to_status===x.status)?.entered_at||x.updated_at||x.created_at,limit=limits[x.status];
           if(limit&&now-new Date(entered)>limit*3600000)tasks.push({priority:5,id:x.id,title:x.title,reason:`${statusNames[x.status]||x.status}阶段停留已超过 ${limit<1?`${limit*60}分钟`:`${limit}小时`}`,time:entered,label:"阶段超时"});
           if(x.expected_close_date&&new Date(x.expected_close_date)<new Date()&&!['won','lost'].includes(x.status))tasks.push({priority:4,id:x.id,title:x.title,reason:`预计成交日期 ${x.expected_close_date} 已过`,time:x.expected_close_date,label:"成交逾期"});
@@ -2501,7 +2495,7 @@
       }
       function renderSalesWorkbench(rows,followups){
         if(profile?.role!=="sales")return;
-        const mine=rows.filter(x=>x.owner_id===profile.id),open=mine.filter(x=>!["won","lost"].includes(x.status)),now=new Date(),today=chinaDate(),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
+        const mine=rows.filter(x=>x.owner_id===profile.id),open=mine.filter(x=>x.validity!=="invalid"&&!["won","lost"].includes(x.status)),now=new Date(),today=chinaDate(),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
         const customerReplies=latestInboundTasks(open),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),ownFollowups=(followups||[]).filter(x=>x.author_id===profile.id),followupOverdue=ownFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),dueToday=ownFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.next_follow_up_at))===today),quoteNoFeedback=open.filter(x=>x.quoted_at&&now-new Date(x.quoted_at)>7*86400000&&!hasInboundAfter(x.id,x.quoted_at)),wonMonth=mine.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd)),wonCny=sumWonCny(wonMonth),usd=fxToCny("USD");
         $("#sales-workbench-kpis").innerHTML=[["进行中询盘",open.length],["客户新回复",customerReplies.length],["今日待跟进",dueToday.length],["首次响应超时",responseOverdue.length],["跟进已逾期",followupOverdue.length],["本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>i===0?`<button type="button" class="sales-workbench-kpi sales-workbench-kpi-link" data-open-active-inquiries aria-label="查看 ${value} 条进行中询盘"><span>${label}</span><b>${value}</b></button>`:`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i>0&&i<5&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         $("[data-open-active-inquiries]")?.addEventListener("click",()=>switchView("inquiries",{inquiryScope:"open"}));
@@ -2512,9 +2506,9 @@
       }
       function renderManagerWorkbench(rows,profiles,followups){
         if(profile?.role!=="sales_manager")return;
-        const now=new Date(),sales=(profiles||[]).filter(x=>x.role==="sales"),open=rows.filter(x=>!["won","lost"].includes(x.status)),pending=open.filter(x=>x.status==="pending_assignment"||!x.owner_id),customerReplies=latestInboundTasks(open),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),overdueFollowups=(followups||[]).filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),submitted=new Set((dashboardState.dailyReports||[]).map(x=>x.sales_id)),missingReports=sales.filter(x=>!submitted.has(x.id)),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999),wonCny=sumWonCny(rows.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd))),usd=fxToCny("USD"),audits=dashboardState.audits||[],pendingWon=audits.filter(a=>a.action==="won_requested"&&rows.some(x=>x.id===a.entity_id)&&!audits.some(x=>["won_approved","won_rejected"].includes(x.action)&&x.entity_id===a.entity_id&&new Date(x.created_at)>new Date(a.created_at)));
-        $("#manager-workbench-kpis").innerHTML=[["待审核成交",pendingWon.length],["待分配询盘",pending.length],["客户回复待处理",customerReplies.length],["首次响应超时",responseOverdue.length],["跟进已逾期",overdueFollowups.length],["今日未交日报",missingReports.length],["团队本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i<6&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
-        const priorities=[];pendingWon.forEach(a=>{const x=rows.find(row=>row.id===a.entity_id),requester=profiles.find(p=>p.id===a.actor_id)?.full_name||"业务员",d=a.after_data||{};if(x)priorities.push({priority:0,id:x.id,title:x.title,reason:`${requester}提交成交申请 · ${d.won_currency||""} ${Number(d.won_amount||0).toLocaleString("zh-CN")}`,time:a.created_at,label:"审核成交"})});pending.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"等待主管分配负责人",time:x.created_at,label:"待分配"}));customerReplies.forEach(x=>priorities.push({priority:2,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===x.owner_id)?.full_name||"负责人"}有客户新回复待处理`,time:x.latestInboundAt,label:"客户回复"}));responseOverdue.forEach(x=>priorities.push({priority:3,id:x.id,title:x.title,reason:"分配后超过 30 分钟未完成首次有效联系",time:x.assigned_at,label:"响应超时"}));overdueFollowups.forEach(f=>{const x=rows.find(row=>row.id===f.inquiry_id);if(x)priorities.push({priority:4,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===f.author_id)?.full_name||"业务员"}的跟进任务已逾期`,time:f.next_follow_up_at,label:"跟进逾期"})});
+        const now=new Date(),sales=(profiles||[]).filter(x=>x.role==="sales"),open=rows.filter(x=>x.validity!=="invalid"&&!["won","lost"].includes(x.status)),pending=open.filter(x=>x.validity==="valid"&&(x.status==="pending_assignment"||!x.owner_id)),pendingInvalid=rows.filter(x=>x.invalid_review_status==="pending"),customerReplies=latestInboundTasks(open),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),overdueFollowups=(followups||[]).filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),submitted=new Set((dashboardState.dailyReports||[]).map(x=>x.sales_id)),missingReports=sales.filter(x=>!submitted.has(x.id)),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999),wonCny=sumWonCny(rows.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd))),usd=fxToCny("USD"),audits=dashboardState.audits||[],pendingWon=audits.filter(a=>a.action==="won_requested"&&rows.some(x=>x.id===a.entity_id)&&!audits.some(x=>["won_approved","won_rejected"].includes(x.action)&&x.entity_id===a.entity_id&&new Date(x.created_at)>new Date(a.created_at)));
+        $("#manager-workbench-kpis").innerHTML=[["待审核成交",pendingWon.length],["待审核无效",pendingInvalid.length],["待分配询盘",pending.length],["客户回复待处理",customerReplies.length],["首次响应超时",responseOverdue.length],["跟进已逾期",overdueFollowups.length],["今日未交日报",missingReports.length],["团队本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i<7&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
+        const priorities=[];pendingInvalid.forEach(x=>priorities.push({priority:0,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===x.invalid_requested_by)?.full_name||"业务员"}提交无效申请，等待审核`,time:x.invalid_requested_at,label:"审核无效"}));pendingWon.forEach(a=>{const x=rows.find(row=>row.id===a.entity_id),requester=profiles.find(p=>p.id===a.actor_id)?.full_name||"业务员",d=a.after_data||{};if(x)priorities.push({priority:0,id:x.id,title:x.title,reason:`${requester}提交成交申请 · ${d.won_currency||""} ${Number(d.won_amount||0).toLocaleString("zh-CN")}`,time:a.created_at,label:"审核成交"})});pending.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"等待主管分配负责人",time:x.created_at,label:"待分配"}));customerReplies.forEach(x=>priorities.push({priority:2,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===x.owner_id)?.full_name||"负责人"}有客户新回复待处理`,time:x.latestInboundAt,label:"客户回复"}));responseOverdue.forEach(x=>priorities.push({priority:3,id:x.id,title:x.title,reason:"分配后超过 30 分钟未完成首次有效联系",time:x.assigned_at,label:"响应超时"}));overdueFollowups.forEach(f=>{const x=rows.find(row=>row.id===f.inquiry_id);if(x)priorities.push({priority:4,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===f.author_id)?.full_name||"业务员"}的跟进任务已逾期`,time:f.next_follow_up_at,label:"跟进逾期"})});
         priorities.push(...stageWarningTasks(open));const consolidated=consolidateTasks(priorities);
         $("#manager-priority-list").innerHTML=consolidated.length?consolidated.slice(0,12).map(t=>`<div class="sales-task-item" data-manager-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${taskTimeText(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无团队紧急事项</b><small>当前分配、响应和跟进均无异常</small></div>';
         $$('[data-manager-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.managerTask)));
@@ -2524,7 +2518,7 @@
       }
       function renderMarketingWorkbench(rows){
         if(profile?.role!=="marketing")return;
-        const intakes=dashboardState.emailIntakes||[],companies=dashboardState.researchCompanies||[],today=chinaDate(),todayEmails=intakes.filter(x=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.received_at||x.created_at))===today),unprocessed=intakes.filter(x=>!["completed","processed","registered","done"].includes(String(x.processing_status||"").toLowerCase())),validityPending=rows.filter(x=>x.validity==="pending"),researchPending=companies.filter(x=>!["completed","confirmed","done"].includes(String(x.research_status||"").toLowerCase())),assignmentPending=rows.filter(x=>x.status==="pending_assignment"),validDecided=rows.filter(x=>x.validity!=="pending"),validCount=validDecided.filter(x=>x.validity==="valid").length;
+        const intakes=dashboardState.emailIntakes||[],companies=dashboardState.researchCompanies||[],today=chinaDate(),todayEmails=intakes.filter(x=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.received_at||x.created_at))===today),unprocessed=intakes.filter(x=>!["completed","processed","registered","done"].includes(String(x.processing_status||"").toLowerCase())),validityPending=rows.filter(x=>x.validity==="pending"),researchPending=companies.filter(x=>!["completed","confirmed","done"].includes(String(x.research_status||"").toLowerCase())),assignmentPending=rows.filter(x=>x.validity==="valid"&&x.status==="pending_assignment"),validDecided=rows.filter(x=>x.validity!=="pending"),validCount=validDecided.filter(x=>x.validity==="valid").length;
         $("#marketing-workbench-kpis").innerHTML=[["今日新邮件",todayEmails.length],["邮件待处理",unprocessed.length],["有效性待确认",validityPending.length],["背调待完成",researchPending.length],["待主管分配",assignmentPending.length]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i>0&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         const tasks=[];unprocessed.forEach(x=>tasks.push({priority:1,id:x.inquiry_id,title:x.subject||x.sender_email||"新客户邮件",reason:`${x.sender_email||"未知发件人"} · 邮件尚未完成登记`,time:x.received_at||x.created_at,label:"处理邮件",view:"email"}));validityPending.forEach(x=>tasks.push({priority:2,id:x.id,title:x.title,reason:"尚未确认有效性和无效原因",time:x.created_at,label:"判断有效性",view:"inquiry"}));researchPending.slice(0,20).forEach(x=>tasks.push({priority:3,title:x.name||"待背调公司",reason:"公司背调尚未完成",time:x.updated_at,label:"完成背调",view:"research"}));assignmentPending.forEach(x=>{if(!tasks.some(t=>t.id===x.id))tasks.push({priority:4,id:x.id,title:x.title,reason:"已登记，等待提交或主管分配",time:x.updated_at||x.created_at,label:"检查登记",view:"inquiry"})});tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
         $("#marketing-priority-list").innerHTML=tasks.length?tasks.slice(0,12).map((t,i)=>`<div class="sales-task-item" data-marketing-task="${i}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无市场待处理事项</b><small>邮件、有效性与背调流程均已处理</small></div>';
@@ -2593,9 +2587,10 @@
         const allowedIds=new Set(allowedProfiles.map(p=>p.id));
         const scoped=rows.filter(x=>(!x.owner_id||allowedIds.has(x.owner_id))&&(!selectedSource||(x.primary_source||x.source)===selectedSource)&&(!selectedCountry||x.target_country===selectedCountry)&&(!selectedProduct||x.product_category===selectedProduct)&&(!selectedDealType||(x.deal_type||"first_order")===selectedDealType)&&!x.excluded_from_dashboard);
         const periodRows=scoped.filter(x=>inRange(x.created_at,start,end));
+        const activeScoped=scoped.filter(x=>x.validity!=="invalid");
         const decided=periodRows.filter(x=>x.validity!=="pending"), closed=periodRows.filter(x=>["won","lost"].includes(x.status)), won=scoped.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,start,end));
-        $("#kpi-total").textContent=periodRows.length; $("#kpi-pending").textContent=scoped.filter(x=>x.status==="pending_assignment").length;
-        const assigned=scoped.filter(x=>x.assigned_at&&inRange(x.assigned_at,start,end));
+        $("#kpi-total").textContent=periodRows.length; $("#kpi-pending").textContent=activeScoped.filter(x=>x.validity==="valid"&&x.status==="pending_assignment").length;
+        const assigned=activeScoped.filter(x=>x.assigned_at&&inRange(x.assigned_at,start,end));
         const responded=assigned.filter(x=>x.first_valid_contact_at);
         const fast=responded.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000);
         const overdue=assigned.filter(x=>!x.first_valid_contact_at&&Date.now()-new Date(x.assigned_at)>1800000);
@@ -2630,15 +2625,15 @@
         $("#hero-sales-change").textContent=teamSalesChange===null?"环比 —":teamSalesChange===0?"环比持平":`环比 ${teamSalesChange>0?'↑':'↓'} ${Math.abs(teamSalesChange).toFixed(1)}%`;
         $("#hero-sales-change").className=teamSalesChange>0?"trend-up":teamSalesChange<0?"trend-down":"";
         renderTrendCharts(scoped);
-        renderSalesWorkbench(scoped,followups);
-        renderManagerWorkbench(scoped,profiles,followups);
+        renderSalesWorkbench(activeScoped,followups);
+        renderManagerWorkbench(activeScoped,profiles,followups);
         renderMarketingWorkbench(scoped);
         renderAnnualTargetPlan();
         $("#hero-sales-ranking").innerHTML=renderLeaderboard("业务员销售额排名","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>`${money(v,"CNY")}<br><small>${usdCny?money(v/usdCny,"USD"):"汇率待更新"}</small>`);
         $("#hero-sales-ranking").firstElementChild?.classList.add("featured-sales-ranking");
         $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:x.changes.processing})),v=>`${v} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:x.changes.response})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:x.changes.conversion,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`);
-        $$("[data-stage]").forEach(el=>el.textContent=scoped.filter(x=>x.status===el.dataset.stage).length);
-        $$("[data-stage]").forEach(el=>{const stageRows=scoped.filter(x=>x.status===el.dataset.stage),values=stageRows.map(x=>amountCny(x,x.status==="won")),known=values.filter(v=>v!==null),total=known.reduce((s,v)=>s+v,0),usdRate=fxToCny("USD");let moneyLine=el.parentElement.querySelector("[data-stage-money]");if(!moneyLine){moneyLine=document.createElement("small");moneyLine.dataset.stageMoney="";el.parentElement.append(moneyLine);}moneyLine.textContent=known.length?`${money(total,"CNY")} / ${usdRate?money(total/usdRate,"USD"):"汇率待更新"}`:"暂无金额";moneyLine.title=known.length<stageRows.length?`${stageRows.length-known.length} 条商机缺少金额或汇率`:"全部金额已折算";});
+        $$("[data-stage]").forEach(el=>el.textContent=activeScoped.filter(x=>x.status===el.dataset.stage).length);
+        $$("[data-stage]").forEach(el=>{const stageRows=activeScoped.filter(x=>x.status===el.dataset.stage),values=stageRows.map(x=>amountCny(x,x.status==="won")),known=values.filter(v=>v!==null),total=known.reduce((s,v)=>s+v,0),usdRate=fxToCny("USD");let moneyLine=el.parentElement.querySelector("[data-stage-money]");if(!moneyLine){moneyLine=document.createElement("small");moneyLine.dataset.stageMoney="";el.parentElement.append(moneyLine);}moneyLine.textContent=known.length?`${money(total,"CNY")} / ${usdRate?money(total/usdRate,"USD"):"汇率待更新"}`:"暂无金额";moneyLine.title=known.length<stageRows.length?`${stageRows.length-known.length} 条商机缺少金额或汇率`:"全部金额已折算";});
         const latest=new Map(); history.filter(h=>scoped.some(x=>x.id===h.inquiry_id)).forEach(h=>{if(!latest.has(h.to_status))latest.set(h.to_status,h.entered_at)}); $$("[data-stage-time]").forEach(el=>el.textContent=latest.has(el.dataset.stageTime)?fmtDate(latest.get(el.dataset.stageTime)):"暂无记录");
         const stageHours={pending_assignment:.5,received:4,qualified:24,contacted:72,quoted:168,sample_sent:336,negotiating:336};
         const alerts=[]; overdue.forEach(x=>alerts.push(["红色",x.title,"首次响应已超 30 分钟"]));
@@ -2778,7 +2773,7 @@
         const { data, error } = await supabase
           .from("inquiries")
           .select(
-            "id,inquiry_no,title,source,status,validity,created_at,updated_at,owner_id,target_country,product_category,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,risk_flag,original_message,contacts(email)",
+            "id,inquiry_no,title,source,status,validity,invalid_reason,lost_reason,created_at,updated_at,owner_id,target_country,product_category,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,risk_flag,original_message,contacts(email)",
           )
           .order("created_at", { ascending: false })
           .limit(100);
@@ -2789,7 +2784,7 @@
         const rows = data || [];
         // Optional dashboard columns are loaded separately so the UI remains
         // usable while a newly deployed migration is being applied.
-        const { data: dashboardFields } = await supabase.from("inquiries").select("id,assigned_at,first_valid_contact_at,quoted_at,expected_close_date,probability,deal_type,primary_source,excluded_from_dashboard,risk_flag").limit(1000);
+        const { data: dashboardFields } = await supabase.from("inquiries").select("id,assigned_at,first_valid_contact_at,quoted_at,expected_close_date,probability,deal_type,primary_source,excluded_from_dashboard,risk_flag,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason").limit(1000);
         if (dashboardFields) {
           const byId = new Map(dashboardFields.map(x => [x.id, x]));
           rows.forEach(x => Object.assign(x, byId.get(x.id) || {}));
@@ -2951,7 +2946,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,updated_at,assigned_at,first_valid_contact_at,quoted_at,next_follow_up_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
+              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,updated_at,assigned_at,first_valid_contact_at,quoted_at,next_follow_up_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
             )
             .eq("id", id)
             .single(),
@@ -3083,7 +3078,8 @@
           $("#send-outreach").textContent = "用我的邮箱发送";
         }
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
-        owner.disabled = !canAssign;
+        owner.disabled = !canAssign || inquiry.validity!=="valid";
+        owner.title = inquiry.validity!=="valid" ? "请先在“有效性判断”中确认有效" : "";
         inquiry.email_intake = intake || null;
         const workflow = $("#email-workflow");
         workflow.classList.toggle("hidden", !intake);
@@ -3101,7 +3097,7 @@
           const canMarket = ["owner", "marketing"].includes(profile.role);
           $("#complete-research").classList.toggle("hidden", !canMarket || Boolean(intake.research_completed_at));
           $("#forward-original-email").classList.toggle("hidden", !canMarket);
-          $("#register-for-assignment").classList.toggle("hidden", !canMarket || Boolean(intake.registered_at));
+          $("#register-for-assignment").classList.toggle("hidden", !canMarket || Boolean(intake.registered_at) || inquiry.validity!=="valid");
         }
         $("#detail-reason").value = "";
         $$(".nav[data-view]").forEach((nav) => nav.classList.toggle("active", nav.dataset.view === "inquiries"));
@@ -3127,7 +3123,10 @@
         const box=$("#detail-next-action");if(!box||!currentInquiry)return;
         const now=new Date(),latestMessage=[...messages].sort((a,b)=>new Date(b.received_at||b.sent_at)-new Date(a.received_at||a.sent_at))[0],overdueFollow=[...follows].filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now).sort((a,b)=>new Date(a.next_follow_up_at)-new Date(b.next_follow_up_at))[0];
         let title="继续维护客户关系",detail="检查最新沟通记录，并设置明确的下次跟进时间。",tab="followup",label="记录跟进",urgent=false;
-        if(!currentInquiry.owner_id){title="分配询盘负责人";detail="询盘尚未分配，主管应先指定负责业务员。";label="去分配";urgent=true}
+        if(currentInquiry.validity==="invalid"){title="无效询盘已关闭";detail="相关 SLA、销售跟进和商机预警已停止；如需恢复，主管或市场部可重新标记为待核实。";tab="validity";label="查看判定"}
+        else if(currentInquiry.invalid_review_status==="pending"){title="无效申请待主管审核";detail="审核完成前保持原流程，不计入无效询盘统计。";tab="validity";label="查看申请";urgent=["owner","sales_manager"].includes(profile?.role)}
+        else if(!currentInquiry.owner_id&&currentInquiry.validity==="valid"){title="分配询盘负责人";detail="询盘已确认有效，主管应指定负责业务员。";label="去分配";urgent=true}
+        else if(!currentInquiry.owner_id){title="先确认询盘有效性";detail="待核实询盘不会进入主管分配池。";tab="validity";label="判断有效性";urgent=true}
         else if(currentInquiry.validity==="pending"){title="确认询盘有效性";detail="在独立的有效性判断页签确认结果；判为无效时必须记录原因。";tab="validity";label="判断有效性";urgent=true}
         else if(currentInquiry.validity==="valid"&&currentInquiry.companies?.research_status!=="completed"&&currentInquiry.companies?.research_status!=="ready"){title="完成客户前置背调";detail="核验公司身份、业务匹配、采购信号、风险和联系人。";tab="research";label="去背调"}
         else if(currentInquiry.assigned_at&&!currentInquiry.first_valid_contact_at){const deadline=new Date(new Date(currentInquiry.assigned_at).getTime()+1800000);title=deadline<now?"首次有效联系已超时":"完成首次有效联系";detail=`响应截止：${fmtDate(deadline)}。联系后请记录客户反馈和下次跟进时间。`;label="立即联系";urgent=deadline<now}
@@ -3145,7 +3144,7 @@
       }
       function renderInquiryCompleteness(follows=[]){
         const box=$("#detail-completeness");if(!box||!currentInquiry)return;
-        const needsAmount=["quoted","sample_sent","negotiating","won"].includes(currentInquiry.status),open=!['won','lost'].includes(currentInquiry.status),futureFollow=(follows||[]).some(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)>new Date());
+        const needsAmount=["quoted","sample_sent","negotiating","won"].includes(currentInquiry.status),open=currentInquiry.validity!=="invalid"&&!['won','lost'].includes(currentInquiry.status),futureFollow=(follows||[]).some(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)>new Date());
         const checks=[
           ["客户原文",Boolean(currentInquiry.original_message?.trim())],
           ["公司身份",Boolean(currentInquiry.company_id&&currentInquiry.companies?.name)],
@@ -3170,8 +3169,8 @@
         el.textContent=`已停留 ${exactDuration(entered)}${limit?` · 建议时限 ${limit<1?`${limit*60}分钟`:`${limit}小时`}`:''}${overdue?' · 已超时':''}`;
         el.classList.toggle("danger-text",Boolean(overdue));
       }
-      const auditFieldLabels={status:"当前阶段",requested_status:"申请阶段",owner_id:"负责人",validity:"询盘有效性",invalid_reason:"无效原因",lost_reason:"丢单原因",estimated_amount:"预计金额",currency:"预计币种",won_amount:"成交金额",won_currency:"成交币种",evidence_name:"成交凭证",evidence_reviewed:"凭证已核验",probability:"成交概率",expected_close_date:"预计成交日期",deal_type:"商机类型",primary_source:"主来源",risk_flag:"高风险标识",target_country:"国家/地区",contact_name:"联系人姓名",contact_job_title:"联系人职称",demand_summary:"需求",project_name:"项目名"};
-      function auditValue(key,value){if(value===null||value===undefined||value==="")return "—";if(key==="status"||key==="requested_status")return statusNames[value]||value;if(key==="owner_id")return dashboardState.profiles.find(x=>x.id===value)?.full_name||"未分配";if(key==="validity")return {pending:"待确认",valid:"有效",invalid:"无效"}[value]||value;if(key==="risk_flag"||key==="evidence_reviewed")return value?"是":"否";if(key==="deal_type")return {new:"首次成交",first_order:"首次成交",repeat:"复购",repeat_order:"复购"}[value]||value;if(key==="invalid_reason"||key==="lost_reason"){const parsed=parseOutcomeReason(value);return [outcomeReasonNames[parsed.type],parsed.detail].filter(Boolean).join("：")||String(value)}if(typeof value==="object")return "已更新";return String(value)}
+      const auditFieldLabels={status:"当前阶段",requested_status:"申请阶段",owner_id:"负责人",validity:"询盘有效性",invalid_reason:"无效原因",invalid_review_status:"无效申请状态",invalid_request_reason:"无效申请原因",invalid_requested_by:"无效申请人",invalid_requested_at:"无效申请时间",lost_reason:"丢单原因",estimated_amount:"预计金额",currency:"预计币种",won_amount:"成交金额",won_currency:"成交币种",evidence_name:"成交凭证",evidence_reviewed:"凭证已核验",probability:"成交概率",expected_close_date:"预计成交日期",deal_type:"商机类型",primary_source:"主来源",risk_flag:"高风险标识",target_country:"国家/地区",contact_name:"联系人姓名",contact_job_title:"联系人职称",demand_summary:"需求",project_name:"项目名"};
+      function auditValue(key,value){if(value===null||value===undefined||value==="")return "—";if(key==="status"||key==="requested_status")return statusNames[value]||value;if(key==="owner_id"||key==="invalid_requested_by")return dashboardState.profiles.find(x=>x.id===value)?.full_name||"未分配";if(key==="validity")return {pending:"待确认",valid:"有效",invalid:"无效"}[value]||value;if(key==="invalid_review_status")return {pending:"待主管审核",approved:"已通过",rejected:"已驳回"}[value]||value;if(key==="invalid_requested_at")return fmtDate(value);if(key==="risk_flag"||key==="evidence_reviewed")return value?"是":"否";if(key==="deal_type")return {new:"首次成交",first_order:"首次成交",repeat:"复购",repeat_order:"复购"}[value]||value;if(key==="invalid_reason"||key==="invalid_request_reason"||key==="lost_reason"){const parsed=parseOutcomeReason(value);return [outcomeReasonNames[parsed.type],parsed.detail].filter(Boolean).join("：")||String(value)}if(typeof value==="object")return "已更新";return String(value)}
       function renderAuditTrail(audits=[]){const list=$("#detail-audit-list"),visibleFields=Object.keys(auditFieldLabels);$("#detail-audit-count").textContent=`${audits.length} 条`;list.innerHTML=audits.length?audits.map(a=>{const before=a.before_data||{},after=a.after_data||{},changes=visibleFields.filter(key=>JSON.stringify(before[key])!==JSON.stringify(after[key])&&(key in before||key in after));const actor=dashboardState.profiles.find(x=>x.id===a.actor_id)?.full_name||(a.actor_id===profile?.id?profile.full_name:"系统/未知成员"),action={update:"更新询盘",research_completed:"完成背调",smart_summary:"保存智能整理",assignment:"分配询盘",won_requested:"提交成交申请",won_approved:"确认成交",won_rejected:"驳回成交申请"}[a.action]||"更新记录";return `<article><strong>${esc(action)} · ${esc(actor)}</strong><small>${fmtDate(a.created_at)} · 原因：${esc(a.reason||"未填写")}</small>${changes.length?`<div class="dashboard-table-scroll" style="margin-top:10px"><table><thead><tr><th>字段</th><th>修改前</th><th>修改后</th></tr></thead><tbody>${changes.map(key=>`<tr><td>${auditFieldLabels[key]}</td><td>${esc(auditValue(key,before[key]))}</td><td>${esc(auditValue(key,after[key]))}</td></tr>`).join("")}</tbody></table></div>`:`<p class="hint" style="margin:8px 0 0">该操作已留痕，未涉及可公开展示的业务字段。</p>`}</article>`}).join(""):`<div class="empty">暂无修改记录</div>`}
       async function openWonEvidence(path){if(!path)return toast("该申请没有可查看的成交凭证");const preview=window.open("","_blank");if(!preview)return toast("浏览器阻止了凭证窗口，请允许本站打开新窗口后重试");preview.opener=null;preview.document.body.textContent="正在生成安全查看链接…";const {data,error}=await supabase.storage.from("research-attachments").createSignedUrl(path,60);if(error||!data?.signedUrl){preview.close();return toast("成交凭证暂时无法打开："+(error?.message||"未生成安全链接"))}currentInquiry.wonEvidenceReviewed=true;preview.location.replace(data.signedUrl);toast("成交凭证已打开，请核验后再确认成交")}
       function renderWonApproval(audits=[]){const box=$("#detail-won-approval"),latest=[...audits].find(a=>a.action==="won_requested"&&!audits.some(x=>["won_approved","won_rejected"].includes(x.action)&&new Date(x.created_at)>new Date(a.created_at)));currentInquiry.latestWonRequest=latest||null;currentInquiry.wonEvidenceReviewed=false;if(!latest){box.classList.add("hidden");box.innerHTML="";return}const data=latest.after_data||{},requester=dashboardState.profiles.find(x=>x.id===latest.actor_id)?.full_name||"业务员",canReview=["owner","sales_manager"].includes(profile.role),evidenceButton=data.evidence_path?`<button class="table-action" id="open-won-evidence" type="button">查看成交凭证</button>`:`<span class="danger-text">缺少成交凭证</span>`;box.classList.remove("hidden");box.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><b>待主管确认的成交申请</b><p class="hint" style="margin:6px 0">${esc(requester)} · ${fmtDate(latest.created_at)} · ${esc(data.won_currency||"")} ${Number(data.won_amount||0).toLocaleString("zh-CN")}</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><small>${esc(data.evidence_name||"未记录凭证名称")}</small>${evidenceButton}</div></div>${canReview?`<div class="form-actions" style="margin:0"><button class="ghost" id="reject-won-request" type="button">驳回</button><button class="primary" id="approve-won-request" type="button">确认成交</button></div>`:`<span class="tag">等待主管审核</span>`}</div>`;$("#open-won-evidence")?.addEventListener("click",()=>openWonEvidence(data.evidence_path));if(canReview){$("#approve-won-request").onclick=()=>reviewWonRequest(true);$("#reject-won-request").onclick=()=>reviewWonRequest(false)}}
@@ -3803,6 +3802,9 @@
         $$(".validity-choice").forEach(button=>{button.classList.toggle("active",button.dataset.validity===validity);button.disabled=button.dataset.validity==="invalid"?!canInvalidate:!canFullJudge});
         $("#detail-save-invalid").disabled=!canInvalidate;
         $("#detail-validity-reason").classList.toggle("hidden",validity!=="invalid");
+        const review=$("#detail-invalid-review"),pending=currentInquiry?.invalid_review_status==="pending",canReview=["owner","sales_manager"].includes(profile?.role);
+        review.classList.toggle("hidden",!pending);
+        if(pending){const parsed=parseOutcomeReason(currentInquiry.invalid_request_reason||"");review.innerHTML=`<b>待主管审核的无效申请</b><p class="hint" style="margin:7px 0">${esc(outcomeReasonNames[parsed.type]||"其他")}：${esc(parsed.detail||"未填写说明")}</p>${canReview?`<div class="field"><label>审核原因 *</label><input id="detail-invalid-review-reason" class="input" placeholder="填写通过或驳回依据" /></div><div class="form-actions" style="margin:10px 0 0"><button id="reject-invalid-request" class="ghost" type="button">驳回申请</button><button id="approve-invalid-request" class="primary" type="button">确认无效并关闭</button></div>`:`<span class="tag">等待主管审核</span>`}`;if(canReview){$("#approve-invalid-request").onclick=()=>reviewInvalidRequest(true);$("#reject-invalid-request").onclick=()=>reviewInvalidRequest(false)}}
       }
       function syncDetailedOutcomeVisibility(){
         const show=$("#detail-status").value==="lost";
@@ -3821,15 +3823,17 @@
           if(type==="other"&&!detail)return toast("选择其他原因时请填写补充说明");
           invalidReason=`[${type}] ${detail}`.trim();
         }
+        if(validity!=="invalid"&&!confirm(validity==="valid"?"确认该询盘有效并进入待分配流程？":"确认将该询盘恢复为待核实？"))return renderQuickValidity(currentInquiry.validity);
         const buttons=$$(".validity-choice"),saveInvalid=$("#detail-save-invalid");buttons.forEach(button=>button.disabled=true);saveInvalid.disabled=true;
         const reason=validity==="valid"?"确认询盘有效":validity==="invalid"?`判定询盘无效：${outcomeReasonNames[$("#detail-quick-invalid-type").value]||"其他"}${$("#detail-quick-invalid-detail").value.trim()?`；${$("#detail-quick-invalid-detail").value.trim()}`:""}`:"标记为待核实";
-        const {error}=await supabase.from("inquiries").update({validity,invalid_reason:invalidReason,last_change_reason:reason,updated_by:profile.id,updated_at:new Date().toISOString()}).eq("id",currentInquiry.id);
+        const {data:result,error}=await supabase.rpc("decide_inquiry_validity",{target_inquiry_id:currentInquiry.id,decision:validity,reason_type:validity==="invalid"?$("#detail-quick-invalid-type").value:null,reason_detail:validity==="invalid"?$("#detail-quick-invalid-detail").value.trim():null});
         buttons.forEach(button=>button.disabled=false);saveInvalid.disabled=false;
         if(error)return toast("有效性保存失败："+error.message);
-        toast(validity==="valid"?"已确认有效，无需补填其他字段":validity==="invalid"?"已记录为无效询盘":"已标记为待核实");
+        toast(result==="pending_review"?"无效申请已提交主管审核；审核前询盘仍保持进行中":validity==="valid"?"已确认有效并进入待分配流程":validity==="invalid"?"已关闭为无效询盘，相关 SLA 与跟进预警已停止":"已标记为待核实");
         await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries()]);
         if(activeModuleView==="inquiries")await loadModule("inquiries");
       }
+      async function reviewInvalidRequest(approve){const reason=$("#detail-invalid-review-reason")?.value.trim();if(!reason)return toast("请填写审核原因");const button=$(approve?"#approve-invalid-request":"#reject-invalid-request");button.disabled=true;const {error}=await supabase.rpc("review_inquiry_invalid_request",{target_inquiry_id:currentInquiry.id,approve,review_reason:reason});button.disabled=false;if(error)return toast("审核失败："+error.message);toast(approve?"已确认无效并停止相关 SLA":"已驳回无效申请，业务员将收到通知");await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries(),loadNotifications()]);}
       $$(".validity-choice").forEach(button=>button.addEventListener("click",()=>{
         const validity=button.dataset.validity;
         $("#detail-validity").value=validity;
@@ -3850,7 +3854,6 @@
         button.disabled = true;
         const update = {
           status: $("#detail-status").value,
-          validity: $("#detail-validity").value,
           estimated_amount: Number($("#detail-estimated-amount").value) || null,
           currency: $("#detail-estimated-currency").value.trim().toUpperCase() || null,
           probability: $("#detail-probability").value === "" ? null : Number($("#detail-probability").value),
@@ -3862,8 +3865,8 @@
           updated_by: profile.id,
           updated_at: new Date().toISOString(),
         };
-        const outcomeReasonType=$("#detail-outcome-reason-type").value,outcomeReasonDetail=$("#detail-invalid-reason").value.trim(),requiresOutcome=update.validity==="invalid"||update.status==="lost",outcomeReason=outcomeReasonType?`[${outcomeReasonType}] ${outcomeReasonDetail}`.trim():"";
-        if (update.status === "qualified" && update.validity !== "valid") {
+        const outcomeReasonType=$("#detail-outcome-reason-type").value,outcomeReasonDetail=$("#detail-invalid-reason").value.trim(),requiresOutcome=update.status==="lost",outcomeReason=outcomeReasonType?`[${outcomeReasonType}] ${outcomeReasonDetail}`.trim():"";
+        if (update.status === "qualified" && currentInquiry.validity !== "valid") {
           toast("进入有效询盘前，必须先确认询盘有效");
           button.disabled = false;
           return;
@@ -3888,8 +3891,6 @@
           button.disabled = false;
           return;
         }
-        update.invalid_reason =
-          update.validity === "invalid" ? outcomeReason : null;
         update.lost_reason = update.status === "lost" ? outcomeReason : null;
         if (update.status === "won") {
           const amount = Number($("#detail-won-amount").value);
@@ -4603,12 +4604,15 @@
 
       $("#add-follow").addEventListener("click", async () => {
         if (!currentInquiry) return;
+        if(currentInquiry.validity!=="valid")return toast("只有已确认有效的询盘才能新增销售跟进");
+        if(profile?.role==="sales"&&currentInquiry.owner_id!==profile.id)return toast("只能跟进本人负责的询盘");
         const content = $("#follow-content").value.trim();
         if (!content) {
           toast("请填写跟进内容");
           return;
         }
         const next = $("#follow-next").value;
+        if(!next&&!['won','lost'].includes(currentInquiry.status))return toast("进行中商机必须设置下次跟进时间");
         const button = $("#add-follow");
         button.disabled = true;
         const { error } = await supabase.from("follow_ups").insert({

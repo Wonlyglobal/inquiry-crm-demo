@@ -283,7 +283,7 @@
         position: absolute;
         right: 0;
         top: 46px;
-        width: 330px;
+        width: 380px;
         max-height: 360px;
         overflow: auto;
         padding: 10px;
@@ -299,6 +299,11 @@
         font-size: 11px;
         cursor: pointer;
       }
+      .notice-item.unread { background:#f2f7f3; border-left:3px solid var(--green); }
+      .notice-toolbar { position:sticky; top:-10px; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 4px; background:#fff; border-bottom:1px solid var(--line); }
+      .notice-filters { display:flex; gap:5px; }
+      .notice-filter,.notice-mark-all { border:0; border-radius:8px; padding:6px 8px; background:var(--soft); color:var(--muted); font:inherit; font-size:10px; cursor:pointer; }
+      .notice-filter.active { background:var(--rail); color:#fff; }
       .notice-item b {
         display: block;
         margin-bottom: 4px;
@@ -1033,6 +1038,7 @@
                 ><span id="notice-count" class="notice-count hidden">0</span>
               </button>
               <div id="notice-panel" class="notice-panel hidden">
+                <div class="notice-toolbar"><div class="notice-filters"><button class="notice-filter active" data-notice-filter="unread">未读</button><button class="notice-filter" data-notice-filter="all">全部</button></div><button id="notice-mark-all" class="notice-mark-all">全部已读</button></div>
                 <div id="notice-list">暂无通知</div>
               </div>
             </div>
@@ -1725,6 +1731,7 @@
       let currentInquiry = null;
       let detailStageTicker = null;
       let notificationChannel = null;
+      let notificationItems = [], notificationFilter = "unread";
       let detailOriginView = "dashboard";
       $(".main").appendChild($("#detail-modal"));
       $(".main").appendChild($("#daily-modal"));
@@ -2127,18 +2134,24 @@
           .order("created_at", { ascending: false })
           .limit(30);
         if (error) return;
-        const unread = (data || []).filter((x) => !x.read_at).length;
+        notificationItems=data||[];
+        const unread = notificationItems.filter((x) => !x.read_at).length;
         $("#notice-count").textContent = unread;
         $("#notice-count").classList.toggle("hidden", unread === 0);
+        renderNotifications();
+      }
+      function renderNotifications(){
         const list = $("#notice-list");
         list.replaceChildren();
-        if (!data?.length) {
-          list.textContent = "暂无通知";
+        const visible=notificationFilter==="unread"?notificationItems.filter(x=>!x.read_at):notificationItems;
+        $$("[data-notice-filter]").forEach(button=>button.classList.toggle("active",button.dataset.noticeFilter===notificationFilter));
+        if (!visible.length) {
+          list.textContent = notificationFilter==="unread"?"暂无未读通知":"暂无通知";
           return;
         }
-        data.forEach((item) => {
+        visible.slice().sort((a,b)=>Number(Boolean(a.read_at))-Number(Boolean(b.read_at))||new Date(b.created_at)-new Date(a.created_at)).forEach((item) => {
           const row = document.createElement("div");
-          row.className = "notice-item";
+          row.className = `notice-item ${item.read_at?"":"unread"}`;
           const title = document.createElement("b");
           title.textContent = item.title;
           const detail = document.createElement("div");
@@ -3130,6 +3143,13 @@
       $("#notice-button").addEventListener("click", () =>
         $("#notice-panel").classList.toggle("hidden"),
       );
+      $$("[data-notice-filter]").forEach(button=>button.addEventListener("click",()=>{notificationFilter=button.dataset.noticeFilter;renderNotifications()}));
+      $("#notice-mark-all").addEventListener("click",async()=>{
+        const unreadIds=notificationItems.filter(x=>!x.read_at).map(x=>x.id);if(!unreadIds.length)return toast("当前没有未读通知");
+        const button=$("#notice-mark-all");button.disabled=true;const readAt=new Date().toISOString();
+        const {error}=await supabase.from("notifications").update({read_at:readAt}).in("id",unreadIds);button.disabled=false;
+        if(error)return toast("标记失败："+error.message);notificationItems.forEach(x=>{if(unreadIds.includes(x.id))x.read_at=readAt});$("#notice-count").classList.add("hidden");renderNotifications();toast(`已将 ${unreadIds.length} 条通知标记为已读`);
+      });
       function chinaDate() {
         return new Intl.DateTimeFormat("en-CA", {
           timeZone: "Asia/Shanghai",

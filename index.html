@@ -2328,6 +2328,14 @@
         $("#module-insights").classList.remove("hidden");
       }
       async function openPublicPoolInquiry(id){await openInquiryDetail(id);if(currentInquiry?.id===id)setDetailTab("followup")}
+      function setActiveNavigation(view) {
+        $$(".nav[data-view]").forEach((nav) => {
+          const active = nav.dataset.view === view;
+          nav.classList.toggle("active", active);
+          if (active) nav.setAttribute("aria-current", "page");
+          else nav.removeAttribute("aria-current");
+        });
+      }
       function openLegacyProject(project) {
         const normalizedOwner = project.legacy_owner_name === "石舒" ? "石奕舒" : project.legacy_owner_name;
         const fields = [["旧系统 ID",project.legacy_project_id],["国家/地区",project.country],["合作方",project.partner_name],["省份 / 城市",[project.partner_province,project.partner_city].filter(Boolean).join(" / ")],["客户类型",project.customer_type],["项目名称",project.project_name],["产品类型",project.product_type],["原系统分类",project.funnel_bucket],["项目状态",project.project_status],["预计下一节点",project.next_milestone_at],["工程总数量",project.project_total_quantity],["合同号",project.contract_no],["合同数量",project.contract_quantity],["合同金额（人民币万元）",project.contract_amount_wan],["工程信息来源",project.lead_source],["负责人",normalizedOwner],["部门",project.department],["联系人",project.contact_name],["联系人职务",project.contact_title],["联系方式",project.contact_details],["跟进情况",project.follow_up_status],["未中标原因",project.lost_reason],["原因描述",project.lost_reason_description],["创建人 / 时间",[project.legacy_creator_name,project.source_created_at ? fmtDate(project.source_created_at) : null].filter(Boolean).join(" · ")],["修改人 / 时间",[project.legacy_modifier_name,project.source_updated_at ? fmtDate(project.source_updated_at) : null].filter(Boolean).join(" · ")]];
@@ -2337,7 +2345,7 @@
       }
       async function switchView(view, options = {}) {
         $("#sales-profile-page").classList.add("hidden");
-        $$(".nav[data-view]").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
+        setActiveNavigation(view);
         if (view === "daily") {
           if (!["owner", "sales_manager", "sales"].includes(profile.role)) {
             toast("当前账号无权查看销售日报");
@@ -3119,8 +3127,10 @@
           $("#register-for-assignment").classList.toggle("hidden", !canMarket || Boolean(intake.registered_at) || inquiry.validity!=="valid");
         }
         $("#detail-reason").value = "";
-        $$(".nav[data-view]").forEach((nav) => nav.classList.toggle("active", nav.dataset.view === "inquiries"));
         await loadModule("inquiries");
+        // Inquiry detail is a child route of 询盘商机. Apply this after all
+        // asynchronous list loading so startup/dashboard work cannot overwrite it.
+        setActiveNavigation("inquiries");
         $("#dashboard-page").classList.add("hidden");
         $("#module-page").classList.add("hidden");
         $("#sales-profile-page").classList.add("hidden");

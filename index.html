@@ -3965,7 +3965,7 @@
             change_reason: reason,
           }));
           update.owner_id = selectedOwner;
-          update.status = currentInquiry.owner_id ? currentInquiry.status : "received";
+          update.status = currentInquiry.owner_id || currentInquiry.public_pool_entered_at ? currentInquiry.status : "received";
         } else {
           ({ error } = await supabase.from("inquiries").update(update).eq("id", currentInquiry.id));
         }
@@ -3974,7 +3974,7 @@
           toast("保存失败：" + error.message);
           return;
         }
-        toast(isAssignment && currentInquiry.owner_id ? "询盘已转派，原阶段和全部沟通记录均已保留" : "阶段与分配已更新，修改记录已留痕");
+        toast(isAssignment && (currentInquiry.owner_id||currentInquiry.public_pool_entered_at) ? "询盘已重新分配，原阶段和全部沟通记录均已保留" : "阶段与分配已更新，修改记录已留痕");
         currentInquiry.status = update.status;
         currentInquiry.owner_id = update.owner_id ?? currentInquiry.owner_id;
         if (isAssignment) {

@@ -1431,7 +1431,8 @@
             <label>需求说明</label
             ><textarea name="message" class="input" rows="4"></textarea>
           </div>
-          <label class="checkline"
+          <p id="manual-self-owner-hint" class="hint hidden">该线索将自动归属你本人，无需销售主管再次分配。</p>
+          <label id="manual-assignment-notify" class="checkline"
             ><input name="notify" type="checkbox" checked />
             登记后提醒销售主管分配</label
           >
@@ -1462,7 +1463,8 @@
             <label>客户邮件正文 *</label
             ><textarea name="body" class="input" rows="10" required></textarea>
           </div>
-          <label class="checkline"
+          <p id="email-self-owner-hint" class="hint hidden">该线索将自动归属你本人，无需销售主管再次分配。</p>
+          <label id="email-assignment-notify" class="checkline"
             ><input name="notify" type="checkbox" checked />
             生成后提醒销售主管分配</label
           >
@@ -3668,6 +3670,11 @@
       $("#new-inquiry").addEventListener("click", () => {
         const receivedAt = $('#email-form [name="received_at"]');
         if (!receivedAt.value) receivedAt.value = localDateTimeValue();
+        const selfOwned=profile.role==="sales";
+        $("#manual-assignment-notify").classList.toggle("hidden",selfOwned);
+        $("#email-assignment-notify").classList.toggle("hidden",selfOwned);
+        $("#manual-self-owner-hint").classList.toggle("hidden",!selfOwned);
+        $("#email-self-owner-hint").classList.toggle("hidden",!selfOwned);
         $("#inquiry-modal").classList.remove("hidden");
       });
       function closeInquiryCreateModal(){
@@ -3794,12 +3801,14 @@
               target_country: country || null,
               source,
               original_message: message || null,
+              owner_id: profile.role === "sales" ? profile.id : null,
+              status: profile.role === "sales" ? "received" : "pending_assignment",
               created_by: profile.id,
             })
             .select()
             .single();
         if (q.error) throw q.error;
-        if (notify) {
+        if (notify && profile.role !== "sales") {
           const { data: managers, error: managerError } = await supabase
             .from("profiles")
             .select("id")
@@ -3845,7 +3854,7 @@
           form.reset();
           form.querySelector("[data-duplicate-warning]")?.classList.add("hidden");
           $("#inquiry-modal").classList.add("hidden");
-          toast("询盘已创建并进入待分配池");
+          toast(profile.role==="sales"?"线索已创建并自动归属你本人":"询盘已创建并进入待分配池");
           if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;await openDailyReport();}else await loadInquiries();
         } catch (err) {
           toast("创建失败：" + err.message);

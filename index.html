@@ -662,6 +662,22 @@
       .daily-summary-kpis span { display:block; color:var(--muted); font-size:11px; margin-bottom:8px; }
       .daily-summary-kpis b { font-size:24px; }
       .daily-content-card { padding:20px; }
+      .daily-section-tabs { display:flex; gap:8px; margin:0 0 14px; padding:7px; border:1px solid var(--line); border-radius:14px; background:var(--soft); }
+      .daily-section-tab { padding:10px 16px; border:0; border-radius:10px; background:transparent; color:var(--muted); font-weight:800; cursor:pointer; }
+      .daily-section-tab.active { background:var(--green-dark); color:#fff; box-shadow:0 5px 14px rgba(27,58,44,.14); }
+      .daily-history-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; padding:15px 16px; }
+      .daily-history-toolbar h4 { margin:0; font-size:16px; }
+      .daily-history-toolbar p { margin:5px 0 0; color:var(--muted); font-size:11px; }
+      .daily-history-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
+      .daily-history-kpis .card { padding:16px; }
+      .daily-history-kpis span { display:block; color:var(--muted); font-size:11px; margin-bottom:8px; }
+      .daily-history-kpis b { font-size:25px; }
+      .daily-history-breakdown { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+      .daily-history-breakdown .card { padding:16px; }
+      .daily-history-breakdown h4 { margin:0 0 12px; font-size:14px; }
+      .daily-history-chip-list { display:flex; flex-wrap:wrap; gap:8px; }
+      .daily-history-chip { display:inline-flex; gap:7px; align-items:center; padding:7px 10px; border-radius:999px; background:var(--soft); color:var(--muted); font-size:11px; }
+      .daily-history-chip b { color:var(--ink); }
       .daily-lead-section { margin:16px 0 18px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff; }
       .daily-lead-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:15px 16px; border-bottom:1px solid var(--line); background:var(--soft); }
       .daily-lead-head h4 { margin:0; font-size:15px; }
@@ -1008,6 +1024,9 @@
         .dashboard-kpis { grid-template-columns:1fr 1fr; }
         .daily-toolbar { align-items:flex-start; flex-direction:column; }
         .daily-lead-head { align-items:flex-start; flex-direction:column; }
+        .daily-history-toolbar { align-items:flex-start; flex-direction:column; }
+        .daily-history-kpis { grid-template-columns:1fr 1fr; }
+        .daily-history-breakdown { grid-template-columns:1fr; }
         .daily-summary-kpis { grid-template-columns:1fr 1fr; }
         .ai-panel { right:10px; bottom:72px; width:calc(100vw - 84px); max-height:calc(100vh - 90px); }
         .ai-panel-head { align-items:flex-start; gap:10px; }
@@ -1454,8 +1473,10 @@
           <button id="close-daily" class="ghost">← 返回看板</button>
         </div>
         <div class="form-body">
-          <section class="daily-toolbar card"><div><b>日报日期</b><p>按中国自然日统计，历史日报可通过日期查看。</p></div><div class="daily-date-control"><label for="daily-date">选择日期</label><input id="daily-date" class="input compact" type="date" /></div></section>
+          <section id="daily-date-toolbar" class="daily-toolbar card"><div><b>日报日期</b><p>按中国自然日统计，历史日报可通过日期查看。</p></div><div class="daily-date-control"><label for="daily-date">选择日期</label><input id="daily-date" class="input compact" type="date" /></div></section>
           <div id="sales-daily-form">
+            <div class="daily-section-tabs"><button type="button" class="daily-section-tab active" data-daily-section="report">今日工作日报</button><button type="button" class="daily-section-tab" data-daily-section="history">历史客户线索看板</button></div>
+            <div id="daily-report-panel">
             <section class="card daily-content-card"><p class="hint">新增线索和跟进次数均来自 CRM 真实记录，无需手工填数字；日报只需补充关键进展、所需支持和明日计划。</p>
             <input id="daily-new-leads" type="hidden" value="0" />
             <input id="daily-followups" type="hidden" value="0" />
@@ -1489,6 +1510,13 @@
               <button id="submit-daily" class="primary">保存日报</button>
             </div>
             </section>
+            </div>
+            <div id="daily-history-panel" class="hidden">
+              <section class="card daily-history-toolbar"><div><h4>历史客户线索数据看板</h4><p>只统计你亲自创建的真实线索，所有数据可追溯到询盘详情。</p></div><select id="daily-history-period" class="input compact"><option value="month">本月</option><option value="quarter">本季度</option><option value="year">本年</option><option value="all">全部</option></select></section>
+              <div class="daily-history-kpis"><div class="card"><span>累计新增线索</span><b id="daily-history-total">0</b></div><div class="card"><span>有效线索率</span><b id="daily-history-valid-rate">—</b></div><div class="card"><span>进行中线索</span><b id="daily-history-active">0</b></div><div class="card"><span>已成交线索</span><b id="daily-history-won">0</b></div></div>
+              <div class="daily-history-breakdown"><section class="card"><h4>商机阶段分布</h4><div id="daily-history-stages" class="daily-history-chip-list"></div></section><section class="card"><h4>线索来源分布</h4><div id="daily-history-sources" class="daily-history-chip-list"></div></section></div>
+              <div class="table-wrap daily-report-table"><div class="table-head"><span>历史客户线索明细</span><span id="daily-history-summary" class="tag">0 条</span></div><div class="daily-lead-table"><table><thead><tr><th>编号</th><th>客户/公司</th><th>询盘主题</th><th>国家/地区</th><th>来源</th><th>有效性</th><th>阶段</th><th>创建时间</th></tr></thead><tbody id="daily-history-body"></tbody></table><div id="daily-history-empty" class="empty">当前周期暂无客户线索</div></div></div>
+            </div>
           </div>
           <div id="manager-daily-view" class="hidden">
             <div class="daily-summary-kpis"><div class="card"><span>应提交成员</span><b id="daily-kpi-total">0</b></div><div class="card"><span>已提交</span><b id="daily-kpi-submitted">0</b></div><div class="card"><span>新增线索</span><b id="daily-kpi-leads">0</b></div><div class="card"><span>跟进次数</span><b id="daily-kpi-followups">0</b></div></div>
@@ -1822,6 +1850,7 @@
         $$ = (s) => [...document.querySelectorAll(s)];
       let profile = null;
       let returnToDailyAfterLeadCreate = false;
+      let dailySection = "report";
       let passwordChangeMode = "initial";
       let currentInquiry = null;
       let detailStageTicker = null;
@@ -3452,6 +3481,45 @@
           day: "2-digit",
         }).format(new Date());
       }
+      function dailyHistoryStart(period){
+        if(period==="all")return null;
+        const [year,month]=chinaDate().split("-").map(Number);
+        const startMonth=period==="year"?1:period==="quarter"?Math.floor((month-1)/3)*3+1:month;
+        return `${year}-${String(startMonth).padStart(2,"0")}-01T00:00:00+08:00`;
+      }
+      function renderDailyHistoryChips(target,items,emptyText){
+        const box=$(target);box.replaceChildren();
+        if(!items.length){const span=document.createElement("span");span.className="muted";span.textContent=emptyText;box.append(span);return;}
+        items.forEach(([name,count])=>{const chip=document.createElement("span");chip.className="daily-history-chip";const label=document.createElement("span");label.textContent=name;const value=document.createElement("b");value.textContent=count;chip.append(label,value);box.append(chip);});
+      }
+      async function loadDailyHistory(){
+        if(profile.role!=="sales")return;
+        const period=$("#daily-history-period").value;
+        let query=supabase.from("inquiries").select("id,inquiry_no,title,target_country,source,status,validity,created_at,companies(name),contacts(full_name,email)").eq("created_by",profile.id).order("created_at",{ascending:false});
+        const start=dailyHistoryStart(period);if(start)query=query.gte("created_at",start);
+        const {data,error}=await query;
+        if(error){toast("历史线索加载失败："+error.message);return;}
+        const rows=data||[],valid=rows.filter(x=>x.validity==="valid").length,active=rows.filter(x=>!["won","lost"].includes(x.status)&&x.validity!=="invalid").length,won=rows.filter(x=>x.status==="won").length;
+        $("#daily-history-total").textContent=rows.length;
+        $("#daily-history-valid-rate").textContent=rows.length?`${Math.round(valid/rows.length*100)}%`:"—";
+        $("#daily-history-active").textContent=active;
+        $("#daily-history-won").textContent=won;
+        $("#daily-history-summary").textContent=`${rows.length} 条`;
+        const countBy=(key,labeler)=>Object.entries(rows.reduce((map,row)=>{const keyValue=row[key]||"未设置";map[keyValue]=(map[keyValue]||0)+1;return map;},{})).sort((a,b)=>b[1]-a[1]).map(([keyValue,count])=>[labeler(keyValue),count]);
+        renderDailyHistoryChips("#daily-history-stages",countBy("status",value=>statusNames[value]||value),"暂无阶段数据");
+        renderDailyHistoryChips("#daily-history-sources",countBy("source",value=>sourceNames[value]||value),"暂无来源数据");
+        const body=$("#daily-history-body");body.replaceChildren();$("#daily-history-empty").classList.toggle("hidden",Boolean(rows.length));
+        const validityNames={pending:"待确认",valid:"有效",invalid:"无效"};
+        rows.forEach(lead=>{const tr=document.createElement("tr"),customer=lead.companies?.name||lead.contacts?.full_name||lead.contacts?.email||"—";[String(lead.inquiry_no||"").padStart(6,"0"),customer,lead.title||"—",lead.target_country||"—",sourceNames[lead.source]||lead.source||"—",validityNames[lead.validity]||lead.validity||"—",statusNames[lead.status]||lead.status||"—",fmtDate(lead.created_at)].forEach((value,index)=>{const td=document.createElement("td");td.textContent=value;if(index===2)td.className="daily-lead-title";tr.append(td);});tr.addEventListener("click",()=>{$("#daily-modal").classList.add("hidden");openInquiryDetail(lead.id);});body.append(tr);});
+      }
+      async function setDailySection(section){
+        dailySection=section;
+        $$('[data-daily-section]').forEach(button=>button.classList.toggle("active",button.dataset.dailySection===section));
+        $("#daily-report-panel").classList.toggle("hidden",section!=="report");
+        $("#daily-history-panel").classList.toggle("hidden",section!=="history");
+        $("#daily-date-toolbar").classList.toggle("hidden",profile.role==="sales"&&section==="history");
+        if(section==="history")await loadDailyHistory();
+      }
       async function openDailyReport() {
         $("#daily-modal").classList.remove("hidden");
         if (!$("#daily-date").value) $("#daily-date").value = chinaDate();
@@ -3462,6 +3530,7 @@
           profile.role !== "sales",
         );
         $("#manager-daily-view").classList.toggle("hidden", !isManager);
+        $("#daily-date-toolbar").classList.toggle("hidden",profile.role==="sales"&&dailySection==="history");
         if (isManager) {
           const [{ data: sales }, { data: reports }] = await Promise.all([
             supabase
@@ -3554,6 +3623,8 @@
       );
       $("#close-daily").addEventListener("click", () => switchView("dashboard"));
       $("#daily-date").addEventListener("change",openDailyReport);
+      $$('[data-daily-section]').forEach(button=>button.addEventListener("click",()=>setDailySection(button.dataset.dailySection)));
+      $("#daily-history-period").addEventListener("change",loadDailyHistory);
       $("#daily-add-lead").addEventListener("click",()=>{
         returnToDailyAfterLeadCreate=true;
         $("#daily-modal").classList.add("hidden");

@@ -19,6 +19,9 @@
         --bg: #f2f4f2;
         --rail: #26372e;
         --brand: #547861;
+        --green: #547861;
+        --green-dark: #26372e;
+        --white: #fff;
         --soft: #dbe5dc;
         --danger: #bd4a43;
       }
@@ -665,9 +668,11 @@
       .daily-section-tabs { display:flex; gap:8px; margin:0 0 14px; padding:7px; border:1px solid var(--line); border-radius:14px; background:var(--soft); }
       .daily-section-tab { padding:10px 16px; border:0; border-radius:10px; background:transparent; color:var(--muted); font-weight:800; cursor:pointer; }
       .daily-section-tab.active { background:var(--green-dark); color:#fff; box-shadow:0 5px 14px rgba(27,58,44,.14); }
+      .daily-section-tab:focus-visible { outline:3px solid rgba(209,115,50,.55); outline-offset:2px; }
       .daily-history-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; padding:15px 16px; }
       .daily-history-toolbar h4 { margin:0; font-size:16px; }
       .daily-history-toolbar p { margin:5px 0 0; color:var(--muted); font-size:11px; }
+      .daily-history-filters { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
       .daily-history-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
       .daily-history-kpis .card { padding:16px; }
       .daily-history-kpis span { display:block; color:var(--muted); font-size:11px; margin-bottom:8px; }
@@ -1418,6 +1423,9 @@
             <div class="field">
               <label>数量</label><input name="quantity" class="input" />
             </div>
+            <div class="field">
+              <label>来源渠道 *</label><select name="source" class="input" required><option value="outbound">销售自主开发</option><option value="website">官网表单</option><option value="email">企业邮箱</option><option value="feishu">飞书</option><option value="google_ads">Google Ads</option><option value="meta_ads">Meta Ads</option><option value="linkedin">LinkedIn</option><option value="exhibition">展会</option><option value="referral">经销商/客户转介绍</option><option value="other">其他</option></select>
+            </div>
           </div>
           <div class="field">
             <label>需求说明</label
@@ -1512,7 +1520,7 @@
             </section>
             </div>
             <div id="daily-history-panel" class="hidden">
-              <section class="card daily-history-toolbar"><div><h4>历史客户线索数据看板</h4><p>只统计你亲自创建的真实线索，所有数据可追溯到询盘详情。</p></div><select id="daily-history-period" class="input compact"><option value="month">本月</option><option value="quarter">本季度</option><option value="year">本年</option><option value="all">全部</option></select></section>
+              <section class="card daily-history-toolbar"><div><h4>历史客户线索数据看板</h4><p>只统计你亲自创建的真实线索，所有数据可追溯到询盘详情。</p></div><div class="daily-history-filters"><select id="daily-history-period" class="input compact"><option value="month">本月</option><option value="quarter">本季度</option><option value="year">本年</option><option value="all">全部</option></select><select id="daily-history-channel" class="input compact"><option value="">全部渠道</option><option value="outbound">销售自主开发</option><option value="website">官网表单</option><option value="email">企业邮箱</option><option value="feishu">飞书</option><option value="google_ads">Google Ads</option><option value="meta_ads">Meta Ads</option><option value="linkedin">LinkedIn</option><option value="exhibition">展会</option><option value="referral">经销商/客户转介绍</option><option value="other">其他</option><option value="manual">手工录入（待补充渠道）</option></select></div></section>
               <div class="daily-history-kpis"><div class="card"><span>累计新增线索</span><b id="daily-history-total">0</b></div><div class="card"><span>有效线索率</span><b id="daily-history-valid-rate">—</b></div><div class="card"><span>进行中线索</span><b id="daily-history-active">0</b></div><div class="card"><span>已成交线索</span><b id="daily-history-won">0</b></div></div>
               <div class="daily-history-breakdown"><section class="card"><h4>商机阶段分布</h4><div id="daily-history-stages" class="daily-history-chip-list"></div></section><section class="card"><h4>线索来源分布</h4><div id="daily-history-sources" class="daily-history-chip-list"></div></section></div>
               <div class="table-wrap daily-report-table"><div class="table-head"><span>历史客户线索明细</span><span id="daily-history-summary" class="tag">0 条</span></div><div class="daily-lead-table"><table><thead><tr><th>编号</th><th>客户/公司</th><th>询盘主题</th><th>国家/地区</th><th>来源</th><th>有效性</th><th>阶段</th><th>创建时间</th></tr></thead><tbody id="daily-history-body"></tbody></table><div id="daily-history-empty" class="empty">当前周期暂无客户线索</div></div></div>
@@ -1883,7 +1891,7 @@
         if(inquiry.validity==="valid"&&!inquiry.owner_id&&!['won','lost'].includes(inquiry.status))return "待主管分配";
         return statusNames[inquiry.status]||inquiry.status||"—";
       }
-      const sourceNames = { email: "企业邮箱", manual: "手工录入", website: "官网表单", feishu: "飞书", google_ads: "Google Ads", meta_ads: "Meta Ads", linkedin: "LinkedIn", exhibition: "展会", outbound: "销售自主开发", referral: "经销商/客户转介绍", other: "其他" };
+      const sourceNames = { email: "企业邮箱", manual: "手工录入（待补充渠道）", website: "官网表单", feishu: "飞书", google_ads: "Google Ads", meta_ads: "Meta Ads", linkedin: "LinkedIn", exhibition: "展会", outbound: "销售自主开发", referral: "经销商/客户转介绍", other: "其他" };
       const outcomeReasonNames={invalid_contact:"联系方式无效",irrelevant_business:"与门锁业务无关",unclear_demand:"无明确产品、数量或项目",spam:"垃圾或养号邮件",supplier_sales:"供应商推销",job_application:"求职信息",target_mismatch:"国家或客户类型不符合",duplicate:"重复询盘",budget:"预算不足",competitor:"选择竞争对手",project_cancelled:"项目取消或延期",no_response:"客户长期无回复",requirements_unmet:"产品或交期无法满足",other:"其他"};
       function parseOutcomeReason(value=""){const match=String(value).match(/^\[([a-z_]+)\]\s*(.*)$/s);return match?{type:match[1],detail:match[2]}:{type:value?"other":"",detail:value}}
       function icons() {
@@ -3494,9 +3502,10 @@
       }
       async function loadDailyHistory(){
         if(profile.role!=="sales")return;
-        const period=$("#daily-history-period").value;
+        const period=$("#daily-history-period").value,channel=$("#daily-history-channel").value;
         let query=supabase.from("inquiries").select("id,inquiry_no,title,target_country,source,status,validity,created_at,companies(name),contacts(full_name,email)").eq("created_by",profile.id).order("created_at",{ascending:false});
         const start=dailyHistoryStart(period);if(start)query=query.gte("created_at",start);
+        if(channel)query=query.eq("source",channel);
         const {data,error}=await query;
         if(error){toast("历史线索加载失败："+error.message);return;}
         const rows=data||[],valid=rows.filter(x=>x.validity==="valid").length,active=rows.filter(x=>!["won","lost"].includes(x.status)&&x.validity!=="invalid").length,won=rows.filter(x=>x.status==="won").length;
@@ -3625,6 +3634,7 @@
       $("#daily-date").addEventListener("change",openDailyReport);
       $$('[data-daily-section]').forEach(button=>button.addEventListener("click",()=>setDailySection(button.dataset.dailySection)));
       $("#daily-history-period").addEventListener("change",loadDailyHistory);
+      $("#daily-history-channel").addEventListener("change",loadDailyHistory);
       $("#daily-add-lead").addEventListener("click",()=>{
         returnToDailyAfterLeadCreate=true;
         $("#daily-modal").classList.add("hidden");
@@ -3829,7 +3839,7 @@
             product: fd.get("product"),
             quantity: fd.get("quantity"),
             message: fd.get("message"),
-            source: "manual",
+            source: fd.get("source") || "outbound",
             notify: fd.get("notify") === "on",
           });
           form.reset();

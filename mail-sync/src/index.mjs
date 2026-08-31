@@ -1,5 +1,6 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
+import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { writeFile } from 'node:fs/promises';
 
@@ -9,6 +10,8 @@ if(!url||!key) throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 未配�
 const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
 const interval=Math.max(30,Number(process.env.SYNC_INTERVAL_SECONDS||60))*1000;
 const initialLimit=Math.max(10,Number(process.env.INITIAL_SYNC_LIMIT||100));
+const reportHour=Math.min(23,Math.max(0,Number(process.env.DAILY_LEAD_REPORT_HOUR||18)));
+const feishuWebhook=String(process.env.FEISHU_WEBHOOK_URL||'').trim();
 const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
 const cleanEmail=(v)=>String(v||'').trim().toLowerCase();
 const normalizeSubject=(v)=>String(v||'').replace(/^\s*((re|fw|fwd|答复|回复|转发)\s*[:：]\s*)+/i,'').replace(/\s+/g,' ').trim().toLowerCase();
@@ -20,8 +23,75 @@ const isInstantlyNurturing=(message,connection)=>connection.mailbox_kind==='shar
   message.subject,
   message.body_text,
 ].filter(Boolean).join('\n'));
+const sourceNames={email:'企业邮箱',manual:'手工录入（待补充渠道）',website:'官网表单',feishu:'飞书',google_ads:'Google Ads',meta_ads:'Meta Ads',linkedin:'LinkedIn',exhibition:'展会',outbound:'销售自主开发',referral:'经销商/客户转介绍',other:'其他'};
+const statusNames={pending_assignment:'待分配',received:'收到询盘',qualified:'有效询盘',contacted:'已联系',quoted:'已报价',sample_sent:'已寄样',negotiating:'谈判',won:'成交',lost:'丢单'};
+const validityNames={pending:'待确认',valid:'有效',invalid:'无效'};
+function chinaParts(date=new Date()){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(date);
+  const get=type=>parts.find(x=>x.type===type)?.value||'';
+  return {date:`${get('year')}-${get('month')}-${get('day')}`,hour:Number(get('hour'))};
+}
+
+async function sendDailyLeadReport(){
+  if(!feishuWebhook)return;
+  const now=chinaParts();
+  if(now.hour<reportHour)return;
+  const start=`${now.date}T00:00:00+08:00`,endDate=new Date(start);endDate.setDate(endDate.getDate()+1);const end=endDate.toISOString();
+  const {data:sent,error:sentError}=await db.from('audit_logs').select('id').eq('action','daily_lead_feishu_report').gte('created_at',start).lt('created_at',end).limit(1);
+  if(sentError)throw sentError;if(sent?.length)return;
+  const [{data:profiles,error:profileError},{data:inquiries,error:inquiryError}]=await Promise.all([
+    db.from('profiles').select('id,full_name,role').eq('role','sales').eq('active',true),
+    db.from('inquiries').select('id,inquiry_no,created_by,source,target_country,product_category,validity,status,created_at').gte('created_at',start).lt('created_at',end).order('created_at',{ascending:true}),
+  ]);
+  if(profileError)throw profileError;if(inquiryError)throw inquiryError;
+  const people=new Map((profiles||[]).map(x=>[x.id,x.full_name||'未命名业务员']));
+  const rows=(inquiries||[]).filter(x=>people.has(x.created_by));
+  const bySales=new Map(),bySource=new Map();
+  rows.forEach(row=>{const seller=people.get(row.created_by);bySales.set(seller,(bySales.get(seller)||0)+1);const source=sourceNames[row.source]||row.source||'待补充';bySource.set(source,(bySource.get(source)||0)+1);});
+  const lines=[`【每日新增客户线索日报】${now.date}`,`今日新增：${rows.length} 条`];
+  if(rows.length){
+    lines.push(`业务员汇总：${[...bySales].sort((a,b)=>b[1]-a[1]).map(([name,count])=>`${name} ${count}条`).join('；')}`);
+    lines.push(`渠道汇总：${[...bySource].sort((a,b)=>b[1]-a[1]).map(([name,count])=>`${name} ${count}条`).join('；')}`,'','线索明细：');
+    rows.slice(0,60).forEach((row,index)=>{const no=String(row.inquiry_no||'').padStart(6,'0');lines.push(`${index+1}. #${no} | ${people.get(row.created_by)} | ${sourceNames[row.source]||row.source||'待补充'}`,`国家/地区：${row.target_country||'待补充'} | 产品：${row.product_category||'待补充'}`,`有效性：${validityNames[row.validity]||row.validity||'待确认'} | 阶段：${statusNames[row.status]||row.status||'待补充'}`,`CRM：http://crm.foreverdoodle.com/#inquiry/${row.id}`);});
+    if(rows.length>60)lines.push(`还有 ${rows.length-60} 条未展开，请进入 CRM 查看。`);
+  }else lines.push('今日暂无业务员新增客户线索。');
+  lines.push('','说明：本日报由 CRM 根据业务员本人新建的真实线索自动生成，不含客户公司名和邮箱。');
+  const response=await fetch(feishuWebhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg_type:'text',content:{text:lines.join('\n')}}),signal:AbortSignal.timeout(15000)});
+  const result=await response.json();if(!response.ok||result.code!==0)throw new Error(`飞书日报发送失败：${result.msg||response.status}`);
+  const {error:auditError}=await db.from('audit_logs').insert({actor_id:null,entity_type:'system',entity_id:null,action:'daily_lead_feishu_report',after_data:{report_date:now.date,lead_count:rows.length,sales_counts:Object.fromEntries(bySales),source_counts:Object.fromEntries(bySource)},reason:'每日新增客户线索自动发送到飞书群'});
+  if(auditError)throw auditError;console.log(`daily lead report ${now.date}: ${rows.length} leads sent`);
+}
 
 async function secretFor(id){const {data,error}=await db.rpc('read_mailbox_secret',{target_connection_id:id});if(error||!data)throw error||new Error('邮箱凭据不存在');return data}
+
+async function processOutbox(){
+  const {data:jobs,error}=await db.from('mail_outbox').select('*').eq('status','pending').lte('next_attempt_at',new Date().toISOString()).order('created_at').limit(20);
+  if(error)throw error;
+  for(const job of jobs||[]){
+    const claimedAt=new Date().toISOString();
+    const {data:claimed}=await db.from('mail_outbox').update({status:'sending',started_at:claimedAt,attempts:Number(job.attempts||0)+1}).eq('id',job.id).eq('status','pending').select('*').maybeSingle();
+    if(!claimed)continue;
+    try{
+      const [{data:connection,error:connectionError},{data:caller},{data:intake}]=await Promise.all([
+        db.from('mailbox_connections').select('*').eq('user_id',job.sender_user_id).eq('status','connected').single(),
+        db.from('profiles').select('full_name').eq('id',job.sender_user_id).single(),
+        db.from('email_intake').select('message_id').eq('inquiry_id',job.inquiry_id).maybeSingle(),
+      ]);
+      if(connectionError||!connection)throw connectionError||new Error('业务员邮箱未连接');
+      const password=await secretFor(connection.id);
+      const transport=nodemailer.createTransport({host:connection.smtp_host,port:connection.smtp_port,secure:Number(connection.smtp_port)===465,auth:{user:connection.email,pass:password},connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000});
+      const threadId=headerId(intake?.message_id);
+      const sent=await transport.sendMail({from:`"${caller?.full_name||connection.email}" <${connection.email}>`,to:job.recipient_email,subject:job.subject,text:job.body_text,...(threadId?{inReplyTo:threadId,references:[threadId]}:{})});
+      const sentAt=new Date().toISOString();
+      await db.from('mail_outbox').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null}).eq('id',job.id);
+      if(job.draft_id)await db.from('outreach_drafts').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null,updated_at:sentAt}).eq('id',job.draft_id);
+    }catch(error){
+      const attempts=Number(claimed.attempts||1),terminal=attempts>=3;
+      await db.from('mail_outbox').update({status:terminal?'failed':'pending',last_error:String(error?.message||error).slice(0,1000),next_attempt_at:new Date(Date.now()+Math.min(15,attempts*5)*60000).toISOString()}).eq('id',job.id);
+      if(terminal&&job.draft_id)await db.from('outreach_drafts').update({status:'failed',last_error:String(error?.message||error).slice(0,1000),updated_at:new Date().toISOString()}).eq('id',job.draft_id);
+    }
+  }
+}
 
 async function matchInquiry(message, connection){
   const ids=[message.in_reply_to,...message.reference_ids,message.message_id].map(headerId).filter(Boolean);
@@ -137,6 +207,8 @@ async function syncMailbox(connection){
 }
 
 async function cycle(){
+  await processOutbox();
+  await sendDailyLeadReport();
   const {data,error}=await db.from('mailbox_connections').select('*').eq('status','connected').eq('sync_enabled',true);if(error)throw error;
   await Promise.allSettled((data||[]).map(async connection=>{try{await syncMailbox(connection);console.log(`${connection.email} synced`)}catch(error){console.error(connection.email,error);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}));
   await writeFile('/tmp/healthy',new Date().toISOString());

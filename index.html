@@ -662,6 +662,20 @@
       .daily-summary-kpis span { display:block; color:var(--muted); font-size:11px; margin-bottom:8px; }
       .daily-summary-kpis b { font-size:24px; }
       .daily-content-card { padding:20px; }
+      .daily-lead-section { margin:16px 0 18px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff; }
+      .daily-lead-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:15px 16px; border-bottom:1px solid var(--line); background:var(--soft); }
+      .daily-lead-head h4 { margin:0; font-size:15px; }
+      .daily-lead-head p { margin:4px 0 0; color:var(--muted); font-size:11px; }
+      .daily-lead-actions { display:flex; align-items:center; gap:9px; flex-shrink:0; }
+      .daily-lead-table { overflow-x:auto; }
+      .daily-lead-table table { min-width:900px; }
+      .daily-lead-table tbody tr { cursor:pointer; }
+      .daily-lead-table tbody tr:hover { background:var(--soft); }
+      .daily-lead-table td { vertical-align:middle; }
+      .daily-lead-title { max-width:340px; white-space:normal; line-height:1.45; font-weight:700; }
+      .daily-auto-metric { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:16px; padding:14px 16px; border:1px solid var(--line); border-radius:14px; background:var(--soft); }
+      .daily-auto-metric span { color:var(--muted); font-size:12px; }
+      .daily-auto-metric b { font-size:24px; }
       .daily-report-table th,.daily-report-table td { vertical-align:top; }
       .daily-report-table td:nth-child(4),.daily-report-table td:nth-child(5),.daily-report-table td:nth-child(6) { min-width:180px; white-space:normal; line-height:1.55; }
       #detail-modal .form-body,
@@ -993,6 +1007,7 @@
         .dashboard-actions { justify-content:flex-start; }
         .dashboard-kpis { grid-template-columns:1fr 1fr; }
         .daily-toolbar { align-items:flex-start; flex-direction:column; }
+        .daily-lead-head { align-items:flex-start; flex-direction:column; }
         .daily-summary-kpis { grid-template-columns:1fr 1fr; }
         .ai-panel { right:10px; bottom:72px; width:calc(100vw - 84px); max-height:calc(100vh - 90px); }
         .ai-panel-head { align-items:flex-start; gap:10px; }
@@ -1441,29 +1456,23 @@
         <div class="form-body">
           <section class="daily-toolbar card"><div><b>日报日期</b><p>按中国自然日统计，历史日报可通过日期查看。</p></div><div class="daily-date-control"><label for="daily-date">选择日期</label><input id="daily-date" class="input compact" type="date" /></div></section>
           <div id="sales-daily-form">
-            <section class="card daily-content-card"><p class="hint">系统自动统计所选日期的跟进数量。已经提交的日报会自动带入，可以补充后再次保存。</p>
-            <div class="detail-grid">
-              <div class="field">
-                <label>今日新增客户线索</label
-                ><input
-                  id="daily-new-leads"
-                  class="input"
-                  type="number"
-                  min="0"
-                  value="0"
-                />
+            <section class="card daily-content-card"><p class="hint">新增线索和跟进次数均来自 CRM 真实记录，无需手工填数字；日报只需补充关键进展、所需支持和明日计划。</p>
+            <input id="daily-new-leads" type="hidden" value="0" />
+            <input id="daily-followups" type="hidden" value="0" />
+            <div class="daily-lead-section">
+              <div class="daily-lead-head">
+                <div><h4>今日新增客户线索</h4><p>展示你在所选日期亲自新建的客户线索，点击任意一行可查看询盘详情。</p></div>
+                <div class="daily-lead-actions"><span id="daily-lead-count" class="tag">0 条</span><button id="daily-add-lead" type="button" class="primary">+ 新增客户线索</button></div>
               </div>
-              <div class="field">
-                <label>今日跟进次数</label
-                ><input
-                  id="daily-followups"
-                  class="input"
-                  type="number"
-                  min="0"
-                  value="0"
-                />
+              <div class="daily-lead-table">
+                <table>
+                  <thead><tr><th>编号</th><th>客户/公司</th><th>询盘主题</th><th>国家/地区</th><th>来源</th><th>当前阶段</th><th>新增时间</th></tr></thead>
+                  <tbody id="daily-lead-body"></tbody>
+                </table>
+                <div id="daily-lead-empty" class="empty">所选日期暂无新增客户线索</div>
               </div>
             </div>
+            <div class="daily-auto-metric"><div><b>今日跟进次数</b><br /><span>根据跟进记录自动统计</span></div><b id="daily-followup-count">0</b></div>
             <div class="field">
               <label>关键进展</label
               ><textarea id="daily-progress" class="input" rows="3"></textarea>
@@ -1812,6 +1821,7 @@
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
       let profile = null;
+      let returnToDailyAfterLeadCreate = false;
       let passwordChangeMode = "initial";
       let currentInquiry = null;
       let detailStageTicker = null;
@@ -3502,9 +3512,32 @@
           const start = `${date}T00:00:00+08:00`;
           const nextDate = new Date(`${date}T00:00:00+08:00`);
           nextDate.setDate(nextDate.getDate() + 1);
-          const [{count},{data:existing}]=await Promise.all([supabase.from("follow_ups").select("id",{count:"exact",head:true}).eq("author_id",profile.id).gte("created_at",start).lt("created_at",nextDate.toISOString()),supabase.from("daily_sales_reports").select("new_leads_count,follow_up_count,key_progress,blockers,tomorrow_plan").eq("sales_id",profile.id).eq("report_date",date).maybeSingle()]);
-          $("#daily-new-leads").value=existing?.new_leads_count||0;
+          const [{count},{data:existing},{data:dailyLeads,error:leadError}]=await Promise.all([
+            supabase.from("follow_ups").select("id",{count:"exact",head:true}).eq("author_id",profile.id).gte("created_at",start).lt("created_at",nextDate.toISOString()),
+            supabase.from("daily_sales_reports").select("new_leads_count,follow_up_count,key_progress,blockers,tomorrow_plan").eq("sales_id",profile.id).eq("report_date",date).maybeSingle(),
+            supabase.from("inquiries").select("id,inquiry_no,title,target_country,source,status,created_at,companies(name),contacts(full_name,email)").eq("created_by",profile.id).gte("created_at",start).lt("created_at",nextDate.toISOString()).order("created_at",{ascending:false}),
+          ]);
+          if(leadError) throw leadError;
+          const leadRows=dailyLeads||[];
+          $("#daily-new-leads").value=leadRows.length;
           $("#daily-followups").value = count || 0;
+          $("#daily-lead-count").textContent=`${leadRows.length} 条`;
+          $("#daily-followup-count").textContent=count||0;
+          const leadBody=$("#daily-lead-body");
+          leadBody.replaceChildren();
+          $("#daily-lead-empty").classList.toggle("hidden",Boolean(leadRows.length));
+          leadRows.forEach((lead)=>{
+            const tr=document.createElement("tr");
+            const customer=lead.companies?.name||lead.contacts?.full_name||lead.contacts?.email||"—";
+            [String(lead.inquiry_no||"").padStart(6,"0"),customer,lead.title||"—",lead.target_country||"—",sourceNames[lead.source]||lead.source||"—",statusNames[lead.status]||lead.status||"—",fmtDate(lead.created_at)].forEach((value,index)=>{
+              const td=document.createElement("td");
+              td.textContent=value;
+              if(index===2)td.className="daily-lead-title";
+              tr.append(td);
+            });
+            tr.addEventListener("click",()=>{$("#daily-modal").classList.add("hidden");openInquiryDetail(lead.id);});
+            leadBody.append(tr);
+          });
           $("#daily-progress").value=existing?.key_progress||"";
           $("#daily-blockers").value=existing?.blockers||"";
           $("#daily-plan").value=existing?.tomorrow_plan||"";
@@ -3521,6 +3554,11 @@
       );
       $("#close-daily").addEventListener("click", () => switchView("dashboard"));
       $("#daily-date").addEventListener("change",openDailyReport);
+      $("#daily-add-lead").addEventListener("click",()=>{
+        returnToDailyAfterLeadCreate=true;
+        $("#daily-modal").classList.add("hidden");
+        $("#new-inquiry").click();
+      });
       $("#submit-daily").addEventListener("click", async () => {
         const payload = {
           sales_id: profile.id,
@@ -3551,13 +3589,13 @@
         if (!receivedAt.value) receivedAt.value = localDateTimeValue();
         $("#inquiry-modal").classList.remove("hidden");
       });
-      $("#close-modal").addEventListener("click", () =>
-        $("#inquiry-modal").classList.add("hidden"),
-      );
+      function closeInquiryCreateModal(){
+        $("#inquiry-modal").classList.add("hidden");
+        if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;openDailyReport();}
+      }
+      $("#close-modal").addEventListener("click", closeInquiryCreateModal);
       $$(".cancel-modal").forEach((x) =>
-        x.addEventListener("click", () =>
-          $("#inquiry-modal").classList.add("hidden"),
-        ),
+        x.addEventListener("click", closeInquiryCreateModal),
       );
       $$(".tab").forEach((t) =>
         t.addEventListener("click", () => {
@@ -3727,7 +3765,7 @@
           form.querySelector("[data-duplicate-warning]")?.classList.add("hidden");
           $("#inquiry-modal").classList.add("hidden");
           toast("询盘已创建并进入待分配池");
-          await loadInquiries();
+          if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;await openDailyReport();}else await loadInquiries();
         } catch (err) {
           toast("创建失败：" + err.message);
         } finally {
@@ -3793,7 +3831,7 @@
           form.querySelector("[data-duplicate-warning]")?.classList.add("hidden");
           $("#inquiry-modal").classList.add("hidden");
           toast("邮件已解析并生成询盘");
-          await loadInquiries();
+          if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;await openDailyReport();}else await loadInquiries();
         } catch (err) {
           toast("生成失败：" + err.message);
         } finally {

@@ -722,6 +722,12 @@
       .quality-metric span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.quality-metric b{font-size:20px}
       .quality-checks{display:grid;gap:7px;margin-top:12px;font-size:13px}.quality-check{display:flex;gap:8px;align-items:flex-start}.quality-check.pass{color:#2d624b}.quality-check.fail{color:#a33b32}.quality-check.warn{color:#9a5b18}
       .evidence-preview{display:grid;gap:8px;margin-top:12px}.evidence-item{padding:11px 12px;border-radius:11px;border:1px solid var(--line);background:#fff;font-size:13px;line-height:1.5}.evidence-item small{display:block;color:var(--muted);margin-top:4px}
+      .research-brief{margin-top:16px;padding:18px;border:1px solid #cddad1;border-radius:16px;background:linear-gradient(135deg,#f7faf7,#eef4ef)}
+      .research-brief-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}.research-brief-head h4{margin:0 0 6px}.research-brief-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+      .research-verdict{flex:0 0 auto;padding:7px 11px;border-radius:999px;background:#f3dfdd;color:#943b34;font-size:12px;font-weight:800}.research-verdict.ready{background:#dceadf;color:#295e45}.research-verdict.review{background:#f7ead8;color:#8a551d}
+      .research-decision-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.research-decision-card{min-width:0;padding:13px;border:1px solid var(--line);border-radius:13px;background:#fff}.research-decision-card span{display:block;color:var(--muted);font-size:11px;margin-bottom:6px}.research-decision-card b{display:block;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+      .research-evidence-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}.research-evidence-column{min-width:0;padding:13px;border:1px solid var(--line);border-radius:13px;background:#fff}.research-evidence-column h5{margin:0 0 10px;font-size:13px}.research-evidence-list{display:grid;gap:8px}.research-evidence-card{padding:10px;border-radius:10px;background:#f6f8f6;border-left:4px solid #668875;font-size:12px;line-height:1.55;overflow-wrap:anywhere}.research-evidence-card.signal{border-left-color:#c97424}.research-evidence-card.risk{border-left-color:#a64840;background:#fbf4f3}.research-evidence-card small{display:block;margin-top:6px;color:var(--muted)}.research-evidence-card a{color:#315f49;font-weight:700;text-decoration:none}.research-empty{color:var(--muted);font-size:12px;line-height:1.6}
+      @media(max-width:1050px){.research-decision-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.research-evidence-board{grid-template-columns:1fr}}
       @media(max-width:760px){.quality-grid{grid-template-columns:1fr}}
       .detail-tab {
         flex: 0 0 auto;
@@ -1629,6 +1635,20 @@
             <div class="quality-grid"><div class="quality-metric"><span>身份匹配</span><b id="research-quality-identity">—</b></div><div class="quality-metric"><span>可追溯证据</span><b id="research-quality-evidence-count">0</b></div><div class="quality-metric"><span>近期需求信号</span><b id="research-quality-signal-count">0</b></div></div>
             <div id="research-quality-checks" class="quality-checks"></div>
           </div>
+          <section id="research-decision-brief" class="research-brief">
+            <div class="research-brief-head"><div><h4>中文销售决策摘要</h4><p>事实、需求信号和风险分开展示；每条证据保留来源、日期与可信度。</p></div><span id="research-decision-verdict" class="research-verdict review">待核验</span></div>
+            <div class="research-decision-grid">
+              <div class="research-decision-card"><span>公司身份</span><b id="research-decision-identity">尚未形成唯一匹配</b></div>
+              <div class="research-decision-card"><span>为什么现在</span><b id="research-decision-why">尚无可靠近期信号</b></div>
+              <div class="research-decision-card"><span>产品与项目契合</span><b id="research-decision-fit">待补充业务与项目证据</b></div>
+              <div class="research-decision-card"><span>建议下一步</span><b id="research-decision-next">先核验公司身份和项目真实性</b></div>
+            </div>
+            <div class="research-evidence-board">
+              <div class="research-evidence-column"><h5>已确认事实</h5><div id="research-fact-cards" class="research-evidence-list"></div></div>
+              <div class="research-evidence-column"><h5>采购与项目信号</h5><div id="research-signal-cards" class="research-evidence-list"></div></div>
+              <div class="research-evidence-column"><h5>风险、反证与待核实</h5><div id="research-risk-cards" class="research-evidence-list"></div></div>
+            </div>
+          </section>
           <input id="topease-report-file" class="hidden" type="file" accept=".xlsx,.xls,.csv,.pdf,.txt" />
           <div id="topease-paste-panel" class="hidden" style="margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--soft)">
             <div class="field"><label>粘贴特易企业背调或交易数据</label><textarea id="topease-paste-text" class="input" rows="8" placeholder="可粘贴企业详情、交易分析或提单导出内容"></textarea></div>
@@ -3112,14 +3132,25 @@
         $("#detail-purchase-likelihood").value = company.purchase_likelihood || "unknown";
         $("#detail-recommended-strategy").value = company.recommended_strategy || "";
         const lineText = (items, keys) => (Array.isArray(items) ? items : []).map((item) => typeof item === "string" ? item : keys.map((key) => item?.[key]).find(Boolean)).filter(Boolean).join("\n");
+        const evidenceText = (items, type) => (Array.isArray(items) ? items : []).map((item) => {
+          if (typeof item === "string") return item;
+          if (item?.raw || item?.display) return item.raw || item.display;
+          const statement = item?.fact || item?.signal || item?.text || "";
+          const pieces = [statement];
+          if (type === "signal" && item?.interpretation) pieces.push(`判断：${item.interpretation}`);
+          if (item?.source_url || item?.source) pieces.push(`来源：${item.source_url || item.source}`);
+          if (item?.date) pieces.push(`日期：${item.date}`);
+          if (item?.confidence) pieces.push(`可信度：${item.confidence}`);
+          return pieces.filter(Boolean).join("｜");
+        }).filter(Boolean).join("\n");
         const brief = company.research_sales_brief || {};
         $("#detail-research-deep-status").value = company.research_status || "research_required";
         $("#detail-research-match-method").value = company.match_method || "";
         $("#detail-research-match-confidence").value = company.match_confidence || "low";
         $("#detail-research-source-updated").value = company.source_updated_at ? fmtDate(company.source_updated_at) : "";
         $("#detail-research-why-now").value = brief.why_now || "";
-        $("#detail-research-confirmed-facts").value = lineText(company.confirmed_facts, ["fact", "text"]);
-        $("#detail-research-demand-signals").value = lineText(company.demand_signals, ["display", "signal", "text"]);
+        $("#detail-research-confirmed-facts").value = evidenceText(company.confirmed_facts, "fact");
+        $("#detail-research-demand-signals").value = evidenceText(company.demand_signals, "signal");
         $("#detail-research-likely-needs").value = lineText(company.likely_needs, ["need", "text"]);
         $("#detail-research-risks-counter").value = lineText(company.risks_counterevidence, ["risk", "text"]);
         $("#detail-research-contacts").value = lineText(company.research_contacts, ["display", "name", "text"]);
@@ -4382,6 +4413,22 @@
           const discoveredSources = (data?.website_evidence || []).map((item) => safeExternalUrl(item.url)).filter(Boolean);
           const existingSources = researchSourceUrls();
           $("#detail-research-sources").value = [...new Set([...existingSources, ...discoveredSources])].join("\n");
+          const evidenceDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(new Date());
+          const officialSource = discoveredSources[0] || safeExternalUrl(/^https?:/i.test(website) ? website : `https://${website}`);
+          const addUniqueLine = (selector, line) => { const lines = researchLines(selector); if (line && !lines.includes(line)) $(selector).value = [...lines, line].join("\n"); };
+          if (officialSource && profile.title) addUniqueLine("#detail-research-confirmed-facts", `官网标题：${profile.title}｜来源：${officialSource}｜日期：${evidenceDate}｜可信度：中`);
+          if (officialSource && profile.description) addUniqueLine("#detail-research-confirmed-facts", `官网业务描述：${profile.description}｜来源：${officialSource}｜日期：${evidenceDate}｜可信度：中`);
+          const inquiryReceivedAt = currentInquiry.email_intake?.received_at || currentInquiry.created_at;
+          const inquirySignal = currentInquiry.demand_summary || currentInquiry.title || "客户主动发送询盘";
+          addUniqueLine("#detail-research-demand-signals", `客户主动询盘：${inquirySignal}｜判断：存在主动沟通或采购意向，项目真实性与决策权限仍需核验｜来源：客户原始邮件｜日期：${inquiryReceivedAt ? fmtDate(inquiryReceivedAt) : evidenceDate}｜可信度：高`);
+          const senderEmail = currentInquiry.email_intake?.sender_email || "";
+          if (senderEmail && !researchLines("#detail-research-contacts").some((line) => line.includes(senderEmail))) addUniqueLine("#detail-research-contacts", `${currentInquiry.contact_name || currentInquiry.email_intake?.sender_name || "客户联系人"}｜${currentInquiry.contact_job_title || "职称待核实"}｜${senderEmail}｜客户原始邮件发件人｜客户原始邮件`);
+          $("#detail-research-match-method").value ||= "客户邮箱域名＋官网交叉匹配";
+          if (officialSource && $("#detail-research-match-confidence").value === "low") $("#detail-research-match-confidence").value = "medium";
+          if (profile.description && !$("#detail-research-business").value.trim()) $("#detail-research-business").value = profile.description;
+          if (!$("#detail-research-why-now").value.trim()) $("#detail-research-why-now").value = `客户已主动提交询盘；当前应优先核实项目业主、技术规格、数量、预算、采购节点和决策链。`;
+          if (!$("#detail-research-next-action").value.trim()) $("#detail-research-next-action").value = "先完成公司身份和项目真实性核验，再根据已确认规格准备产品资料与报价路径。";
+          if (!$("#detail-research-risks-counter").value.trim()) $("#detail-research-risks-counter").value = "官网业务与询盘品类是否一致仍需人工核验；项目业主、最终用途、付款能力和决策权限尚未独立确认。";
           assessResearchQuality();
         } catch (error) {
           renderCompanyImages([]);
@@ -4589,6 +4636,61 @@
           confidence: String(confidenceMatch?.[1] || "").toLowerCase(),
         };
       }
+      function parseResearchEvidenceLine(line, kind = "fact") {
+        const value = String(line || "").trim();
+        const parts = value.split(/\s*[｜|]\s*/).filter(Boolean);
+        const first = parts.shift() || value;
+        const field = (label) => {
+          const part = parts.find((item) => item.toLowerCase().startsWith(label.toLowerCase()));
+          return part ? part.replace(new RegExp(`^${label}[：:]\\s*`, "i"), "").trim() : "";
+        };
+        const sourceText = field("来源");
+        const sourceUrl = safeExternalUrl(sourceText) || safeExternalUrl(sourceText.match(/https?:\/\/\S+/)?.[0] || "");
+        return {
+          kind,
+          statement: first.replace(/^(?:公司名称|所在地|公司类型|主营产品|公司规模|客户主动询盘|采购\/进口信号|项目线索)[：:]\s*/i, "").trim(),
+          interpretation: field("判断"),
+          source: sourceText,
+          sourceUrl,
+          date: field("日期"),
+          confidence: field("可信度") || "待判断",
+          raw: value,
+        };
+      }
+      function renderResearchEvidenceCards(target, items, kind, emptyText) {
+        target.replaceChildren();
+        if (!items.length) {
+          const empty = document.createElement("div"); empty.className = "research-empty"; empty.textContent = emptyText; target.append(empty); return;
+        }
+        items.slice(0, 6).forEach((item) => {
+          const card = document.createElement("article"); card.className = `research-evidence-card ${kind}`;
+          const statement = document.createElement("div"); statement.textContent = item.statement || item.raw; card.append(statement);
+          if (item.interpretation) { const meaning = document.createElement("small"); meaning.textContent = `判断：${item.interpretation}`; card.append(meaning); }
+          const meta = document.createElement("small");
+          meta.append(`日期：${item.date || "待补充"} · 可信度：${item.confidence || "待判断"} · 来源：`);
+          if (item.sourceUrl) { const link = document.createElement("a"); link.href = item.sourceUrl; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = "查看证据 ↗"; meta.append(link); }
+          else meta.append(item.source || "待补充");
+          card.append(meta); target.append(card);
+        });
+      }
+      function renderResearchDecisionBrief({ ready = false, identityReady = false, facts = [], signals = [] } = {}) {
+        const confidence = $("#detail-research-match-confidence").value;
+        const status = $("#detail-research-deep-status").value;
+        const verdict = $("#research-decision-verdict");
+        verdict.className = `research-verdict ${ready ? "ready" : status === "company_match_required" || !identityReady ? "review" : ""}`;
+        verdict.textContent = ready ? "可用于销售准备" : !identityReady ? "身份待核验" : "证据待补充";
+        const company = $("#detail-research-company").value.trim() || "未知公司";
+        const domain = $("#detail-research-domain").value.trim();
+        $("#research-decision-identity").textContent = identityReady ? `${company}${domain ? ` · ${domain}` : ""}（${confidence === "high" ? "高" : "中"}可信）` : `${company}：尚未形成唯一、可复核的公司匹配`;
+        $("#research-decision-why").textContent = $("#detail-research-why-now").value.trim() || "尚无带日期和来源的近期采购、项目或扩张信号";
+        const fit = [$("#detail-research-type").value.trim(), $("#detail-research-project-categories").value.trim().split(/\n+/).filter(Boolean).slice(0, 2).join("、"), $("#detail-research-likely-needs").value.trim()].filter(Boolean).join("；");
+        $("#research-decision-fit").textContent = fit || "待补充主营品类、项目与采购证据";
+        $("#research-decision-next").textContent = $("#detail-research-next-action").value.trim() || "先核验公司身份、项目业主、规格、数量、预算与决策链";
+        renderResearchEvidenceCards($("#research-fact-cards"), facts.map((line) => parseResearchEvidenceLine(line, "fact")), "fact", "尚无同时具备来源、日期和可信度的已确认事实。");
+        renderResearchEvidenceCards($("#research-signal-cards"), signals.map((line) => parseResearchEvidenceLine(line, "signal")), "signal", "尚无可追溯的采购、项目或扩张信号。");
+        const risks = researchLines("#detail-research-risks-counter").map((line) => ({ statement: line, date: "持续核验", confidence: "内部判断", source: "背调交叉验证", raw: line }));
+        renderResearchEvidenceCards($("#research-risk-cards"), risks, "risk", "尚未记录反证；完成背调前仍需核验付款能力、项目真实性与最终用途。");
+      }
       function assessResearchQuality({ render = true } = {}) {
         const company = $("#detail-research-company").value.trim();
         const domain = $("#detail-research-domain").value.trim();
@@ -4623,6 +4725,7 @@
           $("#outreach-eligibility").textContent = ready ? "可生成草稿" : "暂不可生成";
           $("#generate-outreach").disabled = !ready;
           $("#generate-outreach").title = ready ? "" : blockers.map((item) => item.label).join("；");
+          renderResearchDecisionBrief({ ready, identityReady, facts: traceableFacts, signals: strongSignals });
         }
         return { ready, blockers, checks, facts: traceableFacts, signals: strongSignals, sources, contacts, identityReady };
       }
@@ -4793,7 +4896,7 @@
         const subject = $("#outreach-selected-subject").value === "b" ? $("#outreach-subject-b").value : $("#outreach-subject-a").value;
         evaluateOutreachDraft(subject, $("#outreach-body").value, $("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim());
       }));
-      ["#detail-research-company", "#detail-research-domain", "#detail-smart-country", "#detail-research-deep-status", "#detail-research-match-confidence", "#detail-research-confirmed-facts", "#detail-research-demand-signals", "#detail-research-contacts", "#detail-research-risks-counter", "#detail-research-sources"].forEach((selector) => $(selector).addEventListener("input", () => assessResearchQuality()));
+      ["#detail-research-company", "#detail-research-domain", "#detail-smart-country", "#detail-research-type", "#detail-research-deep-status", "#detail-research-match-confidence", "#detail-research-why-now", "#detail-research-confirmed-facts", "#detail-research-demand-signals", "#detail-research-likely-needs", "#detail-research-risks-counter", "#detail-research-contacts", "#detail-research-next-action", "#detail-research-project-categories", "#detail-research-sources"].forEach((selector) => $(selector).addEventListener("input", () => assessResearchQuality()));
       $("#send-outreach").addEventListener("click", async () => {
         const recipient = $("#outreach-recipient").value.trim();
         if (!recipient) return toast("询盘没有可用的客户邮箱");
@@ -4840,13 +4943,13 @@
           research_status: $("#detail-research-deep-status").value,
           match_method: $("#detail-research-match-method").value.trim() || null,
           match_confidence: $("#detail-research-match-confidence").value,
-          confirmed_facts: $("#detail-research-confirmed-facts").value.split(/\n+/).map((fact) => fact.trim()).filter(Boolean).map((fact) => ({ fact })),
-          demand_signals: $("#detail-research-demand-signals").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
+          confirmed_facts: $("#detail-research-confirmed-facts").value.split(/\n+/).map((fact) => fact.trim()).filter(Boolean).map((line) => { const item = parseResearchEvidenceLine(line, "fact"); return { fact: item.statement, source_url: item.sourceUrl || null, source: item.source || null, date: item.date || null, confidence: item.confidence || "待判断", raw: line }; }),
+          demand_signals: $("#detail-research-demand-signals").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((line) => { const item = parseResearchEvidenceLine(line, "signal"); return { signal: item.statement, display: line, interpretation: item.interpretation || null, source_url: item.sourceUrl || null, source: item.source || null, date: item.date || null, confidence: item.confidence || "待判断" }; }),
           likely_needs: $("#detail-research-likely-needs").value.split(/\n+/).map((need) => need.trim()).filter(Boolean).map((need) => ({ need })),
           risks_counterevidence: $("#detail-research-risks-counter").value.split(/\n+/).map((risk) => risk.trim()).filter(Boolean).map((risk) => ({ risk })),
           research_contacts: $("#detail-research-contacts").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
-          research_sales_brief: { why_now: $("#detail-research-why-now").value.trim(), questions_to_ask: $("#detail-research-questions").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), materials_to_prepare: $("#detail-research-materials").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), next_best_action: $("#detail-research-next-action").value.trim() },
-          research_evidence_sources: $("#detail-research-sources").value.split(/\n+/).map((url) => url.trim()).filter(Boolean).map((url) => ({ url })),
+          research_sales_brief: { why_now: $("#detail-research-why-now").value.trim(), decision_summary: $("#detail-research-chinese-summary").value.trim(), recommended_angle: $("#detail-recommended-strategy").value.trim(), questions_to_ask: $("#detail-research-questions").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), materials_to_prepare: $("#detail-research-materials").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), next_best_action: $("#detail-research-next-action").value.trim() },
+          research_evidence_sources: $("#detail-research-sources").value.split(/\n+/).map((url) => safeExternalUrl(url.trim())).filter(Boolean).map((url) => ({ url, captured_at: new Date().toISOString() })),
           news_signals: $("#detail-research-news").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
           seo_focus_categories: $("#detail-research-seo-focus").value.split(/\n+/).map((name) => name.trim()).filter(Boolean).map((name) => ({ name })),
           project_category_signals: $("#detail-research-project-categories").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),

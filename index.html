@@ -4807,13 +4807,23 @@
         $("#outreach-quality-badge").textContent = blockers.length ? `${blockers.length} 项未通过` : "质检通过";
         return { passed: blockers.length === 0, blockers, checks, words, questionCount };
       }
+      function resolveInquiryRecipient() {
+        const candidates = [
+          currentInquiry?.email_intake?.sender_email,
+          ...(String($("#detail-research-contacts")?.value || "").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []),
+          ...(String(currentInquiry?.original_message || "").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []),
+        ];
+        return candidates.map((email) => String(email || "").trim().toLowerCase()).find((email) =>
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !/@(?:wonlyglobal|wonlygroup)\.(?:com|net)$/i.test(email),
+        ) || "";
+      }
       $("#generate-outreach").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const company = $("#detail-research-company").value.trim();
         const researchQuality = assessResearchQuality();
         if (!researchQuality.ready) { const reason = researchQuality.blockers.map((item) => item.label).join("；"); $("#outreach-status").textContent = `无法生成：${reason}`; return toast("背调证据尚未达到开发信门槛"); }
         const button = $("#generate-outreach");
-        const recipient = currentInquiry.email_intake?.sender_email || $("#outreach-recipient").value.trim();
+        const recipient = resolveInquiryRecipient() || $("#outreach-recipient").value.trim();
         if (!recipient) { $("#outreach-status").textContent = "无法生成：缺少客户邮箱"; return toast("缺少客户邮箱，无法通过联系人质量门槛"); }
         button.disabled = true;
         button.textContent = "调用开发信系统中…";

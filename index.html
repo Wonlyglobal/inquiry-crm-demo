@@ -3074,6 +3074,9 @@
           return;
         }
         currentInquiry = inquiry;
+        // email_intake is loaded in a separate query, so preserve it on the
+        // active inquiry record for outreach generation and reply workflows.
+        currentInquiry.email_intake = intake || null;
         currentInquiry.retentionRequest = retentionRequest || null;
         $("#detail-title").textContent =
           `询盘 #${String(inquiry.inquiry_no).padStart(6, "0")} · ${inquiry.title}`;

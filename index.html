@@ -4670,7 +4670,11 @@
         const seen = new Set();
         return lines.filter((line) => {
           const item = parseResearchEvidenceLine(line, kind);
-          const key = `${item.statement}|${item.source}|${item.date}`.toLowerCase().replace(/\s+/g, " ").trim();
+          const firstPartyInquiry = kind === "signal" && /客户原始邮件|customer original email/i.test(item.source || "");
+          const key = (firstPartyInquiry
+            ? `first-party-inquiry|${item.source}|${item.date}`
+            : `${item.statement}|${item.source}|${item.date}`
+          ).toLowerCase().replace(/\s+/g, " ").trim();
           if (!key || seen.has(key)) return false;
           seen.add(key);
           return true;

@@ -4657,6 +4657,16 @@
           raw: value,
         };
       }
+      function uniqueResearchEvidence(lines, kind = "fact") {
+        const seen = new Set();
+        return lines.filter((line) => {
+          const item = parseResearchEvidenceLine(line, kind);
+          const key = `${item.statement}|${item.source}|${item.date}`.toLowerCase().replace(/\s+/g, " ").trim();
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
       function renderResearchEvidenceCards(target, items, kind, emptyText) {
         target.replaceChildren();
         if (!items.length) {
@@ -4696,8 +4706,8 @@
         const domain = $("#detail-research-domain").value.trim();
         const status = $("#detail-research-deep-status").value;
         const confidence = $("#detail-research-match-confidence").value;
-        const facts = researchLines("#detail-research-confirmed-facts");
-        const signals = researchLines("#detail-research-demand-signals");
+        const facts = uniqueResearchEvidence(researchLines("#detail-research-confirmed-facts"), "fact");
+        const signals = uniqueResearchEvidence(researchLines("#detail-research-demand-signals"), "signal");
         const sources = researchSourceUrls();
         const contacts = researchLines("#detail-research-contacts");
         const traceableFacts = facts.filter((line) => { const meta = evidenceLineQuality(line); return meta.hasSource && meta.hasDate && meta.hasConfidence; });

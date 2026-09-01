@@ -4569,6 +4569,19 @@
       function researchSourceUrls() {
         return researchLines("#detail-research-sources").map((value) => safeExternalUrl(value)).filter(Boolean);
       }
+      function evidenceLineQuality(line) {
+        const value = String(line || "");
+        const sourceMatch = value.match(/来源[：:]\s*(https?:\/\/\S+|[^｜|]+)/i);
+        const dateMatch = value.match(/日期[：:]\s*([^｜|]+)/i);
+        const confidenceMatch = value.match(/可信度[：:]\s*(高|中|低|high|medium|low)/i);
+        const source = String(sourceMatch?.[1] || "").trim();
+        return {
+          hasSource: Boolean(source && !/^(?:未提供|待补充|未知|来源待补充)$/i.test(source)),
+          hasDate: Boolean(dateMatch?.[1] && !/^(?:未知|待补充)$/i.test(String(dateMatch[1]).trim())),
+          hasConfidence: Boolean(confidenceMatch),
+          confidence: String(confidenceMatch?.[1] || "").toLowerCase(),
+        };
+      }
       function assessResearchQuality({ render = true } = {}) {
         const company = $("#detail-research-company").value.trim();
         const domain = $("#detail-research-domain").value.trim();
@@ -4578,11 +4591,12 @@
         const signals = researchLines("#detail-research-demand-signals");
         const sources = researchSourceUrls();
         const contacts = researchLines("#detail-research-contacts");
-        const strongSignals = signals.filter((line) => /可信度[：:]\s*(?:高|中|high|medium)/i.test(line) && /来源[：:]/.test(line));
+        const traceableFacts = facts.filter((line) => { const meta = evidenceLineQuality(line); return meta.hasSource && meta.hasDate && meta.hasConfidence; });
+        const strongSignals = signals.filter((line) => { const meta = evidenceLineQuality(line); return meta.hasSource && meta.hasDate && ["高", "中", "high", "medium"].includes(meta.confidence); });
         const identityReady = Boolean(company && domain && $("#detail-smart-country").value.trim() && ["high", "medium"].includes(confidence));
         const checks = [
           { pass: identityReady, label: identityReady ? "公司名称、域名和国家信息已完成交叉匹配" : "公司名称、域名、国家或匹配可信度尚未完成核验", critical: true },
-          { pass: facts.length >= 2 && sources.length >= 1, label: facts.length >= 2 && sources.length >= 1 ? "已确认事实具有可访问来源" : "至少需要 2 条已确认事实和 1 个可访问来源", critical: true },
+          { pass: traceableFacts.length >= 2 && sources.length >= 1, label: traceableFacts.length >= 2 && sources.length >= 1 ? "至少 2 条已确认事实分别带来源、日期和可信度" : "至少需要 2 条分别带来源、日期和可信度的已确认事实", critical: true },
           { pass: strongSignals.length >= 1, label: strongSignals.length ? "存在带来源与可信度的需求信号" : "尚无可用于个性化写信的中高可信需求信号", critical: true },
           { pass: contacts.length >= 1, label: contacts.length ? "联系人及核验状态已记录" : "联系人身份或邮箱核验状态缺失", critical: false },
           { pass: researchLines("#detail-research-risks-counter").length >= 1, label: "风险、反证和待核实项已披露", critical: false },
@@ -4601,7 +4615,7 @@
           if (!evidence.children.length) { const empty = document.createElement("div"); empty.className = "evidence-item"; empty.textContent = "尚无达到写信门槛的证据。"; evidence.append(empty); }
           $("#outreach-eligibility").textContent = ready ? "可生成草稿" : "暂不可生成";
         }
-        return { ready, blockers, checks, facts, signals: strongSignals, sources, contacts, identityReady };
+        return { ready, blockers, checks, facts: traceableFacts, signals: strongSignals, sources, contacts, identityReady };
       }
       function preferredEnglishName() {
         const local = String(profile?.email || "").toLowerCase().split("@")[0].replace(/[^a-z]/g, "");
@@ -4744,12 +4758,15 @@
       });
       async function saveOutreachDraft() {
         if (!currentInquiry) throw new Error("请先打开询盘");
+        const researchQuality = assessResearchQuality();
+        if (!researchQuality.ready) throw new Error("背调状态或证据已变化，请重新完成背调后再保存草稿");
         const recipient = $("#outreach-recipient").value.trim();
         const subjectA = $("#outreach-subject-a").value.trim();
         const subjectB = $("#outreach-subject-b").value.trim();
         const body = $("#outreach-body").value.trim();
         const subject = $("#outreach-selected-subject").value === "b" ? subjectB : subjectA;
         if (!recipient || !subject || !body) throw new Error("请先生成完整开发信");
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) throw new Error("客户邮箱格式不正确");
         const quality = evaluateOutreachDraft(subject, body, $("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim());
         if (!quality.passed) throw new Error(quality.blockers.map((item) => item.label).join("；"));
         const { data, error } = await supabase.from("outreach_drafts").insert({ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: "en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" }).select().single();

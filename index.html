@@ -3093,8 +3093,15 @@
         $("#detail-smart-project").value = inquiry.project_name || "";
         $("#detail-smart-reason").value = "";
         const company = inquiry.companies || {};
-        $("#detail-research-company").value = company.name || "";
-        $("#detail-research-domain").value = company.domain || "";
+        const originalText = String(inquiry.original_message || "");
+        const senderEmail = String(intake?.sender_email || "").trim().toLowerCase();
+        const senderDomain = senderEmail.includes("@") ? senderEmail.split("@").pop() : "";
+        const bodyDomain = String(originalText.match(/https?:\/\/(?:www\.)?([^\s/?#]+)/i)?.[1] || "").toLowerCase();
+        const inferredDomain = senderDomain || bodyDomain;
+        const namedCompany = originalText.match(/\bat\s+([A-Z][A-Za-z0-9&.' -]{1,80}?)\s+(?:in\s+[A-Z]|[,.\n])/i)?.[1]?.trim();
+        const domainCompany = inferredDomain ? inferredDomain.split(".")[0].replace(/(^|[-_])([a-z])/g, (_m, prefix, letter) => `${prefix}${letter.toUpperCase()}`) : "";
+        $("#detail-research-company").value = company.name || namedCompany || domainCompany;
+        $("#detail-research-domain").value = company.domain || inferredDomain;
         updateDomainLink();
         $("#detail-research-type").value = company.company_type || "";
         $("#detail-research-business").value = company.main_business || "";
@@ -4614,6 +4621,8 @@
           [...facts.slice(0, 3).map((text) => ({ type: "已确认事实", text })), ...strongSignals.slice(0, 3).map((text) => ({ type: "需求信号", text }))].forEach((item) => { const card = document.createElement("div"); card.className = "evidence-item"; card.textContent = item.text; const meta = document.createElement("small"); meta.textContent = item.type; card.append(meta); evidence.append(card); });
           if (!evidence.children.length) { const empty = document.createElement("div"); empty.className = "evidence-item"; empty.textContent = "尚无达到写信门槛的证据。"; evidence.append(empty); }
           $("#outreach-eligibility").textContent = ready ? "可生成草稿" : "暂不可生成";
+          $("#generate-outreach").disabled = !ready;
+          $("#generate-outreach").title = ready ? "" : blockers.map((item) => item.label).join("；");
         }
         return { ready, blockers, checks, facts: traceableFacts, signals: strongSignals, sources, contacts, identityReady };
       }

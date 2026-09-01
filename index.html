@@ -715,6 +715,14 @@
         background: rgba(255, 255, 255, 0.96);
         backdrop-filter: blur(10px);
       }
+      .quality-panel{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--soft)}
+      .quality-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+      .quality-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+      .quality-metric{padding:12px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+      .quality-metric span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.quality-metric b{font-size:20px}
+      .quality-checks{display:grid;gap:7px;margin-top:12px;font-size:13px}.quality-check{display:flex;gap:8px;align-items:flex-start}.quality-check.pass{color:#2d624b}.quality-check.fail{color:#a33b32}.quality-check.warn{color:#9a5b18}
+      .evidence-preview{display:grid;gap:8px;margin-top:12px}.evidence-item{padding:11px 12px;border-radius:11px;border:1px solid var(--line);background:#fff;font-size:13px;line-height:1.5}.evidence-item small{display:block;color:var(--muted);margin-top:4px}
+      @media(max-width:760px){.quality-grid{grid-template-columns:1fr}}
       .detail-tab {
         flex: 0 0 auto;
         border: 1px solid transparent;
@@ -1616,6 +1624,11 @@
           <p class="hint">超级智能体会在打开询盘时自动检索、交叉验证、填入并保存；没有可靠证据的项目会明确标注“未检索到可信信息”。</p>
           <p id="detail-research-status" class="hint">背调状态：尚未执行</p>
           <div id="detail-research-evidence" class="hint hidden"></div>
+          <div id="research-quality-panel" class="quality-panel">
+            <div class="quality-panel-head"><b>背调质量与证据覆盖</b><span id="research-quality-badge" class="tag">待检查</span></div>
+            <div class="quality-grid"><div class="quality-metric"><span>身份匹配</span><b id="research-quality-identity">—</b></div><div class="quality-metric"><span>可追溯证据</span><b id="research-quality-evidence-count">0</b></div><div class="quality-metric"><span>近期需求信号</span><b id="research-quality-signal-count">0</b></div></div>
+            <div id="research-quality-checks" class="quality-checks"></div>
+          </div>
           <input id="topease-report-file" class="hidden" type="file" accept=".xlsx,.xls,.csv,.pdf,.txt" />
           <div id="topease-paste-panel" class="hidden" style="margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--soft)">
             <div class="field"><label>粘贴特易企业背调或交易数据</label><textarea id="topease-paste-text" class="input" rows="8" placeholder="可粘贴企业详情、交易分析或提单导出内容"></textarea></div>
@@ -1673,10 +1686,14 @@
         </div>
         <div class="form-body detail-section hidden" data-detail-section="outreach">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-            <div><h4 style="margin:0">开发信</h4><p class="hint" style="margin:8px 0 0">独立使用已确认的背调证据生成英文草稿，不会自动发送。</p></div>
+            <div><h4 style="margin:0">开发信</h4><p class="hint" style="margin:8px 0 0">使用已确认的背调证据生成英文草稿，并按统一加权送达率规范质检；普通商务词不会被机械拦截，草稿不会自动发送。</p></div>
             <button id="generate-outreach" class="primary" type="button">生成开发信草稿</button>
           </div>
           <p id="outreach-status" class="hint" style="margin-top:16px">草稿尚未生成</p>
+          <div id="outreach-evidence-panel" class="quality-panel">
+            <div class="quality-panel-head"><b>本次写信依据</b><span id="outreach-eligibility" class="tag">尚未检查</span></div>
+            <div id="outreach-evidence-list" class="evidence-preview"><div class="evidence-item">完成背调后，系统会在这里列出允许写入客户邮件的事实和需求信号。</div></div>
+          </div>
           <div id="outreach-draft" class="hidden" style="margin-top:24px">
             <h4>开发信草稿 <span class="tag">待人工审核</span></h4>
             <div class="detail-grid">
@@ -1688,6 +1705,7 @@
               <div class="field"><label>发送主题</label><select id="outreach-selected-subject" class="input"><option value="a">主题 A</option><option value="b">主题 B</option></select></div>
             </div>
             <div class="field"><label>英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea></div>
+            <div id="outreach-quality-panel" class="quality-panel"><div class="quality-panel-head"><b>发送前质检</b><span id="outreach-quality-badge" class="tag">待质检</span></div><div id="outreach-quality-checks" class="quality-checks"></div></div>
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
           </div>
         </div>
@@ -3147,6 +3165,8 @@
           $("#send-outreach").classList.remove("hidden");
           $("#send-outreach").textContent = "用我的邮箱发送";
         }
+        assessResearchQuality();
+        if (latestDraft?.body) evaluateOutreachDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body, company.name || "", company.domain || "");
         const canAssign = ["owner", "sales_manager"].includes(profile.role);
         owner.disabled = !canAssign || inquiry.validity!=="valid";
         owner.title = inquiry.validity!=="valid" ? "请先在“有效性判断”中确认有效" : "";
@@ -4345,13 +4365,17 @@
           const candidates = data?.candidates || [];
           renderCompanyImages(candidates);
           $("#detail-research-photo-sources").value = candidates.map((item) => safeExternalUrl(item.url)).filter(Boolean).join("\n");
-          $("#detail-photo-verified").checked = true;
+          $("#detail-photo-verified").checked = false;
           const news = (data?.news_signals || []).map((item) => item.display || [item.title, item.date, item.source_url].filter(Boolean).join("｜"));
           $("#detail-research-chinese-summary").value = data?.chinese_summary || "暂未生成中文总结";
           $("#detail-research-news").value = news.join("\n") || "未检索到与该公司唯一匹配的近期公开新闻";
           $("#detail-research-seo-focus").value = (data?.seo_focus_categories || []).join("\n") || "官网未公开可可靠识别的重点品类";
           const profile = data?.website_profile || {};
-          $("#detail-research-project-categories").value = [profile.title, profile.description, ...(profile.keywords || [])].filter(Boolean).join("\n") || "未检索到明确的项目与品类指向信号";
+          $("#detail-research-project-categories").value = (data?.project_category_signals || []).join("\n") || [profile.title, profile.description, ...(profile.keywords || [])].filter(Boolean).join("\n") || "未检索到明确的项目与品类指向信号";
+          const discoveredSources = (data?.website_evidence || []).map((item) => safeExternalUrl(item.url)).filter(Boolean);
+          const existingSources = researchSourceUrls();
+          $("#detail-research-sources").value = [...new Set([...existingSources, ...discoveredSources])].join("\n");
+          assessResearchQuality();
         } catch (error) {
           renderCompanyImages([]);
           if (!$("#detail-research-chinese-summary").value.trim()) $("#detail-research-chinese-summary").value = "中文总结暂时生成失败，智能体将在下次打开时重试";
@@ -4413,26 +4437,12 @@
         button.textContent = "背调中…";
         $("#detail-research-status").textContent = "背调状态：正在查询 WONLY Business…";
         try {
-          const base = "https://raw.githubusercontent.com/chloe19980401/businesswonly/main/api/";
+          const base = "https://business.foreverdoodle.com/api/";
           let index = { companies: [] }, hit = null, record;
-          if (domain === "imprac.com.ar") {
-            record = {
-              company: "Imprac", countryName: "阿根廷", city: "Buenos Aires",
-              categoryName: "门体自动化设备及配件制造与分销商",
-              productFocus: "自动门/车库门自动化系统、电子产品、附件和备件",
-              scale: "官网称拥有超过25年市场经验",
-              website: "https://imprac.com.ar/", sourceUrl: "https://imprac.com.ar/empresa.php",
-              confidence: "high", fitReason: "客户主营门体自动化及配件，与安全门和锁具属于相邻产品线。",
-              angle: "围绕300樘多点锁钢制安全门、Golden Sample和量产质检流程推进。",
-              risk: "官网主营自动门设备及配件，与本次大批量钢制安全门采购存在品类跨度，需核实项目业主、规格及最终用途。",
-              addedDate: "2026-08-26", researchStatus: "ready", dataUpdatedAt: "2026-08-26",
-            };
-          } else {
-            const indexResponse = await fetch(base + "index.json", { cache: "no-store" });
-            if (!indexResponse.ok) throw new Error(`背调索引读取失败（${indexResponse.status}）`);
-            index = await indexResponse.json();
-            hit = (index.companies || []).find((item) => normalizeDomain(item.domain) === domain);
-          }
+          const indexResponse = await fetch(base + "index.json", { cache: "no-store" });
+          if (!indexResponse.ok) throw new Error(`背调索引读取失败（${indexResponse.status}）`);
+          index = await indexResponse.json();
+          hit = (index.companies || index || []).find((item) => normalizeDomain(item.domain) === domain);
           if (hit) {
             const detailResponse = await fetch(base + hit.file, { cache: "no-store" });
             if (!detailResponse.ok) throw new Error(`公司背调读取失败（${detailResponse.status}）`);
@@ -4471,7 +4481,8 @@
           const inquiryDate = currentInquiry.email_intake?.received_at || currentInquiry.created_at || "";
           const inquiryDemand = currentInquiry.demand_summary || currentInquiry.original_message?.slice(0, 800) || currentInquiry.title;
           const inquiryEmail = currentInquiry.email_intake?.sender_email || "";
-          const facts = [record.company && `公司名称：${record.company}`, record.countryName && `所在地：${record.countryName}${record.city ? ` · ${record.city}` : ""}`, record.categoryName && `公司类型：${record.categoryName}`, record.productFocus && `主营产品：${record.productFocus}`, record.scale && `公司规模：${record.scale}`].filter(Boolean);
+          const factSuffix = `｜来源：${sourceUrl || "未提供"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`;
+          const facts = [record.company && `公司名称：${record.company}${factSuffix}`, record.countryName && `所在地：${record.countryName}${record.city ? ` · ${record.city}` : ""}${factSuffix}`, record.categoryName && `公司类型：${record.categoryName}${factSuffix}`, record.productFocus && `主营产品：${record.productFocus}${factSuffix}`, record.scale && `公司规模：${record.scale}${factSuffix}`].filter(Boolean);
           const signals = [`客户主动询盘：${inquiryDemand}｜判断：存在明确主动采购意向，具体项目与决策权限待核实｜来源：客户原始邮件｜日期：${inquiryDate ? fmtDate(inquiryDate) : "未知"}｜可信度：高`, record.importSignal && `采购/进口信号：${record.importSignal}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`, record.projects && record.projects !== "None named" && `项目线索：${record.projects}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`].filter(Boolean);
           const contacts = [inquiryEmail && `${currentInquiry.contact_name || currentInquiry.email_intake?.sender_name || "客户联系人"}｜${currentInquiry.contact_job_title || "职称待核实"}｜${inquiryEmail}｜客户原始邮件发件人已核验｜客户原始邮件`, record.decisionContact && `决策联系人：${record.decisionContact}｜已公开信息｜${record.contactSource || sourceUrl || "来源待补充"}`, record.email && `邮箱：${record.email}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`, record.phone && `电话：${record.phone}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`].filter(Boolean);
           $("#detail-research-deep-status").value = sourceUrl && record.confidence !== "low" ? "ready" : "research_required";
@@ -4552,6 +4563,46 @@
         if (!text || /[\u3400-\u9fff]/.test(text)) return fallback;
         return text.slice(0, max);
       }
+      function researchLines(selector) {
+        return String($(selector)?.value || "").split(/\n+/).map((item) => item.trim()).filter(Boolean);
+      }
+      function researchSourceUrls() {
+        return researchLines("#detail-research-sources").map((value) => safeExternalUrl(value)).filter(Boolean);
+      }
+      function assessResearchQuality({ render = true } = {}) {
+        const company = $("#detail-research-company").value.trim();
+        const domain = $("#detail-research-domain").value.trim();
+        const status = $("#detail-research-deep-status").value;
+        const confidence = $("#detail-research-match-confidence").value;
+        const facts = researchLines("#detail-research-confirmed-facts");
+        const signals = researchLines("#detail-research-demand-signals");
+        const sources = researchSourceUrls();
+        const contacts = researchLines("#detail-research-contacts");
+        const strongSignals = signals.filter((line) => /可信度[：:]\s*(?:高|中|high|medium)/i.test(line) && /来源[：:]/.test(line));
+        const identityReady = Boolean(company && domain && $("#detail-smart-country").value.trim() && ["high", "medium"].includes(confidence));
+        const checks = [
+          { pass: identityReady, label: identityReady ? "公司名称、域名和国家信息已完成交叉匹配" : "公司名称、域名、国家或匹配可信度尚未完成核验", critical: true },
+          { pass: facts.length >= 2 && sources.length >= 1, label: facts.length >= 2 && sources.length >= 1 ? "已确认事实具有可访问来源" : "至少需要 2 条已确认事实和 1 个可访问来源", critical: true },
+          { pass: strongSignals.length >= 1, label: strongSignals.length ? "存在带来源与可信度的需求信号" : "尚无可用于个性化写信的中高可信需求信号", critical: true },
+          { pass: contacts.length >= 1, label: contacts.length ? "联系人及核验状态已记录" : "联系人身份或邮箱核验状态缺失", critical: false },
+          { pass: researchLines("#detail-research-risks-counter").length >= 1, label: "风险、反证和待核实项已披露", critical: false },
+        ];
+        const blockers = checks.filter((item) => item.critical && !item.pass);
+        const ready = status === "ready" && blockers.length === 0;
+        if (render) {
+          $("#research-quality-identity").textContent = identityReady ? (confidence === "high" ? "高" : "中") : "待确认";
+          $("#research-quality-evidence-count").textContent = String(sources.length);
+          $("#research-quality-signal-count").textContent = String(strongSignals.length);
+          $("#research-quality-badge").textContent = ready ? "可用于销售准备" : `${blockers.length} 项阻断`;
+          const wrap = $("#research-quality-checks"); wrap.replaceChildren();
+          checks.forEach((item) => { const row = document.createElement("div"); row.className = `quality-check ${item.pass ? "pass" : item.critical ? "fail" : "warn"}`; row.textContent = `${item.pass ? "✓" : item.critical ? "×" : "!"} ${item.label}`; wrap.append(row); });
+          const evidence = $("#outreach-evidence-list"); evidence.replaceChildren();
+          [...facts.slice(0, 3).map((text) => ({ type: "已确认事实", text })), ...strongSignals.slice(0, 3).map((text) => ({ type: "需求信号", text }))].forEach((item) => { const card = document.createElement("div"); card.className = "evidence-item"; card.textContent = item.text; const meta = document.createElement("small"); meta.textContent = item.type; card.append(meta); evidence.append(card); });
+          if (!evidence.children.length) { const empty = document.createElement("div"); empty.className = "evidence-item"; empty.textContent = "尚无达到写信门槛的证据。"; evidence.append(empty); }
+          $("#outreach-eligibility").textContent = ready ? "可生成草稿" : "暂不可生成";
+        }
+        return { ready, blockers, checks, facts, signals: strongSignals, sources, contacts, identityReady };
+      }
       function preferredEnglishName() {
         const local = String(profile?.email || "").toLowerCase().split("@")[0].replace(/[^a-z]/g, "");
         const knownNames = {
@@ -4570,21 +4621,58 @@
           "www.wonlygroup.com",
         ].join("\n");
       }
+      function stripExistingSignature(value) {
+        return String(value || "").replace(/\n{1,3}(?:Best regards|Kind regards|Regards|Sincerely),?[\s\S]*$/i, "").trim();
+      }
       function validateCustomerFacingDraft(subject, body, signerName = preferredEnglishName()) {
         if (/[\u3400-\u9fff]/.test(`${subject}\n${body}`)) return "英文开发信中包含中文或内部备注，请重新生成";
         if (/强制降级|高风险|低价值|成交概率|客户等级|内部判断|our recommended next step is to|\b(?:risk rating|value grade|lead score|internal assessment)\b/i.test(body)) {
           return "开发信中包含内部评分、风险或判断信息，请重新生成";
         }
+        const normalizedSubject = String(subject || "").trim();
+        const normalizedBody = String(body || "");
+        if (/^(?:re|fwd?)\s*:/i.test(normalizedSubject)) return "首封开发信禁止伪造 Re: 或 Fwd:，请使用真实主题";
+        if (/(?:\b[A-Z]\s+){3,}[A-Z]\b|fr[€$]{2}|\bf\s+r\s+e\s+e\b/i.test(`${normalizedSubject}\n${normalizedBody}`)) return "开发信包含字符混淆或规避过滤的写法，请恢复自然表达";
+        if (/https?:\/\/(?:bit\.ly|t\.co|tinyurl\.com|goo\.gl|ow\.ly|buff\.ly)\b/i.test(normalizedBody)) return "首封开发信禁止使用短链接或隐藏跳转";
+        if (/!{2,}|\${3,}|(?:^|\s)[A-Z][A-Z\s]{12,}(?:$|[.!?])/m.test(`${normalizedSubject}\n${normalizedBody}`)) return "开发信包含连续感叹号、货币符号堆砌或大段全大写，请改为自然商务表达";
+        const hypePatterns = [/\bbuy now\b/i,/\blimited time\b/i,/\blowest price\b/i,/\b100% guaranteed\b/i,/\bdon['’]t miss\b/i,/\bact now\b/i];
+        const hypeHits = hypePatterns.filter((pattern) => pattern.test(`${normalizedSubject}\n${normalizedBody}`));
+        if (hypeHits.length >= 2) return "开发信集中使用强促销、紧迫感或价格绝对化表达，请改为真实、中性的客户价值说明";
         if (!body.includes(`Best regards,\n${signerName}\nWONLY International Sales Team`)) {
           return "签名不是当前业务员的统一英文签名，请重新生成";
         }
         return "";
       }
+      function evaluateOutreachDraft(subject, body, companyName = "", customerDomain = "") {
+        const baseError = validateCustomerFacingDraft(subject, body);
+        const normalizedBody = String(body || "").trim();
+        const contentBody = normalizedBody.split(/\nBest regards,/i)[0];
+        const words = contentBody.split(/\s+/).filter(Boolean).length;
+        const subjectWords = String(subject || "").trim().split(/\s+/).filter(Boolean).length;
+        const questionCount = (contentBody.match(/\?/g) || []).length;
+        const domainToken = String(customerDomain || "").replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0];
+        const ownSiteLinked = domainToken && new RegExp(`https?:\\/\\/(?:www\\.)?${domainToken.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i").test(contentBody);
+        const personalization = Boolean((companyName && new RegExp(companyName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(contentBody)) || /your (?:inquiry|project|request|specification)/i.test(contentBody));
+        const checks = [
+          { pass: !baseError, label: baseError || "无中文、内部评分、风险标签或投机性判断", critical: true },
+          { pass: subjectWords >= 3 && subjectWords <= 12, label: `主题长度 ${subjectWords} 词（建议 3–12 词）`, critical: subjectWords < 2 || subjectWords > 16 },
+          { pass: words >= 70 && words <= 190, label: `正文 ${words} 词（建议 70–190 词）`, critical: words < 45 || words > 240 },
+          { pass: personalization, label: personalization ? "包含基于询盘或公司的真实个性化开场" : "缺少可验证的个性化依据", critical: true },
+          { pass: questionCount >= 1 && questionCount <= 2, label: `包含 ${questionCount} 个明确问题/CTA（建议 1 个）`, critical: questionCount === 0 || questionCount > 3 },
+          { pass: !ownSiteLinked, label: ownSiteLinked ? "错误引用了客户自己的官网作为我方资料" : "未把客户官网误写成我方资料链接", critical: true },
+          { pass: /Best regards,\n[^\n]+\nWONLY International Sales Team\nWONLY\nwww\.wonlygroup\.com$/i.test(normalizedBody), label: "使用当前业务员英文名和统一 WONLY 签名", critical: true },
+        ];
+        const blockers = checks.filter((item) => item.critical && !item.pass);
+        const wrap = $("#outreach-quality-checks"); wrap.replaceChildren();
+        checks.forEach((item) => { const row = document.createElement("div"); row.className = `quality-check ${item.pass ? "pass" : item.critical ? "fail" : "warn"}`; row.textContent = `${item.pass ? "✓" : item.critical ? "×" : "!"} ${item.label}`; wrap.append(row); });
+        $("#outreach-quality-badge").textContent = blockers.length ? `${blockers.length} 项未通过` : "质检通过";
+        return { passed: blockers.length === 0, blockers, checks, words, questionCount };
+      }
       $("#generate-outreach").addEventListener("click", async () => {
         if (!currentInquiry) return;
         const company = $("#detail-research-company").value.trim();
-        const research = $("#detail-research-summary").value.trim();
-        if (!company || !research) { $("#outreach-status").textContent = "无法生成：请先完成并确认客户背调"; return toast("请先完成并确认客户背调"); }
+        const researchQuality = assessResearchQuality();
+        if (!researchQuality.ready) { const reason = researchQuality.blockers.map((item) => item.label).join("；"); $("#outreach-status").textContent = `无法生成：${reason}`; return toast("背调证据尚未达到开发信门槛"); }
         const button = $("#generate-outreach");
         const recipient = currentInquiry.email_intake?.sender_email || $("#outreach-recipient").value.trim();
         if (!recipient) { $("#outreach-status").textContent = "无法生成：缺少客户邮箱"; return toast("缺少客户邮箱，无法通过联系人质量门槛"); }
@@ -4609,28 +4697,36 @@
                 emailVerificationStatus: "valid",
               },
               companyText: [
-                `Inquiry: ${currentInquiry.title || ""}`,
-                `Project: ${$("#detail-smart-project").value.trim()}`,
-                `Demand: ${$("#detail-smart-demand").value.trim()}`,
-                `Confirmed research summary: ${research}`,
+                `CUSTOMER INQUIRY (first-party evidence): ${currentInquiry.title || ""}`,
+                `PROJECT (only if provided): ${$("#detail-smart-project").value.trim() || "Not provided"}`,
+                `DEMAND (only if provided): ${$("#detail-smart-demand").value.trim() || "Not provided"}`,
+                `VERIFIED FACTS:\n- ${researchQuality.facts.join("\n- ")}`,
+                `VERIFIED DEMAND SIGNALS:\n- ${researchQuality.signals.join("\n- ")}`,
+                `SOURCE URLS:\n- ${researchQuality.sources.join("\n- ")}`,
+                `UNCERTAINTIES FOR INTERNAL USE ONLY (never reveal to customer):\n- ${researchLines("#detail-research-risks-counter").join("\n- ")}`,
               ].join("\n"),
               tone: $("#outreach-tone").value === "direct" ? "简洁直接" : $("#outreach-tone").value === "project" ? "项目推进式" : "专业顾问式",
               targetLanguage: "英文",
               length: "简短",
               brandCompany: "WONLY GROUP",
-              replyPoints: `邮件目标：${$("#outreach-objective").selectedOptions[0]?.textContent || "确认需求"}。只使用已确认的询盘与背调事实。`,
+              replyPoints: [
+                `邮件目标：${$("#outreach-objective").selectedOptions[0]?.textContent || "确认需求"}。`,
+                "只允许引用 VERIFIED FACTS、VERIFIED DEMAND SIGNALS 和客户原始询盘。",
+                "不得暴露评分、风险、背调来源、内部判断或未经证实的项目；不得把客户官网当成 WONLY 资料链接。",
+                "英文自然、尊重、70–190词、单一明确CTA；先回答为什么联系、为什么现在、WONLY为何相关，再提出一个低阻力下一步。",
+              ].join(" "),
             }),
           });
           const generated = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(generated.error || `开发信系统返回 ${response.status}`);
-          const bodyWithSignature = `${generated.body || ""}\n\n${unifiedEnglishSignature()}`.trim();
-          const qualityError = validateCustomerFacingDraft(generated.subject || "", bodyWithSignature);
-          if (qualityError) throw new Error(qualityError);
+          const bodyWithSignature = `${stripExistingSignature(generated.body || "")}\n\n${unifiedEnglishSignature()}`.trim();
+          const quality = evaluateOutreachDraft(generated.subject || "", bodyWithSignature, company, $("#detail-research-domain").value.trim());
+          if (!quality.passed) throw new Error(quality.blockers.map((item) => item.label).join("；"));
           $("#outreach-subject-a").value = generated.subject || "";
           $("#outreach-subject-b").value = generated.subjectB || generated.subject || "";
           $("#outreach-body").value = bodyWithSignature;
           $("#outreach-recipient").value = recipient;
-          $("#outreach-status").textContent = "已通过开发信系统质检 · 待人工审核";
+          $("#outreach-status").textContent = `已通过证据门槛与 ${quality.checks.length} 项质检 · ${quality.words} 词 · 待人工审核`;
           $("#outreach-draft").classList.remove("hidden");
           toast("已使用邮件回复系统的个性化开发信逻辑生成并质检");
         } catch (error) {
@@ -4654,8 +4750,8 @@
         const body = $("#outreach-body").value.trim();
         const subject = $("#outreach-selected-subject").value === "b" ? subjectB : subjectA;
         if (!recipient || !subject || !body) throw new Error("请先生成完整开发信");
-        const customerFacingError = validateCustomerFacingDraft(subject, body);
-        if (customerFacingError) throw new Error(customerFacingError);
+        const quality = evaluateOutreachDraft(subject, body, $("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim());
+        if (!quality.passed) throw new Error(quality.blockers.map((item) => item.label).join("；"));
         const { data, error } = await supabase.from("outreach_drafts").insert({ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: "en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" }).select().single();
         if (error) throw error;
         currentInquiry.outreachDraftId = data.id;
@@ -4667,6 +4763,11 @@
         try { await saveOutreachDraft(); toast("开发信草稿已保存并保留版本"); } catch (error) { toast("草稿保存失败：" + (error.message || error)); }
         finally { button.disabled = false; }
       });
+      ["#outreach-subject-a", "#outreach-subject-b", "#outreach-body", "#outreach-selected-subject"].forEach((selector) => $(selector).addEventListener("input", () => {
+        const subject = $("#outreach-selected-subject").value === "b" ? $("#outreach-subject-b").value : $("#outreach-subject-a").value;
+        evaluateOutreachDraft(subject, $("#outreach-body").value, $("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim());
+      }));
+      ["#detail-research-company", "#detail-research-domain", "#detail-smart-country", "#detail-research-deep-status", "#detail-research-match-confidence", "#detail-research-confirmed-facts", "#detail-research-demand-signals", "#detail-research-contacts", "#detail-research-risks-counter", "#detail-research-sources"].forEach((selector) => $(selector).addEventListener("input", () => assessResearchQuality()));
       $("#send-outreach").addEventListener("click", async () => {
         const recipient = $("#outreach-recipient").value.trim();
         if (!recipient) return toast("询盘没有可用的客户邮箱");
@@ -4694,7 +4795,6 @@
         const name = $("#detail-research-company").value.trim();
         if (!name) return toast("请填写公司名称");
         const photoUrls = $("#detail-research-photo-sources").value.split(/\n+/).map((url) => safeExternalUrl(url.trim())).filter(Boolean);
-        if (photoUrls.length && !$("#detail-photo-verified").checked) return toast("保存公司图片前，请逐条核验并勾选确认");
         const button = $("#save-detail-research");
         button.disabled = true;
         const before = currentInquiry.companies || null;
@@ -4730,7 +4830,7 @@
           map_provider: $("#detail-map-candidate").dataset.provider || null,
           map_place_id: $("#detail-map-candidate").dataset.placeId || null,
           map_verified_at: $("#detail-research-map-address").value.trim() ? new Date().toISOString() : null,
-          company_photo_sources: photoUrls.map((url) => ({ url, verified: true, verified_by: profile.id, verified_by_name: profile.full_name || "", verified_at: new Date().toISOString() })),
+          company_photo_sources: photoUrls.map((url) => ({ url, verified: $("#detail-photo-verified").checked, verified_by: $("#detail-photo-verified").checked ? profile.id : null, verified_by_name: $("#detail-photo-verified").checked ? (profile.full_name || "") : null, verified_at: $("#detail-photo-verified").checked ? new Date().toISOString() : null })),
           researched_at: new Date().toISOString(),
           source_updated_at: currentInquiry.businessResearch?.addedDate || currentInquiry.businessResearch?.dataUpdatedAt || null,
           updated_at: new Date().toISOString(),

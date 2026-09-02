@@ -1665,32 +1665,32 @@
             <div class="field"><label>公司名称</label><input id="detail-research-company" class="input" /></div>
             <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /><a id="detail-research-domain-link" class="table-action hidden" target="_blank" rel="noopener noreferrer" style="display:none;margin-top:8px">打开官网 ↗</a></div>
             <div class="field"><label>公司类型</label><input id="detail-research-type" class="input" /></div>
-            <div class="field"><label>风险等级</label><select id="detail-research-risk" class="input"><option value="normal">正常</option><option value="medium">中风险</option><option value="high">高风险</option><option value="critical">严重风险</option></select></div>
-            <div class="field"><label>客户价值评分</label><input id="detail-value-score" class="input" type="number" min="0" max="100" readonly /></div>
-            <div class="field"><label>客户等级</label><input id="detail-value-grade" class="input" readonly /></div>
-            <div class="field"><label>采购可能性</label><select id="detail-purchase-likelihood" class="input"><option value="unknown">待判断</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select></div>
+            <div class="field"><label>风险等级 <button class="metric-help" data-metric="research_risk_level" type="button">?</button></label><select id="detail-research-risk" class="input"><option value="normal">正常</option><option value="medium">中风险</option><option value="high">高风险</option><option value="critical">严重风险</option></select></div>
+            <div class="field"><label>客户价值评分 <button class="metric-help" data-metric="customer_value_score" type="button">?</button></label><input id="detail-value-score" class="input" type="number" min="0" max="100" readonly /></div>
+            <div class="field"><label>客户等级 <button class="metric-help" data-metric="customer_value_grade" type="button">?</button></label><input id="detail-value-grade" class="input" readonly /></div>
+            <div class="field"><label>采购可能性 <button class="metric-help" data-metric="purchase_likelihood" type="button">?</button></label><select id="detail-purchase-likelihood" class="input"><option value="unknown">待判断</option><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select></div>
           </div>
           <div class="field"><label>主营业务</label><textarea id="detail-research-business" class="input" rows="3"></textarea></div>
           <div class="field"><label>AI 摘要/项目线索</label><textarea id="detail-research-summary" class="input" rows="5"></textarea></div>
           <h4>深度背调报告</h4>
           <div class="detail-grid">
-            <div class="field"><label>研究状态</label><select id="detail-research-deep-status" class="input"><option value="research_required">待继续调查</option><option value="company_match_required">待确认公司身份</option><option value="ready">资料可用于销售准备</option></select></div>
-            <div class="field"><label>匹配方式</label><input id="detail-research-match-method" class="input" readonly /></div>
-            <div class="field"><label>匹配可信度</label><select id="detail-research-match-confidence" class="input"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></div>
-            <div class="field"><label>数据更新时间</label><input id="detail-research-source-updated" class="input" readonly /></div>
+            <div class="field"><label>研究状态 <button class="metric-help" data-metric="research_status" type="button">?</button></label><select id="detail-research-deep-status" class="input"><option value="research_required">待继续调查</option><option value="company_match_required">待确认公司身份</option><option value="ready">资料可用于销售准备</option></select></div>
+            <div class="field"><label>匹配方式 <button class="metric-help" data-metric="company_match_method" type="button">?</button></label><input id="detail-research-match-method" class="input" readonly /></div>
+            <div class="field"><label>匹配可信度 <button class="metric-help" data-metric="company_match_confidence" type="button">?</button></label><select id="detail-research-match-confidence" class="input"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></div>
+            <div class="field"><label>数据更新时间 <button class="metric-help" data-metric="research_updated_at" type="button">?</button></label><input id="detail-research-source-updated" class="input" readonly /></div>
           </div>
-          <div class="field"><label>为什么现在值得跟进</label><textarea id="detail-research-why-now" class="input" rows="3" placeholder="只写有证据支持的近期采购、项目或扩张信号"></textarea></div>
-          <div class="field"><label>已确认事实（每行一条）</label><textarea id="detail-research-confirmed-facts" class="input" rows="5" placeholder="公司官网或可靠来源直接支持的事实"></textarea></div>
-          <div class="field"><label>采购/需求信号（每行一条）</label><textarea id="detail-research-demand-signals" class="input" rows="5" placeholder="信号｜判断｜来源｜日期｜可信度"></textarea></div>
-          <div class="field"><label>可能需求（属于判断，不是事实）</label><textarea id="detail-research-likely-needs" class="input" rows="4"></textarea></div>
-          <div class="field"><label>风险、反证与待核实项</label><textarea id="detail-research-risks-counter" class="input" rows="5"></textarea></div>
-          <div class="field"><label>联系人与核验状态</label><textarea id="detail-research-contacts" class="input" rows="4" placeholder="姓名｜职称/角色｜联系方式｜核验状态｜来源"></textarea></div>
+          <div class="field"><label>为什么现在值得跟进 <button class="metric-help" data-metric="research_why_now" type="button">?</button></label><textarea id="detail-research-why-now" class="input" rows="3" placeholder="只写有证据支持的近期采购、项目或扩张信号"></textarea></div>
+          <div class="field"><label>已确认事实（每行一条） <button class="metric-help" data-metric="confirmed_facts" type="button">?</button></label><textarea id="detail-research-confirmed-facts" class="input" rows="5" placeholder="公司官网或可靠来源直接支持的事实"></textarea></div>
+          <div class="field"><label>采购/需求信号（每行一条） <button class="metric-help" data-metric="demand_signals" type="button">?</button></label><textarea id="detail-research-demand-signals" class="input" rows="5" placeholder="信号｜判断｜来源｜日期｜可信度"></textarea></div>
+          <div class="field"><label>可能需求（属于判断，不是事实） <button class="metric-help" data-metric="likely_needs" type="button">?</button></label><textarea id="detail-research-likely-needs" class="input" rows="4"></textarea></div>
+          <div class="field"><label>风险、反证与待核实项 <button class="metric-help" data-metric="research_risks" type="button">?</button></label><textarea id="detail-research-risks-counter" class="input" rows="5"></textarea></div>
+          <div class="field"><label>联系人与核验状态 <button class="metric-help" data-metric="contact_verification" type="button">?</button></label><textarea id="detail-research-contacts" class="input" rows="4" placeholder="姓名｜职称/角色｜联系方式｜核验状态｜来源"></textarea></div>
           <div class="detail-grid">
             <div class="field"><label>销售应询问的问题（每行一条）</label><textarea id="detail-research-questions" class="input" rows="6"></textarea></div>
             <div class="field"><label>建议准备的材料（每行一条）</label><textarea id="detail-research-materials" class="input" rows="6"></textarea></div>
           </div>
-          <div class="field"><label>下一步最佳动作</label><textarea id="detail-research-next-action" class="input" rows="3"></textarea></div>
-          <div class="field"><label>证据来源（每行一个可访问网址）</label><textarea id="detail-research-sources" class="input" rows="4"></textarea></div>
+          <div class="field"><label>下一步最佳动作 <button class="metric-help" data-metric="next_best_action" type="button">?</button></label><textarea id="detail-research-next-action" class="input" rows="3"></textarea></div>
+          <div class="field"><label>证据来源（每行一个可访问网址） <button class="metric-help" data-metric="evidence_sources" type="button">?</button></label><textarea id="detail-research-sources" class="input" rows="4"></textarea></div>
           <h4>市场、新闻与线上信号</h4>
           <div class="form-actions"><a id="open-company-map" class="table-action" target="_blank" rel="noopener noreferrer">Google Maps 查看 ↗</a><a id="open-company-osm" class="table-action" target="_blank" rel="noopener noreferrer">OpenStreetMap 查看 ↗</a></div>
           <div class="field"><label>中文智能总结</label><textarea id="detail-research-chinese-summary" class="input" rows="4" readonly placeholder="智能体正在生成中文总结…"></textarea></div>
@@ -2535,7 +2535,27 @@
         expected_close_date:["预计成交日期","当前预期商机成交或关闭的日期。","日期已过且未成交/丢单时触发预警。"],
         channel_roi:["渠道 ROI","渠道归因成交额 ÷ 渠道成本。","MVP 由主来源获得 100% 归因；渠道成本由市场部按月录入。"],
         outcome_reasons:["无效与丢单原因","统计筛选周期内被判定为无效或丢单的询盘，并按结构化原因汇总数量与占比。","旧自由文本原因归入“其他/历史原因”；统计只读，不改变原始记录。"],
-        followup_completion:["跟进任务完成率","按期或逾期完成的跟进任务数 ÷ 到期任务数。","逾期后完成计入完成率，并单独标注“逾期完成”。"]
+        followup_completion:["跟进任务完成率","按期或逾期完成的跟进任务数 ÷ 到期任务数。","逾期后完成计入完成率，并单独标注“逾期完成”。"],
+        research_risk_level:["风险等级","对公司身份、询盘真实性、信用、需求匹配及负面证据的综合风险判断。","正常/中风险/高风险/严重风险；高风险会限制客户等级，严重风险强制降级并显示红色标识。风险提示不等同于最终事实。"],
+        customer_value_score:["客户价值评分","综合公司身份完整度、国家和联系人、需求明确度、产品/数量/项目、业务匹配及风险形成的 0–100 分。","A：80–100；B：60–79；C：40–59；D：0–39。风险规则可强制限制最终等级，评分用于排序，不代表信用或成交承诺。"],
+        customer_value_grade:["客户等级","由客户价值评分与风险限制共同得出的销售优先级。","A 高价值；B 重点培育；C 普通机会；D 低价值或高风险。等级用于安排投入，不替代人工决策。"],
+        purchase_likelihood:["采购可能性","结合客户主动询盘、需求明确度、项目和数量、公司背景、采购信号及反证形成的销售准备判断。","高/中/低/待判断；它不是已确认事实，也不等同于商机成交概率，人工修改必须保留原因和审计记录。"],
+        research_status:["研究状态","表示背调资料是否达到可供销售使用的最低条件。","待继续调查=证据不足；待确认公司身份=尚未唯一匹配；资料可用于销售准备=身份与关键事实已达到核验要求，但仍需销售判断。"],
+        company_match_method:["匹配方式","系统用来确认公司身份的主要依据。","优先按公司域名，其次公司名称、邮箱域名、国家/地址交叉核验；无法唯一确认时必须提示人工确认。"],
+        company_match_confidence:["匹配可信度","公司名称、域名、国家、地址及公开证据相互一致的程度。","高=多项独立证据一致；中=主体基本一致但仍有缺口；低=可能同名或证据冲突，不能直接作为确定事实。"],
+        research_updated_at:["数据更新时间","本次背调证据最后抓取或人工核验的时间。","用于识别资料时效；超过刷新周期应重新检索，历史结论及修改记录仍保留。"],
+        research_why_now:["为什么现在值得跟进","只归纳近期且有来源支持的采购、项目、扩张、招标或产品变化信号。","不得把一般公司介绍或无日期推测写成“近期机会”；没有可靠信号时保持空白或标记待核验。"],
+        confirmed_facts:["已确认事实","可由官网、客户原邮件、权威名录或其他可访问来源直接支持的信息。","每条建议保留事实、来源网址、日期和可信度；AI 推断不得混入已确认事实。"],
+        demand_signals:["采购/需求信号","可能指向采购、项目或品类机会的外部证据。","按“信号｜判断｜来源｜日期｜可信度”记录；信号不等于已发生采购，应与事实分开展示。"],
+        likely_needs:["可能需求","依据业务、项目和信号推导的潜在需求假设。","属于判断而非事实；开发信中只能作为待确认问题，不得写成客户已经承认的需求。"],
+        research_risks:["风险、反证与待核实项","记录与当前判断矛盾的信息、身份疑点、过期证据、垃圾询盘特征及仍需确认的问题。","风险必须指出依据；缺乏证据时标记待核实，不能无痕删除或包装成正面结论。"],
+        contact_verification:["联系人与核验状态","记录联系人姓名、职称/角色、联系方式以及是否由可靠来源核验。","邮箱可投递不代表身份真实；建议同时核验公司域名、官网团队页、客户签名或可信职业资料。"],
+        next_best_action:["下一步最佳动作","根据当前阶段、证据和风险给出的最小可执行销售动作。","应具体到核验、提问、准备材料或跟进时间；系统建议不自动修改阶段，也不代替负责人确认。"],
+        evidence_sources:["证据来源","支撑背调事实、信号和风险判断的可访问原始网址。","优先官网、官方公告和权威来源；新闻聚合页仅作线索，关键结论应尽量回溯原文。"],
+        company_event_type:["事件类型","用于区分公司大事件属于询盘采购、项目合作、扩张产能、产品认证、风险负面或其他。","按事件的主要业务含义归类；同一事件只选一个主类型，其他影响写入摘要。"],
+        company_event_kind:["证据状态","区分时间轴内容是已确认事实、AI 判断还是待核验信息。","只有来源直接支持的内容可标为已确认事实；推导结论标为 AI 判断；证据不足或冲突时标为待核验。"],
+        company_event_confidence:["可信度","衡量事件来源可靠性、主体匹配度、时效性及多来源一致性。","高=权威或多源一致；中=单一可靠来源或部分缺口；低=间接线索；待判断=尚未完成核验。"],
+        company_event_impact:["对门锁业务的影响","说明该事件可能如何影响门、锁、五金或项目合作机会。","必须区分事实与推断，写清涉及品类、项目阶段和仍需向客户确认的条件。"]
         ,sales_targets:["目标完成进度","当前筛选周期内实际值 ÷ 已设置目标值。","支持个人、团队和全公司目标；目标由老板或销售主管设置。"],
         annual_target_plan:["年度目标计划","用户提供的 2026 海外事业部月度目标；签约额统一以人民币万元计，客户开发和 CRM 信息收集以条数计。","签约额实际完成值=成交额人民币折算值÷10,000。个人只看本人；主管、市场和老板可看全部。源表中的大区合计由个人目标动态汇总。"],
         legacy_amount:["历史工程合同额","旧 CRM 原表合同总金额汇总，单位为人民币万元。","仅用于历史工程分析，不等同于新 CRM 的已确认成交额。"],

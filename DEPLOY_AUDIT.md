@@ -1,5 +1,14 @@
 # Production deployment audit
 
+## 2026-09-02 14:49:00 +08:00 — filter the marketing workbench intake queue
+
+- Target: GitHub Pages production site `http://crm.foreverdoodle.com/`.
+- Executor: Codex acting through the authenticated `Wonlyglobal` GitHub account.
+- Reason: the marketing workbench still surfaced quarantined warm-up subjects through `email_intake` after the inquiry and dashboard queries were filtered.
+- Before commit: `7b9890e6f5715429b74b4ce2a0b76453aa02a384`.
+- Before content retention: the complete prior `index.html` remains recoverable from the Git parent commit above.
+- Change summary: restrict marketing workbench intake KPIs and tasks to unlinked intake items or inquiry IDs present in the already filtered dashboard row set.
+
 ## 2026-09-02 14:39:10 +08:00 — exclude quarantined warm-up records
 
 - Target: GitHub Pages production site `http://crm.foreverdoodle.com/`.

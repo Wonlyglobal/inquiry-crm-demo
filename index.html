@@ -1911,6 +1911,7 @@
       let passwordChangeMode = "initial";
       let currentInquiry = null;
       let currentCompanyEvents = [];
+      let autonomousResearchInquiryId = null;
       let detailStageTicker = null;
       let notificationChannel = null;
       let notificationItems = [], notificationFilter = "unread";
@@ -3264,8 +3265,11 @@
         await loadTimeline(id);
         // The CRM behaves as an autonomous research agent: opening an inquiry
         // starts/refreshes research without asking the user to press a button.
-        setTimeout(() => {
-          if (currentInquiry?.id === id && !$("#run-business-research").disabled) {
+        const researchAge = company.researched_at ? Date.now() - new Date(company.researched_at).getTime() : Infinity;
+        const hasUsableResearch = Boolean(company.ai_summary && (company.confirmed_facts?.length || company.demand_signals?.length));
+        const shouldRefreshResearch = !hasUsableResearch || researchAge > 24 * 60 * 60 * 1000;
+        if (shouldRefreshResearch) setTimeout(() => {
+          if (currentInquiry?.id === id && autonomousResearchInquiryId !== id && !$("#run-business-research").disabled) {
             $("#run-business-research").click();
           }
         }, 0);
@@ -4508,12 +4512,14 @@
       }
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
+        if (autonomousResearchInquiryId === currentInquiry.id) return;
         const button = $("#run-business-research");
         const intakeEmail = currentInquiry.email_intake?.sender_email || "";
         const normalizeDomain = (value) => String(value || "").trim().toLowerCase()
           .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
         const domain = normalizeDomain($("#detail-research-domain").value || intakeEmail);
         if (!domain) return toast("请先填写公司域名或确保询盘包含客户邮箱");
+        autonomousResearchInquiryId = currentInquiry.id;
         button.disabled = true;
         button.textContent = "背调中…";
         $("#detail-research-status").textContent = "背调状态：正在查询 WONLY Business…";
@@ -4600,6 +4606,7 @@
           $("#detail-research-status").textContent = "背调状态：执行失败";
           toast("背调失败：" + (error.message || error));
         } finally {
+          autonomousResearchInquiryId = null;
           button.disabled = false;
           button.textContent = "一键前置背调";
         }

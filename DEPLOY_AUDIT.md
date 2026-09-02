@@ -1,6 +1,6 @@
 # Production deployment audit
 
-## 2026-09-02 16:05:00 +08:00 — correct the real-inquiry baseline
+## 2026-09-02 15:51:50 +08:00 — correct the real-inquiry baseline
 
 - Target: Supabase production project `plhverjihjilnuhlhlxi`.
 - Executor: Codex acting through the authenticated `Wonlyglobal` Supabase account after explicit user confirmation.

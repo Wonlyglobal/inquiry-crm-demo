@@ -3288,7 +3288,11 @@
         // starts/refreshes research without asking the user to press a button.
         const researchAge = company.researched_at ? Date.now() - new Date(company.researched_at).getTime() : Infinity;
         const hasUsableResearch = Boolean(company.ai_summary && (company.confirmed_facts?.length || company.demand_signals?.length));
-        const shouldRefreshResearch = !hasUsableResearch || researchAge > 24 * 60 * 60 * 1000;
+        const hasVerifiedAddress = Boolean(
+          company.map_address
+          && !/未检索到|暂时失败|待人工核验|正在自动识别/i.test(String(company.map_address))
+        );
+        const shouldRefreshResearch = !hasUsableResearch || !hasVerifiedAddress || researchAge > 24 * 60 * 60 * 1000;
         if (shouldRefreshResearch) setTimeout(() => {
           if (currentInquiry?.id === id && autonomousResearchInquiryId !== id && !$("#run-business-research").disabled) {
             $("#run-business-research").click();

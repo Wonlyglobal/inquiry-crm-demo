@@ -1698,7 +1698,7 @@
           <div class="field"><label>官网 SEO 重点品类（每行一项）</label><textarea id="detail-research-seo-focus" class="input" rows="5" readonly placeholder="智能体正在自动分析官网…"></textarea></div>
           <div class="field"><label>项目与品类指向信号（每行一项）</label><textarea id="detail-research-project-categories" class="input" rows="5" readonly placeholder="智能体正在自动归纳…"></textarea></div>
           <div id="map-candidate-wrap" class="field hidden"><label>地址候选（采用前请人工确认公司名称、国家与官网）</label><select id="detail-map-candidate" class="input"></select></div>
-          <div class="detail-grid"><div class="field"><label>公司地址</label><input id="detail-research-map-address" class="input" readonly placeholder="智能体正在自动识别…" /></div><div class="field"><label>Google Maps 链接</label><input id="detail-research-map-url" class="input" readonly /></div></div>
+          <div class="detail-grid"><div class="field"><label>公司地址 <button class="metric-help" data-metric="company_verified_address" type="button">?</button></label><input id="detail-research-map-address" class="input" readonly placeholder="智能体正在自动识别…" /></div><div class="field"><label>Google Maps 链接</label><input id="detail-research-map-url" class="input" readonly /></div></div>
           <input id="detail-research-osm-url" class="hidden" />
           <div id="company-image-preview" class="hidden"><label>公司图片 <span class="tag">官网自动匹配</span></label><div id="company-image-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:10px"></div></div>
           <textarea id="detail-research-photo-sources" class="hidden" aria-hidden="true"></textarea><input id="detail-photo-verified" class="hidden" type="checkbox" />
@@ -2556,6 +2556,7 @@
         company_event_kind:["证据状态","区分时间轴内容是已确认事实、AI 判断还是待核验信息。","只有来源直接支持的内容可标为已确认事实；推导结论标为 AI 判断；证据不足或冲突时标为待核验。"],
         company_event_confidence:["可信度","衡量事件来源可靠性、主体匹配度、时效性及多来源一致性。","高=权威或多源一致；中=单一可靠来源或部分缺口；低=间接线索；待判断=尚未完成核验。"],
         company_event_impact:["对门锁业务的影响","说明该事件可能如何影响门、锁、五金或项目合作机会。","必须区分事实与推断，写清涉及品类、项目阶段和仍需向客户确认的条件。"]
+        ,company_verified_address:["公司地址","与公司名称、官网域名和国家交叉匹配的办公、工厂或注册地址。","优先采用官网结构化数据、联系页或页脚地址；其次采用地图和公开商业资料。无法唯一匹配时标记待人工核验，不允许编造地址，也不能通过背调完成校验。"]
         ,sales_targets:["目标完成进度","当前筛选周期内实际值 ÷ 已设置目标值。","支持个人、团队和全公司目标；目标由老板或销售主管设置。"],
         annual_target_plan:["年度目标计划","用户提供的 2026 海外事业部月度目标；签约额统一以人民币万元计，客户开发和 CRM 信息收集以条数计。","签约额实际完成值=成交额人民币折算值÷10,000。个人只看本人；主管、市场和老板可看全部。源表中的大区合计由个人目标动态汇总。"],
         legacy_amount:["历史工程合同额","旧 CRM 原表合同总金额汇总，单位为人民币万元。","仅用于历史工程分析，不等同于新 CRM 的已确认成交额。"],
@@ -4445,6 +4446,8 @@
       async function loadCompanyImages() {
         const website = $("#detail-research-domain").value.trim();
         if (!website || !currentInquiry) { renderCompanyImages([]); return; }
+        const addressInput = $("#detail-research-map-address");
+        delete addressInput.dataset.officialAddress;
         try {
           const { data, error } = await supabase.functions.invoke("company-website-images", { body: { inquiry_id: currentInquiry.id, website, company_name: $("#detail-research-company").value.trim() } });
           if (error) throw error;
@@ -4453,6 +4456,20 @@
           $("#detail-research-photo-sources").value = candidates.map((item) => safeExternalUrl(item.url)).filter(Boolean).join("\n");
           $("#detail-photo-verified").checked = false;
           const news = (data?.news_signals || []).map((item) => item.display || [item.title, item.date, item.source_url].filter(Boolean).join("｜"));
+          if (data?.official_address) {
+            const officialAddress = String(data.official_address).trim();
+            addressInput.value = officialAddress;
+            addressInput.dataset.officialAddress = officialAddress;
+            $("#detail-map-candidate").dataset.provider = data.official_address_method || "official_website";
+            $("#detail-map-candidate").dataset.placeId = "";
+            $("#detail-research-map-url").value = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(officialAddress);
+            $("#detail-research-osm-url").value = "https://www.openstreetmap.org/search?query=" + encodeURIComponent(officialAddress);
+            const officialAddressSource = safeExternalUrl(data.official_address_source);
+            if (officialAddressSource) {
+              const existingSources = researchSourceUrls();
+              $("#detail-research-sources").value = [...new Set([...existingSources, officialAddressSource])].join("\n");
+            }
+          }
           $("#detail-research-chinese-summary").value = data?.chinese_summary || "暂未生成中文总结";
           $("#detail-research-news").value = news.join("\n") || "未检索到与该公司唯一匹配的近期公开新闻";
           $("#detail-research-seo-focus").value = (data?.seo_focus_categories || []).join("\n") || "官网未公开可可靠识别的重点品类";
@@ -4512,7 +4529,12 @@
           const select = $("#detail-map-candidate"); select.replaceChildren();
           (data.candidates || []).forEach((candidate, index) => select.add(new Option((index + 1) + ". " + candidate.formatted_address, JSON.stringify(candidate))));
           $("#map-candidate-wrap").classList.toggle("hidden", !(data.candidates || []).length);
-          if (data.candidates?.length) { select.selectedIndex = 0; applyMapCandidate(data.candidates[0]); }
+          const officialAddress = $("#detail-research-map-address").dataset.officialAddress;
+          if (officialAddress) {
+            $("#detail-research-map-address").value = officialAddress;
+            $("#detail-research-map-url").value = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(officialAddress);
+            $("#detail-research-osm-url").value = "https://www.openstreetmap.org/search?query=" + encodeURIComponent(officialAddress);
+          } else if (data.candidates?.length) { select.selectedIndex = 0; applyMapCandidate(data.candidates[0]); }
           else $("#detail-research-map-address").value = "未检索到与公司身份唯一匹配的地址";
           $("#open-company-map").href = safeExternalUrl($("#detail-research-map-url").value) || data.google_maps_search_url || "#";
           $("#open-company-osm").href = safeExternalUrl($("#detail-research-osm-url").value) || data.openstreetmap_search_url || "#";
@@ -4774,8 +4796,11 @@
         const traceableFacts = facts.filter((line) => { const meta = evidenceLineQuality(line); return meta.hasSource && meta.hasDate && meta.hasConfidence; });
         const strongSignals = signals.filter((line) => { const meta = evidenceLineQuality(line); return meta.hasSource && meta.hasDate && ["高", "中", "high", "medium"].includes(meta.confidence); });
         const identityReady = Boolean(company && domain && $("#detail-smart-country").value.trim() && ["high", "medium"].includes(confidence));
+        const address = $("#detail-research-map-address").value.trim();
+        const addressReady = Boolean(address && !/未检索到|无法定位|暂时失败|正在自动识别|待人工核验/i.test(address));
         const checks = [
           { pass: identityReady, label: identityReady ? "公司名称、域名和国家信息已完成交叉匹配" : "公司名称、域名、国家或匹配可信度尚未完成核验", critical: true },
+          { pass: addressReady, label: addressReady ? "公司地址已从官网或地图来源完成匹配" : "必须找到并核验公司地址；当前地址仍待人工核验", critical: true },
           { pass: traceableFacts.length >= 2 && sources.length >= 1, label: traceableFacts.length >= 2 && sources.length >= 1 ? "至少 2 条已确认事实分别带来源、日期和可信度" : "至少需要 2 条分别带来源、日期和可信度的已确认事实", critical: true },
           { pass: strongSignals.length >= 1, label: strongSignals.length ? "存在带来源与可信度的需求信号" : "尚无可用于个性化写信的中高可信需求信号", critical: true },
           { pass: contacts.length >= 1, label: contacts.length ? "联系人及核验状态已记录" : "联系人身份或邮箱核验状态缺失", critical: false },
@@ -5004,6 +5029,8 @@
         if (!reason) return toast("请填写背调补充/修改原因");
         const name = $("#detail-research-company").value.trim();
         if (!name) return toast("请填写公司名称");
+        const researchQuality = assessResearchQuality();
+        if ($("#detail-research-deep-status").value === "ready" && !researchQuality.checks.find((item) => item.label.includes("公司地址"))?.pass) return toast("公司地址尚未核验，不能标记为资料可用于销售准备");
         const photoUrls = $("#detail-research-photo-sources").value.split(/\n+/).map((url) => safeExternalUrl(url.trim())).filter(Boolean);
         const button = $("#save-detail-research");
         button.disabled = true;

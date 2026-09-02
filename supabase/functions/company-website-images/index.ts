@@ -78,6 +78,10 @@ function officialAddressFromWebsite(html: string) {
       }
     } catch { /* malformed optional JSON-LD */ }
   }
+  const mapAddress = [...html.matchAll(/<a[^>]+href=["'][^"']*(?:maps\.app\.goo\.gl|google\.[^/"']+\/maps)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi)]
+    .map((match) => plainText(match[1], 600))
+    .find((value) => /\d/.test(value));
+  if (mapAddress) return { address: mapAddress, method: "官网地图链接" };
   const addressTag = [...html.matchAll(/<address[^>]*>([\s\S]*?)<\/address>/gi)].map((match) => plainText(match[1], 600)).find((value) => /\d/.test(value));
   if (addressTag) return { address: addressTag, method: "官网联系地址" };
   const lines = decodeXml(html)
@@ -237,4 +241,3 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: errorText(error) }), { status: 400, headers: cors });
   }
 });
-

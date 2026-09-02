@@ -1,5 +1,15 @@
 # Production deployment audit
 
+## 2026-09-02 16:50:28 +08:00 — color every inquiry pipeline stage
+
+- Target: GitHub Pages production site `http://crm.foreverdoodle.com/`.
+- Executor: Codex acting through the authenticated `Wonlyglobal` GitHub account.
+- Reason: historical inquiries can lack an explicit `pending_assignment` history row, which left an already-passed pipeline step looking unentered; the business owner also requested visible color blocks for every stage.
+- Before commit: `0d4e0b25b1eb3093f653edde8ed02cba61fc4811`.
+- Before `index.html` SHA-256: `9275fce248d49733bc741eaa3328018efce52279aaf7fbc911a84b7cac8c877d`.
+- Before content retention: the complete prior `index.html` remains recoverable from the Git parent commit above.
+- Change summary: give every stage a distinct pastel block, infer already-passed stages from the current stage order, label missing historical timestamps as `流程已通过`, and retain the stronger current-stage border without inventing timestamps.
+
 ## 2026-09-02 16:08:43 +08:00 — bilingual country display
 
 - Target: GitHub Pages production site `http://crm.foreverdoodle.com/`.

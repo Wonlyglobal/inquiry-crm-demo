@@ -782,8 +782,18 @@
       }
       .pipeline-step b { display: block; font-size: 12px; margin-bottom: 7px; }
       .pipeline-step small { display: block; color: var(--muted); font-size: 9px; line-height: 1.45; }
-      .pipeline-step.visited { border-color: #a9beaf; background: #edf3ee; }
-      .pipeline-step.active { border: 2px solid var(--green); background: #dfeae2; color: #234b33; }
+      .pipeline-step.status-pending_assignment { background:#f4efe5; border-color:#dfd1ae; }
+      .pipeline-step.status-received { background:#e8f1eb; border-color:#bed2c4; }
+      .pipeline-step.status-qualified { background:#e7f2ef; border-color:#b7d7cd; }
+      .pipeline-step.status-contacted { background:#e9eff7; border-color:#bdcee2; }
+      .pipeline-step.status-quoted { background:#f3edf8; border-color:#d6c3e4; }
+      .pipeline-step.status-sample_sent { background:#fff2df; border-color:#ead1a6; }
+      .pipeline-step.status-negotiating { background:#fff0e8; border-color:#e8c2ae; }
+      .pipeline-step.status-won { background:#e2f2e7; border-color:#a9cfb6; }
+      .pipeline-step.status-lost { background:#f5e9e7; border-color:#debab5; }
+      .pipeline-step.visited { box-shadow:inset 0 0 0 1px rgba(54,96,71,.22); }
+      .pipeline-step.completed b::before { content:"✓ "; color:#356047; }
+      .pipeline-step.active { border: 2px solid var(--green); color: #234b33; box-shadow:0 4px 12px rgba(45,91,63,.14); }
       .modal {
         width: min(680px, 100%);
         max-height: 90vh;
@@ -3413,15 +3423,19 @@
         const pipeline = $("#detail-pipeline");
         pipeline.replaceChildren();
         const detailStageLimits={pending_assignment:.5,received:4,qualified:24,contacted:72,quoted:168,sample_sent:336,negotiating:336};
-        pipelineStatuses.forEach((status) => {
+        const currentPipelineIndex=pipelineStatuses.indexOf(currentInquiry?.status);
+        pipelineStatuses.forEach((status,index) => {
           const step = document.createElement("div");
-          step.className = "pipeline-step";
-          if (stageTimes.has(status)) step.classList.add("visited");
+          step.className = `pipeline-step status-${status}`;
+          const inferredPassed=currentPipelineIndex>=0&&index<currentPipelineIndex&&!(currentInquiry?.status==="lost"&&status==="won");
+          const passed=stageTimes.has(status)||inferredPassed;
+          if (passed) step.classList.add("visited");
+          if (inferredPassed) step.classList.add("completed");
           if (currentInquiry?.status === status) step.classList.add("active");
           const name = document.createElement("b");
           name.textContent = statusNames[status] || status;
           const time = document.createElement("small");
-          time.textContent = stageTimes.has(status) ? `进入：${fmtDate(stageTimes.get(status))}` : "尚未进入";
+          time.textContent = stageTimes.has(status) ? `进入：${fmtDate(stageTimes.get(status))}` : inferredPassed ? "流程已通过" : "尚未进入";
           step.append(name, time);
           if(currentInquiry?.status===status){const elapsed=document.createElement("small"),entered=stageTimes.get(status)||currentInquiry.updated_at||currentInquiry.created_at;elapsed.dataset.currentStageElapsed="";elapsed.dataset.enteredAt=entered;elapsed.dataset.limitHours=detailStageLimits[status]||"";step.append(elapsed)}
           pipeline.append(step);

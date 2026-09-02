@@ -1,5 +1,14 @@
 # Production deployment audit
 
+## 2026-09-02 16:05:00 +08:00 — correct the real-inquiry baseline
+
+- Target: Supabase production project `plhverjihjilnuhlhlxi`.
+- Executor: Codex acting through the authenticated `Wonlyglobal` Supabase account after explicit user confirmation.
+- Reason: business owner confirmed only #000001 and Mineracao Canaa are real inquiries, and Mineracao Canaa must be the second business inquiry.
+- Before content retention: complete before/after snapshots and reasons are retained in `audit_logs`; the executable transaction is retained in `supabase/migrations/20260902070000_reclassify_non_business_inquiries.sql`.
+- Change summary: swap the quarantined warm-up #000002 with Mineracao Canaa #000046; exclude #000007/#000050/#000051; clear their related notifications; restore the workflow trigger and `GENERATED ALWAYS` identity before commit.
+- Verification: visible inquiry count 2; five complete correction audit records; related test notifications 0; workflow trigger enabled; identity generation `ALWAYS`.
+
 ## 2026-09-02 14:49:00 +08:00 — filter the marketing workbench intake queue
 
 - Target: GitHub Pages production site `http://crm.foreverdoodle.com/`.

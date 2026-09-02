@@ -1,5 +1,15 @@
 # Production deployment audit
 
+## 2026-09-02 16:08:43 +08:00 — bilingual country display
+
+- Target: GitHub Pages production site `http://crm.foreverdoodle.com/`.
+- Executor: Codex acting through the authenticated `Wonlyglobal` GitHub account.
+- Reason: business owner requested country/region values be displayed in both Chinese and English.
+- Before commit: `cc82547a3e7d1b7df6a7dcd2e7ec489af655259a`.
+- Before `index.html` SHA-256: `3f0a2145200974696968903dfa1c77eb4c32eaf1a9d7e99d4c96388bbb19699c`.
+- Before content retention: the complete prior `index.html` remains recoverable from the Git parent commit above.
+- Change summary: add a normalized bilingual country display helper and apply it to inquiry/public-pool lists, dashboard country filters, sales profiles, daily reports, and historical lead lists without changing stored country values.
+
 ## 2026-09-02 15:51:50 +08:00 — correct the real-inquiry baseline
 
 - Target: Supabase production project `plhverjihjilnuhlhlxi`.

@@ -1636,14 +1636,13 @@
               <button id="run-business-research" class="ghost hidden" type="button" aria-hidden="true">自动背调</button>
               <button id="upload-topease-report" class="ghost" type="button">导入特易报告</button>
               <button id="paste-topease-report" class="ghost" type="button">粘贴特易报告</button>
-              <button id="complete-detail-research" class="ghost" type="button">完成本次背调</button>
             </div>
           </div>
           <p class="hint">超级智能体会在打开询盘时自动检索、交叉验证、填入并保存；没有可靠证据的项目会明确标注“未检索到可信信息”。</p>
           <p id="detail-research-status" class="hint">背调状态：尚未执行</p>
           <div id="detail-research-evidence" class="hint hidden"></div>
           <div id="research-quality-panel" class="quality-panel">
-            <div class="quality-panel-head"><b>背调质量与证据覆盖</b><span id="research-quality-badge" class="tag">待检查</span></div>
+            <div class="quality-panel-head"><b>背调质量与证据覆盖</b><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span id="research-quality-badge" class="tag">待检查</span><button id="complete-detail-research" class="primary" type="button">完成背调并允许生成</button></div></div>
             <div class="quality-grid"><div class="quality-metric"><span>身份匹配</span><b id="research-quality-identity">—</b></div><div class="quality-metric"><span>可追溯证据</span><b id="research-quality-evidence-count">0</b></div><div class="quality-metric"><span>近期需求信号</span><b id="research-quality-signal-count">0</b></div></div>
             <div id="research-quality-checks" class="quality-checks"></div>
           </div>
@@ -1713,7 +1712,7 @@
           <div id="company-image-preview" class="hidden"><label>公司图片 <span class="tag">官网自动匹配</span></label><div id="company-image-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:10px"></div></div>
           <textarea id="detail-research-photo-sources" class="hidden" aria-hidden="true"></textarea><input id="detail-photo-verified" class="hidden" type="checkbox" />
           <div class="field"><label>推荐跟进策略</label><textarea id="detail-recommended-strategy" class="input" rows="4"></textarea></div>
-          <div class="field"><label>补充/修改原因 *</label><input id="detail-research-reason" class="input" /></div>
+          <div class="field"><label>补充/修改原因（选填）</label><input id="detail-research-reason" class="input" placeholder="留空时由系统自动记录标准原因" /></div>
           <div class="form-actions"><button id="calculate-research-score" class="ghost" type="button">重新计算评分</button><button id="save-detail-research" class="primary">保存背调信息</button></div>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="events">
@@ -5085,8 +5084,7 @@
       });
       $("#save-detail-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
-        const reason = $("#detail-research-reason").value.trim();
-        if (!reason) return toast("请填写背调补充/修改原因");
+        const reason = $("#detail-research-reason").value.trim() || "保存客户背调信息";
         const name = $("#detail-research-company").value.trim();
         if (!name) return toast("请填写公司名称");
         const researchQuality = assessResearchQuality();
@@ -5157,19 +5155,15 @@
       });
       $("#complete-detail-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
-        const reason = $("#detail-research-reason").value.trim() || "询盘详情完成客户背调";
+        const quality = assessResearchQuality();
+        if (quality.blockers.length) return toast("暂不能完成背调：" + quality.blockers.map((item) => item.label).join("；"));
         const button = $("#complete-detail-research");
         button.disabled = true;
-        let error;
-        if (currentInquiry.email_intake) {
-          ({ error } = await supabase.rpc("complete_inquiry_research", { target_inquiry_id: currentInquiry.id }));
-        } else {
-          ({ error } = await supabase.from("audit_logs").insert({ actor_id: profile.id, entity_type: "inquiry", entity_id: currentInquiry.id, action: "research_completed", reason }));
-        }
+        $("#detail-research-deep-status").value = "ready";
+        $("#detail-research-reason").value = $("#detail-research-reason").value.trim() || "人工确认背调达到销售准备门槛，并允许生成开发信草稿";
+        assessResearchQuality();
+        $("#save-detail-research").click();
         button.disabled = false;
-        if (error) return toast("背调状态更新失败：" + error.message);
-        toast("本次背调已完成，记录已留痕");
-        await loadTimeline(currentInquiry.id);
       });
 
       $("#add-follow").addEventListener("click", async () => {

@@ -1154,6 +1154,8 @@
           <i data-lucide="mail-plus"></i><span>邮件待处理</span></button
         ><button class="nav" data-view="assignment">
           <i data-lucide="inbox"></i><span>待分配池</span></button
+        ><button class="nav" data-view="nurture">
+          <i data-lucide="sprout"></i><span>市场培育池</span></button
         ><button class="nav" data-view="public-pool">
           <i data-lucide="users-round"></i><span>客户公海</span></button
         ><button class="nav" data-view="research">
@@ -1812,6 +1814,7 @@
           <div class="field"><label>本次补充/修改原因 *</label><input id="qualification-reason" class="input" placeholder="例如：根据客户邮件补充采购时间" /></div>
           <div class="form-actions"><button id="save-qualification" class="primary" type="button">保存资格核验</button></div>
           <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--line)"><h4>销售接收处理</h4><p id="sales-disposition-status" class="hint">尚未处理</p><div class="field"><label>接收/退回原因 *</label><input id="sales-disposition-reason" class="input" placeholder="接受请说明下一步；退回请说明缺失条件与培育建议" /></div><div class="sales-disposition-actions"><button id="sales-accept-inquiry" class="primary" type="button">接受为销售线索</button><button id="sales-recycle-inquiry" class="danger" type="button">退回市场培育</button></div></div>
+          <div id="nurture-plan-panel" class="hidden" style="margin-top:20px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--soft)"><h4 style="margin-top:0">市场培育计划</h4><p class="hint">退回原因必须保留；市场部可设置复联时间和培育动作，条件成熟后重新提交主管分配。</p><div class="detail-grid"><div class="field"><label>建议复联时间</label><input id="nurture-next-at" class="input" type="datetime-local" /></div><div class="field"><label>培育动作</label><input id="nurture-note" class="input" placeholder="例如：补充项目时间与预算后再次联系" /></div></div><div class="field"><label>本次操作原因 *</label><input id="nurture-reason" class="input" placeholder="保存计划或重新提交都必须填写依据" /></div><div class="form-actions"><button id="save-nurture-plan" class="ghost" type="button">保存培育计划</button><button id="resubmit-nurtured-inquiry" class="primary" type="button">重新提交销售分配</button></div></div>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="followup">
           <div id="detail-workflow-lock" class="notice hidden" style="margin-bottom:16px">请先在“有效性判断”中确认询盘有效；确认前不能推进阶段、分配负责人或新增跟进。</div>
@@ -2169,6 +2172,7 @@
         const visibility = {
           email: ["owner", "sales_manager", "marketing"].includes(role),
           assignment: ["owner", "sales_manager", "marketing"].includes(role),
+          nurture: ["owner", "sales_manager", "marketing"].includes(role),
           "public-pool": ["owner", "sales_manager", "marketing"].includes(role),
           research: ["owner", "sales_manager", "marketing"].includes(role),
           daily: ["owner", "sales_manager", "sales"].includes(role),
@@ -2350,6 +2354,7 @@
           inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
           email: ["邮件待处理", "查看由客户邮件进入的询盘和解析状态", "邮件收件记录"],
           assignment: ["待分配池", "主管按国家、语言、产品线和工作量进行分配", "等待分配的询盘"],
+          nurture: ["市场培育池", "承接销售退回线索，按原因和复联时间持续培育", "待培育线索"],
           "public-pool": ["客户公海", "展示释放或转派后等待主管重新分配的客户", "待重新分配客户"],
           research: ["客户背调", "公司基础信息、风险提示与 AI 调查结果", "公司调查记录"],
           "legacy-projects": ["历史工程管控", "原 CRM 工程项目独立归档，不计入新询盘转化口径", "历史工程项目"],
@@ -2403,7 +2408,7 @@
         if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";
         const denied =
           (view === "settings" && !["owner", "sales_manager", "marketing"].includes(profile.role)) ||
-          (["email", "assignment", "public-pool", "research"].includes(view) &&
+          (["email", "assignment", "nurture", "public-pool", "research"].includes(view) &&
             !["owner", "sales_manager", "marketing"].includes(profile.role));
         if (denied) {
           renderModuleTable(["提示"], [{ cells: ["当前账号无权查看此页面"] }]);
@@ -2413,8 +2418,8 @@
           return;
         }
         let query, columns, mapper, clickable = false, ownerNames = {};
-        if (["inquiries", "assignment", "public-pool"].includes(view)) {
-          query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason").eq("excluded_from_dashboard",false).order("created_at", { ascending: false }).limit(200);
+        if (["inquiries", "assignment", "nurture", "public-pool"].includes(view)) {
+          query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason,qualification_score,lead_priority,sales_disposition,recycle_reason,nurture_status,nurture_next_at,nurture_note").eq("excluded_from_dashboard",false).order("created_at", { ascending: false }).limit(200);
           if (view === "inquiries" && activeInquiryScope === "open") {
             query = query.eq("validity", "valid").not("status", "in", "(won,lost)");
             $("#module-table-title").textContent = "进行中询盘";
@@ -2422,9 +2427,10 @@
             $("#module-filter-summary").classList.remove("hidden");
           }
           if (view === "assignment") query = query.eq("validity", "valid").eq("status", "pending_assignment");
+          if (view === "nurture") query = query.eq("validity", "valid").eq("sales_disposition", "recycled");
           if (view === "public-pool") query = query.eq("validity", "valid").is("owner_id", null).not("status", "in", "(pending_assignment,won,lost)");
-          columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
-          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写";return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions:[{label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)}]}} : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
+          columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : view === "nurture" ? ["编号","询盘主题","国家/地区","优先级","成熟度","退回原因","建议复联","培育状态","操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
+          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写";return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions:[{label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)}]}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
           clickable = true;
         } else if (view === "email") {
           query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,received_at,created_at,inquiry_id").order("created_at", { ascending: false }).limit(200);
@@ -2477,7 +2483,7 @@
           icons();
           return;
         }
-        if (["inquiries", "assignment", "public-pool"].includes(view)) {
+        if (["inquiries", "assignment", "nurture", "public-pool"].includes(view)) {
           const ownerIds = [...new Set((data || []).map((item) => item.owner_id).filter(Boolean))];
           if (ownerIds.length) {
             try {
@@ -3188,7 +3194,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,updated_at,assigned_at,first_valid_contact_at,first_contact_due_at,quoted_at,next_follow_up_at,retained_until,public_pool_entered_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,qualification_identity,qualification_need,qualification_role,qualification_value,qualification_timing,qualification_fit,qualification_next_step,qualification_score,lead_priority,sales_disposition,sales_disposition_at,sales_disposition_by,recycle_reason,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
+              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,updated_at,assigned_at,first_valid_contact_at,first_contact_due_at,quoted_at,next_follow_up_at,retained_until,public_pool_entered_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,qualification_identity,qualification_need,qualification_role,qualification_value,qualification_timing,qualification_fit,qualification_next_step,qualification_score,lead_priority,sales_disposition,sales_disposition_at,sales_disposition_by,recycle_reason,nurture_status,nurture_next_at,nurture_note,nurture_updated_at,nurture_updated_by,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
             )
             .eq("id", id)
             .single(),
@@ -3248,6 +3254,11 @@
         Object.entries(qualificationFields).forEach(([elementKey,column])=>{$(`#qualification-${elementKey.replace(/[A-Z]/g,m=>`-${m.toLowerCase()}`)}`).value=inquiry[column]||""});
         $("#qualification-priority").value=inquiry.lead_priority||"P2";
         renderQualificationSummary(inquiry);
+        $("#nurture-plan-panel").classList.toggle("hidden",inquiry.sales_disposition!=="recycled");
+        $("#nurture-next-at").value=inquiry.nurture_next_at?new Date(new Date(inquiry.nurture_next_at).getTime()-new Date(inquiry.nurture_next_at).getTimezoneOffset()*60000).toISOString().slice(0,16):"";
+        $("#nurture-note").value=inquiry.nurture_note||"";
+        const canNurture=["owner","sales_manager","marketing"].includes(profile.role);
+        ["nurture-next-at","nurture-note","nurture-reason","save-nurture-plan","resubmit-nurtured-inquiry"].forEach(id=>{$("#"+id).disabled=!canNurture});
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
         $("#detail-original-message").value = inquiry.original_message || "";
@@ -4241,6 +4252,18 @@
       }
       $("#sales-accept-inquiry").addEventListener("click",()=>setSalesDisposition("accepted"));
       $("#sales-recycle-inquiry").addEventListener("click",()=>setSalesDisposition("recycled"));
+      $("#save-nurture-plan").addEventListener("click",async()=>{
+        if(!currentInquiry)return;const reason=$("#nurture-reason").value.trim();if(!reason)return toast("请填写保存培育计划的原因");
+        const button=$("#save-nurture-plan");button.disabled=true;const nextValue=$("#nurture-next-at").value;
+        const {error}=await supabase.rpc("save_inquiry_nurture",{target_inquiry_id:currentInquiry.id,next_nurture_at:nextValue?new Date(nextValue).toISOString():null,nurture_content:$("#nurture-note").value.trim()||null,change_reason:reason});button.disabled=false;
+        if(error)return toast("培育计划保存失败："+error.message);$("#nurture-reason").value="";toast("培育计划已保存并留痕");await Promise.all([openInquiryDetail(currentInquiry.id),activeModuleView==="nurture"?loadModule("nurture"):Promise.resolve()]);
+      });
+      $("#resubmit-nurtured-inquiry").addEventListener("click",async()=>{
+        if(!currentInquiry)return;const reason=$("#nurture-reason").value.trim();if(!reason)return toast("请填写重新提交销售的依据");
+        if(!confirm("确认该线索已达到重新提交条件，并进入待分配池？"))return;const button=$("#resubmit-nurtured-inquiry");button.disabled=true;
+        const {error}=await supabase.rpc("resubmit_nurtured_inquiry",{target_inquiry_id:currentInquiry.id,change_reason:reason});button.disabled=false;if(error)return toast("重新提交失败："+error.message);
+        $("#nurture-reason").value="";toast("已重新提交主管分配，原退回与培育记录均已保留");await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries(),loadNotifications()]);
+      });
       function syncDetailedOutcomeVisibility(){
         const show=$("#detail-status").value==="lost";
         $("#detail-outcome-type-field").classList.toggle("hidden",!show);

@@ -814,9 +814,17 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 16px;
+        position: sticky;
+        top: 0;
+        z-index: 12;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(16px);
+        box-shadow: 0 8px 22px rgba(34, 59, 52, 0.05);
       }
       .modal-head h3 {
         margin: 0;
+        min-width: 0;
       }
       .close {
         border: 0;
@@ -824,8 +832,12 @@
         border-radius: 9px;
         width: 34px;
         height: 34px;
+        flex: 0 0 34px;
+        position: relative;
+        z-index: 13;
         cursor: pointer;
       }
+      .modal-head > .ghost { flex-shrink: 0; }
       .tabs {
         display: flex;
         gap: 6px;

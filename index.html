@@ -720,6 +720,7 @@
         background: rgba(255, 255, 255, 0.96);
         backdrop-filter: blur(10px);
       }
+      .qualification-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.qualification-card{padding:16px;border:1px solid var(--line);border-radius:16px;background:rgba(248,251,250,.82)}.qualification-card label{display:block;font-weight:800;margin-bottom:8px}.qualification-card small{display:block;color:var(--muted);margin:0 0 10px;line-height:1.45}.qualification-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding:16px 18px;border-radius:16px;background:var(--soft)}.qualification-summary b{font-size:24px}.sales-disposition-actions{display:flex;gap:10px;flex-wrap:wrap}.sales-disposition-actions .danger{background:#fff1ed;color:#a13f2d;border:1px solid #efc5bb}@media(max-width:760px){.qualification-grid{grid-template-columns:1fr}}
       .quality-panel{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--soft)}
       .quality-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
       .quality-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -1637,6 +1638,7 @@
           <button class="detail-tab active" type="button" data-detail-tab="pipeline">流水线</button>
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
+          <button class="detail-tab" type="button" data-detail-tab="qualification">资格核验</button>
           <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="events">公司大事件</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
@@ -1793,6 +1795,23 @@
             <div id="detail-invalid-review" class="hidden" style="margin-top:13px;padding:14px;border:1px solid #e4c589;border-radius:12px;background:#fff8eb"></div>
           </div>
           <p class="hint">市场部、主管和老板可直接判断；业务员提交无效申请，由主管确认后关闭并计入经营看板。所有操作保留修改前内容、操作人、时间与原因。</p>
+        </div>
+        <div class="form-body detail-section hidden" data-detail-section="qualification">
+          <div class="qualification-summary"><div><span class="hint">MTL 6+1 渐进式核验</span><br><b id="qualification-score-label">0 / 100</b></div><span id="qualification-priority-label" class="tag">P2 常规</span></div>
+          <p class="hint">每项都可以单独补充，未知信息可留空；保存时按现有证据计算成熟度，不把资料补充设为必填。</p>
+          <div class="qualification-grid">
+            <div class="qualification-card"><label>1. 公司身份</label><small>公司主体、官网、国家、联系人身份是否可核验</small><textarea id="qualification-identity" class="input" rows="3"></textarea></div>
+            <div class="qualification-card"><label>2. 明确需求</label><small>产品、规格、数量、应用场景或项目目标</small><textarea id="qualification-need" class="input" rows="3"></textarea></div>
+            <div class="qualification-card"><label>3. 联系人角色</label><small>决策人、影响人、采购执行人或信息收集者</small><textarea id="qualification-role" class="input" rows="3"></textarea></div>
+            <div class="qualification-card"><label>4. 价值/预算</label><small>预算区间、预估金额、采购规模或长期价值</small><textarea id="qualification-value" class="input" rows="3"></textarea></div>
+            <div class="qualification-card"><label>5. 时间窗口</label><small>采购时间、项目节点、交付要求或紧迫性</small><textarea id="qualification-timing" class="input" rows="3"></textarea></div>
+            <div class="qualification-card"><label>6. 业务匹配</label><small>目标市场、产品能力、认证与服务范围匹配度</small><textarea id="qualification-fit" class="input" rows="3"></textarea></div>
+            <div class="qualification-card"><label>+1. 明确下一步</label><small>下一次会议、补充资料、报价或样品动作与负责人</small><textarea id="qualification-next-step" class="input" rows="3"></textarea></div>
+            <div class="qualification-card"><label>线索优先级 / SLA</label><small>P0 立即、P1 30 分钟、P2 4 小时、P3 1 个工作日</small><select id="qualification-priority" class="input"><option value="P0">P0 · 立即处理</option><option value="P1">P1 · 30 分钟</option><option value="P2">P2 · 4 小时</option><option value="P3">P3 · 1 个工作日</option></select></div>
+          </div>
+          <div class="field"><label>本次补充/修改原因 *</label><input id="qualification-reason" class="input" placeholder="例如：根据客户邮件补充采购时间" /></div>
+          <div class="form-actions"><button id="save-qualification" class="primary" type="button">保存资格核验</button></div>
+          <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--line)"><h4>销售接收处理</h4><p id="sales-disposition-status" class="hint">尚未处理</p><div class="field"><label>接收/退回原因 *</label><input id="sales-disposition-reason" class="input" placeholder="接受请说明下一步；退回请说明缺失条件与培育建议" /></div><div class="sales-disposition-actions"><button id="sales-accept-inquiry" class="primary" type="button">接受为销售线索</button><button id="sales-recycle-inquiry" class="danger" type="button">退回市场培育</button></div></div>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="followup">
           <div id="detail-workflow-lock" class="notice hidden" style="margin-bottom:16px">请先在“有效性判断”中确认询盘有效；确认前不能推进阶段、分配负责人或新增跟进。</div>
@@ -3169,7 +3188,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,updated_at,assigned_at,first_valid_contact_at,quoted_at,next_follow_up_at,retained_until,public_pool_entered_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
+              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,updated_at,assigned_at,first_valid_contact_at,first_contact_due_at,quoted_at,next_follow_up_at,retained_until,public_pool_entered_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,qualification_identity,qualification_need,qualification_role,qualification_value,qualification_timing,qualification_fit,qualification_next_step,qualification_score,lead_priority,sales_disposition,sales_disposition_at,sales_disposition_by,recycle_reason,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
             )
             .eq("id", id)
             .single(),
@@ -3225,6 +3244,10 @@
         $("#detail-expected-close").value = inquiry.expected_close_date || "";
         $("#detail-deal-type").value = inquiry.deal_type || "new";
         $("#detail-primary-source").value = inquiry.primary_source || inquiry.source || "other";
+        const qualificationFields={identity:"qualification_identity",need:"qualification_need",role:"qualification_role",value:"qualification_value",timing:"qualification_timing",fit:"qualification_fit",nextStep:"qualification_next_step"};
+        Object.entries(qualificationFields).forEach(([elementKey,column])=>{$(`#qualification-${elementKey.replace(/[A-Z]/g,m=>`-${m.toLowerCase()}`)}`).value=inquiry[column]||""});
+        $("#qualification-priority").value=inquiry.lead_priority||"P2";
+        renderQualificationSummary(inquiry);
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
         $("#detail-original-message").value = inquiry.original_message || "";
@@ -4184,6 +4207,40 @@
         review.classList.toggle("hidden",!pending);
         if(pending){const parsed=parseOutcomeReason(currentInquiry.invalid_request_reason||"");review.innerHTML=`<b>待主管审核的无效申请</b><p class="hint" style="margin:7px 0">${esc(outcomeReasonNames[parsed.type]||"其他")}：${esc(parsed.detail||"未填写说明")}</p>${canReview?`<div class="field"><label>审核原因 *</label><input id="detail-invalid-review-reason" class="input" placeholder="填写通过或驳回依据" /></div><div class="form-actions" style="margin:10px 0 0"><button id="reject-invalid-request" class="ghost" type="button">驳回申请</button><button id="approve-invalid-request" class="primary" type="button">确认无效并关闭</button></div>`:`<span class="tag">等待主管审核</span>`}`;if(canReview){$("#approve-invalid-request").onclick=()=>reviewInvalidRequest(true);$("#reject-invalid-request").onclick=()=>reviewInvalidRequest(false)}}
       }
+      const qualificationFieldIds=["identity","need","role","value","timing","fit","next-step"];
+      function qualificationScoreFromForm(){
+        const completed=qualificationFieldIds.filter(key=>$(`#qualification-${key}`).value.trim()).length;
+        return Math.round(completed/qualificationFieldIds.length*100);
+      }
+      function renderQualificationSummary(inquiry=currentInquiry){
+        const score=Number.isFinite(Number(inquiry?.qualification_score))?Number(inquiry.qualification_score):qualificationScoreFromForm();
+        const priority=inquiry?.lead_priority||$("#qualification-priority").value||"P2";
+        const sla={P0:"立即",P1:"30 分钟",P2:"4 小时",P3:"1 个工作日"}[priority];
+        $("#qualification-score-label").textContent=`${score} / 100`;
+        $("#qualification-priority-label").textContent=`${priority} · ${sla}`;
+        const disposition={pending:"尚未处理",accepted:"销售已接受",recycled:"已退回市场培育"}[inquiry?.sales_disposition||"pending"];
+        $("#sales-disposition-status").textContent=`${disposition}${inquiry?.sales_disposition_at?` · ${fmtDate(inquiry.sales_disposition_at)}`:""}${inquiry?.recycle_reason?` · ${inquiry.recycle_reason}`:""}`;
+        const canDisposition=["owner","sales_manager","sales"].includes(profile?.role)&&inquiry?.validity==="valid"&&Boolean(inquiry?.owner_id);
+        ["sales-accept-inquiry","sales-recycle-inquiry"].forEach(id=>{$("#"+id).disabled=!canDisposition});
+      }
+      qualificationFieldIds.forEach(key=>$("#qualification-"+key).addEventListener("input",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value})));
+      $("#qualification-priority").addEventListener("change",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value}));
+      $("#save-qualification").addEventListener("click",async()=>{
+        if(!currentInquiry)return;
+        const reason=$("#qualification-reason").value.trim();if(!reason)return toast("请填写本次资格核验的修改原因");
+        const button=$("#save-qualification");button.disabled=true;
+        const update={qualification_identity:$("#qualification-identity").value.trim()||null,qualification_need:$("#qualification-need").value.trim()||null,qualification_role:$("#qualification-role").value.trim()||null,qualification_value:$("#qualification-value").value.trim()||null,qualification_timing:$("#qualification-timing").value.trim()||null,qualification_fit:$("#qualification-fit").value.trim()||null,qualification_next_step:$("#qualification-next-step").value.trim()||null,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value,last_change_reason:reason,updated_by:profile.id,updated_at:new Date().toISOString()};
+        const {error}=await supabase.from("inquiries").update(update).eq("id",currentInquiry.id);button.disabled=false;if(error)return toast("资格核验保存失败："+error.message);
+        Object.assign(currentInquiry,update);$("#qualification-reason").value="";renderQualificationSummary(currentInquiry);toast("资格核验已保存，资料可继续渐进补充，修改记录已留痕");await loadTimeline(currentInquiry.id);
+      });
+      async function setSalesDisposition(disposition){
+        if(!currentInquiry)return;const reason=$("#sales-disposition-reason").value.trim();if(!reason)return toast("请填写接收或退回原因");
+        const button=$(disposition==="accepted"?"#sales-accept-inquiry":"#sales-recycle-inquiry");button.disabled=true;
+        const {error}=await supabase.rpc("set_inquiry_sales_disposition",{target_inquiry_id:currentInquiry.id,disposition,disposition_reason:reason});button.disabled=false;if(error)return toast("销售处理失败："+error.message);
+        $("#sales-disposition-reason").value="";toast(disposition==="accepted"?"销售已接受该线索并留痕":"已退回市场培育并留痕");await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries(),loadNotifications()]);
+      }
+      $("#sales-accept-inquiry").addEventListener("click",()=>setSalesDisposition("accepted"));
+      $("#sales-recycle-inquiry").addEventListener("click",()=>setSalesDisposition("recycled"));
       function syncDetailedOutcomeVisibility(){
         const show=$("#detail-status").value==="lost";
         $("#detail-outcome-type-field").classList.toggle("hidden",!show);

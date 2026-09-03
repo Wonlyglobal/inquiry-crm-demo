@@ -467,6 +467,10 @@
       .sales-profile-hero { display:flex; justify-content:space-between; gap:18px; align-items:center; margin-bottom:14px; padding:18px; }
       .sales-profile-identity { display:flex; align-items:center; gap:14px; }
       .sales-profile-avatar { width:58px; height:58px; display:grid; place-items:center; border-radius:16px; background:var(--soft); color:var(--rail); font-size:24px; font-weight:800; }
+      .avatar,.sales-profile-avatar{position:relative;overflow:hidden;border:0;padding:0;flex:0 0 auto}
+      button.avatar,button.sales-profile-avatar{cursor:pointer}
+      .avatar img,.sales-profile-avatar img,.member-avatar img,.target-person-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+      .avatar-uploading::after{content:"";position:absolute;inset:0;background:rgba(23,33,27,.55);background-image:radial-gradient(circle,#fff 1.5px,transparent 2px);background-size:8px 8px}
       .sales-profile-identity h1 { margin:0 0 4px; font-size:24px; }
       .sales-profile-identity p { margin:0; color:var(--muted); }
       .sales-profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
@@ -989,6 +993,25 @@
       .ai-suggestions button { flex:0 0 auto; border:1px solid var(--line); border-radius:999px; background:#fff; padding:7px 10px; font-size:10px; cursor:pointer; }
       .ai-compose { display:grid; grid-template-columns:1fr auto; gap:8px; padding:12px; border-top:1px solid var(--line); }
       .ai-compose textarea { width:100%; min-width:0; resize:none; min-height:44px; max-height:100px; }
+
+      /* 2026 workspace visual system: airy, card-led and function-preserving. */
+      :root{--ink:#16211c;--muted:#77827d;--line:#dce3e4;--paper:rgba(255,255,255,.82);--bg:#eef3f5;--rail:#eff4f4;--brand:#18342b;--green:#18342b;--green-dark:#10271f;--soft:#e1ece7;--danger:#bb5048;--blue:#2862ec;--cyan:#4a9db0;--yellow:#f5e83e;--rose:#efb6b7}
+      body{background:radial-gradient(circle at 18% 8%,rgba(208,225,244,.85),transparent 32%),radial-gradient(circle at 88% 12%,rgba(237,242,204,.72),transparent 28%),#eef2f3;letter-spacing:-.01em}
+      .app{grid-template-columns:206px minmax(0,1fr);gap:14px;padding:14px;min-height:100vh}
+      .rail{height:calc(100vh - 28px);top:14px;border:1px solid rgba(205,216,216,.92);border-radius:24px;background:rgba(246,249,249,.8);color:var(--ink);padding:18px 13px;box-shadow:0 20px 60px rgba(36,61,55,.08);backdrop-filter:blur(18px)}
+      .logo{font-size:15px;margin-bottom:20px}.logo>i{background:var(--brand);color:#fff;border-radius:50%}
+      .nav{height:44px;color:#5f6e68;border-radius:999px;padding:0 14px;font-size:12px}.nav:hover{background:#e5edeb;color:var(--ink)}.nav.active{background:var(--brand);color:#fff;box-shadow:0 7px 18px rgba(24,52,43,.18)}
+      .main{padding:0 18px 34px}.top{height:70px;border:0;padding:0 8px}.top h2{font-size:14px}.user{background:rgba(255,255,255,.62);border:1px solid rgba(214,223,222,.9);border-radius:999px;padding:6px 7px 6px 9px;box-shadow:0 8px 25px rgba(36,61,55,.06)}
+      .avatar{border-radius:50%;width:38px;height:38px;background:linear-gradient(145deg,#dbe8e3,#f8fbfa);color:var(--brand)}
+      .ghost,.primary,.table-action,.module-filter-select,.input{border-radius:999px}.primary{background:var(--brand);box-shadow:0 7px 18px rgba(24,52,43,.14)}.ghost{background:rgba(255,255,255,.76)}
+      textarea.input{border-radius:18px}.page{padding-top:14px}.heading{align-items:center;margin-bottom:16px;padding:0 4px}.heading h1{font-size:30px;letter-spacing:-.04em}.heading p{font-size:12px}
+      .card,.table-wrap,.dashboard-panel,.leaderboard,.inquiry-command,.quality-panel,.research-brief{background:rgba(255,255,255,.78);border-color:rgba(207,218,218,.9);border-radius:22px;box-shadow:0 14px 40px rgba(42,66,60,.055);backdrop-filter:blur(14px)}
+      .dashboard-toolbar{border-radius:22px}.kpi-value{letter-spacing:-.04em}.kpis{gap:12px}.kpis>.card:nth-child(4n+1){background:linear-gradient(145deg,rgba(222,239,255,.92),rgba(255,255,255,.8))}.kpis>.card:nth-child(4n+2){background:linear-gradient(145deg,rgba(218,241,235,.94),rgba(255,255,255,.8))}.kpis>.card:nth-child(4n+3){background:linear-gradient(145deg,rgba(255,240,191,.88),rgba(255,255,255,.8))}.kpis>.card:nth-child(4n){background:linear-gradient(145deg,rgba(245,218,221,.86),rgba(255,255,255,.8))}
+      .sales-total-card{border-radius:24px;background:linear-gradient(145deg,#172f27,#315c4c)}.table-wrap{overflow:hidden}.table-head,.leaderboard-head,.panel-title{background:rgba(248,251,250,.7)}
+      table th{font-size:11px;color:#73807a;text-transform:none}table td{background:rgba(255,255,255,.36)}tbody tr:hover td{background:rgba(230,239,236,.72)}
+      .sales-profile-hero{min-height:180px;padding:26px;border-radius:26px;background:linear-gradient(120deg,rgba(220,234,248,.94),rgba(247,250,239,.86))}.sales-profile-avatar{width:104px;height:104px;border-radius:50%;background:#fff;box-shadow:0 12px 30px rgba(31,55,48,.12);font-size:34px}.sales-profile-identity{gap:22px}.sales-profile-identity h1{font-size:28px;letter-spacing:-.04em}
+      .notice-panel,.modal,.ai-panel{border-radius:24px;background:rgba(255,255,255,.94);backdrop-filter:blur(18px)}
+      .ai-fab{background:var(--brand)}
       @media (max-width: 1250px) {
         .dashboard-toolbar-primary,.dashboard-toolbar-secondary { align-items:flex-start; flex-direction:column; }
         .dashboard-actions { width:100%; justify-content:flex-start; }
@@ -1010,11 +1033,9 @@
       }
       @media (max-width: 850px) {
         .target-plan-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.target-progress-wall{grid-template-columns:1fr}
-        .app {
-          grid-template-columns: 64px 1fr;
-        }
+        .app {grid-template-columns:64px 1fr;gap:8px;padding:8px}
         .rail {
-          padding: 18px 8px;
+          height:calc(100vh - 16px);top:8px;padding:18px 8px;
           align-items: center;
         }
         .logo b,
@@ -1027,9 +1048,7 @@
           padding: 0;
           justify-content: center;
         }
-        .main {
-          padding: 0 15px 24px;
-        }
+        .main {padding:0 8px 24px}.top h2{display:none}.user>div:nth-child(2){display:none}.user{margin-left:auto}.heading h1{font-size:25px}.sales-profile-avatar{width:76px;height:76px}
         .heading { align-items:flex-start; gap:12px; }
         .heading h1 { font-size:23px; }
         .heading-actions { flex-wrap:wrap; justify-content:flex-end; }
@@ -1132,7 +1151,7 @@
         <header class="top">
           <h2>王力 · 全球询盘 CRM</h2>
           <div class="user">
-            <div class="avatar" id="avatar">王</div>
+            <button class="avatar" id="avatar" type="button" aria-label="上传我的头像" title="点击上传我的头像">王</button>
             <div>
               <b id="user-name">—</b><br /><small id="user-role">—</small>
             </div>
@@ -1314,13 +1333,14 @@
           </div>
         </section>
         <section id="sales-profile-page" class="page hidden">
-          <div class="sales-profile-hero card"><div class="sales-profile-identity"><div id="sales-profile-avatar" class="sales-profile-avatar">销</div><div><h1 id="sales-profile-name">个人业务主页</h1><p id="sales-profile-meta"></p></div></div><div class="heading-actions"><span id="sales-profile-period" class="tag"></span><button id="sales-profile-back" class="ghost">← 返回经营看板</button></div></div>
+          <div class="sales-profile-hero card"><div class="sales-profile-identity"><button id="sales-profile-avatar" class="sales-profile-avatar" type="button" aria-label="上传我的头像">销</button><div><h1 id="sales-profile-name">个人业务主页</h1><p id="sales-profile-meta"></p><small id="sales-profile-avatar-hint" class="hint hidden">点击头像可更换你的个人照片</small></div></div><div class="heading-actions"><span id="sales-profile-period" class="tag"></span><button id="sales-profile-back" class="ghost">← 返回经营看板</button></div></div>
           <div id="sales-profile-kpis" class="kpis dashboard-kpis"></div>
           <section class="dashboard-panel" style="margin-bottom:14px"><div class="panel-title"><b>个人商机阶段</b><span class="dashboard-scope-note">当前负责的全部未关闭及已关闭商机</span></div><div id="sales-profile-pipeline" class="sales-profile-pipeline"></div></section>
           <div class="sales-profile-grid"><section class="dashboard-panel"><div class="panel-title"><b>负责询盘</b><span id="sales-profile-inquiry-count" class="tag"></span></div><div id="sales-profile-inquiries" class="dashboard-table-scroll"></div></section><section class="dashboard-panel"><div class="panel-title"><b>跟进与风险</b><span id="sales-profile-followup-count" class="tag"></span></div><div id="sales-profile-followups" class="dashboard-table-scroll"></div></section></div>
         </section>
       </main>
     </div>
+    <input id="profile-avatar-file" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" />
     <div id="password-modal" class="modal-backdrop hidden">
       <div class="modal" style="max-width: 450px">
         <div class="modal-head"><h3 id="password-modal-title">首次登录，请修改密码</h3></div>
@@ -1925,6 +1945,7 @@
       let notificationChannel = null;
       let notificationItems = [], notificationFilter = "unread";
       let detailOriginView = "dashboard";
+      let currentSalesProfileUserId = null;
       $(".main").appendChild($("#detail-modal"));
       $(".main").appendChild($("#daily-modal"));
       const roleNames = {
@@ -1977,6 +1998,19 @@
         nigeria:["尼日利亚","Nigeria"],尼日利亚:["尼日利亚","Nigeria"],russia:["俄罗斯","Russia"],俄罗斯:["俄罗斯","Russia"]
       };
       function displayCountry(value){const raw=String(value||"").trim();if(!raw)return "—";if(/\s\/\s/.test(raw))return raw;const pair=countryBilingualNames[raw.toLowerCase()]||countryBilingualNames[raw];return pair?`${pair[0]} / ${pair[1]}`:raw;}
+      function setMemberAvatar(element, member, fallback = "成") {
+        if (!element) return;
+        element.replaceChildren();
+        const url = String(member?.avatar_url || "").trim();
+        if (url) {
+          const image = document.createElement("img");
+          image.src = url;
+          image.alt = `${member?.full_name || "成员"}头像`;
+          image.referrerPolicy = "no-referrer";
+          image.addEventListener("error", () => { element.replaceChildren(document.createTextNode((member?.full_name || fallback).slice(0, 1))); }, { once: true });
+          element.append(image);
+        } else element.textContent = (member?.full_name || fallback).slice(0, 1);
+      }
       const outcomeReasonNames={invalid_contact:"联系方式无效",irrelevant_business:"与门锁业务无关",unclear_demand:"无明确产品、数量或项目",spam:"垃圾或养号邮件",supplier_sales:"供应商推销",job_application:"求职信息",target_mismatch:"国家或客户类型不符合",duplicate:"重复询盘",budget:"预算不足",competitor:"选择竞争对手",project_cancelled:"项目取消或延期",no_response:"客户长期无回复",requirements_unmet:"产品或交期无法满足",other:"其他"};
       function parseOutcomeReason(value=""){const match=String(value).match(/^\[([a-z_]+)\]\s*(.*)$/s);return match?{type:match[1],detail:match[2]}:{type:value?"other":"",detail:value}}
       function icons() {
@@ -2092,7 +2126,7 @@
         $("#ai-assistant-open").classList.remove("hidden");
         $("#user-name").textContent = profile.full_name;
         $("#user-role").textContent = profile.job_title || roleNames[profile.role] || profile.role;
-        $("#avatar").textContent = profile.full_name.slice(0, 1);
+        setMemberAvatar($("#avatar"), profile, "王");
         const role = profile.role;
         const canConfigureMailboxes = ["owner", "sales_manager", "marketing"].includes(role);
         const visibility = {
@@ -2921,7 +2955,7 @@
         const allowed=profile.id===userId||["owner","marketing","sales_manager"].includes(profile.role);if(!allowed)return toast("当前账号无权查看该业务员主页");
         const {start,end}=dashboardRange(),allInquiries=dashboardState.rows.filter(x=>x.owner_id===userId),commercial=allInquiries.filter(x=>x.validity==="valid"),commercialIds=new Set(commercial.map(x=>x.id)),periodInquiries=allInquiries.filter(x=>inRange(x.created_at,start,end)),valid=periodInquiries.filter(x=>x.validity==="valid"),closed=valid.filter(x=>["won","lost"].includes(x.status)),won=valid.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,start,end)),assigned=valid.filter(x=>x.assigned_at),responded=assigned.filter(x=>x.first_valid_contact_at),fast=responded.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000),overdue=commercial.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&Date.now()-new Date(x.assigned_at)>1800000),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]),amount=sumWonCny(won),usd=fxToCny("USD")||0,memberFollowups=(dashboardState.followups||[]).filter(x=>x.author_id===userId&&commercialIds.has(x.inquiry_id)),lateTasks=memberFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<new Date());
         $("#dashboard-page").classList.add("hidden");$("#module-page").classList.add("hidden");$("#sales-profile-page").classList.remove("hidden");
-        $("#sales-profile-avatar").textContent=(member.full_name||"销").slice(0,1);$("#sales-profile-name").textContent=`${member.full_name} · 个人业务主页`;$("#sales-profile-meta").textContent=[member.english_name,member.job_title||roleNames[member.role],member.team,member.email].filter(Boolean).join(" · ");$("#sales-profile-period").textContent=`${start.toLocaleDateString("zh-CN")}—${end.toLocaleDateString("zh-CN")}`;
+        currentSalesProfileUserId=userId;setMemberAvatar($("#sales-profile-avatar"),member,"销");$("#sales-profile-avatar").disabled=userId!==profile.id;$("#sales-profile-avatar-hint").classList.toggle("hidden",userId!==profile.id);$("#sales-profile-name").textContent=`${member.full_name} · 个人业务主页`;$("#sales-profile-meta").textContent=[member.english_name,member.job_title||roleNames[member.role],member.team,member.email].filter(Boolean).join(" · ");$("#sales-profile-period").textContent=`${start.toLocaleDateString("zh-CN")}—${end.toLocaleDateString("zh-CN")}`;
         const kpis=[["询盘处理量",responded.length],["30分钟首次响应率",pct(fast.length,assigned.length)],["平均首次响应",mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN)],["有效询盘率",pct(valid.length,periodInquiries.filter(x=>x.validity!=="pending").length)],["报价率",pct(valid.filter(x=>quotedStages.has(x.status)).length,valid.length)],["成交率",pct(won.length,closed.length)],["成交额",`${money(amount,"CNY")}${usd?` / ${money(amount/usd,"USD")}`:""}`],["响应超时",overdue.length],["逾期跟进",lateTasks.length]];
         $("#sales-profile-kpis").innerHTML=kpis.map(([label,value],i)=>`<div class="card"><div class="kpi-label">${label}</div><div class="kpi-value ${i>6&&Number(value)>0?"danger-text":""}">${value}</div></div>`).join("");
         const stageKeys=["pending_assignment","received","qualified","contacted","quoted","sample_sent","negotiating","won","lost"];$("#sales-profile-pipeline").innerHTML=stageKeys.map(key=>`<div class="sales-profile-stage"><b>${commercial.filter(x=>x.status===key).length}</b><span>${statusNames[key]||key}</span></div>`).join("");
@@ -2997,7 +3031,7 @@
           return;
         }
         const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: dashboardEmailMessages }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }, { data: retentionRequests }] = await Promise.all([
-          supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active").eq("active", true),
+          supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active,avatar_url").eq("active", true),
           supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").limit(2000),
           supabase.from("email_messages").select("id,inquiry_id,direction,received_at,sent_at,created_at").order("created_at",{ascending:false}).limit(2000),
           supabase.from("channel_costs").select("*").limit(500),
@@ -5353,6 +5387,25 @@
       $$("[data-target-plan-metric]").forEach(button=>button.addEventListener("click",()=>{dashboardState.targetPlanMetric=button.dataset.targetPlanMetric;renderAnnualTargetPlan()}));
       $("#sales-view-inquiries").addEventListener("click",()=>switchView("inquiries"));
       $("#sales-open-profile").addEventListener("click",()=>openSalesProfilePage(profile.id));
+      $("#avatar").addEventListener("click",()=>$("#profile-avatar-file").click());
+      $("#sales-profile-avatar").addEventListener("click",()=>{if(currentSalesProfileUserId===profile?.id)$("#profile-avatar-file").click()});
+      $("#profile-avatar-file").addEventListener("change",async event=>{
+        const file=event.target.files?.[0];event.target.value="";if(!file)return;
+        if(!["image/jpeg","image/png","image/webp"].includes(file.type))return toast("头像仅支持 JPG、PNG 或 WebP");
+        if(file.size>3145728)return toast("头像文件不能超过 3 MB");
+        const targets=[$("#avatar"),currentSalesProfileUserId===profile.id?$("#sales-profile-avatar"):null].filter(Boolean);targets.forEach(el=>el.classList.add("avatar-uploading"));
+        const extension={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"}[file.type];
+        const path=`${profile.id}/avatar-${Date.now()}.${extension}`;
+        const uploaded=await supabase.storage.from("profile-avatars").upload(path,file,{cacheControl:"31536000",contentType:file.type,upsert:false});
+        if(uploaded.error){targets.forEach(el=>el.classList.remove("avatar-uploading"));return toast("头像上传失败："+uploaded.error.message)}
+        const avatarUrl=supabase.storage.from("profile-avatars").getPublicUrl(path).data.publicUrl;
+        const before={avatar_url:profile.avatar_url||null};
+        const saved=await supabase.from("profiles").update({avatar_url:avatarUrl,updated_at:new Date().toISOString()}).eq("id",profile.id).select("avatar_url,updated_at").single();
+        if(saved.error){targets.forEach(el=>el.classList.remove("avatar-uploading"));return toast("头像保存失败："+saved.error.message)}
+        const audit=await supabase.from("audit_logs").insert({actor_id:profile.id,entity_type:"profile",entity_id:profile.id,action:"avatar_updated",before_data:before,after_data:{avatar_url:avatarUrl},reason:"成员自主更新个人头像"});
+        profile.avatar_url=avatarUrl;const listed=dashboardState.profiles?.find(member=>member.id===profile.id);if(listed)listed.avatar_url=avatarUrl;targets.forEach(el=>{el.classList.remove("avatar-uploading");setMemberAvatar(el,profile)});
+        toast(audit.error?"头像已保存，但审计记录写入失败":"头像已更新");
+      });
       $("#sales-write-daily").addEventListener("click",openDailyReport);
       $("#manager-open-assignment").addEventListener("click",()=>switchView("assignment"));
       $("#manager-open-daily").addEventListener("click",openDailyReport);

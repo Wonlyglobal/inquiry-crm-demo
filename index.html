@@ -1642,6 +1642,7 @@
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
           <button class="detail-tab" type="button" data-detail-tab="qualification">资格核验</button>
           <button class="detail-tab" type="button" data-detail-tab="attribution">营销归因</button>
+          <button class="detail-tab" type="button" data-detail-tab="contact-policy">触达规则</button>
           <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="events">公司大事件</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
@@ -1825,6 +1826,7 @@
             <div class="field"><label>落地页/证据网址</label><input id="marketing-touch-url" class="input" placeholder="https://..." /></div><div class="field"><label>证据说明</label><input id="marketing-touch-evidence" class="input" placeholder="来源参数、邮件标题或客户确认内容" /></div><div class="field"><label><input id="marketing-touch-primary" type="checkbox" /> 设为主触点（用于渠道统计）</label></div><div class="field"><label>新增原因 *</label><input id="marketing-touch-reason" class="input" placeholder="例如：根据官网表单 UTM 参数补录" /></div><div class="form-actions"><button id="add-marketing-touch" class="primary" type="button">保存营销触点</button></div>
           </div>
         </div>
+        <div class="form-body detail-section hidden" data-detail-section="contact-policy"><h4 style="margin-top:0">触达频控与退订抑制</h4><p class="hint">开发信发送前强制校验；客户退订、禁止联系、联系依据未知或未到复联时间时均会阻止发送。</p><div id="contact-policy-status" class="notice" style="margin-bottom:16px">尚未设置触达规则</div><div class="detail-grid"><div class="field"><label>联系依据 *</label><select id="contact-consent-status" class="input"><option value="unknown">待确认</option><option value="legitimate_interest">客户主动询盘/合理业务联系</option><option value="opted_in">客户明确同意</option><option value="opted_out">客户已退订</option></select></div><div class="field"><label>最短触达间隔（天）</label><input id="contact-min-interval" class="input" type="number" min="1" max="90" value="7" /></div><div class="field"><label>下次允许触达</label><input id="contact-next-allowed" class="input" type="datetime-local" /></div><div class="field"><label><input id="contact-do-not-contact" type="checkbox" /> 禁止任何营销联系</label></div></div><div class="field"><label>规则说明</label><input id="contact-policy-note" class="input" placeholder="记录客户同意、退订或频控依据" /></div><div class="field"><label>修改原因 *</label><input id="contact-policy-reason" class="input" /></div><div class="form-actions"><button id="save-contact-policy" class="primary" type="button">保存触达规则</button></div></div>
         <div class="form-body detail-section hidden" data-detail-section="followup">
           <div id="detail-workflow-lock" class="notice hidden" style="margin-bottom:16px">请先在“有效性判断”中确认询盘有效；确认前不能推进阶段、分配负责人或新增跟进。</div>
           <div class="detail-grid">
@@ -3202,7 +3204,7 @@
         detailOriginView = $("#sales-profile-page").classList.contains("hidden")
           ? ($(".nav[data-view].active")?.dataset.view || "dashboard")
           : "sales-profile";
-        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: latestDraft }, { data: retentionRequest }, { data: marketingTouches }] = await Promise.all([
+        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: latestDraft }, { data: retentionRequest }, { data: marketingTouches }, { data: contactPolicy }] = await Promise.all([
           supabase
             .from("inquiries")
             .select(
@@ -3225,6 +3227,7 @@
           supabase.from("inquiry_retention_requests").select("id,requested_by,requested_until,reason,status,reviewed_by,review_reason,reviewed_at,created_at")
             .eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
           supabase.from("inquiry_marketing_touches").select("id,touch_at,channel,program_name,campaign_name,tactic_name,offer_name,landing_page,evidence_note,is_primary,created_at,created_by,profiles!inquiry_marketing_touches_created_by_fkey(full_name)").eq("inquiry_id",id).order("touch_at",{ascending:false}),
+          supabase.from("inquiry_contact_policies").select("inquiry_id,consent_status,do_not_contact,min_interval_days,next_allowed_at,last_contact_at,policy_note,updated_at").eq("inquiry_id",id).maybeSingle(),
         ]);
         if (error) {
           toast("详情加载失败：" + error.message);
@@ -3236,6 +3239,7 @@
         currentInquiry.email_intake = intake || null;
         currentInquiry.retentionRequest = retentionRequest || null;
         currentInquiry.marketingTouches = marketingTouches || [];
+        currentInquiry.contactPolicy = contactPolicy || null;
         $("#detail-title").textContent =
           `询盘 #${String(inquiry.inquiry_no).padStart(6, "0")} · ${inquiry.title}`;
         $("#detail-status").value = inquiry.status;
@@ -3277,6 +3281,7 @@
         $("#marketing-touch-at").value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
         const canAttribute=["owner","sales_manager","marketing"].includes(profile.role);
         $("#marketing-touch-form").classList.toggle("hidden",!canAttribute);
+        renderContactPolicy(contactPolicy);
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
         $("#detail-original-message").value = inquiry.original_message || "";
@@ -4256,6 +4261,13 @@
         const channelLabels={website:"官网",email:"邮件",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",referral:"转介绍",self_developed:"自主开发",other:"其他"};
         $("#marketing-touch-list").innerHTML=touches.length?touches.map(x=>`<div class="evidence-item"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><b>${x.is_primary?"★ 主触点 · ":""}${esc(channelLabels[x.channel]||x.channel)}</b><span class="hint">${fmtDate(x.touch_at)}</span></div><p style="margin:8px 0 4px">${esc([x.program_name,x.campaign_name,x.tactic_name,x.offer_name].filter(Boolean).join(" → ")||"未填写活动层级")}</p>${x.evidence_note?`<small>${esc(x.evidence_note)}</small>`:""}${x.landing_page?`<div><a href="${esc(x.landing_page)}" target="_blank" rel="noopener noreferrer">查看落地页/证据</a></div>`:""}<small class="hint">记录人：${esc(x.profiles?.full_name||"—")}</small></div>`).join(""):'<div class="evidence-item">暂无营销触点</div>';
       }
+      function localDateTimeValue(value){if(!value)return "";const d=new Date(value);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
+      function renderContactPolicy(policy){
+        const labels={unknown:"待确认",legitimate_interest:"客户主动询盘/合理业务联系",opted_in:"客户明确同意",opted_out:"客户已退订"},blocked=!policy||policy.do_not_contact||policy.consent_status==="opted_out"||policy.consent_status==="unknown"||(policy.next_allowed_at&&new Date(policy.next_allowed_at)>new Date());
+        $("#contact-consent-status").value=policy?.consent_status||"unknown";$("#contact-do-not-contact").checked=Boolean(policy?.do_not_contact);$("#contact-min-interval").value=policy?.min_interval_days||7;$("#contact-next-allowed").value=localDateTimeValue(policy?.next_allowed_at);$("#contact-policy-note").value=policy?.policy_note||"";
+        $("#contact-policy-status").textContent=!policy?"尚未设置触达规则":`${blocked?"当前禁止发送":"当前允许发送"} · ${labels[policy.consent_status]||policy.consent_status}${policy.next_allowed_at?` · 下次允许 ${fmtDate(policy.next_allowed_at)}`:""}`;
+        $("#contact-policy-status").style.color=blocked?"#a13f2d":"var(--green)";
+      }
       qualificationFieldIds.forEach(key=>$("#qualification-"+key).addEventListener("input",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value})));
       $("#qualification-priority").addEventListener("change",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value}));
       $("#save-qualification").addEventListener("click",async()=>{
@@ -4290,6 +4302,10 @@
         if(!currentInquiry)return;const touchedAt=$("#marketing-touch-at").value,reason=$("#marketing-touch-reason").value.trim();if(!touchedAt)return toast("请选择触点时间");if(!reason)return toast("请填写新增触点原因");
         const button=$("#add-marketing-touch");button.disabled=true;const {error}=await supabase.rpc("add_inquiry_marketing_touch",{target_inquiry_id:currentInquiry.id,touched_at:new Date(touchedAt).toISOString(),touch_channel:$("#marketing-touch-channel").value,program:$("#marketing-touch-program").value.trim()||null,campaign:$("#marketing-touch-campaign").value.trim()||null,tactic:$("#marketing-touch-tactic").value.trim()||null,offer:$("#marketing-touch-offer").value.trim()||null,landing_url:$("#marketing-touch-url").value.trim()||null,evidence:$("#marketing-touch-evidence").value.trim()||null,make_primary:$("#marketing-touch-primary").checked,change_reason:reason});button.disabled=false;
         if(error)return toast("营销触点保存失败："+error.message);["program","campaign","tactic","offer","url","evidence","reason"].forEach(key=>$("#marketing-touch-"+key).value="");$("#marketing-touch-primary").checked=false;toast("营销触点已保存并纳入归因记录");await openInquiryDetail(currentInquiry.id);
+      });
+      $("#save-contact-policy").addEventListener("click",async()=>{
+        if(!currentInquiry)return;const reason=$("#contact-policy-reason").value.trim();if(!reason)return toast("请填写触达规则修改原因");const days=Number($("#contact-min-interval").value);if(!Number.isInteger(days)||days<1||days>90)return toast("最短触达间隔必须为 1–90 天");
+        const button=$("#save-contact-policy");button.disabled=true;const next=$("#contact-next-allowed").value;const {error}=await supabase.rpc("save_inquiry_contact_policy",{target_inquiry_id:currentInquiry.id,consent:$("#contact-consent-status").value,suppress_contact:$("#contact-do-not-contact").checked,interval_days:days,next_contact_at:next?new Date(next).toISOString():null,note:$("#contact-policy-note").value.trim()||null,change_reason:reason});button.disabled=false;if(error)return toast("触达规则保存失败："+error.message);$("#contact-policy-reason").value="";toast("触达规则已保存并留痕");await openInquiryDetail(currentInquiry.id);
       });
       function syncDetailedOutcomeVisibility(){
         const show=$("#detail-status").value==="lost";
@@ -5224,6 +5240,9 @@
       $("#send-outreach").addEventListener("click", async () => {
         const recipient = $("#outreach-recipient").value.trim();
         if (!recipient) return toast("询盘没有可用的客户邮箱");
+        const eligibility=await supabase.rpc("check_inquiry_contact_allowed",{target_inquiry_id:currentInquiry.id});
+        if(eligibility.error)return toast("触达规则校验失败："+eligibility.error.message);
+        if(!eligibility.data?.allowed)return toast("当前不能发送："+(eligibility.data?.reason||"触达规则未通过"));
         if (!confirm(`确认使用你已连接的业务员邮箱，将开发信发送给 ${recipient}？`)) return;
         const button = $("#send-outreach"); button.disabled = true; button.textContent = "发送中…";
         try {
@@ -5238,6 +5257,8 @@
             $("#outreach-status").textContent = `等待邮件服务发送 · ${fmtDate(data?.queued_at)}`;
             toast("开发信已加入发送队列");
           }
+          const contactRecorded=await supabase.rpc("record_inquiry_marketing_contact",{target_inquiry_id:currentInquiry.id,contact_reason:"开发信已发送或进入发送队列"});
+          if(contactRecorded.error)toast("邮件已处理，但频控时间更新失败："+contactRecorded.error.message);
         } catch (error) { $("#outreach-status").textContent = "发送失败，可修改后重试"; toast("开发信发送失败：" + (error.message || error)); }
         finally { if (!button.classList.contains("hidden")) button.disabled = false; button.textContent = "用我的邮箱发送"; }
       });

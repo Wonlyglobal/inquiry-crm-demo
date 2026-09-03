@@ -1641,6 +1641,7 @@
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
           <button class="detail-tab" type="button" data-detail-tab="qualification">资格核验</button>
+          <button class="detail-tab" type="button" data-detail-tab="attribution">营销归因</button>
           <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="events">公司大事件</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
@@ -1815,6 +1816,14 @@
           <div class="form-actions"><button id="save-qualification" class="primary" type="button">保存资格核验</button></div>
           <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--line)"><h4>销售接收处理</h4><p id="sales-disposition-status" class="hint">尚未处理</p><div class="field"><label>接收/退回原因 *</label><input id="sales-disposition-reason" class="input" placeholder="接受请说明下一步；退回请说明缺失条件与培育建议" /></div><div class="sales-disposition-actions"><button id="sales-accept-inquiry" class="primary" type="button">接受为销售线索</button><button id="sales-recycle-inquiry" class="danger" type="button">退回市场培育</button></div></div>
           <div id="nurture-plan-panel" class="hidden" style="margin-top:20px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--soft)"><h4 style="margin-top:0">市场培育计划</h4><p class="hint">退回原因必须保留；市场部可设置复联时间和培育动作，条件成熟后重新提交主管分配。</p><div class="detail-grid"><div class="field"><label>建议复联时间</label><input id="nurture-next-at" class="input" type="datetime-local" /></div><div class="field"><label>培育动作</label><input id="nurture-note" class="input" placeholder="例如：补充项目时间与预算后再次联系" /></div></div><div class="field"><label>本次操作原因 *</label><input id="nurture-reason" class="input" placeholder="保存计划或重新提交都必须填写依据" /></div><div class="form-actions"><button id="save-nurture-plan" class="ghost" type="button">保存培育计划</button><button id="resubmit-nurtured-inquiry" class="primary" type="button">重新提交销售分配</button></div></div>
+        </div>
+        <div class="form-body detail-section hidden" data-detail-section="attribution">
+          <div><h4 style="margin:0">营销触点与归因</h4><p class="hint">按 Program → Campaign → Tactic → Offer 保存每次可核验触点；多次触点并存，主触点用于渠道统计。</p></div>
+          <div id="marketing-touch-list" class="evidence-preview"><div class="evidence-item">暂无营销触点</div></div>
+          <div id="marketing-touch-form" style="margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--soft)">
+            <div class="detail-grid"><div class="field"><label>触点时间 *</label><input id="marketing-touch-at" class="input" type="datetime-local" /></div><div class="field"><label>渠道 *</label><select id="marketing-touch-channel" class="input"><option value="website">官网</option><option value="email">邮件</option><option value="google_ads">Google Ads</option><option value="meta_ads">Meta Ads</option><option value="linkedin">LinkedIn</option><option value="exhibition">展会</option><option value="referral">转介绍</option><option value="self_developed">自主开发</option><option value="other">其他</option></select></div><div class="field"><label>营销项目 Program</label><input id="marketing-touch-program" class="input" placeholder="例如：2026 海外工程客户增长" /></div><div class="field"><label>活动 Campaign</label><input id="marketing-touch-campaign" class="input" placeholder="例如：巴西矿业安防门推广" /></div><div class="field"><label>动作 Tactic</label><input id="marketing-touch-tactic" class="input" placeholder="例如：官网报价弹窗 / LinkedIn 私信" /></div><div class="field"><label>内容 Offer</label><input id="marketing-touch-offer" class="input" placeholder="例如：Security Door Catalog" /></div></div>
+            <div class="field"><label>落地页/证据网址</label><input id="marketing-touch-url" class="input" placeholder="https://..." /></div><div class="field"><label>证据说明</label><input id="marketing-touch-evidence" class="input" placeholder="来源参数、邮件标题或客户确认内容" /></div><div class="field"><label><input id="marketing-touch-primary" type="checkbox" /> 设为主触点（用于渠道统计）</label></div><div class="field"><label>新增原因 *</label><input id="marketing-touch-reason" class="input" placeholder="例如：根据官网表单 UTM 参数补录" /></div><div class="form-actions"><button id="add-marketing-touch" class="primary" type="button">保存营销触点</button></div>
+          </div>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="followup">
           <div id="detail-workflow-lock" class="notice hidden" style="margin-bottom:16px">请先在“有效性判断”中确认询盘有效；确认前不能推进阶段、分配负责人或新增跟进。</div>
@@ -3190,7 +3199,7 @@
         detailOriginView = $("#sales-profile-page").classList.contains("hidden")
           ? ($(".nav[data-view].active")?.dataset.view || "dashboard")
           : "sales-profile";
-        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: latestDraft }, { data: retentionRequest }] = await Promise.all([
+        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: latestDraft }, { data: retentionRequest }, { data: marketingTouches }] = await Promise.all([
           supabase
             .from("inquiries")
             .select(
@@ -3212,6 +3221,7 @@
             .eq("inquiry_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           supabase.from("inquiry_retention_requests").select("id,requested_by,requested_until,reason,status,reviewed_by,review_reason,reviewed_at,created_at")
             .eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
+          supabase.from("inquiry_marketing_touches").select("id,touch_at,channel,program_name,campaign_name,tactic_name,offer_name,landing_page,evidence_note,is_primary,created_at,created_by,profiles!inquiry_marketing_touches_created_by_fkey(full_name)").eq("inquiry_id",id).order("touch_at",{ascending:false}),
         ]);
         if (error) {
           toast("详情加载失败：" + error.message);
@@ -3222,6 +3232,7 @@
         // active inquiry record for outreach generation and reply workflows.
         currentInquiry.email_intake = intake || null;
         currentInquiry.retentionRequest = retentionRequest || null;
+        currentInquiry.marketingTouches = marketingTouches || [];
         $("#detail-title").textContent =
           `询盘 #${String(inquiry.inquiry_no).padStart(6, "0")} · ${inquiry.title}`;
         $("#detail-status").value = inquiry.status;
@@ -3259,6 +3270,10 @@
         $("#nurture-note").value=inquiry.nurture_note||"";
         const canNurture=["owner","sales_manager","marketing"].includes(profile.role);
         ["nurture-next-at","nurture-note","nurture-reason","save-nurture-plan","resubmit-nurtured-inquiry"].forEach(id=>{$("#"+id).disabled=!canNurture});
+        renderMarketingTouches(currentInquiry.marketingTouches);
+        $("#marketing-touch-at").value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+        const canAttribute=["owner","sales_manager","marketing"].includes(profile.role);
+        $("#marketing-touch-form").classList.toggle("hidden",!canAttribute);
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
         $("#detail-original-message").value = inquiry.original_message || "";
@@ -4234,6 +4249,10 @@
         const canDisposition=["owner","sales_manager","sales"].includes(profile?.role)&&inquiry?.validity==="valid"&&Boolean(inquiry?.owner_id);
         ["sales-accept-inquiry","sales-recycle-inquiry"].forEach(id=>{$("#"+id).disabled=!canDisposition});
       }
+      function renderMarketingTouches(touches=[]){
+        const channelLabels={website:"官网",email:"邮件",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",referral:"转介绍",self_developed:"自主开发",other:"其他"};
+        $("#marketing-touch-list").innerHTML=touches.length?touches.map(x=>`<div class="evidence-item"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><b>${x.is_primary?"★ 主触点 · ":""}${esc(channelLabels[x.channel]||x.channel)}</b><span class="hint">${fmtDate(x.touch_at)}</span></div><p style="margin:8px 0 4px">${esc([x.program_name,x.campaign_name,x.tactic_name,x.offer_name].filter(Boolean).join(" → ")||"未填写活动层级")}</p>${x.evidence_note?`<small>${esc(x.evidence_note)}</small>`:""}${x.landing_page?`<div><a href="${esc(x.landing_page)}" target="_blank" rel="noopener noreferrer">查看落地页/证据</a></div>`:""}<small class="hint">记录人：${esc(x.profiles?.full_name||"—")}</small></div>`).join(""):'<div class="evidence-item">暂无营销触点</div>';
+      }
       qualificationFieldIds.forEach(key=>$("#qualification-"+key).addEventListener("input",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value})));
       $("#qualification-priority").addEventListener("change",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value}));
       $("#save-qualification").addEventListener("click",async()=>{
@@ -4263,6 +4282,11 @@
         if(!confirm("确认该线索已达到重新提交条件，并进入待分配池？"))return;const button=$("#resubmit-nurtured-inquiry");button.disabled=true;
         const {error}=await supabase.rpc("resubmit_nurtured_inquiry",{target_inquiry_id:currentInquiry.id,change_reason:reason});button.disabled=false;if(error)return toast("重新提交失败："+error.message);
         $("#nurture-reason").value="";toast("已重新提交主管分配，原退回与培育记录均已保留");await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries(),loadNotifications()]);
+      });
+      $("#add-marketing-touch").addEventListener("click",async()=>{
+        if(!currentInquiry)return;const touchedAt=$("#marketing-touch-at").value,reason=$("#marketing-touch-reason").value.trim();if(!touchedAt)return toast("请选择触点时间");if(!reason)return toast("请填写新增触点原因");
+        const button=$("#add-marketing-touch");button.disabled=true;const {error}=await supabase.rpc("add_inquiry_marketing_touch",{target_inquiry_id:currentInquiry.id,touched_at:new Date(touchedAt).toISOString(),touch_channel:$("#marketing-touch-channel").value,program:$("#marketing-touch-program").value.trim()||null,campaign:$("#marketing-touch-campaign").value.trim()||null,tactic:$("#marketing-touch-tactic").value.trim()||null,offer:$("#marketing-touch-offer").value.trim()||null,landing_url:$("#marketing-touch-url").value.trim()||null,evidence:$("#marketing-touch-evidence").value.trim()||null,make_primary:$("#marketing-touch-primary").checked,change_reason:reason});button.disabled=false;
+        if(error)return toast("营销触点保存失败："+error.message);["program","campaign","tactic","offer","url","evidence","reason"].forEach(key=>$("#marketing-touch-"+key).value="");$("#marketing-touch-primary").checked=false;toast("营销触点已保存并纳入归因记录");await openInquiryDetail(currentInquiry.id);
       });
       function syncDetailedOutcomeVisibility(){
         const show=$("#detail-status").value==="lost";

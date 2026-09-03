@@ -447,10 +447,11 @@
       .sales-workbench-kpi-link:focus-visible { outline:3px solid rgba(209,115,50,.28); outline-offset:2px; }
       .sales-workbench-kpi-link span::after { content:" →"; color:var(--brand); font-weight:800; }
       .sales-task-list { border-top:1px solid var(--line); padding:8px 14px 14px; }
-      .sales-task-item { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; align-items:center; padding:11px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+      .sales-task-item { display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,auto) auto; gap:16px; align-items:center; padding:14px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
       .sales-task-item:last-child { border-bottom:0; }
       .sales-task-item:hover b { color:var(--brand); }
       .sales-task-item small { color:var(--muted); }
+      .sales-task-item>div{min-width:0;display:grid;gap:6px}.sales-task-item>div b{display:block;line-height:1.4;overflow-wrap:anywhere}.sales-task-item>div small{display:block;line-height:1.45;overflow-wrap:anywhere}.sales-task-item>small{white-space:nowrap}.sales-task-item>.tag{justify-self:end;white-space:nowrap}
       .manager-workbench { margin-bottom:14px; }
       .manager-workbench-body { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr); border-top:1px solid var(--line); }
       .manager-priority-list { padding:8px 14px 14px; }
@@ -1033,6 +1034,7 @@
         .legacy-dashboard-panels { grid-template-columns:1fr; }
         .trend-charts { grid-template-columns:1fr; }
         .sales-workbench-kpis { grid-template-columns:repeat(2,1fr); }
+        .sales-task-item{grid-template-columns:minmax(0,1fr) auto}.sales-task-item>small{grid-column:2;grid-row:1;align-self:start}.sales-task-item>.tag{grid-column:2;grid-row:1;align-self:end;margin-top:24px}
         .manager-workbench-body { grid-template-columns:1fr; }
         .manager-workload { border-left:0; border-top:1px solid var(--line); }
         .sales-profile-grid { grid-template-columns:1fr; }
@@ -2750,7 +2752,7 @@
       }
       function renderMarketingWorkbench(rows){
         if(profile?.role!=="marketing")return;
-        const visibleInquiryIds=new Set(rows.map(x=>x.id)),intakes=(dashboardState.emailIntakes||[]).filter(x=>!x.inquiry_id||visibleInquiryIds.has(x.inquiry_id)),companies=dashboardState.researchCompanies||[],today=chinaDate(),todayEmails=intakes.filter(x=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.received_at||x.created_at))===today),unprocessed=intakes.filter(x=>!["completed","processed","registered","done"].includes(String(x.processing_status||"").toLowerCase())),validityPending=rows.filter(x=>x.validity==="pending"),researchPending=companies.filter(x=>!["completed","confirmed","done"].includes(String(x.research_status||"").toLowerCase())),assignmentPending=rows.filter(x=>x.validity==="valid"&&x.status==="pending_assignment"),validDecided=rows.filter(x=>x.validity!=="pending"),validCount=validDecided.filter(x=>x.validity==="valid").length;
+        const visibleInquiryIds=new Set(rows.map(x=>x.id)),visibleCompanyIds=new Set(rows.map(x=>x.company_id).filter(Boolean)),intakes=(dashboardState.emailIntakes||[]).filter(x=>!x.inquiry_id||visibleInquiryIds.has(x.inquiry_id)),companies=(dashboardState.researchCompanies||[]).filter(x=>visibleCompanyIds.has(x.id)),today=chinaDate(),todayEmails=intakes.filter(x=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.received_at||x.created_at))===today),unprocessed=intakes.filter(x=>!["completed","processed","registered","done"].includes(String(x.processing_status||"").toLowerCase())),validityPending=rows.filter(x=>x.validity==="pending"),researchPending=companies.filter(x=>!["completed","confirmed","done","ready"].includes(String(x.research_status||"").toLowerCase())),assignmentPending=rows.filter(x=>x.validity==="valid"&&x.status==="pending_assignment"),validDecided=rows.filter(x=>x.validity!=="pending"),validCount=validDecided.filter(x=>x.validity==="valid").length;
         $("#marketing-workbench-kpis").innerHTML=[["今日新邮件",todayEmails.length],["邮件待处理",unprocessed.length],["有效性待确认",validityPending.length],["背调待完成",researchPending.length],["待主管分配",assignmentPending.length]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i>0&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         const tasks=[];unprocessed.forEach(x=>tasks.push({priority:1,id:x.inquiry_id,title:x.subject||x.sender_email||"新客户邮件",reason:`${x.sender_email||"未知发件人"} · 邮件尚未完成登记`,time:x.received_at||x.created_at,label:"处理邮件",view:"email"}));validityPending.forEach(x=>tasks.push({priority:2,id:x.id,title:x.title,reason:"尚未确认有效性和无效原因",time:x.created_at,label:"判断有效性",view:"inquiry"}));researchPending.slice(0,20).forEach(x=>tasks.push({priority:3,title:x.name||"待背调公司",reason:"公司背调尚未完成",time:x.updated_at,label:"完成背调",view:"research"}));assignmentPending.forEach(x=>{if(!tasks.some(t=>t.id===x.id))tasks.push({priority:4,id:x.id,title:x.title,reason:"已登记，等待提交或主管分配",time:x.updated_at||x.created_at,label:"检查登记",view:"inquiry"})});tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
         $("#marketing-priority-list").innerHTML=tasks.length?tasks.slice(0,12).map((t,i)=>`<div class="sales-task-item" data-marketing-task="${i}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无市场待处理事项</b><small>邮件、有效性与背调流程均已处理</small></div>';
@@ -3008,7 +3010,7 @@
         const { data, error } = await supabase
           .from("inquiries")
           .select(
-            "id,inquiry_no,title,source,status,validity,invalid_reason,lost_reason,created_at,updated_at,owner_id,target_country,product_category,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,risk_flag,original_message,contacts(email)",
+            "id,inquiry_no,title,source,status,validity,invalid_reason,lost_reason,created_at,updated_at,owner_id,company_id,target_country,product_category,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,risk_flag,original_message,contacts(email)",
           )
           .eq("excluded_from_dashboard", false)
           .order("created_at", { ascending: false })

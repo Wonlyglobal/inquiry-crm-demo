@@ -1,5 +1,17 @@
 # Production deployment audit
 
+## 2026-09-03 09:35:41 +08:00 — redefine company events as sourced online milestones
+
+- Targets: GitHub Pages production site and Supabase company record linked to inquiry #000002.
+- Executor: Codex acting through the authenticated `Wonlyglobal` GitHub account and the existing production mail-sync service role.
+- Reason: company events incorrectly duplicated CRM inquiry signals and even displayed research failures as events; the business owner defined this view as sourced online company milestones with an explicit relationship judgement against the current inquiry.
+- Before commit: `9333878a25beaa266c20c20261098773e5e854b7`.
+- Before `index.html` SHA-256: `b45c1afe036b5e5b183f7e054927dd58ec759dd37b96e90c1403a056186feb39`.
+- Before data retention: the prior and resulting `company_events`, execution time and reason are stored in `audit_logs` under action `company_events_online_research`.
+- Change summary: remove operational failure placeholders and duplicate inquiry-derived signals; keep the inquiry only as a timeline anchor; add `direct`, `possible`, `none` and `unknown` relationship judgements with reasons; display source links and preserve manual events.
+- #000002 result: online founding event dated 2004-04-20 (`none`) and official mining-license event dated 2020-04-24 (`possible`), plus the current inquiry anchor (`direct`) generated in the UI.
+- Reproducibility: the guarded population script is retained at `mail-sync/scripts/populate-mineracao-company-events.mjs`.
+
 ## 2026-09-03 09:27:13 +08:00 — reject public-email domains and repair Mineracao Canaa research
 
 - Targets: GitHub Pages production site and Supabase company record linked to inquiry #000002.

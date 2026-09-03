@@ -1,5 +1,16 @@
 # Production deployment audit
 
+## 2026-09-03 09:27:13 +08:00 — reject public-email domains and repair Mineracao Canaa research
+
+- Targets: GitHub Pages production site and Supabase company record linked to inquiry #000002.
+- Executor: Codex acting through the authenticated `Wonlyglobal` GitHub account and the existing production mail-sync service role.
+- Reason: the autonomous research flow incorrectly treated the contact's Gmail domain as the company's website domain, leaving the company identity and evidence empty.
+- Before commit: `bc21bb2439d134f77e1016751d1f39b722e11ea8`.
+- Before `index.html` SHA-256: `2d930436eeca4a1aa8af2fc3c6ed8edbcc927c372993ede4c4fb4aa49bc9bed8`.
+- Before data retention: the complete company row before and after the correction, executor context, timestamp and reason are stored in `audit_logs` under action `company_research_corrected`.
+- Change summary: block public mailbox providers from company-domain matching; fall back to unique company-name plus country matching; correct #000002 to `mineracaocanaa.com.br`; store four confirmed facts, one inbound demand signal and three evidence sources while keeping `research_required` because the website is unavailable and the Gmail contact still requires verification.
+- Reproducibility: the guarded one-off repair is retained at `mail-sync/scripts/repair-mineracao-canaa-research.mjs` and refuses to overwrite a later domain correction.
+
 ## 2026-09-02 16:50:28 +08:00 — color every inquiry pipeline stage
 
 - Target: GitHub Pages production site `http://crm.foreverdoodle.com/`.

@@ -4580,21 +4580,34 @@
         if (autonomousResearchInquiryId === currentInquiry.id) return;
         const button = $("#run-business-research");
         const intakeEmail = currentInquiry.email_intake?.sender_email || "";
+        const publicEmailDomains = new Set(["gmail.com","googlemail.com","outlook.com","hotmail.com","live.com","yahoo.com","icloud.com","qq.com","163.com","126.com","proton.me","protonmail.com"]);
         const normalizeDomain = (value) => String(value || "").trim().toLowerCase()
           .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
-        const domain = normalizeDomain($("#detail-research-domain").value || intakeEmail);
-        if (!domain) return toast("请先填写公司域名或确保询盘包含客户邮箱");
+        const normalizeCompanyName = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b(ltda|eireli|sa|s\/a|inc|llc|limited|industria|comercio)\b/g,"").replace(/[^a-z0-9]/g,"");
+        const normalizeCountry = (value) => ({brasil:"brazil",br:"brazil",巴西:"brazil",argentina:"argentina",阿根廷:"argentina",china:"china",中国:"china"}[String(value||"").trim().toLowerCase()]||String(value||"").trim().toLowerCase());
+        const candidateDomain = normalizeDomain($("#detail-research-domain").value || intakeEmail);
+        let domain = publicEmailDomains.has(candidateDomain) ? "" : candidateDomain;
+        const companyName = $("#detail-research-company").value.trim() || currentInquiry.companies?.name || "";
+        const companyCountry = $("#detail-smart-country").value.trim() || currentInquiry.target_country || "";
+        if (!domain && !companyName) return toast("请先填写公司名称；公共邮箱不能作为公司域名");
         autonomousResearchInquiryId = currentInquiry.id;
         button.disabled = true;
         button.textContent = "背调中…";
         $("#detail-research-status").textContent = "背调状态：正在查询 WONLY Business…";
         try {
           const base = "https://business.foreverdoodle.com/api/";
-          let index = { companies: [] }, hit = null, record;
+          let index = { companies: [] }, hit = null, record, matchMethod = "官网域名精确匹配";
           const indexResponse = await fetch(base + "index.json", { cache: "no-store" });
           if (!indexResponse.ok) throw new Error(`背调索引读取失败（${indexResponse.status}）`);
           index = await indexResponse.json();
-          hit = (index.companies || index || []).find((item) => normalizeDomain(item.domain) === domain);
+          const indexedCompanies = index.companies || index || [];
+          if (domain) hit = indexedCompanies.find((item) => normalizeDomain(item.domain) === domain);
+          if (!hit && companyName) {
+            const nameMatches = indexedCompanies.filter((item) => normalizeCompanyName(item.company || item.normName) === normalizeCompanyName(companyName));
+            const countryMatches = nameMatches.filter((item) => !companyCountry || normalizeCountry(item.countryName || item.country) === normalizeCountry(companyCountry));
+            const candidates = countryMatches.length ? countryMatches : nameMatches;
+            if (candidates.length === 1) { hit = candidates[0]; domain = normalizeDomain(hit.domain); matchMethod = "公司名称 + 国家唯一匹配"; }
+          }
           if (hit) {
             const detailResponse = await fetch(base + hit.file, { cache: "no-store" });
             if (!detailResponse.ok) throw new Error(`公司背调读取失败（${detailResponse.status}）`);
@@ -4602,10 +4615,10 @@
             record.researchStatus = "ready";
             record.dataUpdatedAt = record.addedDate || index.generatedAt || "";
           } else if (!record) {
-            $("#detail-research-company").value ||= domain;
+            $("#detail-research-company").value ||= companyName;
             $("#detail-research-domain").value = domain;
             updateDomainLink();
-            $("#detail-research-status").textContent = "背调状态：正在继续检索官网、新闻、地址与图片…";
+            $("#detail-research-status").textContent = "背调状态：WONLY Business 暂无唯一匹配，正在补充地址与图片；官网和公开证据待核验…";
             await completeOnlineResearchAndSave();
             const fallbackQuality = assessResearchQuality();
             $("#detail-research-status").textContent = fallbackQuality.ready
@@ -4621,7 +4634,7 @@
           $("#detail-research-type").value = record.categoryName || "";
           $("#detail-research-business").value = [record.productFocus, record.brandsCarried, record.scale].filter(Boolean).join("\n");
           const summary = [
-            `匹配：${record.company || hit?.company}（域名精确匹配，可信度 ${record.confidence || "待确认"}）`,
+            `匹配：${record.company || hit?.company}（${matchMethod}，可信度 ${record.confidence || "待确认"}）`,
             record.importSignal && `采购信号：${record.importSignal}`,
             record.projects && record.projects !== "None named" && `项目线索：${record.projects}`,
             record.fitReason && `契合判断：${record.fitReason}`,
@@ -4641,7 +4654,7 @@
           const signals = [`客户主动询盘：${inquiryDemand}｜判断：存在明确主动采购意向，具体项目与决策权限待核实｜来源：客户原始邮件｜日期：${inquiryDate ? fmtDate(inquiryDate) : "未知"}｜可信度：高`, record.importSignal && `采购/进口信号：${record.importSignal}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`, record.projects && record.projects !== "None named" && `项目线索：${record.projects}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`].filter(Boolean);
           const contacts = [inquiryEmail && `${currentInquiry.contact_name || currentInquiry.email_intake?.sender_name || "客户联系人"}｜${currentInquiry.contact_job_title || "职称待核实"}｜${inquiryEmail}｜客户原始邮件发件人已核验｜客户原始邮件`, record.decisionContact && `决策联系人：${record.decisionContact}｜已公开信息｜${record.contactSource || sourceUrl || "来源待补充"}`, record.email && `邮箱：${record.email}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`, record.phone && `电话：${record.phone}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`].filter(Boolean);
           $("#detail-research-deep-status").value = sourceUrl && record.confidence !== "low" ? "ready" : "research_required";
-          $("#detail-research-match-method").value = "官网域名精确匹配";
+          $("#detail-research-match-method").value = matchMethod;
           $("#detail-research-match-confidence").value = ["high", "medium", "low"].includes(record.confidence) ? record.confidence : "medium";
           $("#detail-research-source-updated").value = sourceDate;
           $("#detail-research-why-now").value = `客户已主动发送询盘，内容涉及：${inquiryDemand}。这是当前最强的一方采购信号，应在首次联系中尽快核实项目业主、技术规格、数量、预算、采购节点和决策链。${record.importSignal ? ` 外部采购信号：${record.importSignal}` : ""}`;

@@ -1530,6 +1530,7 @@
           ><button class="tab" data-tab="email">从客户邮件生成</button>
         </div>
         <form id="manual-form" class="form-body">
+          <p class="hint">适用于展会、LinkedIn、Google Ads、Meta Ads、飞书、转介绍、销售自主开发及其他非邮箱渠道；选择来源后补充具体活动或入口。</p>
           <div class="grid2">
             <div class="field">
               <label>客户邮箱 *</label
@@ -1559,6 +1560,9 @@
             </div>
             <div class="field">
               <label>来源渠道 *</label><select name="source" class="input" required><option value="outbound">销售自主开发</option><option value="website">官网表单</option><option value="email">企业邮箱</option><option value="feishu">飞书</option><option value="google_ads">Google Ads</option><option value="meta_ads">Meta Ads</option><option value="linkedin">LinkedIn</option><option value="exhibition">展会</option><option value="referral">经销商/客户转介绍</option><option value="other">其他</option></select>
+            </div>
+            <div class="field">
+              <label>渠道明细 / 活动名称</label><input name="source_detail" class="input" placeholder="例如：2026 Madrid 展会 / LinkedIn 私信" />
             </div>
           </div>
           <div class="field">
@@ -2448,6 +2452,12 @@
         $("#module-empty").classList.toggle("hidden", rows.length > 0);
         if (!rows.length && !filtered) setModuleState("empty", `当前暂无${$("#module-table-title").textContent}`);
       }
+      async function openCompanyResearch(companyId){
+        const {data,error}=await supabase.from("inquiries").select("id").eq("company_id",companyId).eq("excluded_from_dashboard",false).order("created_at",{ascending:false}).limit(1).maybeSingle();
+        if(error||!data?.id)return toast("该公司暂无可打开的询盘背调记录");
+        await openInquiryDetail(data.id);
+        if(currentInquiry?.id===data.id)setDetailTab("research");
+      }
       async function loadModule(view, options = {}) {
         if (view !== "inquiries") activeInquiryScope = "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
@@ -2546,7 +2556,8 @@
           const companyIds=[...new Set((linked.data||[]).map(x=>x.company_id).filter(Boolean))];
           query = linked.error ? Promise.resolve(linked) : companyIds.length ? supabase.from("companies").select("id,name,domain,country,company_type,main_business,risk_level,ai_summary,updated_at").in("id",companyIds).order("updated_at", { ascending: false }).limit(200) : Promise.resolve({data:[],error:null});
           columns = ["公司", "域名", "国家", "公司类型", "主营业务", "风险", "AI 摘要"];
-          mapper = (x) => ({ cells: [x.name, x.domain, x.country, x.company_type, x.main_business, x.risk_level, x.ai_summary] });
+          mapper = (x) => ({ id:x.id, cells: [x.name, x.domain, x.country, x.company_type, x.main_business, x.risk_level, x.ai_summary] });
+          clickable = true;
         } else if (view === "legacy-projects") {
           query = supabase.from("legacy_engineering_projects").select("legacy_project_id,country,partner_name,partner_province,partner_city,customer_type,project_name,product_type,funnel_bucket,factory_price_amount,contract_no,contract_quantity,contract_amount_wan,website,project_status,next_milestone_at,project_total_quantity,lead_source,follow_up_status,contact_name,contact_details,contact_title,lost_reason,lost_reason_description,legacy_owner_name,legacy_creator_name,source_created_at,legacy_modifier_name,source_updated_at,department").order("legacy_project_id", { ascending: false }).limit(1000);
           columns = ["旧 ID", "国家/地区", "合作方", "项目名称", "产品", "分类", "项目状态", "负责人", "下一节点", "合同金额（万元）", "操作"];
@@ -2615,7 +2626,7 @@
           $("#email-mark-warmup").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
         }
         const mappedRows = sourceRows.map(mapper);
-        const onRowClick = clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
+        const onRowClick = view === "research" ? (row) => row.id && openCompanyResearch(row.id) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, loadedAt:new Date().toISOString() });
         $("#module-table-context").textContent = `${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
@@ -4166,6 +4177,7 @@
         quantity,
         message,
         source,
+        sourceDetail,
         subject,
         notify,
       }) {
@@ -4226,6 +4238,7 @@
               quantity: quantity || null,
               target_country: country || null,
               source,
+              source_detail: sourceDetail || null,
               original_message: message || null,
               owner_id: profile.role === "sales" ? profile.id : null,
               status: profile.role === "sales" ? "received" : "pending_assignment",
@@ -4275,6 +4288,7 @@
             quantity: fd.get("quantity"),
             message: fd.get("message"),
             source: fd.get("source") || "outbound",
+            sourceDetail: fd.get("source_detail"),
             notify: fd.get("notify") === "on",
           });
           form.reset();

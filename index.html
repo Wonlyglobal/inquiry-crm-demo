@@ -901,6 +901,10 @@
         margin-left: auto;
         white-space: nowrap;
       }
+      .email-class-tabs { display:flex; gap:8px; flex-wrap:wrap; padding:0 18px 14px; }
+      .email-class-tab { border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--muted); padding:8px 13px; font-size:12px; font-weight:700; cursor:pointer; }
+      .email-class-tab b { margin-left:5px; color:inherit; }
+      .email-class-tab.active { border-color:var(--brand); background:var(--brand); color:#fff; }
       @media (max-width: 700px) {
         .email-triage-actions { padding-inline: 12px; }
         .email-triage-actions .tag { margin-left: 0; }
@@ -1396,6 +1400,7 @@
               <button id="module-refresh" class="table-action module-refresh" type="button" title="刷新当前列表"><i data-lucide="refresh-cw"></i><span>刷新</span></button>
             </div>
             <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="primary" type="button">一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
+            <div id="email-class-tabs" class="email-class-tabs hidden" aria-label="邮件分类"></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
             <div class="module-table-scroll"><table id="module-table"><thead><tr id="module-head"></tr></thead><tbody id="module-body"></tbody></table></div>
@@ -2289,7 +2294,7 @@
           })
           .subscribe();
       }
-      let activeModuleView = "", activeInquiryScope = "", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
+      let activeModuleView = "", activeInquiryScope = "", emailTriageFilter = "pending", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
       const selectedEmailIntakeIds=new Set();
       const moduleMemoryCache = new Map();
       const inquiryManagementDefinitions = {
@@ -2459,6 +2464,7 @@
         $("#module-insights").classList.add("hidden");
         $("#inquiry-command").classList.toggle("hidden", view !== "inquiries");
         $("#email-triage-actions").classList.toggle("hidden",view!=="email");
+        $("#email-class-tabs").classList.toggle("hidden",view!=="email");
         selectedEmailIntakeIds.clear();$("#email-selected-count").textContent="已选 0 条";
         $("#inquiry-filter-group").classList.toggle("hidden", view !== "inquiries");
         $("#inquiry-validity-filter").value = "";
@@ -2579,7 +2585,15 @@
         }
         if (view === "legacy-projects") renderLegacyInsights(data || []);
         if (view === "public-pool") renderPublicPoolInsights(data || []);
-        const sourceRows=view==="public-pool"?[...(data||[])].sort((a,b)=>new Date(b.public_pool_entered_at||b.updated_at)-new Date(a.public_pool_entered_at||a.updated_at)):(data||[]);
+        let sourceRows=view==="public-pool"?[...(data||[])].sort((a,b)=>new Date(b.public_pool_entered_at||b.updated_at)-new Date(a.public_pool_entered_at||a.updated_at)):(data||[]);
+        if(view==="email"){
+          const counts={all:sourceRows.length,pending:0,real:0,warmup:0};
+          sourceRows.forEach(item=>{if(item.triage_label==="real")counts.real++;else if(item.triage_label==="warmup")counts.warmup++;else counts.pending++});
+          const tabs=[["pending","待分拣"],["real","真实邮件"],["warmup","养号邮件"],["all","全部"]];
+          $("#email-class-tabs").innerHTML=tabs.map(([key,label])=>`<button class="email-class-tab ${emailTriageFilter===key?"active":""}" type="button" data-email-class="${key}">${label}<b>${counts[key]}</b></button>`).join("");
+          $$("#email-class-tabs button").forEach(button=>button.addEventListener("click",()=>{emailTriageFilter=button.dataset.emailClass;loadModule("email")}));
+          if(emailTriageFilter!=="all")sourceRows=sourceRows.filter(item=>emailTriageFilter==="pending"?!item.triage_label:item.triage_label===emailTriageFilter);
+        }
         const mappedRows = sourceRows.map(mapper);
         const onRowClick = clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);

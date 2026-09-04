@@ -27,6 +27,13 @@ begin
     end if;
 
     if intake.inquiry_id is not null then
+      insert into public.audit_logs(actor_id,entity_type,entity_id,action,before_data,after_data,reason)
+      values(
+        actor_id,'email_intake',intake.id,'convert_email_to_inquiry',
+        jsonb_build_object('inquiry_id',intake.inquiry_id,'processing_status',intake.processing_status,'triage_label',intake.triage_label),
+        jsonb_build_object('inquiry_id',intake.inquiry_id,'processing_status',case when intake.processing_status='pending_review' then 'converted' else intake.processing_status end,'triage_label','real'),
+        '人工确认已有询盘关联邮件为真实邮件；未重复创建询盘'
+      );
       update public.email_intake
       set triage_label='real',triaged_by=actor_id,triaged_at=coalesce(triaged_at,clock_timestamp()),
           processing_status=case when processing_status='pending_review' then 'converted' else processing_status end,

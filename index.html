@@ -1399,7 +1399,7 @@
               <button id="module-reset-filters" class="table-action hidden" type="button">清除筛选</button>
               <button id="module-refresh" class="table-action module-refresh" type="button" title="刷新当前列表"><i data-lucide="refresh-cw"></i><span>刷新</span></button>
             </div>
-            <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="primary" type="button">一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
+            <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="primary" type="button">一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><button id="email-trash-selected" class="email-mark-warmup" type="button">移入垃圾箱</button><button id="email-restore-selected" class="ghost hidden" type="button">恢复所选</button><button id="email-delete-selected" class="email-mark-warmup hidden" type="button">彻底删除</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
             <div id="email-class-tabs" class="email-class-tabs hidden" aria-label="邮件分类"></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
@@ -2522,7 +2522,7 @@
           mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写";return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions:[{label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)}]}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
           clickable = true;
         } else if (view === "email") {
-          query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,triage_label,received_at,created_at,inquiry_id").order("created_at", { ascending: false }).limit(200);
+          query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,triage_label,received_at,created_at,inquiry_id,trashed_at,trashed_by").order("created_at", { ascending: false }).limit(200);
           columns = ["选择","发件人", "邮件主题", "标记", "处理状态", "收件时间", "进入系统时间", "操作"];
           mapper = (x) => ({ id: x.inquiry_id,selectionId:x.id,cells:["",x.sender_email,x.subject,{real:"真实邮件",warmup:"养号邮件"}[x.triage_label]||"待分拣",{pending_review:"待人工分拣",converted:"已转询盘",rejected:"已排除",researching:"背调中",researched:"已完成背调",registered:"已提交分配",forwarded:"已转发业务员"}[x.processing_status]||x.processing_status,fmtDate(x.received_at||x.created_at),fmtDate(x.created_at)],actions:[{label:x.inquiry_id?"打开询盘":"转为询盘商机",onClick:()=>x.inquiry_id?openInquiryDetail(x.inquiry_id):convertEmailIntakes([x.id],true)}] });
           clickable = true;
@@ -2587,12 +2587,17 @@
         if (view === "public-pool") renderPublicPoolInsights(data || []);
         let sourceRows=view==="public-pool"?[...(data||[])].sort((a,b)=>new Date(b.public_pool_entered_at||b.updated_at)-new Date(a.public_pool_entered_at||a.updated_at)):(data||[]);
         if(view==="email"){
-          const counts={all:sourceRows.length,pending:0,real:0,warmup:0};
-          sourceRows.forEach(item=>{if(item.triage_label==="real")counts.real++;else if(item.triage_label==="warmup")counts.warmup++;else counts.pending++});
-          const tabs=[["pending","待分拣"],["real","真实邮件"],["warmup","养号邮件"],["all","全部"]];
+          const counts={all:0,pending:0,real:0,warmup:0,trash:0};
+          sourceRows.forEach(item=>{if(item.trashed_at)counts.trash++;else{counts.all++;if(item.triage_label==="real")counts.real++;else if(item.triage_label==="warmup")counts.warmup++;else counts.pending++}});
+          const tabs=[["pending","待分拣"],["real","真实邮件"],["warmup","养号邮件"],["all","全部"],["trash","垃圾箱"]];
           $("#email-class-tabs").innerHTML=tabs.map(([key,label])=>`<button class="email-class-tab ${emailTriageFilter===key?"active":""}" type="button" data-email-class="${key}">${label}<b>${counts[key]}</b></button>`).join("");
           $$("#email-class-tabs button").forEach(button=>button.addEventListener("click",()=>{emailTriageFilter=button.dataset.emailClass;loadModule("email")}));
-          if(emailTriageFilter!=="all")sourceRows=sourceRows.filter(item=>emailTriageFilter==="pending"?!item.triage_label:item.triage_label===emailTriageFilter);
+          sourceRows=sourceRows.filter(item=>emailTriageFilter==="trash"?Boolean(item.trashed_at):!item.trashed_at&&(emailTriageFilter==="all"||(emailTriageFilter==="pending"?!item.triage_label:item.triage_label===emailTriageFilter)));
+          $("#email-trash-selected").classList.toggle("hidden",emailTriageFilter==="trash");
+          $("#email-restore-selected").classList.toggle("hidden",emailTriageFilter!=="trash");
+          $("#email-delete-selected").classList.toggle("hidden",emailTriageFilter!=="trash"||profile.role!=="owner");
+          $("#email-convert-inquiry").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
+          $("#email-mark-warmup").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
         }
         const mappedRows = sourceRows.map(mapper);
         const onRowClick = clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
@@ -2624,6 +2629,10 @@
       async function convertEmailIntakes(ids,openAfter=false){if(!ids.length)return toast("请先勾选邮件");const button=$("#email-convert-inquiry");button.disabled=true;button.textContent="正在生成…";try{const result=await supabase.rpc("convert_email_intakes_to_inquiries",{target_ids:ids});if(result.error)return toast("转为询盘失败："+result.error.message);const converted=result.data||[];toast(`已处理 ${converted.length} 封邮件，询盘商机已生成`);selectedEmailIntakeIds.clear();await loadModule("email");if(openAfter&&converted[0]?.result_inquiry_id)await openInquiryDetail(converted[0].result_inquiry_id)}finally{button.disabled=false;button.textContent="一键转为询盘商机"}}
       $("#email-convert-inquiry").addEventListener("click",()=>convertEmailIntakes([...selectedEmailIntakeIds]));
       $("#email-mark-warmup").addEventListener("click",()=>markSelectedEmails("warmup"));
+      async function manageSelectedEmails(action){const ids=[...selectedEmailIntakeIds];if(!ids.length)return toast("请先勾选邮件");const config={trash:{rpc:"trash_email_intakes",title:"移入垃圾箱",message:`确认将所选 ${ids.length} 封邮件移入垃圾箱？`,confirm:"确认移入",success:"已移入垃圾箱"},restore:{rpc:"restore_email_intakes",title:"恢复邮件",message:`确认恢复所选 ${ids.length} 封邮件？`,confirm:"确认恢复",success:"已恢复"},delete:{rpc:"delete_trashed_email_intakes",title:"彻底删除邮件",message:`确认彻底删除所选 ${ids.length} 封邮件？\n\n此操作不可恢复，仅老板角色可以执行。`,confirm:"彻底删除",success:"已彻底删除"}}[action];if(!await appConfirm(config.message,{title:config.title,confirmText:config.confirm}))return;const result=await supabase.rpc(config.rpc,{target_ids:ids});if(result.error)return toast(config.title+"失败："+result.error.message);toast(`${config.success} ${result.data} 封邮件`);selectedEmailIntakeIds.clear();await loadModule("email")}
+      $("#email-trash-selected").addEventListener("click",()=>manageSelectedEmails("trash"));
+      $("#email-restore-selected").addEventListener("click",()=>manageSelectedEmails("restore"));
+      $("#email-delete-selected").addEventListener("click",()=>manageSelectedEmails("delete"));
       setInterval(()=>{if(activeModuleView==="email"&&document.visibilityState==="visible"&&!selectedEmailIntakeIds.size)loadModule("email")},60000);
       function renderLegacyInsights(rows) {
         const partners = new Set(rows.map(x => String(x.partner_name || "").trim().toLowerCase()).filter(Boolean)).size;

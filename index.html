@@ -360,7 +360,7 @@
       .period-tabs { display:inline-flex; align-items:center; padding:4px; gap:3px; border:1px solid var(--line); border-radius:12px; background:var(--soft); }
       .period-tab { border:0; background:transparent; color:var(--muted); padding:9px 15px; border-radius:9px; font-weight:700; cursor:pointer; white-space:nowrap; }
       .period-tab:hover { color:var(--ink); }
-      .period-tab.active { color:#b4531d; background:var(--soft); box-shadow:0 2px 7px rgba(31,75,56,.18); }
+      .period-tab.active { color:#fff; background:var(--green); box-shadow:0 4px 12px rgba(31,75,56,.24); }
       #dashboard-data-scope { min-width:122px; }
       .input.compact { width:auto; min-width:110px; padding:9px 10px; }
       .dashboard-kpis { grid-template-columns:repeat(4,1fr); }
@@ -797,6 +797,7 @@
       .pipeline-step.status-negotiating { background:#fff0e8; border-color:#e8c2ae; }
       .pipeline-step.status-won { background:#e2f2e7; border-color:#a9cfb6; }
       .pipeline-step.status-lost { background:#f5e9e7; border-color:#debab5; }
+      .pipeline-step:not(.visited):not(.active) { background:#f1f3f2; border-color:#d8ddda; color:#8a948f; box-shadow:none; }
       .pipeline-step.visited { box-shadow:inset 0 0 0 1px rgba(54,96,71,.22); }
       .pipeline-step.completed b::before { content:"✓ "; color:#356047; }
       .pipeline-step.active { border: 2px solid var(--green); color: #234b33; box-shadow:0 4px 12px rgba(45,91,63,.14); }
@@ -2463,7 +2464,9 @@
           mapper = (x) => ({ id: x.inquiry_id, cells: [x.sender_email, x.subject, x.processing_status, fmtDate(x.received_at || x.created_at), fmtDate(x.created_at)] });
           clickable = true;
         } else if (view === "research") {
-          query = supabase.from("companies").select("id,name,domain,country,company_type,main_business,risk_level,ai_summary,updated_at").order("updated_at", { ascending: false }).limit(200);
+          const linked=await supabase.from("inquiries").select("company_id").eq("excluded_from_dashboard",false).not("company_id","is",null);
+          const companyIds=[...new Set((linked.data||[]).map(x=>x.company_id).filter(Boolean))];
+          query = linked.error ? Promise.resolve(linked) : companyIds.length ? supabase.from("companies").select("id,name,domain,country,company_type,main_business,risk_level,ai_summary,updated_at").in("id",companyIds).order("updated_at", { ascending: false }).limit(200) : Promise.resolve({data:[],error:null});
           columns = ["公司", "域名", "国家", "公司类型", "主营业务", "风险", "AI 摘要"];
           mapper = (x) => ({ cells: [x.name, x.domain, x.country, x.company_type, x.main_business, x.risk_level, x.ai_summary] });
         } else if (view === "legacy-projects") {
@@ -2562,6 +2565,23 @@
         $("#module-insights").classList.remove("hidden");
       }
       async function openPublicPoolInquiry(id){await openInquiryDetail(id);if(currentInquiry?.id===id)setDetailTab("followup")}
+      async function submitInquiryToManager(id){
+        const registered=await supabase.rpc("register_inquiry_for_assignment",{target_inquiry_id:id});
+        if(registered.error)throw registered.error;
+        const notice=await supabase.functions.invoke("feishu-notify",{body:{inquiry_id:id,action:"registered"}});
+        if(notice.error)toast("已提交主管，但飞书群提醒失败："+notice.error.message);
+        else toast("已提交销售主管分配，并发送飞书群通知");
+        await Promise.all([loadInquiries(),loadNotifications()]);
+      }
+      async function openDirectAssignment(id){
+        const [{data:inquiry,error},{data:sales}]=await Promise.all([
+          supabase.from("inquiries").select("id,inquiry_no,title,source,owner_id").eq("id",id).single(),
+          supabase.from("profiles").select("id,full_name,email").eq("role","sales").eq("active",true).order("full_name")
+        ]);
+        if(error)return toast("询盘加载失败："+error.message);
+        openDashboardModal("分配询盘 #"+String(inquiry.inquiry_no).padStart(6,"0"),'<p><b>'+esc(inquiry.title)+'</b></p><div class="field"><label>分配给业务员 *</label><select id="quick-assignment-owner" class="input"><option value="">请选择业务员</option>'+((sales||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+" · "+esc(x.email)+'</option>').join(""))+'</select></div><div class="field"><label>分配原因 *</label><input id="quick-assignment-reason" class="input" value="销售主管分配新询盘" /></div><div class="form-actions"><button id="quick-assignment-submit" class="primary" type="button">确认分配并转发邮件</button></div><p class="hint">确认后将从公共询盘邮箱把原邮件转发给对应业务员，并发送飞书群通知。</p>');
+        $("#quick-assignment-submit").onclick=async()=>{const owner=$("#quick-assignment-owner").value,reason=$("#quick-assignment-reason").value.trim(),button=$("#quick-assignment-submit");if(!owner)return toast("请选择业务员");if(!reason)return toast("请填写分配原因");button.disabled=true;button.textContent="分配中…";const assigned=await supabase.rpc("assign_inquiry_to_sales",{target_inquiry_id:id,target_sales_id:owner,change_reason:reason});if(assigned.error){button.disabled=false;button.textContent="确认分配并转发邮件";return toast("分配失败："+assigned.error.message)}let forwardError=null;if(["email","website"].includes(inquiry.source)){const queued=await supabase.rpc("request_original_email_forward",{target_inquiry_id:id});if(queued.error&&!/转发队列|已经转发/.test(queued.error.message||""))forwardError=queued.error;else if(!queued.error){const delivered=await supabase.functions.invoke("email-forward",{body:{inquiry_id:id}});forwardError=delivered.error}}const notice=await supabase.functions.invoke("feishu-notify",{body:{inquiry_id:id,action:"assigned"}});$("#dashboard-modal").classList.add("hidden");toast(forwardError?"已分配，但原邮件转发失败："+forwardError.message:notice.error?"已分配并转发邮件，但飞书通知失败："+notice.error.message:"已分配，原邮件已转发给业务员，并通知飞书群");await Promise.all([loadInquiries(),loadNotifications()]);};
+      }
       function setActiveNavigation(view) {
         $$(".nav[data-view]").forEach((nav) => {
           const active = nav.dataset.view === view;
@@ -2795,7 +2815,7 @@
         const priorities=[];pendingInvalid.forEach(x=>priorities.push({priority:0,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===x.invalid_requested_by)?.full_name||"业务员"}提交无效申请，等待审核`,time:x.invalid_requested_at,label:"审核无效"}));pendingWon.forEach(a=>{const x=rows.find(row=>row.id===a.entity_id),requester=profiles.find(p=>p.id===a.actor_id)?.full_name||"业务员",d=a.after_data||{};if(x)priorities.push({priority:0,id:x.id,title:x.title,reason:`${requester}提交成交申请 · ${d.won_currency||""} ${Number(d.won_amount||0).toLocaleString("zh-CN")}`,time:a.created_at,label:"审核成交"})});pendingRetention.forEach(r=>{const x=rows.find(row=>row.id===r.inquiry_id),requester=profiles.find(p=>p.id===r.requested_by)?.full_name||"业务员";if(x)priorities.push({priority:0,id:x.id,title:x.title,reason:`${requester}申请保留至 ${r.requested_until}：${r.reason}`,time:r.created_at,label:"审核保留"})});expiredRetention.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"客户保留期已到，需决定延期、转派或释放公海",time:`${x.retained_until}T23:59:59+08:00`,label:"处理到期"}));pending.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"等待主管分配负责人",time:x.created_at,label:"待分配"}));customerReplies.forEach(x=>priorities.push({priority:2,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===x.owner_id)?.full_name||"负责人"}有客户新回复待处理`,time:x.latestInboundAt,label:"客户回复"}));responseOverdue.forEach(x=>priorities.push({priority:3,id:x.id,title:x.title,reason:"分配后超过 30 分钟未完成首次有效联系",time:x.assigned_at,label:"响应超时"}));overdueFollowups.forEach(f=>{const x=rows.find(row=>row.id===f.inquiry_id);if(x)priorities.push({priority:4,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===f.author_id)?.full_name||"业务员"}的跟进任务已逾期`,time:f.next_follow_up_at,label:"跟进逾期"})});
         priorities.push(...stageWarningTasks(open));const consolidated=consolidateTasks(priorities);
         $("#manager-priority-list").innerHTML=consolidated.length?consolidated.slice(0,12).map(t=>`<div class="sales-task-item" data-manager-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${taskTimeText(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无团队紧急事项</b><small>当前分配、响应和跟进均无异常</small></div>';
-        $$('[data-manager-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.managerTask)));
+        $$('[data-manager-task]').forEach(item=>item.addEventListener("click",()=>{const task=consolidated.find(x=>x.id===item.dataset.managerTask);if(task?.label==="待分配")return openDirectAssignment(item.dataset.managerTask);openInquiryDetail(item.dataset.managerTask)}));
         const loads=sales.map(member=>{const active=open.filter(x=>x.owner_id===member.id).length,late=responseOverdue.filter(x=>x.owner_id===member.id).length,tasks=overdueFollowups.filter(x=>x.author_id===member.id).length;return {name:member.full_name,active,late,tasks}}).sort((a,b)=>b.active-a.active),max=Math.max(...loads.map(x=>x.active),1);
         $("#manager-workload").innerHTML=`<h4>业务员负载</h4>${loads.length?loads.map(x=>`<div class="workload-row" data-sales-profile-name="${esc(x.name)}" role="button" tabindex="0"><span>${esc(x.name)}</span><div><div class="workload-bar"><i style="width:${Math.max(4,x.active/max*100)}%"></i></div><small>${x.late?`响应超时 ${x.late}`:"响应正常"}${x.tasks?` · 逾期任务 ${x.tasks}`:""}</small></div><b>${x.active} 条</b></div>`).join(""):'<div class="empty">暂无业务员数据</div>'}`;
         $$('[data-sales-profile-name]').forEach(row=>{const open=()=>{const member=sales.find(x=>x.full_name===row.dataset.salesProfileName);if(member)openSalesProfilePage(member.id)};row.addEventListener("click",open);row.addEventListener("keydown",event=>{if(event.key==="Enter")open()})});
@@ -3480,7 +3500,7 @@
         else if(currentInquiry.status==="won"){title="创建复购商机";detail="首次成交数据已锁定；后续采购应创建新的复购商机。";label="查看记录"}
         else if(currentInquiry.status==="lost"){title="复盘丢单原因";detail="确认丢单原因和可重新激活的时间窗口，避免覆盖历史记录。";label="查看记录"}
         box.classList.toggle("urgent",urgent);box.innerHTML=`<div><span>系统建议的下一步</span><b>${esc(title)}</b><p>${esc(detail)}</p></div><button class="${urgent?'primary':'ghost'}" type="button" data-next-action-tab="${tab}">${esc(label)}</button>`;
-        box.querySelector("[data-next-action-tab]")?.addEventListener("click",event=>setDetailTab(event.currentTarget.dataset.nextActionTab));
+        box.querySelector("[data-next-action-tab]")?.addEventListener("click",async event=>{if(!currentInquiry.owner_id&&currentInquiry.validity==="valid"){if(["owner","sales_manager"].includes(profile.role))return openDirectAssignment(currentInquiry.id);if(profile.role==="marketing"){try{return await submitInquiryToManager(currentInquiry.id)}catch(error){return toast("提交主管失败："+error.message)}}}setDetailTab(event.currentTarget.dataset.nextActionTab)});
         renderInquiryCompleteness(follows);
       }
       function renderInquiryCompleteness(follows=[]){
@@ -5560,7 +5580,7 @@
         const custom = event.target.value === "custom";
         $("#dashboard-start").classList.toggle("hidden", !custom);
         $("#dashboard-end").classList.toggle("hidden", !custom);
-        $$(".period-tab").forEach(button=>button.classList.toggle("active",button.dataset.period===event.target.value));
+        $$(".period-tab").forEach(button=>{const active=button.dataset.period===event.target.value;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});
         if (!custom) renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups);
       });
       $$(".period-tab").forEach(button=>button.addEventListener("click",()=>{$("#dashboard-period").value=button.dataset.period;$("#dashboard-period").dispatchEvent(new Event("change"))}));
@@ -5588,7 +5608,7 @@
         toast(audit.error?"头像已保存，但审计记录写入失败":"头像已更新");
       });
       $("#sales-write-daily").addEventListener("click",openDailyReport);
-      $("#manager-open-assignment").addEventListener("click",()=>switchView("assignment"));
+      $("#manager-open-assignment").addEventListener("click",async()=>{const next=dashboardState.rows.find(x=>x.validity==="valid"&&!x.owner_id&&!["won","lost"].includes(x.status));if(next)return openDirectAssignment(next.id);switchView("assignment")});
       $("#manager-open-daily").addEventListener("click",openDailyReport);
       $("#marketing-open-email").addEventListener("click",()=>switchView("email"));
       $("#marketing-open-research").addEventListener("click",()=>switchView("research"));

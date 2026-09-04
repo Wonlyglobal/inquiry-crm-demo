@@ -2658,7 +2658,8 @@
         const notice=await supabase.functions.invoke("feishu-notify",{body:{inquiry_id:id,action:"registered"}});
         if(notice.error)toast("已提交主管，但飞书群提醒失败："+notice.error.message);
         else toast("已提交销售主管分配，并发送飞书群通知");
-        await Promise.all([loadInquiries(),loadNotifications()]);
+        await loadNotifications();
+        await openInquiryDetail(id);
       }
       async function openDirectAssignment(id){
         const [{data:inquiry,error},{data:sales}]=await Promise.all([
@@ -3561,10 +3562,11 @@
       function renderNextBestAction(stages=[],follows=[],messages=[]){
         const box=$("#detail-next-action");if(!box||!currentInquiry)return;
         const now=new Date(),latestMessage=[...messages].sort((a,b)=>new Date(b.received_at||b.sent_at)-new Date(a.received_at||a.sent_at))[0],overdueFollow=[...follows].filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now).sort((a,b)=>new Date(a.next_follow_up_at)-new Date(b.next_follow_up_at))[0];
-        let title="继续维护客户关系",detail="检查最新沟通记录，并设置明确的下次跟进时间。",tab="followup",label="记录跟进",urgent=false;
+        let title="继续维护客户关系",detail="检查最新沟通记录，并设置明确的下次跟进时间。",tab="followup",label="记录跟进",urgent=false,actionDisabled=false;
         if(currentInquiry.validity==="invalid"){title="无效询盘已关闭";detail="相关 SLA、销售跟进和商机预警已停止；如需恢复，主管或市场部可重新标记为待核实。";tab="validity";label="查看判定"}
         else if(currentInquiry.invalid_review_status==="pending"){title="无效申请待主管审核";detail="审核完成前保持原流程，不计入无效询盘统计。";tab="validity";label="查看申请";urgent=["owner","sales_manager"].includes(profile?.role)}
-        else if(!currentInquiry.owner_id&&currentInquiry.validity==="valid"){title="分配询盘负责人";detail="询盘已确认有效，主管应指定负责业务员。";label="去分配";urgent=true}
+        else if(!currentInquiry.owner_id&&currentInquiry.validity==="valid"&&profile.role==="marketing"&&currentInquiry.email_intake?.registered_at){title="已提交，等待主管分配";detail=`市场部已于 ${fmtDate(currentInquiry.email_intake.registered_at)} 完成登记；主管选择负责人后，流水线将自动进入“收到询盘”。`;label="等待主管";actionDisabled=true}
+        else if(!currentInquiry.owner_id&&currentInquiry.validity==="valid"){title=profile.role==="marketing"?"提交主管分配":"分配询盘负责人";detail=profile.role==="marketing"?"询盘已确认有效，提交后进入主管的待分配池。":"询盘已确认有效，主管应指定负责业务员。";label=profile.role==="marketing"?"去提交":"去分配";urgent=true}
         else if(!currentInquiry.owner_id){title="先确认询盘有效性";detail="待核实询盘不会进入主管分配池。";tab="validity";label="判断有效性";urgent=true}
         else if(currentInquiry.validity==="pending"){title="确认询盘有效性";detail="在独立的有效性判断页签确认结果；判为无效时必须记录原因。";tab="validity";label="判断有效性";urgent=true}
         else if(currentInquiry.validity==="valid"&&currentInquiry.companies?.research_status!=="completed"&&currentInquiry.companies?.research_status!=="ready"){title="完成客户前置背调";detail="核验公司身份、业务匹配、采购信号、风险和联系人。";tab="research";label="去背调"}
@@ -3577,7 +3579,7 @@
         else if(currentInquiry.status==="contacted"){title="推进报价条件确认";detail="补齐规格、数量、贸易条款、目的港和交期后再进入报价阶段。";label="更新商机"}
         else if(currentInquiry.status==="won"){title="创建复购商机";detail="首次成交数据已锁定；后续采购应创建新的复购商机。";label="查看记录"}
         else if(currentInquiry.status==="lost"){title="复盘丢单原因";detail="确认丢单原因和可重新激活的时间窗口，避免覆盖历史记录。";label="查看记录"}
-        box.classList.toggle("urgent",urgent);box.innerHTML=`<div><span>系统建议的下一步</span><b>${esc(title)}</b><p>${esc(detail)}</p></div><button class="${urgent?'primary':'ghost'}" type="button" data-next-action-tab="${tab}">${esc(label)}</button>`;
+        box.classList.toggle("urgent",urgent);box.innerHTML=`<div><span>系统建议的下一步</span><b>${esc(title)}</b><p>${esc(detail)}</p></div><button class="${urgent?'primary':'ghost'}" type="button" data-next-action-tab="${tab}"${actionDisabled?' disabled':''}>${esc(label)}</button>`;
         box.querySelector("[data-next-action-tab]")?.addEventListener("click",async event=>{if(!currentInquiry.owner_id&&currentInquiry.validity==="valid"){if(["owner","sales_manager"].includes(profile.role))return openDirectAssignment(currentInquiry.id);if(profile.role==="marketing"){const confirmed=await appConfirm("确认将该有效询盘提交给销售主管分配负责人？\n\n确认后会登记到待分配池，并发送主管通知。",{title:"提交主管分配",confirmText:"确认提交"});if(!confirmed)return;try{return await submitInquiryToManager(currentInquiry.id)}catch(error){return toast("提交主管失败："+error.message)}}}setDetailTab(event.currentTarget.dataset.nextActionTab)});
         renderInquiryCompleteness(follows);
       }

@@ -3,6 +3,7 @@ import { simpleParser } from 'mailparser';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { writeFile } from 'node:fs/promises';
+import { parseWebsiteFormMessage, websiteInquiryTitle } from './website-form.mjs';
 
 const url=process.env.SUPABASE_URL;
 const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -18,11 +19,14 @@ const normalizeSubject=(v)=>String(v||'').replace(/^\s*((re|fw|fwd|答复|回复
 const addrList=(node)=>[...(node?.value||[])].map(x=>cleanEmail(x.address)).filter(Boolean);
 const headerId=(v)=>String(v||'').trim().replace(/^<|>$/g,'');
 const isSentFolder=(name)=>/sent|已发送|发件箱/i.test(name);
-const isInstantlyNurturing=(message,connection)=>connection.mailbox_kind==='shared_inquiry'&&message.direction==='inbound'&&/\bchloe\b/i.test([
-  message.sender_email,
-  message.subject,
-  message.body_text,
-].filter(Boolean).join('\n'));
+const isInstantlyNurturing=(message,connection)=>{
+  if(connection.mailbox_kind!=='shared_inquiry'||message.direction!=='inbound')return false;
+  const content=[message.sender_email,message.subject,message.body_text].filter(Boolean).join('\n');
+  // Instantly warm-up traffic currently carries either the Chloe identity or
+  // the campaign marker used by the warm-up pool. Keep it in the mail archive,
+  // but never create CRM inquiries, tasks, notifications, or dashboard data.
+  return /\bchloe\b/i.test(content)||/\b50JPRYT\b/i.test(content);
+};
 const sourceNames={email:'企业邮箱',manual:'手工录入（待补充渠道）',website:'官网表单',feishu:'飞书',google_ads:'Google Ads',meta_ads:'Meta Ads',linkedin:'LinkedIn',exhibition:'展会',outbound:'销售自主开发',referral:'经销商/客户转介绍',other:'其他'};
 const statusNames={pending_assignment:'待分配',received:'收到询盘',qualified:'有效询盘',contacted:'已联系',quoted:'已报价',sample_sent:'已寄样',negotiating:'谈判',won:'成交',lost:'丢单'};
 const validityNames={pending:'待确认',valid:'有效',invalid:'无效'};
@@ -41,7 +45,7 @@ async function sendDailyLeadReport(){
   if(sentError)throw sentError;if(sent?.length)return;
   const [{data:profiles,error:profileError},{data:inquiries,error:inquiryError}]=await Promise.all([
     db.from('profiles').select('id,full_name,role').eq('role','sales').eq('active',true),
-    db.from('inquiries').select('id,inquiry_no,created_by,source,target_country,product_category,validity,status,created_at').gte('created_at',start).lt('created_at',end).order('created_at',{ascending:true}),
+    db.from('inquiries').select('id,inquiry_no,created_by,source,target_country,product_category,validity,status,created_at').eq('excluded_from_dashboard',false).gte('created_at',start).lt('created_at',end).order('created_at',{ascending:true}),
   ]);
   if(profileError)throw profileError;if(inquiryError)throw inquiryError;
   const people=new Map((profiles||[]).map(x=>[x.id,x.full_name||'未命名业务员']));
@@ -118,17 +122,36 @@ async function matchInquiry(message, connection){
 async function createInquiryFromShared(message, connection){
   if(connection.mailbox_kind!=='shared_inquiry'||message.direction!=='inbound')return null;
   const creator=connection.created_by;
-  const domain=message.sender_email.split('@')[1]||null;
+  const websiteForm=parseWebsiteFormMessage(message);
+  const customerEmail=websiteForm?.email||message.sender_email;
+  const receivedAt=message.received_at||new Date().toISOString();
+  if(!websiteForm){
+    const {data:intake,error:intakeError}=await db.from('email_intake').insert({message_id:message.message_id||null,sender_email:customerEmail,sender_name:null,recipient_email:connection.email,subject:message.subject,body_text:message.body_text||'',received_at:receivedAt,parsed_data:{detected_source:'email'},processing_status:'pending_review',inquiry_id:null,created_by:creator,created_at:receivedAt}).select('id').single();
+    if(intakeError)throw intakeError;
+    const {data:markets}=await db.from('profiles').select('id').eq('role','marketing').eq('active',true);
+    if(markets?.length)await db.from('notifications').insert(markets.map(p=>({recipient_id:p.id,inquiry_id:null,type:'new_inquiry_email',title:'收到待分拣邮件',body:`${customerEmail} · ${message.subject||'无主题'}`})));
+    return {id:null,method:'shared_mailbox_pending_triage',intakeId:intake.id};
+  }
+  const domain=websiteForm.companyDomain||null;
+  const companyName=websiteForm?.companyName||domain||customerEmail;
   let companyId=null,contactId=null;
   if(domain){const {data:c}=await db.from('companies').select('id').ilike('domain',domain).maybeSingle();companyId=c?.id||null}
-  if(!companyId){const {data:c}=await db.from('companies').insert({name:domain||message.sender_email,domain,created_by:creator}).select('id').single();companyId=c?.id||null}
-  const {data:existing}=await db.from('contacts').select('id').eq('email',message.sender_email).maybeSingle();contactId=existing?.id||null;
-  if(!contactId){const {data:c}=await db.from('contacts').insert({company_id:companyId,email:message.sender_email,created_by:creator}).select('id').single();contactId=c?.id||null}
-  const {data:inq,error}=await db.from('inquiries').insert({company_id:companyId,contact_id:contactId,title:message.subject||`来自 ${message.sender_email} 的邮件询盘`,source:'email',original_message:message.body_text||'',status:'pending_assignment',created_by:creator,updated_by:creator,last_change_reason:'公共询盘邮箱自动收件'}).select('id').single();
+  if(!companyId&&websiteForm?.companyName){const {data:c}=await db.from('companies').select('id').ilike('name',websiteForm.companyName).limit(1);companyId=c?.[0]?.id||null}
+  if(!companyId){const {data:c}=await db.from('companies').insert({name:companyName,domain,country:websiteForm?.country||null,created_by:creator}).select('id').single();companyId=c?.id||null}
+  else if(websiteForm?.country)await db.from('companies').update({country:websiteForm.country,updated_at:new Date().toISOString()}).eq('id',companyId).is('country',null);
+  const {data:existing}=await db.from('contacts').select('id').eq('email',customerEmail).maybeSingle();contactId=existing?.id||null;
+  if(!contactId){const {data:c}=await db.from('contacts').insert({company_id:companyId,full_name:websiteForm?.name||null,email:customerEmail,phone:websiteForm?.phone||null,job_title:websiteForm?.jobTitle||null,created_by:creator}).select('id').single();contactId=c?.id||null}
+  const title=websiteForm?websiteInquiryTitle(websiteForm):(message.subject||`来自 ${message.sender_email} 的邮件询盘`);
+  const inquiryPayload={company_id:companyId,contact_id:contactId,title,product_category:websiteForm?.product||null,quantity:websiteForm?.quantity||null,target_country:websiteForm?.country||null,source:websiteForm?'website':'email',source_detail:websiteForm?.sourceDetail||null,original_message:message.body_text||'',status:'pending_assignment',created_by:creator,updated_by:creator,created_at:receivedAt,first_contact_due_at:new Date(new Date(receivedAt).getTime()+10*60000).toISOString(),last_change_reason:websiteForm?'官网表单自动解析入库':'公共询盘邮箱自动收件'};
+  const {data:inq,error}=await db.from('inquiries').insert(inquiryPayload).select('id').single();
   if(error)throw error;
-  await db.from('email_intake').insert({message_id:message.message_id||null,sender_email:message.sender_email,recipient_email:connection.email,subject:message.subject,body_text:message.body_text||'',received_at:message.received_at,processing_status:'pending_review',inquiry_id:inq.id,created_by:creator});
+  if(websiteForm?.journeyEvents?.length){
+    const {error:journeyError}=await db.from('inquiry_user_journey_events').insert(websiteForm.journeyEvents.map(event=>({...event,inquiry_id:inq.id})));
+    if(journeyError)console.error('Website journey persistence failed:',journeyError.message);
+  }
+  await db.from('email_intake').insert({message_id:message.message_id||null,sender_email:customerEmail,sender_name:websiteForm?.name||null,recipient_email:connection.email,subject:message.subject,body_text:message.body_text||'',received_at:receivedAt,parsed_data:websiteForm?{...websiteForm.rawFields,transport_sender:message.sender_email,detected_source:'website'}:{},processing_status:'pending_review',inquiry_id:inq.id,created_by:creator,created_at:receivedAt});
   const {data:markets}=await db.from('profiles').select('id').eq('role','marketing').eq('active',true);
-  if(markets?.length)await db.from('notifications').insert(markets.map(p=>({recipient_id:p.id,inquiry_id:inq.id,type:'new_inquiry_email',title:'收到新的邮件询盘',body:`${message.sender_email} · ${message.subject||'无主题'}`})));
+  if(markets?.length)await db.from('notifications').insert(markets.map(p=>({recipient_id:p.id,inquiry_id:inq.id,type:'new_inquiry_email',title:websiteForm?'收到新的官网询盘':'收到新的邮件询盘',body:`${customerEmail} · ${title}`})));
   return {id:inq.id,method:'shared_mailbox_created'};
 }
 
@@ -185,7 +208,7 @@ async function syncFolder(connection,password,folder){
         const references=Array.isArray(parsed.references)?parsed.references:(parsed.references?[parsed.references]:[]);
         const record={mailbox_connection_id:connection.id,folder,uid:msg.uid,message_id:headerId(parsed.messageId),in_reply_to:headerId(parsed.inReplyTo),reference_ids:references.map(headerId),direction:sent?'outbound':'inbound',sender_email:cleanEmail(parsed.from?.value?.[0]?.address),recipient_emails:addrList(parsed.to),cc_emails:addrList(parsed.cc),subject:parsed.subject||'',body_text:parsed.text||'',body_html:typeof parsed.html==='string'?parsed.html:'',sent_at:sent?(parsed.date||new Date()).toISOString():null,received_at:sent?null:(parsed.date||new Date()).toISOString(),attachment_count:parsed.attachments?.length||0,raw_headers:{message_id:parsed.messageId||null,in_reply_to:parsed.inReplyTo||null,references}};
         const nurturing=isInstantlyNurturing(record,connection);
-        let match=nurturing?{id:null,method:'instantly_chloe_filter'}:await matchInquiry(record,connection);
+        let match=nurturing?{id:null,method:'instantly_warmup_filter'}:await matchInquiry(record,connection);
         if(!nurturing&&!match.id)match=await createInquiryFromShared(record,connection)||match;
         const {data:row,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:nurturing?'ignored':match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
         if(error)throw error;if(row?.inquiry_id)await applyMatchedMessage(row,connection);

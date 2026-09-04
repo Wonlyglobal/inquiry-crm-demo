@@ -1198,7 +1198,7 @@
         ><button class="nav" data-view="inquiries">
           <i data-lucide="contact-round"></i><span>询盘商机</span></button
         ><button class="nav" data-view="email">
-          <i data-lucide="mail-plus"></i><span>邮件待处理</span></button
+          <i data-lucide="mail-plus"></i><span>邮件分拣</span></button
         ><button class="nav" data-view="assignment">
           <i data-lucide="inbox"></i><span>待分配池</span></button
         ><button class="nav" data-view="nurture">
@@ -1283,7 +1283,7 @@
             <div class="manager-workbench-body"><div><div class="panel-title"><b>团队紧急事项</b><span class="dashboard-scope-note">按严重程度与发生时间排序</span></div><div id="manager-priority-list" class="manager-priority-list"></div></div><div id="manager-workload" class="manager-workload"></div></div>
           </section>
           <section id="marketing-workbench" class="dashboard-panel manager-workbench hidden">
-            <div class="sales-workbench-head"><div><b>市场任务中心</b><p>从邮件接收、有效性判断、客户背调到提交分配</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">连接询盘邮箱</button><button id="marketing-open-email" class="primary">处理新邮件</button><button id="marketing-open-research" class="ghost">客户背调</button><button id="marketing-open-assignment" class="ghost">查看待分配</button></div></div>
+            <div class="sales-workbench-head"><div><b>市场任务中心</b><p>从邮件接收、人工分拣、有效性判断、客户背调到提交分配</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">连接询盘邮箱</button><button id="marketing-open-email" class="primary">进入邮件分拣</button><button id="marketing-open-research" class="ghost">客户背调</button><button id="marketing-open-assignment" class="ghost">查看待分配</button></div></div>
             <div id="marketing-workbench-kpis" class="sales-workbench-kpis"></div>
             <div class="manager-workbench-body"><div><div class="panel-title"><b>市场待处理事项</b><span class="dashboard-scope-note">按流程优先级排列</span></div><div id="marketing-priority-list" class="manager-priority-list"></div></div><div id="marketing-source-overview" class="manager-workload"></div></div>
           </section>
@@ -1395,7 +1395,7 @@
               <button id="module-reset-filters" class="table-action hidden" type="button">清除筛选</button>
               <button id="module-refresh" class="table-action module-refresh" type="button" title="刷新当前列表"><i data-lucide="refresh-cw"></i><span>刷新</span></button>
             </div>
-            <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-mark-real" class="primary" type="button">标记真实邮件</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
+            <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="primary" type="button">一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
             <div class="module-table-scroll"><table id="module-table"><thead><tr id="module-head"></tr></thead><tbody id="module-body"></tbody></table></div>
@@ -2415,7 +2415,7 @@
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
         const config = {
           inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
-          email: ["邮件待处理", "查看由客户邮件进入的询盘和解析状态", "邮件收件记录"],
+          email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
           assignment: ["待分配池", "主管按国家、语言、产品线和工作量进行分配", "等待分配的询盘"],
           nurture: ["市场培育池", "承接销售退回线索，按原因和复联时间持续培育", "待培育线索"],
           "public-pool": ["客户公海", "展示释放或转派后等待主管重新分配的客户", "待重新分配客户"],
@@ -2499,8 +2499,8 @@
           clickable = true;
         } else if (view === "email") {
           query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,triage_label,received_at,created_at,inquiry_id").order("created_at", { ascending: false }).limit(200);
-          columns = ["选择","发件人", "邮件主题", "标记", "处理状态", "收件时间", "进入系统时间"];
-          mapper = (x) => ({ id: x.inquiry_id,selectionId:x.id,cells:["",x.sender_email,x.subject,{real:"真实邮件",warmup:"养号邮件"}[x.triage_label]||"未标记",x.processing_status,fmtDate(x.received_at||x.created_at),fmtDate(x.created_at)] });
+          columns = ["选择","发件人", "邮件主题", "标记", "处理状态", "收件时间", "进入系统时间", "操作"];
+          mapper = (x) => ({ id: x.inquiry_id,selectionId:x.id,cells:["",x.sender_email,x.subject,{real:"真实邮件",warmup:"养号邮件"}[x.triage_label]||"待分拣",{pending_review:"待人工分拣",converted:"已转询盘",rejected:"已排除",researching:"背调中",researched:"已完成背调",registered:"已提交分配",forwarded:"已转发业务员"}[x.processing_status]||x.processing_status,fmtDate(x.received_at||x.created_at),fmtDate(x.created_at)],actions:[{label:x.inquiry_id?"打开询盘":"转为询盘商机",onClick:()=>x.inquiry_id?openInquiryDetail(x.inquiry_id):convertEmailIntakes([x.id],true)}] });
           clickable = true;
         } else if (view === "research") {
           const linked=await supabase.from("inquiries").select("company_id").eq("excluded_from_dashboard",false).not("company_id","is",null);
@@ -2588,9 +2588,11 @@
       $("#module-refresh").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       $("#module-stale-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       $("#email-select-all").addEventListener("click",()=>{const ids=moduleRows.map(x=>x.selectionId).filter(Boolean),all=ids.length&&ids.every(id=>selectedEmailIntakeIds.has(id));ids.forEach(id=>all?selectedEmailIntakeIds.delete(id):selectedEmailIntakeIds.add(id));$("#email-selected-count").textContent="已选 "+selectedEmailIntakeIds.size+" 条";renderModuleTable(moduleColumns,moduleRows,moduleRowClick,true)});
-      async function markSelectedEmails(label){const ids=[...selectedEmailIntakeIds];if(!ids.length)return toast("请先勾选邮件");if(label==="warmup"&&!confirm("确认将所选邮件标记为养号邮件？这些邮件将退出待处理队列。"))return;const result=await supabase.rpc("triage_email_intakes",{target_ids:ids,target_label:label});if(result.error)return toast("邮件标记失败："+result.error.message);toast("已标记 "+result.data+" 条"+(label==="warmup"?"养号邮件":"真实邮件"));selectedEmailIntakeIds.clear();await loadModule("email")}
-      $("#email-mark-real").addEventListener("click",()=>markSelectedEmails("real"));
+      async function markSelectedEmails(label){const ids=[...selectedEmailIntakeIds];if(!ids.length)return toast("请先勾选邮件");if(label==="warmup"&&!confirm("确认将所选邮件标记为养号邮件？这些邮件将退出待分拣队列。"))return;const result=await supabase.rpc("triage_email_intakes",{target_ids:ids,target_label:label});if(result.error)return toast("邮件标记失败："+result.error.message);toast("已标记 "+result.data+" 条"+(label==="warmup"?"养号邮件":"真实邮件"));selectedEmailIntakeIds.clear();await loadModule("email")}
+      async function convertEmailIntakes(ids,openAfter=false){if(!ids.length)return toast("请先勾选邮件");const button=$("#email-convert-inquiry");button.disabled=true;button.textContent="正在生成…";try{const result=await supabase.rpc("convert_email_intakes_to_inquiries",{target_ids:ids});if(result.error)return toast("转为询盘失败："+result.error.message);const converted=result.data||[];toast(`已处理 ${converted.length} 封邮件，询盘商机已生成`);selectedEmailIntakeIds.clear();await loadModule("email");if(openAfter&&converted[0]?.result_inquiry_id)await openInquiryDetail(converted[0].result_inquiry_id)}finally{button.disabled=false;button.textContent="一键转为询盘商机"}}
+      $("#email-convert-inquiry").addEventListener("click",()=>convertEmailIntakes([...selectedEmailIntakeIds]));
       $("#email-mark-warmup").addEventListener("click",()=>markSelectedEmails("warmup"));
+      setInterval(()=>{if(activeModuleView==="email"&&document.visibilityState==="visible"&&!selectedEmailIntakeIds.size)loadModule("email")},60000);
       function renderLegacyInsights(rows) {
         const partners = new Set(rows.map(x => String(x.partner_name || "").trim().toLowerCase()).filter(Boolean)).size;
         const amount = rows.reduce((sum, x) => sum + (Number(x.contract_amount_wan) || 0), 0);
@@ -2865,8 +2867,8 @@
       }
       function renderMarketingWorkbench(rows){
         if(profile?.role!=="marketing")return;
-        const visibleInquiryIds=new Set(rows.map(x=>x.id)),visibleCompanyIds=new Set(rows.map(x=>x.company_id).filter(Boolean)),intakes=(dashboardState.emailIntakes||[]).filter(x=>!x.inquiry_id||visibleInquiryIds.has(x.inquiry_id)),companies=(dashboardState.researchCompanies||[]).filter(x=>visibleCompanyIds.has(x.id)),today=chinaDate(),todayEmails=intakes.filter(x=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.received_at||x.created_at))===today),unprocessed=intakes.filter(x=>!["completed","processed","registered","done"].includes(String(x.processing_status||"").toLowerCase())),validityPending=rows.filter(x=>x.validity==="pending"),researchPending=companies.filter(x=>!["completed","confirmed","done","ready"].includes(String(x.research_status||"").toLowerCase())),assignmentPending=rows.filter(x=>x.validity==="valid"&&x.status==="pending_assignment"),validDecided=rows.filter(x=>x.validity!=="pending"),validCount=validDecided.filter(x=>x.validity==="valid").length;
-        $("#marketing-workbench-kpis").innerHTML=[["今日新邮件",todayEmails.length],["邮件待处理",unprocessed.length],["有效性待确认",validityPending.length],["背调待完成",researchPending.length],["待主管分配",assignmentPending.length]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i>0&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
+        const visibleInquiryIds=new Set(rows.map(x=>x.id)),visibleCompanyIds=new Set(rows.map(x=>x.company_id).filter(Boolean)),intakes=(dashboardState.emailIntakes||[]).filter(x=>!x.inquiry_id||visibleInquiryIds.has(x.inquiry_id)),companies=(dashboardState.researchCompanies||[]).filter(x=>visibleCompanyIds.has(x.id)),today=chinaDate(),todayEmails=intakes.filter(x=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.received_at||x.created_at))===today),unprocessed=intakes.filter(x=>["pending","processing","pending_review","failed"].includes(String(x.processing_status||"").toLowerCase())),validityPending=rows.filter(x=>x.validity==="pending"),researchPending=companies.filter(x=>!["completed","confirmed","done","ready"].includes(String(x.research_status||"").toLowerCase())),assignmentPending=rows.filter(x=>x.validity==="valid"&&x.status==="pending_assignment"),validDecided=rows.filter(x=>x.validity!=="pending"),validCount=validDecided.filter(x=>x.validity==="valid").length;
+        $("#marketing-workbench-kpis").innerHTML=[["今日新邮件",todayEmails.length],["待分拣邮件",unprocessed.length],["有效性待确认",validityPending.length],["背调待完成",researchPending.length],["待主管分配",assignmentPending.length]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i>0&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         const tasks=[];unprocessed.forEach(x=>tasks.push({priority:1,id:x.inquiry_id,title:x.subject||x.sender_email||"新客户邮件",reason:`${x.sender_email||"未知发件人"} · 邮件尚未完成登记`,time:x.received_at||x.created_at,label:"处理邮件",view:"email"}));validityPending.forEach(x=>tasks.push({priority:2,id:x.id,title:x.title,reason:"尚未确认有效性和无效原因",time:x.created_at,label:"判断有效性",view:"inquiry"}));researchPending.slice(0,20).forEach(x=>tasks.push({priority:3,title:x.name||"待背调公司",reason:"公司背调尚未完成",time:x.updated_at,label:"完成背调",view:"research"}));assignmentPending.forEach(x=>{if(!tasks.some(t=>t.id===x.id))tasks.push({priority:4,id:x.id,title:x.title,reason:"已登记，等待提交或主管分配",time:x.updated_at||x.created_at,label:"检查登记",view:"inquiry"})});tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
         $("#marketing-priority-list").innerHTML=tasks.length?tasks.slice(0,12).map((t,i)=>`<div class="sales-task-item" data-marketing-task="${i}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无市场待处理事项</b><small>邮件、有效性与背调流程均已处理</small></div>';
         $$('[data-marketing-task]').forEach(item=>item.addEventListener("click",()=>{const t=tasks[Number(item.dataset.marketingTask)];if(t?.id)openInquiryDetail(t.id);else switchView(t?.view||"research")}));

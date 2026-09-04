@@ -871,6 +871,40 @@
         gap: 9px;
         margin-top: 20px;
       }
+      .email-triage-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 0 18px 14px;
+      }
+      .email-triage-actions button {
+        width: auto;
+        min-height: 36px;
+        flex: 0 0 auto;
+        margin: 0;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 1.2;
+        white-space: nowrap;
+        box-shadow: none;
+      }
+      .email-triage-actions .email-mark-warmup {
+        border: 1px solid #e5c0b8;
+        background: #fff3ef;
+        color: #9d4436;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .email-triage-actions .tag {
+        margin-left: auto;
+        white-space: nowrap;
+      }
+      @media (max-width: 700px) {
+        .email-triage-actions { padding-inline: 12px; }
+        .email-triage-actions .tag { margin-left: 0; }
+      }
       .hint {
         font-size: 11px;
         color: var(--muted);
@@ -1361,7 +1395,7 @@
               <button id="module-reset-filters" class="table-action hidden" type="button">清除筛选</button>
               <button id="module-refresh" class="table-action module-refresh" type="button" title="刷新当前列表"><i data-lucide="refresh-cw"></i><span>刷新</span></button>
             </div>
-            <div id="email-triage-actions" class="form-actions hidden" style="padding:0 18px 14px"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-mark-real" class="primary" type="button">标记真实邮件</button><button id="email-mark-warmup" class="danger" type="button">标记养号邮件</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
+            <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-mark-real" class="primary" type="button">标记真实邮件</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
             <div class="module-table-scroll"><table id="module-table"><thead><tr id="module-head"></tr></thead><tbody id="module-body"></tbody></table></div>

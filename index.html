@@ -1670,6 +1670,12 @@
       </div>
     </div>
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+    <div id="app-dialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title">
+      <div class="modal" style="max-width:480px">
+        <div class="modal-head"><h3 id="app-dialog-title">请确认</h3><button id="app-dialog-close" class="close" type="button">×</button></div>
+        <div class="form-body"><p id="app-dialog-message" style="white-space:pre-line;line-height:1.7;margin:0"></p><input id="app-dialog-value" class="input hidden" readonly style="margin-top:14px" /><div class="form-actions"><button id="app-dialog-cancel" class="ghost" type="button">取消</button><button id="app-dialog-confirm" class="primary" type="button">确认</button></div></div>
+      </div>
+    </div>
     <div id="detail-modal" class="modal-backdrop hidden">
       <div class="modal">
         <div class="modal-head">
@@ -2126,6 +2132,18 @@
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => notice.classList.add("hidden"), 3600);
       }
+      let appDialogResolve=null;
+      function closeAppDialog(result=false){$("#app-dialog").classList.add("hidden");const resolve=appDialogResolve;appDialogResolve=null;if(resolve)resolve(result)}
+      function appConfirm(message,{title="请确认",confirmText="确认",cancelText="取消",showCancel=true,value=""}={}){
+        if(appDialogResolve)closeAppDialog(false);
+        $("#app-dialog-title").textContent=title;$("#app-dialog-message").textContent=message;$("#app-dialog-confirm").textContent=confirmText;$("#app-dialog-cancel").textContent=cancelText;$("#app-dialog-cancel").classList.toggle("hidden",!showCancel);
+        const valueInput=$("#app-dialog-value");valueInput.value=value;valueInput.classList.toggle("hidden",!value);$("#app-dialog").classList.remove("hidden");
+        if(value)setTimeout(()=>{valueInput.focus();valueInput.select()},0);else setTimeout(()=>$("#app-dialog-confirm").focus(),0);
+        return new Promise(resolve=>{appDialogResolve=resolve});
+      }
+      $("#app-dialog-confirm").addEventListener("click",()=>closeAppDialog(true));
+      $("#app-dialog-cancel").addEventListener("click",()=>closeAppDialog(false));
+      $("#app-dialog-close").addEventListener("click",()=>closeAppDialog(false));
       window.addEventListener("offline", () => toast("网络已断开；只读页面会自动重试，提交操作请在网络恢复后进行"));
       window.addEventListener("online", () => toast("网络已恢复，可以重新加载或继续操作"));
       window.addEventListener("unhandledrejection", (event) => {
@@ -2588,7 +2606,7 @@
       $("#module-refresh").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       $("#module-stale-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       $("#email-select-all").addEventListener("click",()=>{const ids=moduleRows.map(x=>x.selectionId).filter(Boolean),all=ids.length&&ids.every(id=>selectedEmailIntakeIds.has(id));ids.forEach(id=>all?selectedEmailIntakeIds.delete(id):selectedEmailIntakeIds.add(id));$("#email-selected-count").textContent="已选 "+selectedEmailIntakeIds.size+" 条";renderModuleTable(moduleColumns,moduleRows,moduleRowClick,true)});
-      async function markSelectedEmails(label){const ids=[...selectedEmailIntakeIds];if(!ids.length)return toast("请先勾选邮件");if(label==="warmup"&&!confirm("确认将所选邮件标记为养号邮件？这些邮件将退出待分拣队列。"))return;const result=await supabase.rpc("triage_email_intakes",{target_ids:ids,target_label:label});if(result.error)return toast("邮件标记失败："+result.error.message);toast("已标记 "+result.data+" 条"+(label==="warmup"?"养号邮件":"真实邮件"));selectedEmailIntakeIds.clear();await loadModule("email")}
+      async function markSelectedEmails(label){const ids=[...selectedEmailIntakeIds];if(!ids.length)return toast("请先勾选邮件");if(label==="warmup"&&!await appConfirm(`确认将所选 ${ids.length} 封邮件标记为养号邮件？\n\n这些邮件将退出待分拣队列，且不能转为询盘商机。`,{title:"标记养号邮件",confirmText:"确认标记"}))return;const button=$("#email-mark-warmup");button.disabled=true;const result=await supabase.rpc("triage_email_intakes",{target_ids:ids,target_label:label});button.disabled=false;if(result.error)return toast("邮件标记失败："+result.error.message);toast("已标记 "+result.data+" 条"+(label==="warmup"?"养号邮件":"真实邮件"));selectedEmailIntakeIds.clear();await loadModule("email")}
       async function convertEmailIntakes(ids,openAfter=false){if(!ids.length)return toast("请先勾选邮件");const button=$("#email-convert-inquiry");button.disabled=true;button.textContent="正在生成…";try{const result=await supabase.rpc("convert_email_intakes_to_inquiries",{target_ids:ids});if(result.error)return toast("转为询盘失败："+result.error.message);const converted=result.data||[];toast(`已处理 ${converted.length} 封邮件，询盘商机已生成`);selectedEmailIntakeIds.clear();await loadModule("email");if(openAfter&&converted[0]?.result_inquiry_id)await openInquiryDetail(converted[0].result_inquiry_id)}finally{button.disabled=false;button.textContent="一键转为询盘商机"}}
       $("#email-convert-inquiry").addEventListener("click",()=>convertEmailIntakes([...selectedEmailIntakeIds]));
       $("#email-mark-warmup").addEventListener("click",()=>markSelectedEmails("warmup"));
@@ -3013,7 +3031,7 @@
         $$("[data-sales-detail]").forEach(row=>row.addEventListener("click",()=>openSalesDashboardDetail(row.dataset.salesDetail)));
         renderLegacyDashboard();
       }
-      function bindMetricHelp(){ $$(".metric-help").forEach(b=>{b.title=dashboardMetricDefinitions[b.dataset.metric]?.[1]||"查看指标定义"; b.onclick=()=>{const d=dashboardMetricDefinitions[b.dataset.metric]; if(d) alert(`${d[0]}\n\n${d[1]}\n\n口径：${d[2]}\n更新时间：${new Date().toLocaleString('zh-CN',{hour12:false})}`)}}); }
+      function bindMetricHelp(){ $$(".metric-help").forEach(b=>{b.title=dashboardMetricDefinitions[b.dataset.metric]?.[1]||"查看指标定义"; b.onclick=()=>{const d=dashboardMetricDefinitions[b.dataset.metric]; if(d) appConfirm(`${d[0]}\n\n${d[1]}\n\n口径：${d[2]}\n更新时间：${new Date().toLocaleString('zh-CN',{hour12:false})}`,{title:"指标口径",confirmText:"知道了",showCancel:false})}}); }
       function aiRangeFromQuestion(question=""){
         const q=String(question),now=new Date(),end=new Date(now);end.setHours(23,59,59,999);
         let type="",start;
@@ -4320,7 +4338,7 @@
       }
       async function requestRetention(){const until=$("#retention-until")?.value,reason=$("#retention-reason")?.value.trim();if(!until)return toast("请选择保留截止日期");if(!reason)return toast("请填写申请原因和下一步计划");const button=$("#request-retention");button.disabled=true;const {error}=await supabase.rpc("request_inquiry_retention",{target_inquiry_id:currentInquiry.id,requested_until:until,request_reason:reason});button.disabled=false;if(error)return toast("保留申请提交失败："+error.message);toast("保留/延期申请已提交主管审核");await Promise.all([openInquiryDetail(currentInquiry.id),loadNotifications()])}
       async function reviewRetention(approve){const reason=$("#retention-review-reason")?.value.trim();if(!reason)return toast("请填写审核依据");const button=$(approve?"#approve-retention":"#reject-retention");button.disabled=true;const {error}=await supabase.rpc("review_inquiry_retention",{target_request_id:currentInquiry.retentionRequest.id,approve,review_reason:reason});button.disabled=false;if(error)return toast("审核失败："+error.message);toast(approve?"已批准客户保留期限":"已驳回客户保留申请");await Promise.all([openInquiryDetail(currentInquiry.id),loadNotifications()])}
-      async function releaseToPublicPool(){const reason=$("#public-pool-reason")?.value.trim();if(!reason)return toast("释放到公海必须填写原因");if(!confirm("确认释放到客户公海？原负责人将失去该询盘的修改权限，但历史记录会完整保留。"))return;const button=$("#release-public-pool");button.disabled=true;const {error}=await supabase.rpc("release_inquiry_to_public_pool",{target_inquiry_id:currentInquiry.id,release_reason:reason});button.disabled=false;if(error)return toast("释放失败："+error.message);toast("客户已释放到公海，原负责人和原因均已留痕");await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries(),loadNotifications()])}
+      async function releaseToPublicPool(){const reason=$("#public-pool-reason")?.value.trim();if(!reason)return toast("释放到公海必须填写原因");if(!await appConfirm("确认释放到客户公海？原负责人将失去该询盘的修改权限，但历史记录会完整保留。",{title:"释放到客户公海",confirmText:"确认释放"}))return;const button=$("#release-public-pool");button.disabled=true;const {error}=await supabase.rpc("release_inquiry_to_public_pool",{target_inquiry_id:currentInquiry.id,release_reason:reason});button.disabled=false;if(error)return toast("释放失败："+error.message);toast("客户已释放到公海，原负责人和原因均已留痕");await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries(),loadNotifications()])}
       function renderQuickValidity(validity) {
         const names={pending:"待确认",valid:"有效",invalid:"无效"};
         const canFullJudge=["owner","sales_manager","marketing"].includes(profile?.role),canInvalidate=canFullJudge||profile?.role==="sales";
@@ -4385,7 +4403,7 @@
       });
       $("#resubmit-nurtured-inquiry").addEventListener("click",async()=>{
         if(!currentInquiry)return;const reason=$("#nurture-reason").value.trim();if(!reason)return toast("请填写重新提交销售的依据");
-        if(!confirm("确认该线索已达到重新提交条件，并进入待分配池？"))return;const button=$("#resubmit-nurtured-inquiry");button.disabled=true;
+        if(!await appConfirm("确认该线索已达到重新提交条件，并进入待分配池？",{title:"重新提交线索",confirmText:"确认提交"}))return;const button=$("#resubmit-nurtured-inquiry");button.disabled=true;
         const {error}=await supabase.rpc("resubmit_nurtured_inquiry",{target_inquiry_id:currentInquiry.id,change_reason:reason});button.disabled=false;if(error)return toast("重新提交失败："+error.message);
         $("#nurture-reason").value="";toast("已重新提交主管分配，原退回与培育记录均已保留");await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries(),loadNotifications()]);
       });
@@ -4415,7 +4433,7 @@
           if(type==="other"&&!detail)return toast("选择其他原因时请填写补充说明");
           invalidReason=`[${type}] ${detail}`.trim();
         }
-        if(validity!=="invalid"&&!confirm(validity==="valid"?"确认该询盘有效并进入待分配流程？":"确认将该询盘恢复为待核实？"))return renderQuickValidity(currentInquiry.validity);
+        if(validity!=="invalid"&&!await appConfirm(validity==="valid"?"确认该询盘有效并进入待分配流程？":"确认将该询盘恢复为待核实？",{title:"修改询盘有效性"}))return renderQuickValidity(currentInquiry.validity);
         const buttons=$$(".validity-choice"),saveInvalid=$("#detail-save-invalid");buttons.forEach(button=>button.disabled=true);saveInvalid.disabled=true;
         const reason=validity==="valid"?"确认询盘有效":validity==="invalid"?`判定询盘无效：${outcomeReasonNames[$("#detail-quick-invalid-type").value]||"其他"}${$("#detail-quick-invalid-detail").value.trim()?`；${$("#detail-quick-invalid-detail").value.trim()}`:""}`:"标记为待核实";
         const {data:result,error}=await supabase.rpc("decide_inquiry_validity",{target_inquiry_id:currentInquiry.id,decision:validity,reason_type:validity==="invalid"?$("#detail-quick-invalid-type").value:null,reason_detail:validity==="invalid"?$("#detail-quick-invalid-detail").value.trim():null});
@@ -5334,7 +5352,7 @@
         const eligibility=await supabase.rpc("check_inquiry_contact_allowed",{target_inquiry_id:currentInquiry.id});
         if(eligibility.error)return toast("触达规则校验失败："+eligibility.error.message);
         if(!eligibility.data?.allowed)return toast("当前不能发送："+(eligibility.data?.reason||"触达规则未通过"));
-        if (!confirm(`确认使用你已连接的业务员邮箱，将开发信发送给 ${recipient}？`)) return;
+        if (!await appConfirm(`确认使用你已连接的业务员邮箱，将开发信发送给 ${recipient}？`,{title:"发送开发信",confirmText:"确认发送"})) return;
         const button = $("#send-outreach"); button.disabled = true; button.textContent = "发送中…";
         try {
           const draft = await saveOutreachDraft();
@@ -5525,7 +5543,7 @@
         $("#disable-member-modal").classList.remove("hidden");
       }
       async function enableMember(member) {
-        if (!confirm(`确认恢复 ${member.full_name} 的 CRM 登录权限？`)) return;
+        if (!await appConfirm(`确认恢复 ${member.full_name} 的 CRM 登录权限？`,{title:"恢复成员账号",confirmText:"确认恢复"})) return;
         const { data, error } = await supabase.functions.invoke("member-admin", { body: { action: "enable", user_id: member.id } });
         let message = data?.error || error?.message;
         if (error?.context) { try { message = (await error.context.clone().json())?.error || message; } catch {} }
@@ -5573,7 +5591,7 @@
         }
         if (message) return toast("成员创建失败：" + message);
         $("#member-modal").classList.add("hidden");
-        window.prompt("成员账号已创建。请立即复制临时密码（关闭后不再显示）：", data.temporary_password || "");
+        await appConfirm("成员账号已创建。请立即复制下方临时密码（关闭后不再显示）：",{title:"一次性临时密码",confirmText:"我已复制",showCancel:false,value:data.temporary_password||""});
         toast("成员账号已创建，临时密码仅显示一次");
         await loadModule("settings");
       });

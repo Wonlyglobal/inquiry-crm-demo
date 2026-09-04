@@ -3578,7 +3578,7 @@
         else if(currentInquiry.status==="won"){title="创建复购商机";detail="首次成交数据已锁定；后续采购应创建新的复购商机。";label="查看记录"}
         else if(currentInquiry.status==="lost"){title="复盘丢单原因";detail="确认丢单原因和可重新激活的时间窗口，避免覆盖历史记录。";label="查看记录"}
         box.classList.toggle("urgent",urgent);box.innerHTML=`<div><span>系统建议的下一步</span><b>${esc(title)}</b><p>${esc(detail)}</p></div><button class="${urgent?'primary':'ghost'}" type="button" data-next-action-tab="${tab}">${esc(label)}</button>`;
-        box.querySelector("[data-next-action-tab]")?.addEventListener("click",async event=>{if(!currentInquiry.owner_id&&currentInquiry.validity==="valid"){if(["owner","sales_manager"].includes(profile.role))return openDirectAssignment(currentInquiry.id);if(profile.role==="marketing"){try{return await submitInquiryToManager(currentInquiry.id)}catch(error){return toast("提交主管失败："+error.message)}}}setDetailTab(event.currentTarget.dataset.nextActionTab)});
+        box.querySelector("[data-next-action-tab]")?.addEventListener("click",async event=>{if(!currentInquiry.owner_id&&currentInquiry.validity==="valid"){if(["owner","sales_manager"].includes(profile.role))return openDirectAssignment(currentInquiry.id);if(profile.role==="marketing"){const confirmed=await appConfirm("确认将该有效询盘提交给销售主管分配负责人？\n\n确认后会登记到待分配池，并发送主管通知。",{title:"提交主管分配",confirmText:"确认提交"});if(!confirmed)return;try{return await submitInquiryToManager(currentInquiry.id)}catch(error){return toast("提交主管失败："+error.message)}}}setDetailTab(event.currentTarget.dataset.nextActionTab)});
         renderInquiryCompleteness(follows);
       }
       function renderInquiryCompleteness(follows=[]){

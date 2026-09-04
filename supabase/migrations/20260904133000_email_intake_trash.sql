@@ -15,25 +15,20 @@ begin
   if private.current_crm_role() not in ('owner','sales_manager','marketing') then
     raise exception '当前账号无权移动邮件到垃圾箱';
   end if;
-  if exists(
-    select 1 from public.email_intake e
-    join public.inquiries i on i.id=e.inquiry_id
-    where e.id=any(target_ids) and i.excluded_from_dashboard=false
-  ) then
-    raise exception '真实询盘关联邮件不能删除或移入垃圾箱';
-  end if;
-
   insert into public.audit_logs(actor_id,entity_type,entity_id,action,before_data,after_data,reason)
   select auth.uid(),'email_intake',e.id,'email_trashed',
     jsonb_build_object('triage_label',e.triage_label,'processing_status',e.processing_status,'trashed_at',e.trashed_at),
     jsonb_build_object('triage_label',e.triage_label,'processing_status',e.processing_status,'trashed_at',clock_timestamp()),
     '人工批量将邮件移入垃圾箱'
-  from public.email_intake e where e.id=any(target_ids) and e.trashed_at is null;
+  from public.email_intake e
+  where e.id=any(target_ids) and e.trashed_at is null
+    and not exists(select 1 from public.inquiries i where i.id=e.inquiry_id and i.excluded_from_dashboard=false);
 
-  update public.email_intake
+  update public.email_intake e
   set pre_trash_status=processing_status,pre_trash_triage_label=triage_label,
       trashed_at=clock_timestamp(),trashed_by=auth.uid(),updated_at=clock_timestamp()
-  where id=any(target_ids) and trashed_at is null;
+  where e.id=any(target_ids) and e.trashed_at is null
+    and not exists(select 1 from public.inquiries i where i.id=e.inquiry_id and i.excluded_from_dashboard=false);
   get diagnostics changed=row_count;
   return changed;
 end;

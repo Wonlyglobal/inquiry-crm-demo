@@ -1445,9 +1445,10 @@
                 required
               /><button class="password-visibility" type="button" data-password-target="new-password-confirm" aria-label="显示确认密码" title="显示确认密码"><i data-lucide="eye-off"></i></button></div>
           </div>
-          <button class="primary" type="submit" style="width: 100%">
-            修改密码并进入系统
-          </button>
+          <div class="form-actions" style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
+            <button id="password-logout" class="ghost" type="button">退出登录</button>
+            <button class="primary" type="submit">修改密码并进入系统</button>
+          </div>
           <div id="password-error" class="error"></div>
         </form>
       </div>
@@ -3832,6 +3833,21 @@
         profile.must_change_password = false;
         toast("密码修改成功");
         await showApp();
+      });
+      $("#password-logout").addEventListener("click", async () => {
+        const button = $("#password-logout");
+        button.disabled = true;
+        await supabase.auth.signOut();
+        button.disabled = false;
+        passwordChangeMode = "initial";
+        $("#new-password").value = "";
+        $("#new-password-confirm").value = "";
+        $("#password-error").textContent = "";
+        history.replaceState(null, "", location.pathname + location.search);
+        $("#password-modal").classList.add("hidden");
+        $("#app").classList.add("hidden");
+        $("#ai-assistant-open").classList.add("hidden");
+        $("#login").classList.remove("hidden");
       });
       $("#logout").addEventListener("click", async () => {
         await supabase.auth.signOut();

@@ -1654,6 +1654,7 @@
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
           <button class="detail-tab" type="button" data-detail-tab="qualification">资格核验</button>
           <button class="detail-tab" type="button" data-detail-tab="attribution">营销归因</button>
+          <button class="detail-tab" type="button" data-detail-tab="journey">用户路径</button>
           <button class="detail-tab" type="button" data-detail-tab="contact-policy">触达规则</button>
           <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="events">公司大事件</button>
@@ -1838,6 +1839,7 @@
             <div class="field"><label>落地页/证据网址</label><input id="marketing-touch-url" class="input" placeholder="https://..." /></div><div class="field"><label>证据说明</label><input id="marketing-touch-evidence" class="input" placeholder="来源参数、邮件标题或客户确认内容" /></div><div class="field"><label><input id="marketing-touch-primary" type="checkbox" /> 设为主触点（用于渠道统计）</label></div><div class="field"><label>新增原因 *</label><input id="marketing-touch-reason" class="input" placeholder="例如：根据官网表单 UTM 参数补录" /></div><div class="form-actions"><button id="add-marketing-touch" class="primary" type="button">保存营销触点</button></div>
           </div>
         </div>
+        <div class="form-body detail-section hidden" data-detail-section="journey"><div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap"><div><h4 style="margin:0">询盘提交用户路径</h4><p class="hint">展示客户从入口到生成询盘的匿名行为路径；只记录页面与交互上下文，不采集姓名、邮箱、电话或留言正文。</p></div><span id="journey-completeness" class="tag">暂无路径</span></div><div id="journey-summary" class="qualification-summary"><div><span class="hint">标准转化路径</span><br><b style="font-size:15px">CTA 点击 → 打开表单 → 开始填写 → 提交 → 生成询盘</b></div></div><div id="journey-event-list" class="company-event-timeline"></div><div id="journey-event-empty" class="empty">该询盘没有官网路径数据；旧询盘或非官网询盘属于正常情况。</div></div>
         <div class="form-body detail-section hidden" data-detail-section="contact-policy"><h4 style="margin-top:0">触达频控与退订抑制</h4><p class="hint">开发信发送前强制校验；客户退订、禁止联系、联系依据未知或未到复联时间时均会阻止发送。</p><div id="contact-policy-status" class="notice" style="margin-bottom:16px">尚未设置触达规则</div><div class="detail-grid"><div class="field"><label>联系依据 *</label><select id="contact-consent-status" class="input"><option value="unknown">待确认</option><option value="legitimate_interest">客户主动询盘/合理业务联系</option><option value="opted_in">客户明确同意</option><option value="opted_out">客户已退订</option></select></div><div class="field"><label>最短触达间隔（天）</label><input id="contact-min-interval" class="input" type="number" min="1" max="90" value="7" /></div><div class="field"><label>下次允许触达</label><input id="contact-next-allowed" class="input" type="datetime-local" /></div><div class="field"><label><input id="contact-do-not-contact" type="checkbox" /> 禁止任何营销联系</label></div></div><div class="field"><label>规则说明</label><input id="contact-policy-note" class="input" placeholder="记录客户同意、退订或频控依据" /></div><div class="field"><label>修改原因 *</label><input id="contact-policy-reason" class="input" /></div><div class="form-actions"><button id="save-contact-policy" class="primary" type="button">保存触达规则</button></div></div>
         <div class="form-body detail-section hidden" data-detail-section="followup">
           <div id="detail-workflow-lock" class="notice hidden" style="margin-bottom:16px">请先在“有效性判断”中确认询盘有效；确认前不能推进阶段、分配负责人或新增跟进。</div>
@@ -3216,7 +3218,7 @@
         detailOriginView = $("#sales-profile-page").classList.contains("hidden")
           ? ($(".nav[data-view].active")?.dataset.view || "dashboard")
           : "sales-profile";
-        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: latestDraft }, { data: retentionRequest }, { data: marketingTouches }, { data: contactPolicy }] = await Promise.all([
+        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: latestDraft }, { data: retentionRequest }, { data: marketingTouches }, { data: contactPolicy }, { data: journeyEvents }] = await Promise.all([
           supabase
             .from("inquiries")
             .select(
@@ -3240,6 +3242,7 @@
             .eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
           supabase.from("inquiry_marketing_touches").select("id,touch_at,channel,program_name,campaign_name,tactic_name,offer_name,landing_page,evidence_note,is_primary,created_at,created_by,profiles!inquiry_marketing_touches_created_by_fkey(full_name)").eq("inquiry_id",id).order("touch_at",{ascending:false}),
           supabase.from("inquiry_contact_policies").select("inquiry_id,consent_status,do_not_contact,min_interval_days,next_allowed_at,last_contact_at,policy_note,updated_at").eq("inquiry_id",id).maybeSingle(),
+          supabase.from("inquiry_user_journey_events").select("id,session_ref,event_name,event_at,sequence_no,page_path,page_title,cta_name,section_name,language,product_context,error_type,created_at").eq("inquiry_id",id).order("sequence_no",{ascending:true}),
         ]);
         if (error) {
           toast("详情加载失败：" + error.message);
@@ -3252,6 +3255,7 @@
         currentInquiry.retentionRequest = retentionRequest || null;
         currentInquiry.marketingTouches = marketingTouches || [];
         currentInquiry.contactPolicy = contactPolicy || null;
+        currentInquiry.journeyEvents = journeyEvents || [];
         $("#detail-title").textContent =
           `询盘 #${String(inquiry.inquiry_no).padStart(6, "0")} · ${inquiry.title}`;
         $("#detail-status").value = inquiry.status;
@@ -3294,6 +3298,7 @@
         const canAttribute=["owner","sales_manager","marketing"].includes(profile.role);
         $("#marketing-touch-form").classList.toggle("hidden",!canAttribute);
         renderContactPolicy(contactPolicy);
+        renderUserJourney(currentInquiry.journeyEvents);
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
         $("#detail-original-message").value = inquiry.original_message || "";
@@ -3969,6 +3974,24 @@
       const companyEventTypeNames={inquiry:"询盘/采购",project:"项目合作",expansion:"扩张产能",product:"产品/认证",risk:"风险负面",other:"其他"};
       const companyEventKindNames={fact:"已确认事实",inference:"AI 判断",unverified:"待核验"};
       const companyEventRelationNames={direct:"与本询盘直接相关",possible:"与本询盘可能相关",none:"暂未发现与本询盘关联",unknown:"与本询盘关系待判断"};
+      const journeyEventLabels={cta_click:"CTA 点击",form_open:"打开表单",form_start:"开始填写",form_submit:"提交表单",generate_lead:"生成询盘",form_error:"表单错误",form_abandon:"放弃填写",contact_click:"联系入口点击"};
+      function renderUserJourney(events=[]){
+        const list=$("#journey-event-list"),empty=$("#journey-event-empty"),badge=$("#journey-completeness");
+        if(!list||!empty||!badge)return;
+        const rows=[...(Array.isArray(events)?events:[])].sort((a,b)=>(Number(a.sequence_no)||0)-(Number(b.sequence_no)||0)||String(a.event_at||a.created_at||"").localeCompare(String(b.event_at||b.created_at||"")));
+        const standard=["cta_click","form_open","form_start","form_submit","generate_lead"],seen=new Set(rows.map(x=>x.event_name)),completed=standard.filter(name=>seen.has(name)).length;
+        badge.textContent=rows.length?(completed+" / "+standard.length+" 个标准节点"):"暂无路径";
+        badge.style.background=completed===standard.length?"#e1f1e7":rows.length?"#fff1dc":"";
+        list.replaceChildren(...rows.map((item,index)=>{
+          const card=document.createElement("article"),isException=["form_error","form_abandon"].includes(item.event_name);
+          card.className="company-event-card "+(isException?"unverified":"");
+          const contexts=[item.page_title||item.page_path,item.section_name&&("板块："+item.section_name),item.cta_name&&("入口："+item.cta_name),item.product_context&&("产品："+item.product_context),item.language&&("语言："+item.language),item.error_type&&("错误："+item.error_type)].filter(Boolean);
+          const time=item.event_at?fmtDate(item.event_at):"时间未上传";
+          card.innerHTML='<div class="company-event-head"><div><div class="company-event-meta">第 '+(Number(item.sequence_no)||index+1)+" 步 · "+esc(time)+"</div><h5>"+esc(journeyEventLabels[item.event_name]||item.event_name||"未知事件")+'</h5></div><span class="tag">'+(isException?"异常路径":"正常路径")+"</span></div>"+(contexts.length?"<p>"+contexts.map(esc).join(" · ")+"</p>":'<p class="hint">未上传页面上下文</p>');
+          return card;
+        }));
+        empty.classList.toggle("hidden",rows.length>0);list.classList.toggle("hidden",rows.length===0);
+      }
       const isNonEventPlaceholder=(value)=>/自动检索.*失败|下次打开时重试|未检索到.*新闻|暂无可信|尚未执行/i.test(String(value||""));
       function inferCompanyEventRelation(item={},inquiry={}){const eventText=[item.title,item.display,item.summary,item.description,item.impact].filter(Boolean).join(" ").toLowerCase(),inquiryText=[inquiry.title,inquiry.demand_summary,inquiry.product_category].filter(Boolean).join(" ").toLowerCase();const productTerms=["security door","steel door","fire door","door","lock","安全门","钢质门","防火门","门锁"].filter(term=>inquiryText.includes(term));if(productTerms.some(term=>eventText.includes(term)))return {relation:"direct",reason:"公开事件与本询盘出现相同的门、锁或安全门产品关键词。"};if(/project|expansion|construction|facility|plant|mine|mining|license|procurement|tender|项目|扩建|厂房|矿区|许可|采购|招标/i.test(eventText))return {relation:"possible",reason:"事件涉及项目、扩张、设施运营或采购场景，可能产生门锁需求，但尚无证据证明就是本次询盘。"};return {relation:"none",reason:"已匹配公司主体，但事件未出现本询盘产品、项目或采购线索。"}}
       function normalizeCompanyEvent(item={}){const relation=companyEventRelationNames[item.relation||item.relevance||item.inquiry_relation]?item.relation||item.relevance||item.inquiry_relation:"unknown";return {id:item.id||crypto.randomUUID(),date:item.date||item.occurred_at||"",type:companyEventTypeNames[item.type]?item.type:"other",kind:companyEventKindNames[item.kind]?item.kind:"unverified",title:String(item.title||item.event||"未命名事件").trim(),summary:String(item.summary||item.description||"").trim(),impact:String(item.impact||item.business_impact||"").trim(),relation,relation_reason:String(item.relation_reason||item.relevance_reason||"").trim(),source_url:safeExternalUrl(item.source_url||item.url||"")||"",confidence:item.confidence||"待判断",origin:item.origin||"saved"}}

@@ -3204,15 +3204,6 @@
               action.disabled = true;
               action.textContent = "提交中…";
               try {
-                if (x.source === "email") {
-                  const { error: forwardError } = await supabase.rpc(
-                    "request_original_email_forward",
-                    { target_inquiry_id: x.id },
-                  );
-                  if (forwardError && !/转发队列/.test(forwardError.message || "")) throw forwardError;
-                  const { error: deliveryError } = await supabase.functions.invoke("email-forward", { body: { inquiry_id: x.id } });
-                  if (deliveryError) throw deliveryError;
-                }
                 const { error: assignmentError } = await supabase.rpc(
                   "register_inquiry_for_assignment",
                   { target_inquiry_id: x.id },
@@ -3220,7 +3211,7 @@
                 if (assignmentError) throw assignmentError;
                 const { error: feishuError } = await supabase.functions.invoke("feishu-notify", { body: { inquiry_id: x.id, action: "registered" } });
                 if (feishuError) toast("询盘已登记，但飞书群提醒失败：" + feishuError.message);
-                toast(x.source === "email" ? "已转发给销售主管并提交分配" : "已提交主管分配");
+                toast("已提交销售主管分配");
                 await Promise.all([loadInquiries(), loadNotifications()]);
               } catch (error) {
                 action.disabled = false;

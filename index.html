@@ -397,6 +397,12 @@
       .rank-pill.top { background:#d6e4d9; color:#315c40; }
       .trend-up { color:#317a4b; } .trend-down { color:#b34f48; }
       .dashboard-grid { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(300px,.8fr); gap:14px; align-items:start; margin-bottom:14px; }
+      #dashboard-widgets > [data-dashboard-widget] { position:relative; transition:opacity .16s ease,outline-color .16s ease,transform .16s ease; }
+      #dashboard-widgets.layout-editing > [data-dashboard-widget]:not(.hidden) { outline:2px dashed #79a08d; outline-offset:4px; cursor:grab; }
+      #dashboard-widgets.layout-editing > [data-dashboard-widget].dashboard-widget-dragging { opacity:.45; transform:scale(.992); }
+      .dashboard-widget-handle { position:absolute; z-index:7; top:8px; right:8px; display:none; align-items:center; gap:5px; padding:5px 7px; border:1px solid #b8ccc0; border-radius:999px; background:rgba(255,255,255,.96); color:var(--brand); box-shadow:0 5px 16px rgba(32,61,49,.12); font-size:10px; font-weight:800; }
+      #dashboard-widgets.layout-editing > [data-dashboard-widget]:not(.hidden) > .dashboard-widget-handle { display:flex; }
+      .dashboard-widget-handle button { width:24px; height:24px; min-height:0; margin:0; padding:0; border:0; border-radius:50%; background:var(--soft); color:var(--brand); cursor:pointer; }
       .dashboard-panel { min-width:0; background:#fff; border:1px solid var(--line); border-radius:17px; overflow:hidden; }
       .dashboard-panel .pipeline { padding:14px; margin:0; }
       .alert-list { padding:8px 14px; max-height:260px; overflow:auto; }
@@ -1276,7 +1282,7 @@
               <h1>经营看板</h1>
               <p id="dashboard-subtitle">询盘效率、销售转化、渠道 ROI 与风险预警</p>
             </div>
-            <button id="new-inquiry" class="primary">+ 新建询盘</button>
+            <div class="heading-actions"><button id="dashboard-layout-toggle" class="ghost" type="button">调整布局</button><button id="dashboard-layout-reset" class="ghost hidden" type="button">恢复默认</button><button id="new-inquiry" class="primary">+ 新建询盘</button></div>
           </div>
           <div class="dashboard-toolbar card">
             <div class="dashboard-toolbar-primary">
@@ -1302,17 +1308,18 @@
             <span class="dashboard-scope-note">筛选条件会同步作用于看板、排名和导出</span>
             </div>
           </div>
-          <section id="sales-workbench" class="dashboard-panel sales-workbench hidden">
+          <div id="dashboard-widgets">
+          <section id="sales-workbench" class="dashboard-panel sales-workbench hidden" data-dashboard-widget="sales-tasks">
             <div class="sales-workbench-head"><div><b>我的任务中心</b><p>统一处理客户新回复、首次响应、计划跟进和风险事项</p></div><div class="sales-workbench-actions"><button id="sales-connect-mailbox" class="ghost">连接我的邮箱</button><button id="sales-open-profile" class="ghost">个人业务主页</button><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
             <div id="sales-workbench-kpis" class="sales-workbench-kpis"></div>
             <div id="sales-task-list" class="sales-task-list"></div>
           </section>
-          <section id="manager-workbench" class="dashboard-panel manager-workbench hidden">
+          <section id="manager-workbench" class="dashboard-panel manager-workbench hidden" data-dashboard-widget="manager-tasks">
             <div class="sales-workbench-head"><div><b>团队任务中心</b><p>优先处理分配、客户回复、响应超时、跟进逾期与日报异常</p></div><div class="sales-workbench-actions"><button id="manager-open-assignment" class="primary">去分配询盘</button><button id="manager-open-daily" class="ghost">查看销售日报</button></div></div>
             <div id="manager-workbench-kpis" class="sales-workbench-kpis"></div>
             <div class="manager-workbench-body"><div><div class="panel-title"><b>团队紧急事项</b><span class="dashboard-scope-note">按严重程度与发生时间排序</span></div><div id="manager-priority-list" class="manager-priority-list"></div></div><div id="manager-workload" class="manager-workload"></div></div>
           </section>
-          <section id="legacy-dashboard" class="hidden">
+          <section id="legacy-dashboard" class="hidden" data-dashboard-widget="legacy-overview">
             <div class="table-head"><span>历史工程经营概览</span><span class="dashboard-scope-note">独立历史口径，不参与响应率、成交率或 ROI</span></div>
             <div id="legacy-dashboard-kpis" class="legacy-dashboard-grid"></div>
             <div class="legacy-dashboard-panels">
@@ -1320,7 +1327,7 @@
               <section class="dashboard-panel"><div class="panel-title"><b>国家与产品分布</b><button class="metric-help" data-metric="legacy_distribution">?</button></div><div id="legacy-distribution" class="dashboard-table-scroll"></div></section>
             </div>
           </section>
-          <div class="sales-hero current-dashboard-block">
+          <div class="sales-hero current-dashboard-block" data-dashboard-widget="sales-overview">
             <section class="card sales-total-card">
               <div class="kpi-label"><span id="hero-sales-label">团队总销售额</span> <button class="metric-help" data-metric="won_amount">?</button></div>
               <div class="sales-total-main"><b id="hero-sales-cny">¥0</b><span id="hero-sales-usd">$0</span></div>
@@ -1328,7 +1335,7 @@
             </section>
             <div id="hero-sales-ranking"></div>
           </div>
-          <div class="kpis dashboard-kpis current-dashboard-block">
+          <div class="kpis dashboard-kpis current-dashboard-block" data-dashboard-widget="core-kpis">
             <div class="card">
               <div class="kpi-label">新增询盘 <button class="metric-help" data-metric="new_inquiries">?</button></div>
               <div class="kpi-value" id="kpi-total">0</div>
@@ -1351,25 +1358,25 @@
             <div class="card"><div class="kpi-label">报价率 <button class="metric-help" data-metric="quote_rate">?</button></div><div class="kpi-value" id="kpi-quote-rate">—</div></div>
             <div class="card"><div class="kpi-label">成交额 <button class="metric-help" data-metric="won_amount">?</button></div><div class="money-pair"><b id="kpi-won-cny">¥0</b><span id="kpi-won-usd">$0</span></div></div>
           </div>
-          <section class="dashboard-panel trend-panel current-dashboard-block">
+          <section class="dashboard-panel trend-panel current-dashboard-block" data-dashboard-widget="trends">
             <div class="trend-toolbar"><div><b>经营趋势</b><div class="dashboard-scope-note">随当前筛选条件同步更新</div></div><div class="trend-tabs"><button class="trend-tab active" data-trend-grain="day">每日</button><button class="trend-tab" data-trend-grain="month">每月</button><button class="trend-tab" data-trend-grain="year">每年</button></div></div>
             <div id="dashboard-trend-charts" class="trend-charts"></div>
           </section>
-          <div class="leaderboards current-dashboard-block" id="dashboard-leaderboards"></div>
-          <div class="dashboard-grid current-dashboard-block">
+          <div class="leaderboards current-dashboard-block" id="dashboard-leaderboards" data-dashboard-widget="leaderboards"></div>
+          <div class="dashboard-grid current-dashboard-block" data-dashboard-widget="pipeline-risk">
             <section class="dashboard-panel"><div class="panel-title"><b>商机阶段</b><button class="metric-help" data-metric="stage_pipeline">?</button></div><div class="pipeline" id="pipeline">
               <div class="stage"><b data-stage="pending_assignment">0</b><span>待分配</span><small data-stage-time="pending_assignment">暂无记录</small></div><div class="stage"><b data-stage="received">0</b><span>收到询盘</span><small data-stage-time="received">暂无记录</small></div><div class="stage"><b data-stage="qualified">0</b><span>有效询盘</span><small data-stage-time="qualified">暂无记录</small></div><div class="stage"><b data-stage="contacted">0</b><span>已联系</span><small data-stage-time="contacted">暂无记录</small></div><div class="stage"><b data-stage="quoted">0</b><span>已报价</span><small data-stage-time="quoted">暂无记录</small></div><div class="stage"><b data-stage="sample_sent">0</b><span>已寄样</span><small data-stage-time="sample_sent">暂无记录</small></div><div class="stage"><b data-stage="negotiating">0</b><span>谈判</span><small data-stage-time="negotiating">暂无记录</small></div><div class="stage"><b data-stage="won">0</b><span>成交</span><small data-stage-time="won">暂无记录</small></div><div class="stage"><b data-stage="lost">0</b><span>丢单</span><small data-stage-time="lost">暂无记录</small></div>
             </div></section>
             <section class="dashboard-panel"><div class="panel-title"><b>风险与待办</b><button class="metric-help" data-metric="risk_alerts">?</button></div><div id="dashboard-alerts" class="alert-list"></div></section>
           </div>
-          <div class="dashboard-grid current-dashboard-block">
+          <div class="dashboard-grid current-dashboard-block" data-dashboard-widget="channels-followups">
             <section id="dashboard-channel-panel" class="dashboard-panel"><div class="panel-title"><b>渠道表现与 ROI</b><span><button id="dashboard-channel-cost" class="table-action">录入月度成本</button><button class="metric-help" data-metric="channel_roi">?</button></span></div><div id="dashboard-channels" class="dashboard-table-scroll"></div></section>
             <section class="dashboard-panel"><div class="panel-title"><b>跟进任务</b><button class="metric-help" data-metric="followup_completion">?</button></div><div id="dashboard-followups" class="mini-metrics"></div></section>
           </div>
-          <section class="dashboard-panel current-dashboard-block" style="margin-bottom:14px"><div class="panel-title"><div><b>无效与丢单原因分析</b><div class="dashboard-scope-note">随当前筛选周期同步；点击原因查看对应询盘</div></div><button class="metric-help" data-metric="outcome_reasons">?</button></div><div id="dashboard-outcome-reasons" class="dashboard-table-scroll"></div></section>
-          <section id="annual-target-plan" class="dashboard-panel current-dashboard-block" style="margin-bottom:14px"><div class="panel-title"><b>2026 海外事业部目标</b><button class="metric-help" data-metric="annual_target_plan">?</button></div><div class="target-plan-toolbar"><div class="target-plan-tabs"><button class="target-plan-tab active" data-target-plan-metric="contract_count">签约额（万元）</button><button class="target-plan-tab" data-target-plan-metric="customer_development">客户开发</button><button class="target-plan-tab" data-target-plan-metric="crm_collection">CRM 信息收集</button></div><span id="target-plan-scope" class="dashboard-scope-note"></span></div><div id="target-plan-summary" class="target-plan-summary"></div><div id="target-progress-wall" class="target-progress-wall"></div><div id="target-plan-table" class="dashboard-table-scroll"></div></section>
-          <section class="dashboard-panel current-dashboard-block" style="margin-bottom:14px"><div class="panel-title"><b>经营指标完成进度</b><button class="metric-help" data-metric="sales_targets">?</button></div><div id="dashboard-target-progress" class="dashboard-table-scroll"></div></section>
-          <div class="table-wrap current-dashboard-block">
+          <section class="dashboard-panel current-dashboard-block" data-dashboard-widget="outcomes" style="margin-bottom:14px"><div class="panel-title"><div><b>无效与丢单原因分析</b><div class="dashboard-scope-note">随当前筛选周期同步；点击原因查看对应询盘</div></div><button class="metric-help" data-metric="outcome_reasons">?</button></div><div id="dashboard-outcome-reasons" class="dashboard-table-scroll"></div></section>
+          <section id="annual-target-plan" class="dashboard-panel current-dashboard-block" data-dashboard-widget="annual-plan" style="margin-bottom:14px"><div class="panel-title"><b>2026 海外事业部目标</b><button class="metric-help" data-metric="annual_target_plan">?</button></div><div class="target-plan-toolbar"><div class="target-plan-tabs"><button class="target-plan-tab active" data-target-plan-metric="contract_count">签约额（万元）</button><button class="target-plan-tab" data-target-plan-metric="customer_development">客户开发</button><button class="target-plan-tab" data-target-plan-metric="crm_collection">CRM 信息收集</button></div><span id="target-plan-scope" class="dashboard-scope-note"></span></div><div id="target-plan-summary" class="target-plan-summary"></div><div id="target-progress-wall" class="target-progress-wall"></div><div id="target-plan-table" class="dashboard-table-scroll"></div></section>
+          <section class="dashboard-panel current-dashboard-block" data-dashboard-widget="target-progress" style="margin-bottom:14px"><div class="panel-title"><b>经营指标完成进度</b><button class="metric-help" data-metric="sales_targets">?</button></div><div id="dashboard-target-progress" class="dashboard-table-scroll"></div></section>
+          <div class="table-wrap current-dashboard-block" data-dashboard-widget="latest-inquiries">
             <div class="table-head">
               <span>最新询盘</span
               ><span id="record-count" class="tag">0 条</span>
@@ -1394,6 +1401,7 @@
               </thead>
               <tbody id="inquiry-body"></tbody>
             </table>
+          </div>
           </div>
         </section>
         <section id="marketing-center-page" class="page hidden">
@@ -2083,7 +2091,7 @@
         ),
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
-      let profile = null;
+      let profile = null, currentAuthUser = null, dashboardLayoutEditing = false, dashboardLayoutSaveTimer = null;
       let returnToDailyAfterLeadCreate = false;
       let dailySection = "report";
       let passwordChangeMode = "initial";
@@ -2260,6 +2268,7 @@
         return { country, name, title, project, demand };
       }
       async function loadProfile(user) {
+        currentAuthUser = user;
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
@@ -2319,6 +2328,7 @@
         ["#dashboard-team","#dashboard-sales","#dashboard-data-scope","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
         ["#dashboard-team","#dashboard-sales","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
         const startup = await Promise.allSettled([loadInquiries(), loadNotifications()]);
+        initializeDashboardLayout();
         if (startup.some((result) => result.status === "rejected")) toast("部分数据暂时未加载，系统已保留可用页面；可稍后重试");
         subscribeNotifications();
         icons();
@@ -2741,6 +2751,41 @@
           else nav.removeAttribute("aria-current");
         });
       }
+      const dashboardInitialOrder=$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
+      const dashboardCurrentOrder=()=>$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
+      function dashboardLayoutStorageKey(){return `wonly_dashboard_layout_${profile?.id||"anonymous"}`}
+      function applyDashboardLayout(order){
+        const container=$("#dashboard-widgets"),widgets=new Map(dashboardInitialOrder.map(key=>[key,container.querySelector(`[data-dashboard-widget="${key}"]`)]));
+        const normalized=[...new Set([...(Array.isArray(order)?order:[]),...dashboardInitialOrder])].filter(key=>widgets.has(key));
+        normalized.forEach(key=>container.append(widgets.get(key)));
+      }
+      function storedDashboardLayout(){
+        const remote=currentAuthUser?.user_metadata?.dashboard_layout;if(Array.isArray(remote)&&remote.length)return remote;
+        try{const local=JSON.parse(localStorage.getItem(dashboardLayoutStorageKey())||"null");return Array.isArray(local)?local:null}catch{return null}
+      }
+      function persistDashboardLayout(){
+        const order=dashboardCurrentOrder();
+        try{localStorage.setItem(dashboardLayoutStorageKey(),JSON.stringify(order))}catch{}
+        if(currentAuthUser)currentAuthUser.user_metadata={...(currentAuthUser.user_metadata||{}),dashboard_layout:order};
+        clearTimeout(dashboardLayoutSaveTimer);dashboardLayoutSaveTimer=setTimeout(async()=>{const {error}=await supabase.auth.updateUser({data:{dashboard_layout:order}});if(error)console.warn("看板布局云端保存失败，已保留本机布局",error)},500);
+      }
+      function moveDashboardWidget(widget,direction){
+        const container=$("#dashboard-widgets"),visible=dashboardCurrentOrder().map(key=>container.querySelector(`[data-dashboard-widget="${key}"]`)).filter(item=>item&&!item.classList.contains("hidden")),index=visible.indexOf(widget),target=visible[index+direction];if(!target)return;
+        if(direction<0)container.insertBefore(widget,target);else container.insertBefore(widget,target.nextSibling);persistDashboardLayout();
+      }
+      function ensureDashboardWidgetHandles(){
+        $$("#dashboard-widgets > [data-dashboard-widget]").forEach(widget=>{if(widget.querySelector(":scope > .dashboard-widget-handle"))return;const handle=document.createElement("span");handle.className="dashboard-widget-handle";handle.innerHTML='<span>拖动模块</span><button type="button" data-layout-move="up" aria-label="上移模块">↑</button><button type="button" data-layout-move="down" aria-label="下移模块">↓</button>';handle.querySelector('[data-layout-move="up"]').onclick=event=>{event.stopPropagation();moveDashboardWidget(widget,-1)};handle.querySelector('[data-layout-move="down"]').onclick=event=>{event.stopPropagation();moveDashboardWidget(widget,1)};widget.append(handle)});
+      }
+      function setDashboardLayoutEditing(editing){
+        dashboardLayoutEditing=editing;const container=$("#dashboard-widgets");container.classList.toggle("layout-editing",editing);$$("#dashboard-widgets > [data-dashboard-widget]").forEach(widget=>widget.draggable=editing&&!widget.classList.contains("hidden"));$("#dashboard-layout-toggle").textContent=editing?"完成布局":"调整布局";$("#dashboard-layout-reset").classList.toggle("hidden",!editing);ensureDashboardWidgetHandles();
+      }
+      function initializeDashboardLayout(){
+        applyDashboardLayout(storedDashboardLayout());ensureDashboardWidgetHandles();const container=$("#dashboard-widgets");if(container.dataset.layoutBound)return;container.dataset.layoutBound="true";
+        container.addEventListener("dragstart",event=>{const widget=event.target.closest("[data-dashboard-widget]");if(!dashboardLayoutEditing||!widget||event.target.closest("button,input,select,textarea,a")){event.preventDefault();return}container.dataset.dragging=widget.dataset.dashboardWidget;widget.classList.add("dashboard-widget-dragging");event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",widget.dataset.dashboardWidget)});
+        container.addEventListener("dragover",event=>{if(!dashboardLayoutEditing||!container.dataset.dragging)return;event.preventDefault();const dragging=container.querySelector(`[data-dashboard-widget="${container.dataset.dragging}"]`),target=event.target.closest("#dashboard-widgets > [data-dashboard-widget]");if(!dragging||!target||dragging===target)return;const rect=target.getBoundingClientRect();container.insertBefore(dragging,event.clientY<rect.top+rect.height/2?target:target.nextSibling)});
+        container.addEventListener("drop",event=>{if(!container.dataset.dragging)return;event.preventDefault();persistDashboardLayout()});
+        container.addEventListener("dragend",()=>{if(container.dataset.dragging)persistDashboardLayout();container.querySelector(".dashboard-widget-dragging")?.classList.remove("dashboard-widget-dragging");delete container.dataset.dragging});
+      }
       function openLegacyProject(project) {
         const normalizedOwner = project.legacy_owner_name === "石舒" ? "石奕舒" : project.legacy_owner_name;
         const fields = [["旧系统 ID",project.legacy_project_id],["国家/地区",project.country],["合作方",project.partner_name],["省份 / 城市",[project.partner_province,project.partner_city].filter(Boolean).join(" / ")],["客户类型",project.customer_type],["项目名称",project.project_name],["产品类型",project.product_type],["原系统分类",project.funnel_bucket],["项目状态",project.project_status],["预计下一节点",project.next_milestone_at],["工程总数量",project.project_total_quantity],["合同号",project.contract_no],["合同数量",project.contract_quantity],["合同金额（人民币万元）",project.contract_amount_wan],["工程信息来源",project.lead_source],["负责人",normalizedOwner],["部门",project.department],["联系人",project.contact_name],["联系人职务",project.contact_title],["联系方式",project.contact_details],["跟进情况",project.follow_up_status],["未中标原因",project.lost_reason],["原因描述",project.lost_reason_description],["创建人 / 时间",[project.legacy_creator_name,project.source_created_at ? fmtDate(project.source_created_at) : null].filter(Boolean).join(" · ")],["修改人 / 时间",[project.legacy_modifier_name,project.source_updated_at ? fmtDate(project.source_updated_at) : null].filter(Boolean).join(" · ")]];
@@ -3129,6 +3174,7 @@
         bindMetricHelp();
         $$("[data-sales-detail]").forEach(row=>row.addEventListener("click",()=>openSalesDashboardDetail(row.dataset.salesDetail)));
         renderLegacyDashboard();
+        if(dashboardLayoutEditing)ensureDashboardWidgetHandles();
       }
       function bindMetricHelp(){ $$(".metric-help").forEach(b=>{b.title=dashboardMetricDefinitions[b.dataset.metric]?.[1]||"查看指标定义"; b.onclick=()=>{const d=dashboardMetricDefinitions[b.dataset.metric]; if(d) appConfirm(`${d[0]}\n\n${d[1]}\n\n口径：${d[2]}\n更新时间：${new Date().toLocaleString('zh-CN',{hour12:false})}`,{title:"指标口径",confirmText:"知道了",showCancel:false})}}); }
       function aiRangeFromQuestion(question=""){
@@ -5762,6 +5808,8 @@
       });
       $$(".period-tab[data-period]").forEach(button=>button.addEventListener("click",()=>{$("#dashboard-period").value=button.dataset.period;$("#dashboard-period").dispatchEvent(new Event("change"))}));
       $$(".marketing-period-tab").forEach(button=>button.addEventListener("click",()=>{$("#marketing-period").value=button.dataset.marketingPeriod;$$('.marketing-period-tab').forEach(item=>{const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active))});renderMarketingWorkbench(dashboardState.rows)}));
+      $("#dashboard-layout-toggle").addEventListener("click",()=>setDashboardLayoutEditing(!dashboardLayoutEditing));
+      $("#dashboard-layout-reset").addEventListener("click",async()=>{if(!await appConfirm("确认恢复当前账号的默认看板顺序？",{title:"恢复默认布局",confirmText:"确认恢复"}))return;applyDashboardLayout(dashboardInitialOrder);try{localStorage.removeItem(dashboardLayoutStorageKey())}catch{}if(currentAuthUser)currentAuthUser.user_metadata={...(currentAuthUser.user_metadata||{}),dashboard_layout:null};const {error}=await supabase.auth.updateUser({data:{dashboard_layout:null}});if(error)return toast("云端布局恢复失败："+error.message);setDashboardLayoutEditing(false);toast("已恢复默认看板布局")});
       $$(".trend-tab").forEach(button=>button.addEventListener("click",()=>{dashboardState.trendGrain=button.dataset.trendGrain;renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)}));
       $$("[data-target-plan-metric]").forEach(button=>button.addEventListener("click",()=>{dashboardState.targetPlanMetric=button.dataset.targetPlanMetric;renderAnnualTargetPlan()}));
       $("#sales-view-inquiries").addEventListener("click",()=>switchView("inquiries"));

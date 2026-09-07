@@ -887,8 +887,8 @@
         display: flex;
         align-items: center;
         flex-wrap: wrap;
-        gap: 8px;
-        padding: 0 18px 14px;
+        gap: 12px;
+        padding: 18px 18px 16px;
       }
       .email-triage-actions button {
         width: auto;
@@ -913,7 +913,7 @@
         margin-left: auto;
         white-space: nowrap;
       }
-      .email-class-tabs { display:flex; gap:8px; flex-wrap:wrap; padding:0 18px 14px; }
+      .email-class-tabs { display:flex; gap:12px; flex-wrap:wrap; padding:8px 18px 20px; }
       .email-class-tab { border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--muted); padding:8px 13px; font-size:12px; font-weight:700; cursor:pointer; }
       .email-class-tab b { margin-left:5px; color:inherit; }
       .email-class-tab.active { border-color:var(--brand); background:var(--brand); color:#fff; }
@@ -925,8 +925,9 @@
       .email-detail-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:9px; margin-top:16px; }
       .email-detail-actions button { width:auto; margin:0; }
       @media (max-width: 700px) {
-        .email-triage-actions { padding-inline: 12px; }
+        .email-triage-actions { gap:9px; padding:14px 12px; }
         .email-triage-actions .tag { margin-left: 0; }
+        .email-class-tabs { gap:9px; padding:6px 12px 16px; }
         .email-detail-meta { grid-template-columns:1fr; }
       }
       .hint {

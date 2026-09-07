@@ -743,6 +743,7 @@
         backdrop-filter: blur(10px);
       }
       .qualification-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.qualification-card{padding:16px;border:1px solid var(--line);border-radius:16px;background:rgba(248,251,250,.82)}.qualification-card label{display:block;font-weight:800;margin-bottom:8px}.qualification-card small{display:block;color:var(--muted);margin:0 0 10px;line-height:1.45}.qualification-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding:16px 18px;border-radius:16px;background:var(--soft)}.qualification-summary b{font-size:24px}.sales-disposition-actions{display:flex;gap:10px;flex-wrap:wrap}.sales-disposition-actions .danger{background:#fff1ed;color:#a13f2d;border:1px solid #efc5bb}@media(max-width:760px){.qualification-grid{grid-template-columns:1fr}}
+      .qualification-card.role-readonly{background:#f3f5f3;opacity:.78}.qualification-card.role-readonly::after{content:"由其他岗位补充";display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;background:#e3e8e4;color:var(--muted);font-size:10px;font-weight:700}.qualification-card textarea:read-only{cursor:not-allowed;background:#f1f3f1;color:#6f7973}
       .quality-panel{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--soft)}
       .quality-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
       .quality-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -1927,17 +1928,18 @@
           <p class="hint">市场部、主管和老板可直接判断；业务员提交无效申请，由主管确认后关闭并计入经营看板。所有操作保留修改前内容、操作人、时间与原因。</p>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="qualification">
+          <div id="qualification-workflow-note" class="notice" style="margin-bottom:14px"></div>
           <div class="qualification-summary"><div><span class="hint">MTL 6+1 渐进式核验</span><br><b id="qualification-score-label">0 / 100</b></div><span id="qualification-priority-label" class="tag">P2 常规</span></div>
           <p class="hint">每项都可以单独补充，未知信息可留空；保存时按现有证据计算成熟度，不把资料补充设为必填。</p>
           <div class="qualification-grid">
-            <div class="qualification-card"><label>1. 公司身份</label><small>公司主体、官网、国家、联系人身份是否可核验</small><textarea id="qualification-identity" class="input" rows="3"></textarea></div>
-            <div class="qualification-card"><label>2. 明确需求</label><small>产品、规格、数量、应用场景或项目目标</small><textarea id="qualification-need" class="input" rows="3"></textarea></div>
-            <div class="qualification-card"><label>3. 联系人角色</label><small>决策人、影响人、采购执行人或信息收集者</small><textarea id="qualification-role" class="input" rows="3"></textarea></div>
-            <div class="qualification-card"><label>4. 价值/预算</label><small>预算区间、预估金额、采购规模或长期价值</small><textarea id="qualification-value" class="input" rows="3"></textarea></div>
-            <div class="qualification-card"><label>5. 时间窗口</label><small>采购时间、项目节点、交付要求或紧迫性</small><textarea id="qualification-timing" class="input" rows="3"></textarea></div>
-            <div class="qualification-card"><label>6. 业务匹配</label><small>目标市场、产品能力、认证与服务范围匹配度</small><textarea id="qualification-fit" class="input" rows="3"></textarea></div>
-            <div class="qualification-card"><label>+1. 明确下一步</label><small>下一次会议、补充资料、报价或样品动作与负责人</small><textarea id="qualification-next-step" class="input" rows="3"></textarea></div>
-            <div class="qualification-card"><label>线索优先级 / SLA</label><small>P0 立即、P1 30 分钟、P2 4 小时、P3 1 个工作日</small><select id="qualification-priority" class="input"><option value="P0">P0 · 立即处理</option><option value="P1">P1 · 30 分钟</option><option value="P2">P2 · 4 小时</option><option value="P3">P3 · 1 个工作日</option></select></div>
+            <div class="qualification-card" data-qualification-field="identity"><label>1. 公司身份 · 市场预审</label><small>根据公司主体、官网、国家及公开信息核验</small><textarea id="qualification-identity" class="input" rows="3"></textarea></div>
+            <div class="qualification-card" data-qualification-field="need"><label>2. 邮件中的明确需求 · 市场预审</label><small>只记录客户原文已明确的产品、规格、数量或应用场景，不作猜测</small><textarea id="qualification-need" class="input" rows="3"></textarea></div>
+            <div class="qualification-card" data-qualification-field="role"><label>3. 联系人角色 · 销售确认</label><small>通过沟通确认决策人、影响人、采购执行人或信息收集者</small><textarea id="qualification-role" class="input" rows="3"></textarea></div>
+            <div class="qualification-card" data-qualification-field="value"><label>4. 价值/预算 · 销售确认</label><small>通过沟通确认预算区间、预估金额、采购规模或长期价值</small><textarea id="qualification-value" class="input" rows="3"></textarea></div>
+            <div class="qualification-card" data-qualification-field="timing"><label>5. 时间窗口 · 销售确认</label><small>通过沟通确认采购时间、项目节点、交付要求或紧迫性</small><textarea id="qualification-timing" class="input" rows="3"></textarea></div>
+            <div class="qualification-card" data-qualification-field="fit"><label>6. 业务匹配 · 市场预审</label><small>根据目标市场、产品能力、认证与服务范围进行初步匹配</small><textarea id="qualification-fit" class="input" rows="3"></textarea></div>
+            <div class="qualification-card" data-qualification-field="next-step"><label>+1. 明确下一步 · 销售确认</label><small>记录下一次会议、补充资料、报价或样品动作与负责人</small><textarea id="qualification-next-step" class="input" rows="3"></textarea></div>
+            <div class="qualification-card" data-qualification-field="priority"><label>最终线索优先级 / SLA · 主管确认</label><small>P0 立即、P1 30 分钟、P2 4 小时、P3 1 个工作日</small><select id="qualification-priority" class="input"><option value="P0">P0 · 立即处理</option><option value="P1">P1 · 30 分钟</option><option value="P2">P2 · 4 小时</option><option value="P3">P3 · 1 个工作日</option></select></div>
           </div>
           <div class="field"><label>本次补充/修改原因 *</label><input id="qualification-reason" class="input" placeholder="例如：根据客户邮件补充采购时间" /></div>
           <div class="form-actions"><button id="save-qualification" class="primary" type="button">保存资格核验</button></div>
@@ -3554,6 +3556,7 @@
         const qualificationFields={identity:"qualification_identity",need:"qualification_need",role:"qualification_role",value:"qualification_value",timing:"qualification_timing",fit:"qualification_fit",nextStep:"qualification_next_step"};
         Object.entries(qualificationFields).forEach(([elementKey,column])=>{$(`#qualification-${elementKey.replace(/[A-Z]/g,m=>`-${m.toLowerCase()}`)}`).value=inquiry[column]||""});
         $("#qualification-priority").value=inquiry.lead_priority||"P2";
+        configureQualificationAccess();
         renderQualificationSummary(inquiry);
         $("#nurture-plan-panel").classList.toggle("hidden",inquiry.sales_disposition!=="recycled");
         $("#nurture-next-at").value=inquiry.nurture_next_at?new Date(new Date(inquiry.nurture_next_at).getTime()-new Date(inquiry.nurture_next_at).getTimezoneOffset()*60000).toISOString().slice(0,16):"";
@@ -4574,6 +4577,19 @@
         if(pending){const parsed=parseOutcomeReason(currentInquiry.invalid_request_reason||"");review.innerHTML=`<b>待主管审核的无效申请</b><p class="hint" style="margin:7px 0">${esc(outcomeReasonNames[parsed.type]||"其他")}：${esc(parsed.detail||"未填写说明")}</p>${canReview?`<div class="field"><label>审核原因 *</label><input id="detail-invalid-review-reason" class="input" placeholder="填写通过或驳回依据" /></div><div class="form-actions" style="margin:10px 0 0"><button id="reject-invalid-request" class="ghost" type="button">驳回申请</button><button id="approve-invalid-request" class="primary" type="button">确认无效并关闭</button></div>`:`<span class="tag">等待主管审核</span>`}`;if(canReview){$("#approve-invalid-request").onclick=()=>reviewInvalidRequest(true);$("#reject-invalid-request").onclick=()=>reviewInvalidRequest(false)}}
       }
       const qualificationFieldIds=["identity","need","role","value","timing","fit","next-step"];
+      function qualificationEditableFields(){
+        if(["owner","sales_manager"].includes(profile?.role))return new Set([...qualificationFieldIds,"priority"]);
+        if(profile?.role==="marketing")return new Set(["identity","need","fit"]);
+        if(profile?.role==="sales")return new Set(["role","value","timing","next-step"]);
+        return new Set();
+      }
+      function configureQualificationAccess(){
+        const editable=qualificationEditableFields(),role=profile?.role;
+        qualificationFieldIds.forEach(key=>{const input=$("#qualification-"+key),card=input?.closest(".qualification-card"),allowed=editable.has(key);if(input)input.readOnly=!allowed;card?.classList.toggle("role-readonly",!allowed)});
+        $("#qualification-priority").disabled=!editable.has("priority");$("#qualification-priority").closest(".qualification-card")?.classList.toggle("role-readonly",!editable.has("priority"));
+        const notes={marketing:"市场部仅完成初步资格预审：公司身份、客户邮件中明确提出的需求和业务匹配。预算、决策角色、采购时间及下一步由销售沟通后补充。",sales:"销售负责确认联系人角色、预算价值、采购时间和明确下一步；市场预审字段只读，最终优先级由销售主管确认。",sales_manager:"销售主管可复核全部资格信息，并确认最终线索优先级与响应 SLA。",owner:"老板可复核全部资格信息，并确认最终线索优先级与响应 SLA。"};
+        $("#qualification-workflow-note").textContent=notes[role]||"资格信息按市场预审、销售确认和主管定级分阶段完成。";$("#save-qualification").textContent=role==="marketing"?"保存初步资格预审":role==="sales"?"保存销售资格确认":"保存资格核验与优先级";$("#save-qualification").disabled=editable.size===0;
+      }
       function qualificationScoreFromForm(){
         const completed=qualificationFieldIds.filter(key=>$(`#qualification-${key}`).value.trim()).length;
         return Math.round(completed/qualificationFieldIds.length*100);
@@ -4606,9 +4622,10 @@
         if(!currentInquiry)return;
         const reason=$("#qualification-reason").value.trim();if(!reason)return toast("请填写本次资格核验的修改原因");
         const button=$("#save-qualification");button.disabled=true;
-        const update={qualification_identity:$("#qualification-identity").value.trim()||null,qualification_need:$("#qualification-need").value.trim()||null,qualification_role:$("#qualification-role").value.trim()||null,qualification_value:$("#qualification-value").value.trim()||null,qualification_timing:$("#qualification-timing").value.trim()||null,qualification_fit:$("#qualification-fit").value.trim()||null,qualification_next_step:$("#qualification-next-step").value.trim()||null,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value,last_change_reason:reason,updated_by:profile.id,updated_at:new Date().toISOString()};
+        const editable=qualificationEditableFields(),columns={identity:"qualification_identity",need:"qualification_need",role:"qualification_role",value:"qualification_value",timing:"qualification_timing",fit:"qualification_fit","next-step":"qualification_next_step"},update={qualification_score:qualificationScoreFromForm(),last_change_reason:reason,updated_by:profile.id,updated_at:new Date().toISOString()};
+        Object.entries(columns).forEach(([key,column])=>{if(editable.has(key))update[column]=$("#qualification-"+key).value.trim()||null});if(editable.has("priority"))update.lead_priority=$("#qualification-priority").value;
         const {error}=await supabase.from("inquiries").update(update).eq("id",currentInquiry.id);button.disabled=false;if(error)return toast("资格核验保存失败："+error.message);
-        Object.assign(currentInquiry,update);$("#qualification-reason").value="";renderQualificationSummary(currentInquiry);toast("资格核验已保存，资料可继续渐进补充，修改记录已留痕");await loadTimeline(currentInquiry.id);
+        Object.assign(currentInquiry,update);$("#qualification-reason").value="";renderQualificationSummary(currentInquiry);configureQualificationAccess();toast(profile.role==="marketing"?"初步资格预审已保存，待销售继续确认":profile.role==="sales"?"销售资格信息已保存，待主管确认优先级":"资格核验与优先级已保存");await loadTimeline(currentInquiry.id);
       });
       async function setSalesDisposition(disposition){
         if(!currentInquiry)return;const reason=$("#sales-disposition-reason").value.trim();if(!reason)return toast("请填写接收或退回原因");

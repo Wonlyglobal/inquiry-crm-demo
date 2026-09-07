@@ -5180,6 +5180,7 @@
             return;
           }
           currentInquiry.businessResearch = record;
+          assessResearchQuality();
           $("#detail-research-company").value = record.company || hit?.company || "";
           $("#detail-research-domain").value = domain;
           updateDomainLink();
@@ -5397,7 +5398,7 @@
         ];
         const blockers = checks.filter((item) => item.critical && !item.pass);
         const ready = status === "ready" && blockers.length === 0;
-        const generated=Boolean(currentInquiry?.companies?.researched_at||currentInquiry?.companies?.source_updated_at||currentInquiry?.companies?.ai_summary||facts.length||signals.length||sources.length);
+        const generated=Boolean(currentInquiry?.businessResearch||currentInquiry?.companies?.researched_at||currentInquiry?.companies?.source_updated_at||currentInquiry?.companies?.ai_summary||facts.length||signals.length||sources.length||$("#detail-research-summary").value.trim());
         const researchAt=Math.max(...[currentInquiry?.companies?.researched_at,currentInquiry?.companies?.source_updated_at].filter(Boolean).map(value=>new Date(value).getTime()).filter(Number.isFinite),0),draftAt=currentInquiry?.latestOutreachDraft?.created_at?new Date(currentInquiry.latestOutreachDraft.created_at).getTime():0,researchChanged=Boolean(draftAt&&researchAt>draftAt);
         if (render) {
           $("#research-quality-identity").textContent = identityReady ? (confidence === "high" ? "高" : "中") : "待确认";

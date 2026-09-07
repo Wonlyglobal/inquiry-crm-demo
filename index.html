@@ -744,6 +744,7 @@
       }
       .qualification-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.qualification-card{padding:16px;border:1px solid var(--line);border-radius:16px;background:rgba(248,251,250,.82)}.qualification-card label{display:block;font-weight:800;margin-bottom:8px}.qualification-card small{display:block;color:var(--muted);margin:0 0 10px;line-height:1.45}.qualification-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding:16px 18px;border-radius:16px;background:var(--soft)}.qualification-summary b{font-size:24px}.sales-disposition-actions{display:flex;gap:10px;flex-wrap:wrap}.sales-disposition-actions .danger{background:#fff1ed;color:#a13f2d;border:1px solid #efc5bb}@media(max-width:760px){.qualification-grid{grid-template-columns:1fr}}
       .qualification-card.role-readonly{background:#f3f5f3;opacity:.78}.qualification-card.role-readonly::after{content:"由其他岗位补充";display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;background:#e3e8e4;color:var(--muted);font-size:10px;font-weight:700}.qualification-card textarea:read-only{cursor:not-allowed;background:#f1f3f1;color:#6f7973}
+      .qualification-phase-status{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.qualification-phase-status .tag.complete{background:#e6f0e8;color:#c76820}.qualification-phase-status .tag.pending{background:#f1f3f1;color:var(--muted)}
       .quality-panel{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--soft)}
       .quality-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
       .quality-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -1928,7 +1929,8 @@
           <p class="hint">市场部、主管和老板可直接判断；业务员提交无效申请，由主管确认后关闭并计入经营看板。所有操作保留修改前内容、操作人、时间与原因。</p>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="qualification">
-          <div id="qualification-workflow-note" class="notice" style="margin-bottom:14px"></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px"><div id="qualification-workflow-note" class="notice" style="flex:1"></div><button id="qualification-auto-prefill" class="ghost" type="button">从询盘与背调自动整理</button></div>
+          <div id="qualification-phase-status" class="qualification-phase-status"><span class="tag pending" data-qualification-phase="market">市场预审待完成</span><span class="tag pending" data-qualification-phase="sales">销售确认待完成</span><span class="tag pending" data-qualification-phase="manager">主管定级待确认</span></div>
           <div class="qualification-summary"><div><span class="hint">MTL 6+1 渐进式核验</span><br><b id="qualification-score-label">0 / 100</b></div><span id="qualification-priority-label" class="tag">P2 常规</span></div>
           <p class="hint">每项都可以单独补充，未知信息可留空；保存时按现有证据计算成熟度，不把资料补充设为必填。</p>
           <div class="qualification-grid">
@@ -4589,6 +4591,7 @@
         $("#qualification-priority").disabled=!editable.has("priority");$("#qualification-priority").closest(".qualification-card")?.classList.toggle("role-readonly",!editable.has("priority"));
         const notes={marketing:"市场部仅完成初步资格预审：公司身份、客户邮件中明确提出的需求和业务匹配。预算、决策角色、采购时间及下一步由销售沟通后补充。",sales:"销售负责确认联系人角色、预算价值、采购时间和明确下一步；市场预审字段只读，最终优先级由销售主管确认。",sales_manager:"销售主管可复核全部资格信息，并确认最终线索优先级与响应 SLA。",owner:"老板可复核全部资格信息，并确认最终线索优先级与响应 SLA。"};
         $("#qualification-workflow-note").textContent=notes[role]||"资格信息按市场预审、销售确认和主管定级分阶段完成。";$("#save-qualification").textContent=role==="marketing"?"保存初步资格预审":role==="sales"?"保存销售资格确认":"保存资格核验与优先级";$("#save-qualification").disabled=editable.size===0;
+        $("#qualification-auto-prefill").classList.toggle("hidden",!["marketing","sales_manager","owner"].includes(role));
       }
       function qualificationScoreFromForm(){
         const completed=qualificationFieldIds.filter(key=>$(`#qualification-${key}`).value.trim()).length;
@@ -4600,6 +4603,8 @@
         const sla={P0:"立即",P1:"30 分钟",P2:"4 小时",P3:"1 个工作日"}[priority];
         $("#qualification-score-label").textContent=`${score} / 100`;
         $("#qualification-priority-label").textContent=`${priority} · ${sla}`;
+        const phaseState={market:["identity","need","fit"].every(key=>$("#qualification-"+key).value.trim()),sales:["role","value","timing","next-step"].every(key=>$("#qualification-"+key).value.trim())};phaseState.manager=phaseState.market&&phaseState.sales&&Boolean(priority);
+        Object.entries(phaseState).forEach(([phase,complete])=>{const tag=$(`[data-qualification-phase="${phase}"]`);if(!tag)return;tag.classList.toggle("complete",complete);tag.classList.toggle("pending",!complete);tag.textContent={market:complete?"市场预审已完成":"市场预审待完成",sales:complete?"销售确认已完成":"销售确认待完成",manager:complete?`主管定级：${priority}`:"主管定级待确认"}[phase]});
         const disposition={pending:"尚未处理",accepted:"销售已接受",recycled:"已退回市场培育"}[inquiry?.sales_disposition||"pending"];
         $("#sales-disposition-status").textContent=`${disposition}${inquiry?.sales_disposition_at?` · ${fmtDate(inquiry.sales_disposition_at)}`:""}${inquiry?.recycle_reason?` · ${inquiry.recycle_reason}`:""}`;
         const canDisposition=["owner","sales_manager","sales"].includes(profile?.role)&&inquiry?.validity==="valid"&&Boolean(inquiry?.owner_id);
@@ -4618,6 +4623,7 @@
       }
       qualificationFieldIds.forEach(key=>$("#qualification-"+key).addEventListener("input",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value})));
       $("#qualification-priority").addEventListener("change",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value}));
+      $("#qualification-auto-prefill").addEventListener("click",()=>{if(!currentInquiry)return;const company=currentInquiry.companies||{},setEmpty=(id,value)=>{const input=$(id);if(input&&!input.value.trim()&&value)input.value=value};setEmpty("#qualification-identity",[company.name,company.domain,displayCountry(company.country||currentInquiry.target_country)].filter(Boolean).join(" · "));setEmpty("#qualification-need",[currentInquiry.demand_summary,currentInquiry.project_name&&(`项目：${currentInquiry.project_name}`),currentInquiry.title].filter(Boolean).join("\n"));const needs=Array.isArray(company.likely_needs)?company.likely_needs.map(item=>item?.need||item?.display||item).filter(Boolean).slice(0,3):[];setEmpty("#qualification-fit",[company.main_business&&(`主营业务：${company.main_business}`),needs.length&&(`可能匹配：${needs.join("；")}`)].filter(Boolean).join("\n"));$("#qualification-reason").value=$("#qualification-reason").value.trim()||"根据询盘原文与已生成背调自动整理市场预审，保存前已人工复核";renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value});toast("已整理市场预审空白项，请核对后保存")});
       $("#save-qualification").addEventListener("click",async()=>{
         if(!currentInquiry)return;
         const reason=$("#qualification-reason").value.trim();if(!reason)return toast("请填写本次资格核验的修改原因");

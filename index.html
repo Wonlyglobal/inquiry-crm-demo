@@ -768,7 +768,7 @@
         font-weight: 700;
       }
       .detail-tab:hover { background: var(--soft); color: var(--ink); }
-      .detail-tab.active { background: var(--rail); color: #fff; }
+      .detail-tab.active { background: var(--soft); color: var(--orange-on-green); border-color:#c9d9ce; }
       .detail-tabs.order-editing .detail-tab { cursor: grab; border-color:#d8a265; touch-action:none; user-select:none; }
       .detail-tabs.order-editing .detail-tab::before { content:"⠿ "; color:var(--orange-on-green); }
       .detail-tabs.order-editing .detail-tab:active { cursor:grabbing; }
@@ -1112,6 +1112,7 @@
       .dashboard-widget-handle button,
       .module-status-pill,
       .inquiry-stage-tab.active,
+      .detail-tab.active,
       .validity-choice.active[data-validity="valid"],
       .tag,
       .completeness-chip,

@@ -3674,7 +3674,13 @@
           $("#outreach-draft").classList.add("hidden"); $("#outreach-status").textContent = "草稿尚未保存";
         }
         $("#reply-inquiry").classList.toggle("hidden",!["owner","sales_manager","sales"].includes(profile.role));
-        $("#reply-inquiry").disabled=!intake?.sender_email;
+        // Sales users may not be allowed to read the raw email_intake row via
+        // RLS even though the inquiry still contains a verified customer email.
+        // Use the same recipient resolver as the compose action so the button
+        // and the action cannot disagree about whether a reply is possible.
+        const replyRecipient = resolveInquiryRecipient();
+        $("#reply-inquiry").disabled = !replyRecipient;
+        $("#reply-inquiry").title = replyRecipient ? "" : "该询盘没有可用的客户邮箱";
         if (latestDraft?.status !== "sent") {
           $("#send-outreach").disabled = false;
           $("#send-outreach").classList.remove("hidden");

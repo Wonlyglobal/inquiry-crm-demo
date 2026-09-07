@@ -1223,6 +1223,8 @@
         </div>
         <button class="nav active" data-view="dashboard">
           <i data-lucide="layout-dashboard"></i><span>经营看板</span></button
+        ><button class="nav" data-view="marketing-center">
+          <i data-lucide="list-checks"></i><span>市场任务中心</span></button
         ><button class="nav" data-view="inquiries">
           <i data-lucide="contact-round"></i><span>询盘商机</span></button
         ><button class="nav" data-view="email">
@@ -1310,11 +1312,6 @@
             <div id="manager-workbench-kpis" class="sales-workbench-kpis"></div>
             <div class="manager-workbench-body"><div><div class="panel-title"><b>团队紧急事项</b><span class="dashboard-scope-note">按严重程度与发生时间排序</span></div><div id="manager-priority-list" class="manager-priority-list"></div></div><div id="manager-workload" class="manager-workload"></div></div>
           </section>
-          <section id="marketing-workbench" class="dashboard-panel manager-workbench hidden">
-            <div class="sales-workbench-head"><div><b>市场任务中心</b><p>从邮件接收、人工分拣、有效性判断、客户背调到提交分配</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">连接询盘邮箱</button><button id="marketing-open-email" class="primary">进入邮件分拣</button><button id="marketing-open-research" class="ghost">客户背调</button><button id="marketing-open-assignment" class="ghost">查看待分配</button></div></div>
-            <div id="marketing-workbench-kpis" class="sales-workbench-kpis"></div>
-            <div class="manager-workbench-body"><div><div class="panel-title"><b>市场待处理事项</b><span class="dashboard-scope-note">按流程优先级排列</span></div><div id="marketing-priority-list" class="manager-priority-list"></div></div><div id="marketing-source-overview" class="manager-workload"></div></div>
-          </section>
           <section id="legacy-dashboard" class="hidden">
             <div class="table-head"><span>历史工程经营概览</span><span class="dashboard-scope-note">独立历史口径，不参与响应率、成交率或 ROI</span></div>
             <div id="legacy-dashboard-kpis" class="legacy-dashboard-grid"></div>
@@ -1398,6 +1395,17 @@
               <tbody id="inquiry-body"></tbody>
             </table>
           </div>
+        </section>
+        <section id="marketing-center-page" class="page hidden">
+          <div class="heading"><div><h1>市场任务中心</h1><p>从邮件接收、人工分拣、有效性判断、客户背调到提交分配</p></div></div>
+          <div class="dashboard-toolbar card" style="margin-bottom:18px">
+            <div class="dashboard-toolbar-primary"><div class="dashboard-scope-group"><div class="period-tabs" role="group" aria-label="市场任务周期"><button class="period-tab marketing-period-tab" data-marketing-period="today">今日</button><button class="period-tab marketing-period-tab" data-marketing-period="week">本周</button><button class="period-tab marketing-period-tab active" data-marketing-period="month">本月</button><button class="period-tab marketing-period-tab" data-marketing-period="quarter">本季度</button><button class="period-tab marketing-period-tab" data-marketing-period="year">本年度</button></div><select id="marketing-period" class="input compact hidden"><option value="today">今日</option><option value="week">本周</option><option value="month" selected>本月</option><option value="quarter">本季度</option><option value="year">本年度</option></select></div><span class="dashboard-scope-note">任务和渠道数据随所选周期同步更新</span></div>
+          </div>
+          <section id="marketing-workbench" class="dashboard-panel manager-workbench hidden">
+            <div class="sales-workbench-head"><div><b>市场任务中心</b><p>优先处理当前周期内尚未完成的市场流程</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">连接询盘邮箱</button><button id="marketing-open-email" class="primary">进入邮件分拣</button><button id="marketing-open-research" class="ghost">客户背调</button><button id="marketing-open-assignment" class="ghost">查看待分配</button></div></div>
+            <div id="marketing-workbench-kpis" class="sales-workbench-kpis"></div>
+            <div class="manager-workbench-body"><div><div class="panel-title"><b>市场待处理事项</b><span class="dashboard-scope-note">按流程优先级排列</span></div><div id="marketing-priority-list" class="manager-priority-list"></div></div><div id="marketing-source-overview" class="manager-workload"></div></div>
+          </section>
         </section>
         <section id="module-page" class="page hidden">
           <div class="heading">
@@ -2283,6 +2291,7 @@
         const role = profile.role;
         const canConfigureMailboxes = ["owner", "sales_manager", "marketing"].includes(role);
         const visibility = {
+          "marketing-center": ["marketing"].includes(role),
           email: ["owner", "sales_manager", "marketing"].includes(role),
           assignment: ["owner", "sales_manager", "marketing"].includes(role),
           nurture: ["owner", "sales_manager", "marketing"].includes(role),
@@ -2306,7 +2315,7 @@
         $("#manager-workbench").classList.toggle("hidden",!managerView);
         $("#marketing-workbench").classList.toggle("hidden",!marketingView);
         $("#hero-sales-label").textContent=salesView?"我的销售额":"团队总销售额";
-        $("#dashboard-subtitle").textContent=salesView?"我的询盘、今日待办、响应效率与个人业绩":managerView?"团队分配、响应效率、销售执行与业绩管理":marketingView?"询盘接收、有效性判断、客户背调与渠道质量":"询盘效率、销售转化、渠道 ROI 与风险预警";
+        $("#dashboard-subtitle").textContent="询盘效率、销售转化、渠道 ROI 与风险预警";
         ["#dashboard-team","#dashboard-sales","#dashboard-data-scope","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
         ["#dashboard-team","#dashboard-sales","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
         const startup = await Promise.allSettled([loadInquiries(), loadNotifications()]);
@@ -2749,14 +2758,17 @@
             return;
           }
           $("#dashboard-page").classList.add("hidden");
+          $("#marketing-center-page").classList.add("hidden");
           $("#module-page").classList.add("hidden");
           await openDailyReport();
           return;
         }
         $("#daily-modal").classList.add("hidden");
-        const dashboard = view === "dashboard";
+        const dashboard = view === "dashboard", marketingCenter=view==="marketing-center";
         $("#dashboard-page").classList.toggle("hidden", !dashboard);
-        $("#module-page").classList.toggle("hidden", dashboard);
+        $("#marketing-center-page").classList.toggle("hidden",!marketingCenter);
+        $("#module-page").classList.toggle("hidden",dashboard||marketingCenter);
+        if(marketingCenter){renderMarketingWorkbench(dashboardState.rows);return}
         if (!dashboard) await loadModule(view, options);
       }
       async function loadNotifications() {
@@ -2875,6 +2887,15 @@
         const duration=end-start+1, previousEnd=new Date(start-1), previousStart=new Date(previousEnd-duration+1);
         return { type,start,end,previousStart,previousEnd };
       }
+      function marketingRange() {
+        const now=new Date(),type=$("#marketing-period")?.value||"month";let start=new Date(now),end=new Date(now);end.setHours(23,59,59,999);
+        if(type==="today")start.setHours(0,0,0,0);
+        else if(type==="week"){const day=(now.getDay()+6)%7;start.setDate(now.getDate()-day);start.setHours(0,0,0,0)}
+        else if(type==="month")start=new Date(now.getFullYear(),now.getMonth(),1);
+        else if(type==="quarter")start=new Date(now.getFullYear(),Math.floor(now.getMonth()/3)*3,1);
+        else if(type==="year")start=new Date(now.getFullYear(),0,1);
+        return {type,start,end};
+      }
       const inRange=(value,start,end)=>value && new Date(value)>=start && new Date(value)<=end;
       const esc=(value)=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
       const pct=(n,d)=>d ? `${(n/d*100).toFixed(1)}%` : "—";
@@ -2964,7 +2985,7 @@
       }
       function renderMarketingWorkbench(rows){
         if(profile?.role!=="marketing")return;
-        const {type,start,end}=dashboardRange(),periodLabel={today:"今日",week:"本周",month:"本月",quarter:"本季度",year:"本年度",all:"全部",custom:"所选周期"}[type]||"所选周期",visibleInquiryIds=new Set(rows.map(x=>x.id)),visibleCompanyIds=new Set(rows.map(x=>x.company_id).filter(Boolean)),intakes=(dashboardState.emailIntakes||[]).filter(x=>(!x.inquiry_id||visibleInquiryIds.has(x.inquiry_id))&&inRange(x.received_at||x.created_at,start,end)),companies=(dashboardState.researchCompanies||[]).filter(x=>visibleCompanyIds.has(x.id)),periodEmails=intakes,unprocessed=intakes.filter(x=>["pending","processing","pending_review","failed"].includes(String(x.processing_status||"").toLowerCase())),validityPending=rows.filter(x=>x.validity==="pending"),researchPending=companies.filter(x=>!["completed","confirmed","done","ready"].includes(String(x.research_status||"").toLowerCase())),assignmentPending=rows.filter(x=>x.validity==="valid"&&x.status==="pending_assignment"),validDecided=rows.filter(x=>x.validity!=="pending"),validCount=validDecided.filter(x=>x.validity==="valid").length;
+        const {type,start,end}=marketingRange(),periodLabel={today:"今日",week:"本周",month:"本月",quarter:"本季度",year:"本年度"}[type]||"所选周期";rows=rows.filter(x=>!x.excluded_from_dashboard&&inRange(x.created_at,start,end));const visibleInquiryIds=new Set(rows.map(x=>x.id)),visibleCompanyIds=new Set(rows.map(x=>x.company_id).filter(Boolean)),intakes=(dashboardState.emailIntakes||[]).filter(x=>(!x.inquiry_id||visibleInquiryIds.has(x.inquiry_id))&&inRange(x.received_at||x.created_at,start,end)),companies=(dashboardState.researchCompanies||[]).filter(x=>visibleCompanyIds.has(x.id)),periodEmails=intakes,unprocessed=intakes.filter(x=>["pending","processing","pending_review","failed"].includes(String(x.processing_status||"").toLowerCase())),validityPending=rows.filter(x=>x.validity==="pending"),researchPending=companies.filter(x=>!["completed","confirmed","done","ready"].includes(String(x.research_status||"").toLowerCase())),assignmentPending=rows.filter(x=>x.validity==="valid"&&x.status==="pending_assignment"),validDecided=rows.filter(x=>x.validity!=="pending"),validCount=validDecided.filter(x=>x.validity==="valid").length;
         $("#marketing-workbench-kpis").innerHTML=[[`${periodLabel}新邮件`,periodEmails.length],["待分拣邮件",unprocessed.length],["有效性待确认",validityPending.length],["背调待完成",researchPending.length],["待主管分配",assignmentPending.length]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i>0&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         const tasks=[];unprocessed.forEach(x=>tasks.push({priority:1,id:x.inquiry_id,title:x.subject||x.sender_email||"新客户邮件",reason:`${x.sender_email||"未知发件人"} · 邮件尚未完成登记`,time:x.received_at||x.created_at,label:"处理邮件",view:"email"}));validityPending.forEach(x=>tasks.push({priority:2,id:x.id,title:x.title,reason:"尚未确认有效性和无效原因",time:x.created_at,label:"判断有效性",view:"inquiry"}));researchPending.slice(0,20).forEach(x=>tasks.push({priority:3,title:x.name||"待背调公司",reason:"公司背调尚未完成",time:x.updated_at,label:"完成背调",view:"research"}));assignmentPending.forEach(x=>{if(!tasks.some(t=>t.id===x.id))tasks.push({priority:4,id:x.id,title:x.title,reason:"已登记，等待提交或主管分配",time:x.updated_at||x.created_at,label:"检查登记",view:"inquiry"})});tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
         $("#marketing-priority-list").innerHTML=tasks.length?tasks.slice(0,12).map((t,i)=>`<div class="sales-task-item" data-marketing-task="${i}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${fmtDate(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无市场待处理事项</b><small>邮件、有效性与背调流程均已处理</small></div>';
@@ -3073,7 +3094,6 @@
         renderTrendCharts(scoped);
         renderSalesWorkbench(activeScoped,followups);
         renderManagerWorkbench(activeScoped,profiles,followups);
-        renderMarketingWorkbench(periodRows);
         renderAnnualTargetPlan();
         $("#hero-sales-ranking").innerHTML=renderLeaderboard("业务员销售额排名","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>`${money(v,"CNY")}<br><small>${usdCny?money(v/usdCny,"USD"):"汇率待更新"}</small>`);
         $("#hero-sales-ranking").firstElementChild?.classList.add("featured-sales-ranking");
@@ -3185,7 +3205,7 @@
         const member=dashboardState.profiles.find(x=>x.id===userId);if(!member)return toast("未找到该成员数据");
         const allowed=profile.id===userId||["owner","marketing","sales_manager"].includes(profile.role);if(!allowed)return toast("当前账号无权查看该业务员主页");
         const {start,end}=dashboardRange(),allInquiries=dashboardState.rows.filter(x=>x.owner_id===userId),commercial=allInquiries.filter(x=>x.validity==="valid"),commercialIds=new Set(commercial.map(x=>x.id)),periodInquiries=allInquiries.filter(x=>inRange(x.created_at,start,end)),valid=periodInquiries.filter(x=>x.validity==="valid"),closed=valid.filter(x=>["won","lost"].includes(x.status)),won=valid.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,start,end)),assigned=valid.filter(x=>x.assigned_at),responded=assigned.filter(x=>x.first_valid_contact_at),fast=responded.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000),overdue=commercial.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&Date.now()-new Date(x.assigned_at)>1800000),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]),amount=sumWonCny(won),usd=fxToCny("USD")||0,memberFollowups=(dashboardState.followups||[]).filter(x=>x.author_id===userId&&commercialIds.has(x.inquiry_id)),lateTasks=memberFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<new Date());
-        $("#dashboard-page").classList.add("hidden");$("#module-page").classList.add("hidden");$("#sales-profile-page").classList.remove("hidden");
+        $("#dashboard-page").classList.add("hidden");$("#marketing-center-page").classList.add("hidden");$("#module-page").classList.add("hidden");$("#sales-profile-page").classList.remove("hidden");
         currentSalesProfileUserId=userId;setMemberAvatar($("#sales-profile-avatar"),member,"销");$("#sales-profile-avatar").disabled=userId!==profile.id;$("#sales-profile-avatar-hint").classList.toggle("hidden",userId!==profile.id);$("#sales-profile-name").textContent=`${member.full_name} · 个人业务主页`;$("#sales-profile-meta").textContent=[member.english_name,member.job_title||roleNames[member.role],member.team,member.email].filter(Boolean).join(" · ");$("#sales-profile-period").textContent=`${start.toLocaleDateString("zh-CN")}—${end.toLocaleDateString("zh-CN")}`;
         const kpis=[["询盘处理量",responded.length],["30分钟首次响应率",pct(fast.length,assigned.length)],["平均首次响应",mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN)],["有效询盘率",pct(valid.length,periodInquiries.filter(x=>x.validity!=="pending").length)],["报价率",pct(valid.filter(x=>quotedStages.has(x.status)).length,valid.length)],["成交率",pct(won.length,closed.length)],["成交额",`${money(amount,"CNY")}${usd?` / ${money(amount/usd,"USD")}`:""}`],["响应超时",overdue.length],["逾期跟进",lateTasks.length]];
         $("#sales-profile-kpis").innerHTML=kpis.map(([label,value],i)=>`<div class="card"><div class="kpi-label">${label}</div><div class="kpi-value ${i>6&&Number(value)>0?"danger-text":""}">${value}</div></div>`).join("");
@@ -3293,6 +3313,7 @@
         const primaryTouchByInquiry=new Map();for(const touch of marketingTouches||[]){if(touch.is_primary&&!primaryTouchByInquiry.has(touch.inquiry_id))primaryTouchByInquiry.set(touch.inquiry_id,touch)}rows.forEach(x=>{x.primary_marketing_touch=primaryTouchByInquiry.get(x.id)||null});
         dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
+        if($(".nav[data-view=\"marketing-center\"]")?.classList.contains("active"))renderMarketingWorkbench(rows);
         const latestByInquiry = new Map();
         for (const item of history || []) {
           if (!latestByInquiry.has(item.inquiry_id))
@@ -3590,6 +3611,7 @@
         // asynchronous list loading so startup/dashboard work cannot overwrite it.
         setActiveNavigation("inquiries");
         $("#dashboard-page").classList.add("hidden");
+        $("#marketing-center-page").classList.add("hidden");
         $("#module-page").classList.add("hidden");
         $("#sales-profile-page").classList.add("hidden");
         $("#detail-modal").classList.remove("hidden");
@@ -4403,13 +4425,16 @@
         currentInquiry = null;
         if (detailOriginView === "sales-profile") {
           $("#dashboard-page").classList.add("hidden");
+          $("#marketing-center-page").classList.add("hidden");
           $("#module-page").classList.add("hidden");
           $("#sales-profile-page").classList.remove("hidden");
           return;
         }
-        const activeView = $(".nav[data-view].active")?.dataset.view || "dashboard";
+        const activeView = detailOriginView&&detailOriginView!=="sales-profile"?detailOriginView:($(".nav[data-view].active")?.dataset.view||"dashboard");
+        setActiveNavigation(activeView);
         $("#dashboard-page").classList.toggle("hidden", activeView !== "dashboard");
-        $("#module-page").classList.toggle("hidden", activeView === "dashboard");
+        $("#marketing-center-page").classList.toggle("hidden",activeView!=="marketing-center");
+        $("#module-page").classList.toggle("hidden", activeView === "dashboard"||activeView==="marketing-center");
       }
       $("#close-detail").addEventListener("click", () => {
         if (location.hash.startsWith("#inquiry/")) history.back();
@@ -5732,10 +5757,11 @@
         const custom = event.target.value === "custom";
         $("#dashboard-start").classList.toggle("hidden", !custom);
         $("#dashboard-end").classList.toggle("hidden", !custom);
-        $$(".period-tab").forEach(button=>{const active=button.dataset.period===event.target.value;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});
+        $$(".period-tab[data-period]").forEach(button=>{const active=button.dataset.period===event.target.value;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});
         if (!custom) renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups);
       });
-      $$(".period-tab").forEach(button=>button.addEventListener("click",()=>{$("#dashboard-period").value=button.dataset.period;$("#dashboard-period").dispatchEvent(new Event("change"))}));
+      $$(".period-tab[data-period]").forEach(button=>button.addEventListener("click",()=>{$("#dashboard-period").value=button.dataset.period;$("#dashboard-period").dispatchEvent(new Event("change"))}));
+      $$(".marketing-period-tab").forEach(button=>button.addEventListener("click",()=>{$("#marketing-period").value=button.dataset.marketingPeriod;$$('.marketing-period-tab').forEach(item=>{const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active))});renderMarketingWorkbench(dashboardState.rows)}));
       $$(".trend-tab").forEach(button=>button.addEventListener("click",()=>{dashboardState.trendGrain=button.dataset.trendGrain;renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)}));
       $$("[data-target-plan-metric]").forEach(button=>button.addEventListener("click",()=>{dashboardState.targetPlanMetric=button.dataset.targetPlanMetric;renderAnnualTargetPlan()}));
       $("#sales-view-inquiries").addEventListener("click",()=>switchView("inquiries"));
@@ -5766,7 +5792,7 @@
       $("#marketing-open-research").addEventListener("click",()=>switchView("research"));
       $("#marketing-open-assignment").addEventListener("click",()=>switchView("assignment"));
       $("#sales-profile-back").addEventListener("click",()=>switchView("dashboard"));
-      $("#dashboard-data-scope").addEventListener("change",event=>{const period=$("#dashboard-period");if(event.target.value==="legacy")period.value="all";else if(period.value==="all")period.value="month";$$(".period-tab").forEach(button=>button.classList.toggle("active",button.dataset.period===period.value));renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)});
+      $("#dashboard-data-scope").addEventListener("change",event=>{const period=$("#dashboard-period");if(event.target.value==="legacy")period.value="all";else if(period.value==="all")period.value="month";$$(".period-tab[data-period]").forEach(button=>button.classList.toggle("active",button.dataset.period===period.value));renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)});
       $("#dashboard-apply").addEventListener("click", () => renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups));
       $("#dashboard-targets").addEventListener("click", openTargetEditor);
       $("#dashboard-channel-cost").addEventListener("click", openChannelCostEditor);

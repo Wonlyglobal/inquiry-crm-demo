@@ -24,7 +24,7 @@
         --white: #fff;
         --soft: #dbe5dc;
         --danger: #bd4a43;
-        --orange-on-green: #ffad4d;
+        --orange-on-green: #e67817;
       }
       * {
         box-sizing: border-box;
@@ -2834,15 +2834,11 @@
         clearTimeout(detailTabsSaveTimer);detailTabsSaveTimer=setTimeout(async()=>{const {error}=await supabase.auth.updateUser({data:{detail_tabs_order:order}});if(error)console.warn("详情页签顺序云端保存失败，已保留本机顺序",error)},500);
       }
       function setDetailTabsEditing(editing){
-        detailTabsEditing=editing;const container=$(".detail-tabs");container.classList.toggle("order-editing",editing);$$('.detail-tabs > [data-detail-tab]').forEach(tab=>tab.draggable=editing);$("#detail-tabs-order-toggle").textContent=editing?"完成排序":"调整页签";$("#detail-tabs-order-reset").classList.toggle("hidden",!editing);
+        detailTabsEditing=editing;const container=$(".detail-tabs");container.classList.toggle("order-editing",editing);$$('.detail-tabs > [data-detail-tab]').forEach(tab=>tab.draggable=false);$("#detail-tabs-order-toggle").textContent=editing?"完成排序":"调整页签";$("#detail-tabs-order-reset").classList.toggle("hidden",!editing);
       }
       function initializeDetailTabsOrder(){
         applyDetailTabsOrder(storedDetailTabsOrder());const container=$(".detail-tabs");if(container.dataset.orderBound)return;container.dataset.orderBound="true";
-        container.addEventListener("dragstart",event=>{const tab=event.target.closest("[data-detail-tab]");if(!detailTabsEditing||!tab){event.preventDefault();return}container.dataset.draggingTab=tab.dataset.detailTab;tab.classList.add("order-dragging");event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",tab.dataset.detailTab)});
-        container.addEventListener("dragover",event=>{if(!detailTabsEditing||!container.dataset.draggingTab)return;event.preventDefault();const dragging=container.querySelector(`[data-detail-tab="${container.dataset.draggingTab}"]`),target=event.target.closest("[data-detail-tab]");if(!dragging||!target||dragging===target)return;const rect=target.getBoundingClientRect();container.insertBefore(dragging,event.clientX<rect.left+rect.width/2?target:target.nextSibling)});
-        container.addEventListener("drop",event=>{if(!container.dataset.draggingTab)return;event.preventDefault();persistDetailTabsOrder()});
-        container.addEventListener("dragend",()=>{if(container.dataset.draggingTab)persistDetailTabsOrder();container.querySelector(".order-dragging")?.classList.remove("order-dragging");delete container.dataset.draggingTab});
-        container.addEventListener("pointerdown",event=>{const tab=event.target.closest("[data-detail-tab]");if(!detailTabsEditing||!tab||event.pointerType==="mouse")return;event.preventDefault();tab.setPointerCapture?.(event.pointerId);tab.classList.add("order-dragging");const move=pointer=>{const target=document.elementFromPoint(pointer.clientX,pointer.clientY)?.closest("[data-detail-tab]");if(!target||target===tab)return;const rect=target.getBoundingClientRect();container.insertBefore(tab,pointer.clientX<rect.left+rect.width/2?target:target.nextSibling)};const end=()=>{tab.onpointermove=null;tab.onpointerup=null;tab.onpointercancel=null;tab.classList.remove("order-dragging");persistDetailTabsOrder()};tab.onpointermove=move;tab.onpointerup=end;tab.onpointercancel=end});
+        container.addEventListener("pointerdown",event=>{const tab=event.target.closest("[data-detail-tab]");if(!detailTabsEditing||!tab||event.button>0)return;event.preventDefault();tab.setPointerCapture?.(event.pointerId);tab.classList.add("order-dragging");const move=pointer=>{const bounds=container.getBoundingClientRect();if(pointer.clientX<bounds.left+36)container.scrollLeft-=18;else if(pointer.clientX>bounds.right-36)container.scrollLeft+=18;const target=document.elementFromPoint(pointer.clientX,pointer.clientY)?.closest(".detail-tabs > [data-detail-tab]");if(!target||target===tab)return;const rect=target.getBoundingClientRect();container.insertBefore(tab,pointer.clientX<rect.left+rect.width/2?target:target.nextSibling)};const end=()=>{tab.onpointermove=null;tab.onpointerup=null;tab.onpointercancel=null;tab.classList.remove("order-dragging");persistDetailTabsOrder()};tab.onpointermove=move;tab.onpointerup=end;tab.onpointercancel=end});
       }
       function openLegacyProject(project) {
         const normalizedOwner = project.legacy_owner_name === "石舒" ? "石奕舒" : project.legacy_owner_name;

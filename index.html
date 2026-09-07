@@ -246,6 +246,7 @@
         padding: 9px 12px;
         cursor: pointer;
       }
+      .ghost:disabled { opacity:.45; cursor:not-allowed; }
       .table-action {
         border: 1px solid #b9cabe;
         background: #edf3ee;
@@ -1770,7 +1771,7 @@
           <button class="detail-tab" type="button" data-detail-tab="contact-policy">触达规则</button>
           <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="events">公司大事件</button>
-          <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
+          <button class="detail-tab" type="button" data-detail-tab="outreach">邮件沟通</button>
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
           <button class="detail-tab" type="button" data-detail-tab="audit">修改记录</button>
         </nav>
@@ -1893,8 +1894,8 @@
         </div>
         <div class="form-body detail-section hidden" data-detail-section="outreach">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-            <div><h4 style="margin:0">开发信</h4><p class="hint" style="margin:8px 0 0">使用已确认的背调证据生成英文草稿，并按统一加权送达率规范质检；普通商务词不会被机械拦截，草稿不会自动发送。</p></div>
-            <button id="generate-outreach" class="primary" type="button">生成开发信草稿</button>
+            <div><h4 style="margin:0">邮件沟通</h4><p class="hint" style="margin:8px 0 0">业务员可直接回复客户询盘，也可使用已确认的背调证据生成首次开发邮件；所有邮件发送前均需人工确认。</p></div>
+            <div class="heading-actions"><button id="reply-inquiry" class="ghost" type="button">回复询盘</button><button id="update-outreach" class="ghost" type="button" disabled>更新开发信</button><button id="generate-outreach" class="primary" type="button">一键生成开发信</button></div>
           </div>
           <p id="outreach-status" class="hint" style="margin-top:16px">草稿尚未生成</p>
           <div id="outreach-evidence-panel" class="quality-panel">
@@ -1902,7 +1903,7 @@
             <div id="outreach-evidence-list" class="evidence-preview"><div class="evidence-item">完成背调后，系统会在这里列出允许写入客户邮件的事实和需求信号。</div></div>
           </div>
           <div id="outreach-draft" class="hidden" style="margin-top:24px">
-            <h4>开发信草稿 <span class="tag">待人工审核</span></h4>
+            <h4><span id="outreach-draft-title">邮件草稿</span> <span class="tag">待人工审核</span></h4>
             <div class="detail-grid">
               <div class="field"><label>收件人</label><input id="outreach-recipient" class="input" readonly /></div>
               <div class="field"><label>邮件目标</label><select id="outreach-objective" class="input"><option value="qualify">确认需求</option><option value="quote">推动报价</option><option value="meeting">预约会议</option></select></div>
@@ -2116,6 +2117,7 @@
       let dailySection = "report";
       let passwordChangeMode = "initial";
       let currentInquiry = null;
+      let outreachComposeMode = "outreach";
       let currentCompanyEvents = [];
       let autonomousResearchInquiryId = null;
       let detailStageTicker = null;
@@ -3644,9 +3646,13 @@
         if (latestImport?.summary) showTopeasePreview(latestImport.summary, latestImport.file_name || "粘贴内容", latestImport.created_at);
         else $("#topease-preview").classList.add("hidden");
         currentInquiry.outreachDraftId = latestDraft?.id || null;
+        currentInquiry.latestOutreachDraft = latestDraft || null;
         $("#outreach-recipient").value = intake?.sender_email || latestDraft?.recipient_email || "";
-        const legacyDraftError = latestDraft ? validateCustomerFacingDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body || "", preferredEnglishName()) : "";
+        const latestDraftMode=/^re\s*:/i.test(latestDraft?.selected_subject||latestDraft?.subject_a||"")?"reply":"outreach";
+        const legacyDraftError = latestDraft ? validateCustomerFacingDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body || "", preferredEnglishName(),latestDraftMode) : "";
         if (latestDraft && !legacyDraftError) {
+          outreachComposeMode=/^re\s*:/i.test(latestDraft.selected_subject||latestDraft.subject_a||"")?"reply":"outreach";
+          $("#outreach-draft-title").textContent=outreachComposeMode==="reply"?"询盘回复草稿":"开发邮件草稿";
           $("#outreach-subject-a").value = latestDraft.subject_a || ""; $("#outreach-subject-b").value = latestDraft.subject_b || "";
           $("#outreach-selected-subject").value = latestDraft.selected_subject === latestDraft.subject_b ? "b" : "a";
           $("#outreach-body").value = latestDraft.body || ""; $("#outreach-tone").value = latestDraft.tone || "consultative"; $("#outreach-objective").value = latestDraft.objective || "qualify";
@@ -3659,8 +3665,11 @@
           $("#outreach-status").textContent = "旧草稿包含中文或内部判断，已停止使用；请重新生成";
           $("#outreach-draft").classList.remove("hidden");
         } else {
+          outreachComposeMode="outreach";$("#outreach-draft-title").textContent="邮件草稿";
           $("#outreach-draft").classList.add("hidden"); $("#outreach-status").textContent = "草稿尚未保存";
         }
+        $("#reply-inquiry").classList.toggle("hidden",!["owner","sales_manager","sales"].includes(profile.role));
+        $("#reply-inquiry").disabled=!intake?.sender_email;
         if (latestDraft?.status !== "sent") {
           $("#send-outreach").disabled = false;
           $("#send-outreach").classList.remove("hidden");
@@ -5365,6 +5374,8 @@
         ];
         const blockers = checks.filter((item) => item.critical && !item.pass);
         const ready = status === "ready" && blockers.length === 0;
+        const generated=Boolean(currentInquiry?.companies?.researched_at||currentInquiry?.companies?.source_updated_at||currentInquiry?.companies?.ai_summary||facts.length||signals.length||sources.length);
+        const researchAt=Math.max(...[currentInquiry?.companies?.researched_at,currentInquiry?.companies?.source_updated_at].filter(Boolean).map(value=>new Date(value).getTime()).filter(Number.isFinite),0),draftAt=currentInquiry?.latestOutreachDraft?.created_at?new Date(currentInquiry.latestOutreachDraft.created_at).getTime():0,researchChanged=Boolean(draftAt&&researchAt>draftAt);
         if (render) {
           $("#research-quality-identity").textContent = identityReady ? (confidence === "high" ? "高" : "中") : "待确认";
           $("#research-quality-evidence-count").textContent = String(sources.length);
@@ -5375,12 +5386,14 @@
           const evidence = $("#outreach-evidence-list"); evidence.replaceChildren();
           [...facts.slice(0, 3).map((text) => ({ type: "已确认事实", text })), ...strongSignals.slice(0, 3).map((text) => ({ type: "需求信号", text }))].forEach((item) => { const card = document.createElement("div"); card.className = "evidence-item"; card.textContent = item.text; const meta = document.createElement("small"); meta.textContent = item.type; card.append(meta); evidence.append(card); });
           if (!evidence.children.length) { const empty = document.createElement("div"); empty.className = "evidence-item"; empty.textContent = "尚无达到写信门槛的证据。"; evidence.append(empty); }
-          $("#outreach-eligibility").textContent = ready ? "可生成草稿" : "暂不可生成";
-          $("#generate-outreach").disabled = !ready;
-          $("#generate-outreach").title = ready ? "" : blockers.map((item) => item.label).join("；");
+          $("#outreach-eligibility").textContent = generated ? (ready?"可生成 · 质量完整":"可生成 · 建议补充资料") : "尚未生成背调";
+          $("#generate-outreach").disabled = !generated;
+          $("#generate-outreach").title = generated ? "" : "请先生成客户背调";
+          $("#update-outreach").disabled=!researchChanged;
+          $("#update-outreach").title=researchChanged?"背调已有更新，点击重新生成开发信":draftAt?"背调无更新":"尚无已保存的开发信";
           renderResearchDecisionBrief({ ready, identityReady, facts: traceableFacts, signals: strongSignals });
         }
-        return { ready, blockers, checks, facts: traceableFacts, signals: strongSignals, sources, contacts, identityReady };
+        return { ready, generated, researchChanged, blockers, checks, facts: traceableFacts, signals: strongSignals, sources, contacts, identityReady };
       }
       function preferredEnglishName() {
         const local = String(profile?.email || "").toLowerCase().split("@")[0].replace(/[^a-z]/g, "");
@@ -5403,14 +5416,14 @@
       function stripExistingSignature(value) {
         return String(value || "").replace(/\n{1,3}(?:Best regards|Kind regards|Regards|Sincerely),?[\s\S]*$/i, "").trim();
       }
-      function validateCustomerFacingDraft(subject, body, signerName = preferredEnglishName()) {
+      function validateCustomerFacingDraft(subject, body, signerName = preferredEnglishName(), mode = outreachComposeMode) {
         if (/[\u3400-\u9fff]/.test(`${subject}\n${body}`)) return "英文开发信中包含中文或内部备注，请重新生成";
         if (/强制降级|高风险|低价值|成交概率|客户等级|内部判断|our recommended next step is to|\b(?:risk rating|value grade|lead score|internal assessment)\b/i.test(body)) {
           return "开发信中包含内部评分、风险或判断信息，请重新生成";
         }
         const normalizedSubject = String(subject || "").trim();
         const normalizedBody = String(body || "");
-        if (/^(?:re|fwd?)\s*:/i.test(normalizedSubject)) return "首封开发信禁止伪造 Re: 或 Fwd:，请使用真实主题";
+        if (mode!=="reply"&&/^(?:re|fwd?)\s*:/i.test(normalizedSubject)) return "首封开发邮件禁止伪造 Re: 或 Fwd:，请使用真实主题";
         if (/(?:\b[A-Z]\s+){3,}[A-Z]\b|fr[€$]{2}|\bf\s+r\s+e\s+e\b/i.test(`${normalizedSubject}\n${normalizedBody}`)) return "开发信包含字符混淆或规避过滤的写法，请恢复自然表达";
         if (/https?:\/\/(?:bit\.ly|t\.co|tinyurl\.com|goo\.gl|ow\.ly|buff\.ly)\b/i.test(normalizedBody)) return "首封开发信禁止使用短链接或隐藏跳转";
         if (/!{2,}|\${3,}|(?:^|\s)[A-Z][A-Z\s]{12,}(?:$|[.!?])/m.test(`${normalizedSubject}\n${normalizedBody}`)) return "开发信包含连续感叹号、货币符号堆砌或大段全大写，请改为自然商务表达";
@@ -5422,8 +5435,8 @@
         }
         return "";
       }
-      function evaluateOutreachDraft(subject, body, companyName = "", customerDomain = "") {
-        const baseError = validateCustomerFacingDraft(subject, body);
+      function evaluateOutreachDraft(subject, body, companyName = "", customerDomain = "", mode = outreachComposeMode) {
+        const baseError = validateCustomerFacingDraft(subject, body,preferredEnglishName(),mode);
         const normalizedBody = String(body || "").trim();
         const contentBody = normalizedBody.split(/\nBest regards,/i)[0];
         const words = contentBody.split(/\s+/).filter(Boolean).length;
@@ -5435,8 +5448,8 @@
         const checks = [
           { pass: !baseError, label: baseError || "无中文、内部评分、风险标签或投机性判断", critical: true },
           { pass: subjectWords >= 3 && subjectWords <= 12, label: `主题长度 ${subjectWords} 词（建议 3–12 词）`, critical: subjectWords < 2 || subjectWords > 16 },
-          { pass: words >= 55 && words <= 95, label: `正文 ${words} 词（标准 55–95 词）`, critical: words < 55 || words > 95 },
-          { pass: personalization, label: personalization ? "包含基于询盘或公司的真实个性化开场" : "缺少可验证的个性化依据", critical: true },
+          { pass: mode==="reply"?words>=8&&words<=220:words>=55&&words<=95, label: mode==="reply"?`回复正文 ${words} 词（建议 8–220 词）`:`正文 ${words} 词（标准 55–95 词）`, critical: mode==="reply"?(words<8||words>220):(words<55||words>95) },
+          { pass: mode==="reply"||personalization, label: mode==="reply"?"基于客户主动询盘直接回复":personalization?"包含基于询盘或公司的真实个性化开场":"缺少可验证的个性化依据", critical: true },
           { pass: questionCount >= 1 && questionCount <= 2, label: `包含 ${questionCount} 个明确问题/CTA（建议 1 个）`, critical: questionCount === 0 || questionCount > 3 },
           { pass: !ownSiteLinked, label: ownSiteLinked ? "错误引用了客户自己的官网作为我方资料" : "未把客户官网误写成我方资料链接", critical: true },
           { pass: /Best regards,\n[^\n]+\nWONLY International Sales Team\nWONLY\nwww\.wonlygroup\.com$/i.test(normalizedBody), label: "使用当前业务员英文名和统一 WONLY 签名", critical: true },
@@ -5457,11 +5470,17 @@
           /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !/@(?:wonlyglobal|wonlygroup)\.(?:com|net)$/i.test(email),
         ) || "";
       }
+      $("#reply-inquiry").addEventListener("click",()=>{
+        if(!currentInquiry)return;const recipient=resolveInquiryRecipient();if(!recipient)return toast("该询盘没有可用的客户邮箱");
+        outreachComposeMode="reply";const originalSubject=String(currentInquiry.email_intake?.subject||currentInquiry.title||"Your inquiry").replace(/^(?:re\s*:\s*)+/i,"").trim(),replySubject=`Re: ${originalSubject}`;
+        $("#outreach-recipient").value=recipient;$("#outreach-subject-a").value=replySubject;$("#outreach-subject-b").value=replySubject;$("#outreach-selected-subject").value="a";$("#outreach-body").value=`Dear ${currentInquiry.contact_name||"Customer"},\n\nThank you for your inquiry.\n\n\n\n${unifiedEnglishSignature()}`;$("#outreach-draft-title").textContent="询盘回复草稿";$("#outreach-status").textContent="正在回复客户原询盘 · 请补充正文后发送";$("#outreach-draft").classList.remove("hidden");$("#outreach-body").focus();evaluateOutreachDraft(replySubject,$("#outreach-body").value);$("#outreach-body").scrollIntoView({behavior:"smooth",block:"center"});
+      });
       $("#generate-outreach").addEventListener("click", async () => {
         if (!currentInquiry) return;
+        outreachComposeMode="outreach";$("#outreach-draft-title").textContent="开发邮件草稿";
         const company = $("#detail-research-company").value.trim();
         const researchQuality = assessResearchQuality();
-        if (!researchQuality.ready) { const reason = researchQuality.blockers.map((item) => item.label).join("；"); $("#outreach-status").textContent = `无法生成：${reason}`; return toast("背调证据尚未达到开发信门槛"); }
+        if (!researchQuality.generated) { $("#outreach-status").textContent = "无法生成：尚未生成客户背调"; return toast("请先生成客户背调"); }
         const button = $("#generate-outreach");
         const recipient = resolveInquiryRecipient() || $("#outreach-recipient").value.trim();
         if (!recipient) { $("#outreach-status").textContent = "无法生成：缺少客户邮箱"; return toast("缺少客户邮箱，无法通过联系人质量门槛"); }
@@ -5523,9 +5542,10 @@
           toast("开发信生成失败：" + (error.message || error));
         } finally {
           button.disabled = false;
-          button.textContent = "生成开发信草稿";
+          button.textContent = "一键生成开发信";
         }
       });
+      $("#update-outreach").addEventListener("click",()=>{if(!$("#update-outreach").disabled)$("#generate-outreach").click()});
       $("#copy-outreach").addEventListener("click", async () => {
         const text = `Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`;
         await navigator.clipboard.writeText(text);
@@ -5534,7 +5554,7 @@
       async function saveOutreachDraft() {
         if (!currentInquiry) throw new Error("请先打开询盘");
         const researchQuality = assessResearchQuality();
-        if (!researchQuality.ready) throw new Error("背调状态或证据已变化，请重新完成背调后再保存草稿");
+        if (outreachComposeMode!=="reply"&&!researchQuality.generated) throw new Error("请先生成客户背调");
         const recipient = $("#outreach-recipient").value.trim();
         const subjectA = $("#outreach-subject-a").value.trim();
         const subjectB = $("#outreach-subject-b").value.trim();
@@ -5547,6 +5567,8 @@
         const { data, error } = await supabase.from("outreach_drafts").insert({ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: "en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" }).select().single();
         if (error) throw error;
         currentInquiry.outreachDraftId = data.id;
+        currentInquiry.latestOutreachDraft=data;
+        assessResearchQuality();
         $("#outreach-status").textContent = `草稿已保存 · ${fmtDate(data.created_at)}`;
         return { id: data.id, subject, body };
       }
@@ -5566,7 +5588,8 @@
         const eligibility=await supabase.rpc("check_inquiry_contact_allowed",{target_inquiry_id:currentInquiry.id});
         if(eligibility.error)return toast("触达规则校验失败："+eligibility.error.message);
         if(!eligibility.data?.allowed)return toast("当前不能发送："+(eligibility.data?.reason||"触达规则未通过"));
-        if (!await appConfirm(`确认使用你已连接的业务员邮箱，将开发信发送给 ${recipient}？`,{title:"发送开发信",confirmText:"确认发送"})) return;
+        const isReply=outreachComposeMode==="reply";
+        if (!await appConfirm(`确认使用你已连接的业务员邮箱，${isReply?"回复询盘给":"发送开发邮件给"} ${recipient}？`,{title:isReply?"回复询盘":"发送开发邮件",confirmText:"确认发送"})) return;
         const button = $("#send-outreach"); button.disabled = true; button.textContent = "发送中…";
         try {
           const draft = await saveOutreachDraft();
@@ -5575,12 +5598,12 @@
           if (data?.sent) {
             $("#outreach-status").textContent = `已发送 · ${fmtDate(data.sent_at || data.queued_at)}`;
             button.classList.add("hidden");
-            toast("开发信已从当前业务员邮箱发送");
+            toast(isReply?"询盘回复已从当前业务员邮箱发送":"开发邮件已从当前业务员邮箱发送");
           } else {
             $("#outreach-status").textContent = `等待邮件服务发送 · ${fmtDate(data?.queued_at)}`;
             toast("开发信已加入发送队列");
           }
-          const contactRecorded=await supabase.rpc("record_inquiry_marketing_contact",{target_inquiry_id:currentInquiry.id,contact_reason:"开发信已发送或进入发送队列"});
+          const contactRecorded=await supabase.rpc("record_inquiry_marketing_contact",{target_inquiry_id:currentInquiry.id,contact_reason:isReply?"客户询盘回复已发送或进入发送队列":"开发邮件已发送或进入发送队列"});
           if(contactRecorded.error)toast("邮件已处理，但频控时间更新失败："+contactRecorded.error.message);
         } catch (error) { $("#outreach-status").textContent = "发送失败，可修改后重试"; toast("开发信发送失败：" + (error.message || error)); }
         finally { if (!button.classList.contains("hidden")) button.disabled = false; button.textContent = "用我的邮箱发送"; }
@@ -5654,6 +5677,7 @@
         currentInquiry.company_id = companyId;
         currentInquiry.companies = saved;
         $("#detail-research-reason").value = "";
+        assessResearchQuality();
         toast("背调信息已保存，修改记录已留痕");
       });
       $("#complete-detail-research").addEventListener("click", async () => {

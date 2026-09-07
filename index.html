@@ -5440,6 +5440,7 @@
       function stripExistingSignature(value) {
         return String(value || "").replace(/\n{1,3}(?:Best regards|Kind regards|Regards|Sincerely),?[\s\S]*$/i, "").trim();
       }
+      function cleanFirstOutreachSubject(value){return String(value||"").replace(/^(?:(?:re|fwd?)\s*:\s*)+/i,"").trim()}
       function validateCustomerFacingDraft(subject, body, signerName = preferredEnglishName(), mode = outreachComposeMode) {
         if (/[\u3400-\u9fff]/.test(`${subject}\n${body}`)) return "英文开发信中包含中文或内部备注，请重新生成";
         if (/强制降级|高风险|低价值|成交概率|客户等级|内部判断|our recommended next step is to|\b(?:risk rating|value grade|lead score|internal assessment)\b/i.test(body)) {
@@ -5551,11 +5552,12 @@
           });
           const generated = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(generated.error || `开发信系统返回 ${response.status}`);
-          const bodyWithSignature = `${stripExistingSignature(generated.body || "")}\n\n${unifiedEnglishSignature()}`.trim();
-          const quality = evaluateOutreachDraft(generated.subject || "", bodyWithSignature, company, $("#detail-research-domain").value.trim());
+          const bodyWithSignature = `${stripExistingSignature(generated.body || "")}\n\n${unifiedEnglishSignature()}`.trim(),subjectA=cleanFirstOutreachSubject(generated.subject),subjectB=cleanFirstOutreachSubject(generated.subjectB||generated.subject);
+          if(!subjectA)throw new Error("生成的邮件主题为空，请重试");
+          const quality = evaluateOutreachDraft(subjectA, bodyWithSignature, company, $("#detail-research-domain").value.trim());
           if (!quality.passed) throw new Error(quality.blockers.map((item) => item.label).join("；"));
-          $("#outreach-subject-a").value = generated.subject || "";
-          $("#outreach-subject-b").value = generated.subjectB || generated.subject || "";
+          $("#outreach-subject-a").value = subjectA;
+          $("#outreach-subject-b").value = subjectB||subjectA;
           $("#outreach-body").value = bodyWithSignature;
           $("#outreach-recipient").value = recipient;
           $("#outreach-status").textContent = `已通过证据门槛与 ${quality.checks.length} 项质检 · ${quality.words} 词 · 待人工审核`;

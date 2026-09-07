@@ -24,6 +24,7 @@
         --white: #fff;
         --soft: #dbe5dc;
         --danger: #bd4a43;
+        --orange-on-green: #ffad4d;
       }
       * {
         box-sizing: border-box;
@@ -768,6 +769,10 @@
       }
       .detail-tab:hover { background: var(--soft); color: var(--ink); }
       .detail-tab.active { background: var(--rail); color: #fff; }
+      .detail-tabs.order-editing .detail-tab { cursor: grab; border-color:#d8a265; touch-action:none; user-select:none; }
+      .detail-tabs.order-editing .detail-tab::before { content:"⠿ "; color:var(--orange-on-green); }
+      .detail-tabs.order-editing .detail-tab:active { cursor:grabbing; }
+      .detail-tab.order-dragging { opacity:.55; box-shadow:0 8px 20px rgba(38,55,46,.18); }
       .detail-kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap: 12px; margin-bottom: 14px; }
       .detail-kpi { padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
       .detail-kpi span { color: var(--muted); font-size: 11px; }
@@ -1099,6 +1104,28 @@
       .login-showcase-brand{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:800}.login-showcase-brand i{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--brand);color:#fff}.login-showcase h2{max-width:720px;margin:78px 0 18px;font-size:clamp(42px,5vw,78px);line-height:1.02;letter-spacing:-.065em}.login-showcase>p{max-width:620px;margin:0;color:#65736d;font-size:16px;line-height:1.7}
       .login-preview{position:absolute;left:54px;right:54px;bottom:48px;display:grid;grid-template-columns:1.2fr .8fr;gap:14px}.login-preview-panel{min-width:0;padding:18px;border:1px solid rgba(205,217,217,.9);border-radius:24px;background:rgba(255,255,255,.72);box-shadow:0 16px 42px rgba(41,65,59,.08)}.login-preview-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:12px}.login-preview-title span{color:var(--muted)}.login-preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.login-preview-metric{min-height:118px;padding:14px;border-radius:18px}.login-preview-metric:nth-child(1){background:#2e63ee;color:#fff}.login-preview-metric:nth-child(2){background:#54a3b6;color:#fff}.login-preview-metric:nth-child(3){background:#f5e83f}.login-preview-metric small{display:block;opacity:.78}.login-preview-metric b{display:block;margin-top:28px;font-size:24px}.login-preview-profile{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:linear-gradient(145deg,rgba(255,255,255,.82),rgba(235,242,220,.78))}.login-preview-avatar{display:grid;place-items:center;width:72px;height:72px;margin:3px auto 12px;border-radius:50%;background:var(--brand);color:#fff;font-size:24px;font-weight:800}.login-preview-profile small{margin-top:5px;color:var(--muted)}
       .login-card{align-self:center;width:min(500px,100%);padding:46px;border-radius:30px;background:rgba(255,255,255,.82);box-shadow:0 24px 70px rgba(34,59,52,.1);backdrop-filter:blur(18px)}.login-card .brand-mark{border-radius:50%;background:var(--brand);color:#fff}.login-card h1{font-size:36px;letter-spacing:-.045em}.login-card p{font-size:14px}.login-card .input{height:54px;background:rgba(255,255,255,.78)}.login-card .primary{height:54px}.login-card .ghost{height:48px}
+      /* 深绿色承载面统一使用橙色文字；红色告警与蓝色展示卡保持原有语义色。 */
+      .rail,
+      .nav:hover,
+      .nav.active,
+      .primary,
+      .notice-filter.active,
+      .period-tab.active,
+      .trend-tab.active,
+      .daily-section-tab.active,
+      .detail-tab.active,
+      .tab.active,
+      .email-class-tab.active,
+      .sales-total-card,
+      .sales-total-card .sales-total-meta strong,
+      .target-person-avatar,
+      .toast:not(.error),
+      .ai-fab,
+      .ai-message.user,
+      .logo > i,
+      .login-showcase-brand i,
+      .login-preview-avatar,
+      .login-card .brand-mark { color:var(--orange-on-green); }
       @media (max-width:1050px){.login-shell{grid-template-columns:1fr}.login-showcase{min-height:460px}.login-showcase h2{margin-top:42px}.login-preview{position:static;margin-top:52px}.login-card{justify-self:center;margin:30px 0}}
       @media (max-width:700px){.login-shell{display:grid;padding:10px}.login-showcase{display:none}.login-card{padding:30px 24px}.login-card h1{font-size:30px}}
       @media (max-width: 1250px) {
@@ -1732,7 +1759,7 @@
       <div class="modal">
         <div class="modal-head">
           <h3 id="detail-title">询盘详情</h3>
-          <button id="close-detail" class="ghost">← 返回询盘</button>
+          <div class="heading-actions"><button id="detail-tabs-order-toggle" class="ghost" type="button">调整页签</button><button id="detail-tabs-order-reset" class="ghost hidden" type="button">恢复默认</button><button id="close-detail" class="ghost">← 返回询盘</button></div>
         </div>
         <div class="detail-kpis">
           <div class="detail-kpi"><span>当前阶段</span><b id="detail-kpi-stage">—</b></div>
@@ -2093,7 +2120,7 @@
         ),
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
-      let profile = null, currentAuthUser = null, dashboardLayoutEditing = false, dashboardLayoutSaveTimer = null;
+      let profile = null, currentAuthUser = null, dashboardLayoutEditing = false, dashboardLayoutSaveTimer = null, detailTabsEditing = false, detailTabsSaveTimer = null;
       let returnToDailyAfterLeadCreate = false;
       let dailySection = "report";
       let passwordChangeMode = "initial";
@@ -2331,6 +2358,7 @@
         ["#dashboard-team","#dashboard-sales","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
         const startup = await Promise.allSettled([loadInquiries(), loadNotifications()]);
         initializeDashboardLayout();
+        initializeDetailTabsOrder();
         if (startup.some((result) => result.status === "rejected")) toast("部分数据暂时未加载，系统已保留可用页面；可稍后重试");
         subscribeNotifications();
         icons();
@@ -2787,6 +2815,34 @@
         container.addEventListener("dragover",event=>{if(!dashboardLayoutEditing||!container.dataset.dragging)return;event.preventDefault();const dragging=container.querySelector(`[data-dashboard-widget="${container.dataset.dragging}"]`),target=event.target.closest("#dashboard-widgets > [data-dashboard-widget]");if(!dragging||!target||dragging===target)return;const rect=target.getBoundingClientRect();container.insertBefore(dragging,event.clientY<rect.top+rect.height/2?target:target.nextSibling)});
         container.addEventListener("drop",event=>{if(!container.dataset.dragging)return;event.preventDefault();persistDashboardLayout()});
         container.addEventListener("dragend",()=>{if(container.dataset.dragging)persistDashboardLayout();container.querySelector(".dashboard-widget-dragging")?.classList.remove("dashboard-widget-dragging");delete container.dataset.dragging});
+      }
+      const detailTabsInitialOrder=$$(".detail-tabs > [data-detail-tab]").map(item=>item.dataset.detailTab);
+      const detailTabsCurrentOrder=()=>$$('.detail-tabs > [data-detail-tab]').map(item=>item.dataset.detailTab);
+      function detailTabsStorageKey(){return `wonly_detail_tabs_order_${profile?.id||"anonymous"}`}
+      function applyDetailTabsOrder(order){
+        const container=$(".detail-tabs"),tabs=new Map(detailTabsInitialOrder.map(key=>[key,container.querySelector(`[data-detail-tab="${key}"]`)]));
+        [...new Set([...(Array.isArray(order)?order:[]),...detailTabsInitialOrder])].filter(key=>tabs.has(key)).forEach(key=>container.append(tabs.get(key)));
+      }
+      function storedDetailTabsOrder(){
+        const remote=currentAuthUser?.user_metadata?.detail_tabs_order;if(Array.isArray(remote)&&remote.length)return remote;
+        try{const local=JSON.parse(localStorage.getItem(detailTabsStorageKey())||"null");return Array.isArray(local)?local:null}catch{return null}
+      }
+      function persistDetailTabsOrder(){
+        const order=detailTabsCurrentOrder();
+        try{localStorage.setItem(detailTabsStorageKey(),JSON.stringify(order))}catch{}
+        if(currentAuthUser)currentAuthUser.user_metadata={...(currentAuthUser.user_metadata||{}),detail_tabs_order:order};
+        clearTimeout(detailTabsSaveTimer);detailTabsSaveTimer=setTimeout(async()=>{const {error}=await supabase.auth.updateUser({data:{detail_tabs_order:order}});if(error)console.warn("详情页签顺序云端保存失败，已保留本机顺序",error)},500);
+      }
+      function setDetailTabsEditing(editing){
+        detailTabsEditing=editing;const container=$(".detail-tabs");container.classList.toggle("order-editing",editing);$$('.detail-tabs > [data-detail-tab]').forEach(tab=>tab.draggable=editing);$("#detail-tabs-order-toggle").textContent=editing?"完成排序":"调整页签";$("#detail-tabs-order-reset").classList.toggle("hidden",!editing);
+      }
+      function initializeDetailTabsOrder(){
+        applyDetailTabsOrder(storedDetailTabsOrder());const container=$(".detail-tabs");if(container.dataset.orderBound)return;container.dataset.orderBound="true";
+        container.addEventListener("dragstart",event=>{const tab=event.target.closest("[data-detail-tab]");if(!detailTabsEditing||!tab){event.preventDefault();return}container.dataset.draggingTab=tab.dataset.detailTab;tab.classList.add("order-dragging");event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",tab.dataset.detailTab)});
+        container.addEventListener("dragover",event=>{if(!detailTabsEditing||!container.dataset.draggingTab)return;event.preventDefault();const dragging=container.querySelector(`[data-detail-tab="${container.dataset.draggingTab}"]`),target=event.target.closest("[data-detail-tab]");if(!dragging||!target||dragging===target)return;const rect=target.getBoundingClientRect();container.insertBefore(dragging,event.clientX<rect.left+rect.width/2?target:target.nextSibling)});
+        container.addEventListener("drop",event=>{if(!container.dataset.draggingTab)return;event.preventDefault();persistDetailTabsOrder()});
+        container.addEventListener("dragend",()=>{if(container.dataset.draggingTab)persistDetailTabsOrder();container.querySelector(".order-dragging")?.classList.remove("order-dragging");delete container.dataset.draggingTab});
+        container.addEventListener("pointerdown",event=>{const tab=event.target.closest("[data-detail-tab]");if(!detailTabsEditing||!tab||event.pointerType==="mouse")return;event.preventDefault();tab.setPointerCapture?.(event.pointerId);tab.classList.add("order-dragging");const move=pointer=>{const target=document.elementFromPoint(pointer.clientX,pointer.clientY)?.closest("[data-detail-tab]");if(!target||target===tab)return;const rect=target.getBoundingClientRect();container.insertBefore(tab,pointer.clientX<rect.left+rect.width/2?target:target.nextSibling)};const end=()=>{tab.onpointermove=null;tab.onpointerup=null;tab.onpointercancel=null;tab.classList.remove("order-dragging");persistDetailTabsOrder()};tab.onpointermove=move;tab.onpointerup=end;tab.onpointercancel=end});
       }
       function openLegacyProject(project) {
         const normalizedOwner = project.legacy_owner_name === "石舒" ? "石奕舒" : project.legacy_owner_name;
@@ -4209,7 +4265,7 @@
         $$(".detail-section").forEach((section) => section.classList.toggle("hidden", section.dataset.detailSection !== name));
         if(name === "events") renderCompanyEventTimeline();
       }
-      $$(".detail-tab").forEach((tab) => tab.addEventListener("click", () => setDetailTab(tab.dataset.detailTab)));
+      $$(".detail-tab").forEach((tab) => tab.addEventListener("click", (event) => {if(detailTabsEditing){event.preventDefault();return}setDetailTab(tab.dataset.detailTab)}));
       const companyEventTypeNames={inquiry:"询盘/采购",project:"项目合作",expansion:"扩张产能",product:"产品/认证",risk:"风险负面",other:"其他"};
       const companyEventKindNames={fact:"已确认事实",inference:"AI 判断",unverified:"待核验"};
       const companyEventRelationNames={direct:"与本询盘直接相关",possible:"与本询盘可能相关",none:"暂未发现与本询盘关联",unknown:"与本询盘关系待判断"};
@@ -5812,6 +5868,8 @@
       $$(".marketing-period-tab").forEach(button=>button.addEventListener("click",()=>{$("#marketing-period").value=button.dataset.marketingPeriod;$$('.marketing-period-tab').forEach(item=>{const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active))});renderMarketingWorkbench(dashboardState.rows)}));
       $("#dashboard-layout-toggle").addEventListener("click",()=>setDashboardLayoutEditing(!dashboardLayoutEditing));
       $("#dashboard-layout-reset").addEventListener("click",async()=>{if(!await appConfirm("确认恢复当前账号的默认看板顺序？",{title:"恢复默认布局",confirmText:"确认恢复"}))return;applyDashboardLayout(dashboardInitialOrder);try{localStorage.removeItem(dashboardLayoutStorageKey())}catch{}if(currentAuthUser)currentAuthUser.user_metadata={...(currentAuthUser.user_metadata||{}),dashboard_layout:null};const {error}=await supabase.auth.updateUser({data:{dashboard_layout:null}});if(error)return toast("云端布局恢复失败："+error.message);setDashboardLayoutEditing(false);toast("已恢复默认看板布局")});
+      $("#detail-tabs-order-toggle").addEventListener("click",()=>setDetailTabsEditing(!detailTabsEditing));
+      $("#detail-tabs-order-reset").addEventListener("click",async()=>{if(!await appConfirm("确认恢复当前账号的默认页签顺序？",{title:"恢复默认页签",confirmText:"确认恢复"}))return;applyDetailTabsOrder(detailTabsInitialOrder);try{localStorage.removeItem(detailTabsStorageKey())}catch{}if(currentAuthUser)currentAuthUser.user_metadata={...(currentAuthUser.user_metadata||{}),detail_tabs_order:null};const {error}=await supabase.auth.updateUser({data:{detail_tabs_order:null}});if(error)return toast("云端页签顺序恢复失败："+error.message);setDetailTabsEditing(false);toast("已恢复默认页签顺序")});
       $$(".trend-tab").forEach(button=>button.addEventListener("click",()=>{dashboardState.trendGrain=button.dataset.trendGrain;renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)}));
       $$("[data-target-plan-metric]").forEach(button=>button.addEventListener("click",()=>{dashboardState.targetPlanMetric=button.dataset.targetPlanMetric;renderAnnualTargetPlan()}));
       $("#sales-view-inquiries").addEventListener("click",()=>switchView("inquiries"));

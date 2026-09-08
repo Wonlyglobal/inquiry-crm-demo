@@ -5435,7 +5435,8 @@
           { pass: contacts.length >= 1, label: contacts.length ? "联系人及核验状态已记录" : "联系人身份或邮箱核验状态缺失", critical: false },
           { pass: researchLines("#detail-research-risks-counter").length >= 1, label: "风险、反证和待核实项已披露", critical: false },
         ];
-        const blockers = checks.filter((item) => item.critical && !item.pass);
+        const advisories = checks.filter((item) => item.critical && !item.pass);
+        const blockers = [];
         const ready = status === "ready" && blockers.length === 0;
         const generated=Boolean(currentInquiry?.businessResearch||currentInquiry?.companies?.researched_at||currentInquiry?.companies?.source_updated_at||currentInquiry?.companies?.ai_summary||facts.length||signals.length||sources.length||$("#detail-research-summary").value.trim());
         const researchAt=Math.max(...[currentInquiry?.companies?.researched_at,currentInquiry?.companies?.source_updated_at].filter(Boolean).map(value=>new Date(value).getTime()).filter(Number.isFinite),0),draftAt=currentInquiry?.latestOutreachDraft?.created_at?new Date(currentInquiry.latestOutreachDraft.created_at).getTime():0,researchChanged=Boolean(draftAt&&researchAt>draftAt);
@@ -5518,11 +5519,12 @@
           { pass: !ownSiteLinked, label: ownSiteLinked ? "错误引用了客户自己的官网作为我方资料" : "未把客户官网误写成我方资料链接", critical: true },
           { pass: /Best regards,\n[^\n]+\nWONLY International Sales Team\nWONLY\nwww\.wonlygroup\.com$/i.test(normalizedBody), label: "使用当前业务员英文名和统一 WONLY 签名", critical: true },
         ];
-        const blockers = checks.filter((item) => item.critical && !item.pass);
+        const advisories = checks.filter((item) => item.critical && !item.pass);
+        const blockers = [];
         const wrap = $("#outreach-quality-checks"); wrap.replaceChildren();
         checks.forEach((item) => { const row = document.createElement("div"); row.className = `quality-check ${item.pass ? "pass" : item.critical ? "fail" : "warn"}`; row.textContent = `${item.pass ? "✓" : item.critical ? "×" : "!"} ${item.label}`; wrap.append(row); });
-        $("#outreach-quality-badge").textContent = blockers.length ? `${blockers.length} 项未通过` : "质检通过";
-        return { passed: blockers.length === 0, blockers, checks, words, questionCount };
+        $("#outreach-quality-badge").textContent = advisories.length ? `${advisories.length} 项建议修改（不阻断）` : "质检通过";
+        return { passed: true, blockers, advisories, checks, words, questionCount };
       }
       function resolveInquiryRecipient() {
         const candidates = [

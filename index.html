@@ -1915,11 +1915,13 @@
               <div class="field"><label>发送主题</label><select id="outreach-selected-subject" class="input"><option value="a">主题 A</option><option value="b">主题 B</option></select></div>
             </div>
             <div class="quality-panel" style="margin:18px 0">
-              <div class="quality-panel-head"><div><b>补充客户关心信息后重新生成</b><div class="hint" style="margin-top:6px">勾选本次需要回答的内容；可保存为个人默认答案，后续客户直接复用。</div></div><button id="regenerate-outreach" class="primary" type="button">按补充信息重新生成</button></div>
+              <div class="quality-panel-head"><div><b>补充客户关心信息后重新生成</b><div class="hint" style="margin-top:6px">勾选本次需要回答的内容；可保存为个人默认答案，后续客户直接复用。</div></div></div>
               <div id="outreach-guidance-options" class="detail-grid" style="margin-top:14px"></div>
               <div class="field"><label>其他说明或希望追问的问题</label><textarea id="outreach-extra-guidance" class="input" rows="3" placeholder="例如：先确认项目交期；不要直接报价；询问当地需要的认证标准"></textarea></div>
               <div class="field"><label>一键多语言</label><div class="heading-actions" id="outreach-language-actions"><button class="ghost" type="button" data-outreach-language="英文">英语</button><button class="ghost" type="button" data-outreach-language="西班牙文">西班牙语</button><button class="ghost" type="button" data-outreach-language="葡萄牙文">葡萄牙语</button><button class="ghost" type="button" data-outreach-language="法文">法语</button><button class="ghost" type="button" data-outreach-language="阿拉伯文">阿拉伯语</button><button class="ghost" type="button" data-outreach-language="俄文">俄语</button></div><input id="outreach-target-language" type="hidden" value="英文" /></div>
+              <div class="form-actions" style="margin-top:16px"><button id="regenerate-outreach" class="primary" type="button">按补充信息重新生成</button></div>
             </div>
+            <div id="outreach-change-summary" class="notice hidden" style="margin-bottom:16px" aria-live="polite"></div>
             <div class="field"><label id="outreach-body-label">英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea></div>
             <div id="outreach-quality-panel" class="quality-panel"><div class="quality-panel-head"><b>发送前质检</b><span id="outreach-quality-badge" class="tag">待质检</span></div><div id="outreach-quality-checks" class="quality-checks"></div></div>
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
@@ -5573,8 +5575,9 @@
         outreachComposeMode="reply";const originalSubject=String(currentInquiry.email_intake?.subject||currentInquiry.title||"Your inquiry").replace(/^(?:re\s*:\s*)+/i,"").trim(),replySubject=`Re: ${originalSubject}`;
         $("#outreach-recipient").value=recipient;$("#outreach-subject-a").value=replySubject;$("#outreach-subject-b").value=replySubject;$("#outreach-selected-subject").value="a";$("#outreach-body").value=`Dear ${currentInquiry.contact_name||"Customer"},\n\nThank you for your inquiry.\n\n\n\n${unifiedEnglishSignature()}`;$("#outreach-draft-title").textContent="询盘回复草稿";$("#outreach-status").textContent="正在回复客户原询盘 · 请补充正文后发送";$("#outreach-draft").classList.remove("hidden");$("#outreach-body").focus();evaluateOutreachDraft(replySubject,$("#outreach-body").value);$("#outreach-body").scrollIntoView({behavior:"smooth",block:"center"});
       });
-      $("#generate-outreach").addEventListener("click", async () => {
+      async function generateOutreach() {
         if (!currentInquiry) return;
+        const previousSubject=$("#outreach-subject-a").value.trim(),previousBody=stripExistingSignature($("#outreach-body").value),previousLanguage=$("#outreach-target-language").value||"英文";
         outreachComposeMode="outreach";$("#outreach-draft-title").textContent="开发邮件草稿";
         const company = $("#detail-research-company").value.trim();
         const researchQuality = assessResearchQuality();
@@ -5623,7 +5626,7 @@
                 "只允许引用 VERIFIED FACTS、VERIFIED DEMAND SIGNALS 和客户原始询盘。",
                 `先用背调事实与询盘信号推断 ${company} 当下最可能的业务痛点，再用审慎措辞验证；不能机械插入公司介绍，也不能只复述数量、产品、报价或规格要求。`,
                 "不得暴露评分、风险、背调来源、内部判断或未经证实的项目；不得把客户官网当成 WONLY 资料链接。",
-                "英文自然、尊重、55–95词、单一明确CTA；先回答为什么联系、为什么现在、WONLY为何相关，再提出一个低阻力下一步。",
+                `${targetLanguage}表达自然、尊重、约55–95词、单一明确CTA；先回答为什么联系、为什么现在、WONLY为何相关，再提出一个低阻力下一步。`,
               ].join(" "),
             }),
           });
@@ -5640,6 +5643,7 @@
           $("#outreach-recipient").value = recipient;
           $("#outreach-status").textContent = `已通过证据门槛与 ${quality.checks.length} 项质检 · ${quality.words} 词 · 待人工审核`;
           $("#outreach-draft").classList.remove("hidden");
+          const summary=$("#outreach-change-summary"),changes=[];if(previousLanguage!==targetLanguage)changes.push(`语言：${previousLanguage} → ${targetLanguage}`);if(previousSubject&&previousSubject!==subjectA)changes.push("主题已重写");if(previousBody&&previousBody!==stripExistingSignature(bodyWithSignature))changes.push("正文已根据补充答案重新组织");if(guidance.lines.length)changes.push(`已采用 ${guidance.lines.length} 项补充信息`);summary.textContent=previousBody?(changes.length?`本次变化：${changes.join("；")}`:"本次生成内容与上一版基本一致"):`已生成${targetLanguage}开发信，可在下方直接审核修改`;summary.classList.remove("hidden");summary.scrollIntoView({behavior:"smooth",block:"center"});
           toast("已使用邮件回复系统的个性化开发信逻辑生成并质检");
         } catch (error) {
           $("#outreach-status").textContent = "生成失败，未保存草稿";
@@ -5648,10 +5652,11 @@
           button.disabled = false;
           button.textContent = "一键生成开发信";
         }
-      });
+      }
+      $("#generate-outreach").addEventListener("click",generateOutreach);
       $("#update-outreach").addEventListener("click",()=>{if(!$("#update-outreach").disabled)$("#generate-outreach").click()});
-      $("#regenerate-outreach").addEventListener("click",()=>$("#generate-outreach").click());
-      document.querySelectorAll("[data-outreach-language]").forEach(button=>button.addEventListener("click",()=>{$("#outreach-target-language").value=button.dataset.outreachLanguage;document.querySelectorAll("[data-outreach-language]").forEach(item=>item.classList.toggle("active",item===button));$("#generate-outreach").click()}));
+      $("#regenerate-outreach").addEventListener("click",async()=>{const button=$("#regenerate-outreach");if(button.disabled)return;button.disabled=true;button.textContent="正在重新生成…";try{await generateOutreach()}finally{button.disabled=false;button.textContent="按补充信息重新生成"}});
+      document.querySelectorAll("[data-outreach-language]").forEach(button=>button.addEventListener("click",async()=>{$("#outreach-target-language").value=button.dataset.outreachLanguage;document.querySelectorAll("[data-outreach-language]").forEach(item=>item.classList.toggle("active",item===button));button.disabled=true;const original=button.textContent;button.textContent="生成中…";try{await generateOutreach()}finally{button.disabled=false;button.textContent=original}}));
       $("#copy-outreach").addEventListener("click", async () => {
         const text = `Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`;
         await navigator.clipboard.writeText(text);

@@ -3532,7 +3532,7 @@
             .single(),
           supabase
             .from("profiles")
-            .select("id,full_name,role")
+            .select("id,full_name,role,email,english_name")
             .eq("role", "sales")
             .eq("active", true),
           supabase
@@ -3570,6 +3570,7 @@
         );
         owner.value = inquiry.owner_id || "";
         const ownerProfile = (owners || []).find((x) => x.id === inquiry.owner_id);
+        currentInquiry.ownerProfile = ownerProfile || null;
         $("#detail-kpi-stage").textContent = displayInquiryStage(inquiry);
         $("#detail-kpi-owner").textContent = ownerProfile?.full_name || "暂未分配";
         $("#detail-kpi-time").textContent = fmtDate(intake?.received_at || inquiry.created_at);
@@ -5460,7 +5461,9 @@
         return { ready, generated, researchChanged, blockers, checks, facts: traceableFacts, signals: strongSignals, sources, contacts, identityReady };
       }
       function preferredEnglishName() {
-        const local = String(profile?.email || "").toLowerCase().split("@")[0].replace(/[^a-z]/g, "");
+        const assignedOwner = currentInquiry?.ownerProfile || null;
+        if (String(assignedOwner?.english_name || "").trim()) return String(assignedOwner.english_name).trim();
+        const local = String(assignedOwner?.email || profile?.email || "").toLowerCase().split("@")[0].replace(/[^a-z]/g, "");
         const knownNames = {
           sander: "Sander", chloelee: "Chloe Lee", lyle: "Lyle", jackson: "Jackson",
           kevinli: "Kevin Li", yuna: "Yuna", megan: "Megan", lawrencewang: "Lawrence Wang",
@@ -5586,6 +5589,7 @@
               replyPoints: [
                 `邮件目标：${$("#outreach-objective").selectedOptions[0]?.textContent || "确认需求"}。`,
                 "只允许引用 VERIFIED FACTS、VERIFIED DEMAND SIGNALS 和客户原始询盘。",
+                `正文必须明确写出客户公司名 ${company}，并至少使用一条非询盘原文的 VERIFIED FACTS 作为个性化切入点；不能只复述数量、产品、报价或规格要求。`,
                 "不得暴露评分、风险、背调来源、内部判断或未经证实的项目；不得把客户官网当成 WONLY 资料链接。",
                 "英文自然、尊重、55–95词、单一明确CTA；先回答为什么联系、为什么现在、WONLY为何相关，再提出一个低阻力下一步。",
               ].join(" "),

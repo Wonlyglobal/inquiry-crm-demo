@@ -5477,7 +5477,7 @@
           signerName,
           "WONLY International Sales Team",
           "WONLY",
-          "www.wonlygroup.com",
+          "www.wonlyglobal.com",
         ].join("\n");
       }
       function stripExistingSignature(value) {
@@ -5520,7 +5520,7 @@
           { pass: mode==="reply"||personalization, label: mode==="reply"?"基于客户主动询盘直接回复":personalization?"包含基于询盘或公司的真实个性化开场":"缺少可验证的个性化依据", critical: true },
           { pass: questionCount >= 1 && questionCount <= 2, label: `包含 ${questionCount} 个明确问题/CTA（建议 1 个）`, critical: questionCount === 0 || questionCount > 3 },
           { pass: !ownSiteLinked, label: ownSiteLinked ? "错误引用了客户自己的官网作为我方资料" : "未把客户官网误写成我方资料链接", critical: true },
-          { pass: /Best regards,\n[^\n]+\nWONLY International Sales Team\nWONLY\nwww\.wonlygroup\.com$/i.test(normalizedBody), label: "使用当前业务员英文名和统一 WONLY 签名", critical: true },
+          { pass: /Best regards,\n[^\n]+\nWONLY International Sales Team\nWONLY\nwww\.wonlyglobal\.com$/i.test(normalizedBody), label: "使用当前业务员英文名和统一 WONLY 签名", critical: true },
         ];
         const advisories = checks.filter((item) => item.critical && !item.pass);
         const blockers = [];

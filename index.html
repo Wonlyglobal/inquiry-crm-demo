@@ -2667,11 +2667,12 @@
           mapper = (x) => {
             const mailbox = Array.isArray(x.mailbox_connections) ? x.mailbox_connections[0] : x.mailbox_connections;
             const connected = mailbox?.status === "connected";
+            const mailboxStateHidden = !mailbox && profile.role !== "owner" && x.id !== profile.id;
             return {
-              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : mailbox?.status === "disabled" ? "已停用" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"],
+              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : mailbox?.status === "disabled" ? "已停用" : mailboxStateHidden ? "状态仅本人/老板可见" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"],
               actions: x.active ? [
                 ...(x.role === "sales" ? [{ label: "业务主页", onClick: () => openSalesProfilePage(x.id) }] : []),
-                { label: connected ? "重新连接" : "连接", onClick: () => openMailboxBinding(x.id) },
+                { label: connected ? "重新连接" : mailboxStateHidden ? "连接 / 更新" : "连接", onClick: () => openMailboxBinding(x.id) },
                 ...(profile.role === "owner" ? [{ label: "禁用", onClick: () => openDisableMember(x) }] : []),
               ] : profile.role === "owner" ? [{ label: "恢复", onClick: () => enableMember(x) }] : [],
             };

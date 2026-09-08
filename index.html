@@ -5496,9 +5496,9 @@
         outreachGuidancePresets.forEach(item=>{const card=document.createElement("div");card.className="field";card.style.padding="12px";card.style.border="1px solid var(--line)";card.style.borderRadius="14px";const top=document.createElement("label");const use=document.createElement("input");use.type="checkbox";use.dataset.guidanceUse=item.key;use.checked=Boolean(defaults[item.key]);top.append(use,document.createTextNode(` ${item.label}`));const answer=document.createElement("input");answer.className="input";answer.placeholder=item.placeholder;answer.dataset.guidanceAnswer=item.key;answer.value=defaults[item.key]||"";const saveLabel=document.createElement("label");saveLabel.className="hint";const save=document.createElement("input");save.type="checkbox";save.dataset.guidanceDefault=item.key;saveLabel.append(save,document.createTextNode(" 设为我的默认答案"));card.append(top,answer,saveLabel);wrap.append(card)});
       }
       function collectOutreachGuidance(){
-        const lines=[];const defaults={...outreachAnswerDefaults()};let saveDefaults=false;
-        outreachGuidancePresets.forEach(item=>{const used=document.querySelector(`[data-guidance-use="${item.key}"]`)?.checked;const answer=document.querySelector(`[data-guidance-answer="${item.key}"]`)?.value.trim()||"";const save=document.querySelector(`[data-guidance-default="${item.key}"]`)?.checked;if(used&&answer)lines.push(`${item.label}：${answer}`);if(save&&answer){defaults[item.key]=answer;saveDefaults=true}});
-        const extra=$("#outreach-extra-guidance")?.value.trim();if(extra)lines.push(`业务员补充说明：${extra}`);return{lines,defaults,saveDefaults};
+        const lines=[],answers=[];const defaults={...outreachAnswerDefaults()};let saveDefaults=false;
+        outreachGuidancePresets.forEach(item=>{const used=document.querySelector(`[data-guidance-use="${item.key}"]`)?.checked;const answer=document.querySelector(`[data-guidance-answer="${item.key}"]`)?.value.trim()||"";const save=document.querySelector(`[data-guidance-default="${item.key}"]`)?.checked;if(used&&answer){lines.push(`${item.label}：${answer}`);answers.push({key:item.key,label:item.label,answer})}if(save&&answer){defaults[item.key]=answer;saveDefaults=true}});
+        const extra=$("#outreach-extra-guidance")?.value.trim();if(extra){lines.push(`业务员补充说明：${extra}`);answers.push({key:"extra",label:"业务员补充说明",answer:extra})}return{lines,answers,defaults,saveDefaults};
       }
       async function saveOutreachAnswerDefaults(defaults){
         if(!currentAuthUser)return;const data={...(currentAuthUser.user_metadata||{}),outreach_answer_defaults:defaults};const{error}=await supabase.auth.updateUser({data});if(error)throw error;currentAuthUser.user_metadata=data;
@@ -5620,6 +5620,7 @@
               targetLanguage,
               length: "简短",
               brandCompany: "WONLY GROUP",
+              guidanceAnswers: guidance.answers,
               replyPoints: [
                 `邮件目标：${$("#outreach-objective").selectedOptions[0]?.textContent || "确认需求"}。`,
                 ...guidance.lines,

@@ -1914,7 +1914,13 @@
               <div class="field"><label>主题 B</label><input id="outreach-subject-b" class="input" /></div>
               <div class="field"><label>发送主题</label><select id="outreach-selected-subject" class="input"><option value="a">主题 A</option><option value="b">主题 B</option></select></div>
             </div>
-            <div class="field"><label>英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea></div>
+            <div class="quality-panel" style="margin:18px 0">
+              <div class="quality-panel-head"><div><b>补充客户关心信息后重新生成</b><div class="hint" style="margin-top:6px">勾选本次需要回答的内容；可保存为个人默认答案，后续客户直接复用。</div></div><button id="regenerate-outreach" class="primary" type="button">按补充信息重新生成</button></div>
+              <div id="outreach-guidance-options" class="detail-grid" style="margin-top:14px"></div>
+              <div class="field"><label>其他说明或希望追问的问题</label><textarea id="outreach-extra-guidance" class="input" rows="3" placeholder="例如：先确认项目交期；不要直接报价；询问当地需要的认证标准"></textarea></div>
+              <div class="field"><label>一键多语言</label><div class="heading-actions" id="outreach-language-actions"><button class="ghost" type="button" data-outreach-language="英文">英语</button><button class="ghost" type="button" data-outreach-language="西班牙文">西班牙语</button><button class="ghost" type="button" data-outreach-language="葡萄牙文">葡萄牙语</button><button class="ghost" type="button" data-outreach-language="法文">法语</button><button class="ghost" type="button" data-outreach-language="阿拉伯文">阿拉伯语</button><button class="ghost" type="button" data-outreach-language="俄文">俄语</button></div><input id="outreach-target-language" type="hidden" value="英文" /></div>
+            </div>
+            <div class="field"><label id="outreach-body-label">英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea></div>
             <div id="outreach-quality-panel" class="quality-panel"><div class="quality-panel-head"><b>发送前质检</b><span id="outreach-quality-badge" class="tag">待质检</span></div><div id="outreach-quality-checks" class="quality-checks"></div></div>
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
           </div>
@@ -3540,7 +3546,7 @@
             .select("id,processing_status,research_completed_at,registered_at,forwarded_at,received_at,sender_email,sender_name,subject,parsed_data")
             .eq("inquiry_id", id)
             .maybeSingle(),
-          supabase.from("outreach_drafts").select("id,recipient_email,subject_a,subject_b,selected_subject,body,tone,objective,status,sent_at,created_at")
+          supabase.from("outreach_drafts").select("id,recipient_email,subject_a,subject_b,selected_subject,body,language,tone,objective,status,sent_at,created_at")
             .eq("inquiry_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
           supabase.from("inquiry_retention_requests").select("id,requested_by,requested_until,reason,status,reviewed_by,review_reason,reviewed_at,created_at")
             .eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
@@ -3553,6 +3559,7 @@
           return;
         }
         currentInquiry = inquiry;
+        renderOutreachGuidanceOptions();
         // email_intake is loaded in a separate query, so preserve it on the
         // active inquiry record for outreach generation and reply workflows.
         currentInquiry.email_intake = intake || null;
@@ -3695,6 +3702,7 @@
           $("#outreach-subject-a").value = latestDraft.subject_a || ""; $("#outreach-subject-b").value = latestDraft.subject_b || "";
           $("#outreach-selected-subject").value = latestDraft.selected_subject === latestDraft.subject_b ? "b" : "a";
           $("#outreach-body").value = latestDraft.body || ""; $("#outreach-tone").value = latestDraft.tone || "consultative"; $("#outreach-objective").value = latestDraft.objective || "qualify";
+          const savedLanguageNames={en:"英文",es:"西班牙文",pt:"葡萄牙文",fr:"法文",ar:"阿拉伯文",ru:"俄文"};$("#outreach-target-language").value=savedLanguageNames[latestDraft.language]||"英文";$("#outreach-body-label").textContent=`${$("#outreach-target-language").value}正文`;
           $("#outreach-status").textContent = latestDraft.status === "sent" ? `已发送 · ${fmtDate(latestDraft.sent_at)}` : latestDraft.status === "failed" ? "发送失败，可修改后重试" : `草稿已保存 · ${fmtDate(latestDraft.created_at)}`;
           $("#send-outreach").disabled = latestDraft.status === "sent";
           $("#send-outreach").classList.toggle("hidden", latestDraft.status === "sent");
@@ -5471,6 +5479,27 @@
         };
         return knownNames[local] || local.replace(/^[a-z]/, (letter) => letter.toUpperCase()) || "WONLY Sales";
       }
+      const outreachGuidancePresets = [
+        { key:"moq", label:"起订量（MOQ）", placeholder:"例如：常规型号 100 套起，可按项目评估" },
+        { key:"lead_time", label:"交期", placeholder:"例如：确认规格后 30–45 天" },
+        { key:"certification", label:"认证与测试", placeholder:"例如：可按目标市场确认适用认证" },
+        { key:"payment", label:"付款方式", placeholder:"例如：30% 定金，发货前付清余款" },
+        { key:"sample", label:"样品与 Golden Sample", placeholder:"例如：量产前可安排确认样" },
+        { key:"customization", label:"定制 / OEM / ODM", placeholder:"例如：支持锁体、饰面、包装与品牌定制" },
+      ];
+      function outreachAnswerDefaults(){return currentAuthUser?.user_metadata?.outreach_answer_defaults||{}}
+      function renderOutreachGuidanceOptions(){
+        const wrap=$("#outreach-guidance-options");if(!wrap)return;const defaults=outreachAnswerDefaults();wrap.replaceChildren();
+        outreachGuidancePresets.forEach(item=>{const card=document.createElement("div");card.className="field";card.style.padding="12px";card.style.border="1px solid var(--line)";card.style.borderRadius="14px";const top=document.createElement("label");const use=document.createElement("input");use.type="checkbox";use.dataset.guidanceUse=item.key;use.checked=Boolean(defaults[item.key]);top.append(use,document.createTextNode(` ${item.label}`));const answer=document.createElement("input");answer.className="input";answer.placeholder=item.placeholder;answer.dataset.guidanceAnswer=item.key;answer.value=defaults[item.key]||"";const saveLabel=document.createElement("label");saveLabel.className="hint";const save=document.createElement("input");save.type="checkbox";save.dataset.guidanceDefault=item.key;saveLabel.append(save,document.createTextNode(" 设为我的默认答案"));card.append(top,answer,saveLabel);wrap.append(card)});
+      }
+      function collectOutreachGuidance(){
+        const lines=[];const defaults={...outreachAnswerDefaults()};let saveDefaults=false;
+        outreachGuidancePresets.forEach(item=>{const used=document.querySelector(`[data-guidance-use="${item.key}"]`)?.checked;const answer=document.querySelector(`[data-guidance-answer="${item.key}"]`)?.value.trim()||"";const save=document.querySelector(`[data-guidance-default="${item.key}"]`)?.checked;if(used&&answer)lines.push(`${item.label}：${answer}`);if(save&&answer){defaults[item.key]=answer;saveDefaults=true}});
+        const extra=$("#outreach-extra-guidance")?.value.trim();if(extra)lines.push(`业务员补充说明：${extra}`);return{lines,defaults,saveDefaults};
+      }
+      async function saveOutreachAnswerDefaults(defaults){
+        if(!currentAuthUser)return;const data={...(currentAuthUser.user_metadata||{}),outreach_answer_defaults:defaults};const{error}=await supabase.auth.updateUser({data});if(error)throw error;currentAuthUser.user_metadata=data;
+      }
       function unifiedEnglishSignature(signerName = preferredEnglishName()) {
         return [
           "Best regards,",
@@ -5553,10 +5582,12 @@
         const button = $("#generate-outreach");
         const recipient = resolveInquiryRecipient() || $("#outreach-recipient").value.trim();
         if (!recipient) { $("#outreach-status").textContent = "无法生成：缺少客户邮箱"; return toast("缺少客户邮箱，无法通过联系人质量门槛"); }
+        const guidance=collectOutreachGuidance(),targetLanguage=$("#outreach-target-language").value||"英文";
         button.disabled = true;
         button.textContent = "调用开发信系统中…";
-        $("#outreach-status").textContent = "正在使用 wonly-personalized-outreach 生成并质检…";
+        $("#outreach-status").textContent = `正在生成${targetLanguage}开发信并质检…`;
         try {
+          if(guidance.saveDefaults)await saveOutreachAnswerDefaults(guidance.defaults);
           const companyRecord = currentInquiry.companies || {};
           const response = await fetch("https://letter.foreverdoodle.com/api/outreach", {
             method: "POST",
@@ -5583,11 +5614,12 @@
                 `UNCERTAINTIES FOR INTERNAL USE ONLY (never reveal to customer):\n- ${researchLines("#detail-research-risks-counter").join("\n- ")}`,
               ].join("\n"),
               tone: $("#outreach-tone").value === "direct" ? "简洁直接" : $("#outreach-tone").value === "project" ? "项目推进式" : "专业顾问式",
-              targetLanguage: "英文",
+              targetLanguage,
               length: "简短",
               brandCompany: "WONLY GROUP",
               replyPoints: [
                 `邮件目标：${$("#outreach-objective").selectedOptions[0]?.textContent || "确认需求"}。`,
+                ...guidance.lines,
                 "只允许引用 VERIFIED FACTS、VERIFIED DEMAND SIGNALS 和客户原始询盘。",
                 `先用背调事实与询盘信号推断 ${company} 当下最可能的业务痛点，再用审慎措辞验证；不能机械插入公司介绍，也不能只复述数量、产品、报价或规格要求。`,
                 "不得暴露评分、风险、背调来源、内部判断或未经证实的项目；不得把客户官网当成 WONLY 资料链接。",
@@ -5604,6 +5636,7 @@
           $("#outreach-subject-a").value = subjectA;
           $("#outreach-subject-b").value = subjectB||subjectA;
           $("#outreach-body").value = bodyWithSignature;
+          $("#outreach-body-label").textContent=`${targetLanguage}正文`;
           $("#outreach-recipient").value = recipient;
           $("#outreach-status").textContent = `已通过证据门槛与 ${quality.checks.length} 项质检 · ${quality.words} 词 · 待人工审核`;
           $("#outreach-draft").classList.remove("hidden");
@@ -5617,6 +5650,8 @@
         }
       });
       $("#update-outreach").addEventListener("click",()=>{if(!$("#update-outreach").disabled)$("#generate-outreach").click()});
+      $("#regenerate-outreach").addEventListener("click",()=>$("#generate-outreach").click());
+      document.querySelectorAll("[data-outreach-language]").forEach(button=>button.addEventListener("click",()=>{$("#outreach-target-language").value=button.dataset.outreachLanguage;document.querySelectorAll("[data-outreach-language]").forEach(item=>item.classList.toggle("active",item===button));$("#generate-outreach").click()}));
       $("#copy-outreach").addEventListener("click", async () => {
         const text = `Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`;
         await navigator.clipboard.writeText(text);
@@ -5635,7 +5670,8 @@
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) throw new Error("客户邮箱格式不正确");
         const quality = evaluateOutreachDraft(subject, body, $("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim());
         if (!quality.passed) throw new Error(quality.blockers.map((item) => item.label).join("；"));
-        const { data, error } = await supabase.from("outreach_drafts").insert({ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: "en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" }).select().single();
+        const languageCodes={英文:"en",西班牙文:"es",葡萄牙文:"pt",法文:"fr",阿拉伯文:"ar",俄文:"ru"};
+        const { data, error } = await supabase.from("outreach_drafts").insert({ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: languageCodes[$("#outreach-target-language").value]||"en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" }).select().single();
         if (error) throw error;
         currentInquiry.outreachDraftId = data.id;
         currentInquiry.latestOutreachDraft=data;

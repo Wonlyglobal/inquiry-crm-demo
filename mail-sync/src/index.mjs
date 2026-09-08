@@ -18,6 +18,8 @@ const cleanEmail=(v)=>String(v||'').trim().toLowerCase();
 const normalizeSubject=(v)=>String(v||'').replace(/^\s*((re|fw|fwd|答复|回复|转发)\s*[:：]\s*)+/i,'').replace(/\s+/g,' ').trim().toLowerCase();
 const addrList=(node)=>[...(node?.value||[])].map(x=>cleanEmail(x.address)).filter(Boolean);
 const headerId=(v)=>String(v||'').trim().replace(/^<|>$/g,'');
+const escapeHtml=(v)=>String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const emailHtml=(v)=>`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#17231f">${escapeHtml(v).replace(/\n/g,'<br>').replace('WONLY International Sales Team','WONLY International Sales Team<br><img src="https://letter.foreverdoodle.com/wonly-logo-gold.png" alt="WONLY" width="210" style="display:block;width:210px;max-width:100%;height:auto;margin:10px 0 8px;border:0">')}</div>`;
 const isSentFolder=(name)=>/sent|已发送|发件箱/i.test(name);
 const isInstantlyNurturing=(message,connection)=>{
   if(connection.mailbox_kind!=='shared_inquiry'||message.direction!=='inbound')return false;
@@ -85,7 +87,7 @@ async function processOutbox(){
       const password=await secretFor(connection.id);
       const transport=nodemailer.createTransport({host:connection.smtp_host,port:connection.smtp_port,secure:Number(connection.smtp_port)===465,auth:{user:connection.email,pass:password},connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000});
       const threadId=headerId(intake?.message_id);
-      const sent=await transport.sendMail({from:`"${caller?.full_name||connection.email}" <${connection.email}>`,to:job.recipient_email,subject:job.subject,text:job.body_text,...(threadId?{inReplyTo:threadId,references:[threadId]}:{})});
+      const sent=await transport.sendMail({from:`"${caller?.full_name||connection.email}" <${connection.email}>`,to:job.recipient_email,subject:job.subject,text:job.body_text,html:emailHtml(job.body_text),...(threadId?{inReplyTo:threadId,references:[threadId]}:{})});
       const sentAt=new Date().toISOString();
       await db.from('mail_outbox').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null}).eq('id',job.id);
       if(job.draft_id)await db.from('outreach_drafts').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null,updated_at:sentAt}).eq('id',job.draft_id);

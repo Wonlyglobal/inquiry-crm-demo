@@ -1923,7 +1923,7 @@
             </div>
             <div id="outreach-change-summary" class="notice hidden" style="margin-bottom:16px" aria-live="polite"></div>
             <div class="form-actions" style="margin:0 0 16px;position:sticky;top:12px;z-index:3;background:rgba(255,255,255,.96);padding:12px;border:1px solid var(--line);border-radius:14px"><span class="hint" style="margin-right:auto">生成后请人工确认；发送会使用当前业务员邮箱并自动记录到 CRM。</span><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
-            <div class="field"><label id="outreach-body-label">英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea></div>
+            <div class="field"><label id="outreach-body-label">英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea><div style="margin-top:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff"><span class="hint">邮件签名 Logo 预览</span><br><img src="https://letter.foreverdoodle.com/wonly-logo-gold.png" alt="WONLY" style="display:block;width:210px;max-width:100%;height:auto;margin-top:8px" /></div></div>
             <div id="outreach-quality-panel" class="quality-panel"><div class="quality-panel-head"><b>发送前质检</b><span id="outreach-quality-badge" class="tag">待质检</span></div><div id="outreach-quality-checks" class="quality-checks"></div></div>
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button></div>
           </div>
@@ -5508,7 +5508,6 @@
           "Best regards,",
           signerName,
           "WONLY International Sales Team",
-          "WONLY",
           "www.wonlyglobal.com",
         ].join("\n");
       }
@@ -5552,7 +5551,7 @@
           { pass: mode==="reply"||personalization, label: mode==="reply"?"基于客户主动询盘直接回复":personalization?"包含基于询盘或公司的真实个性化开场":"缺少可验证的个性化依据", critical: true },
           { pass: questionCount >= 1 && questionCount <= 2, label: `包含 ${questionCount} 个明确问题/CTA（建议 1 个）`, critical: questionCount === 0 || questionCount > 3 },
           { pass: !ownSiteLinked, label: ownSiteLinked ? "错误引用了客户自己的官网作为我方资料" : "未把客户官网误写成我方资料链接", critical: true },
-          { pass: /Best regards,\n[^\n]+\nWONLY International Sales Team\nWONLY\nwww\.wonlyglobal\.com$/i.test(normalizedBody), label: "使用当前业务员英文名和统一 WONLY 签名", critical: true },
+          { pass: /Best regards,\n[^\n]+\nWONLY International Sales Team\nwww\.wonlyglobal\.com$/i.test(normalizedBody), label: "使用当前业务员英文名和统一 WONLY Logo 签名", critical: true },
         ];
         const advisories = checks.filter((item) => item.critical && !item.pass);
         const blockers = [];

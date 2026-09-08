@@ -23,6 +23,16 @@ function errorText(error: unknown) {
   return error instanceof Error ? error.message : String(error || "未知错误");
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function emailHtml(value: string) {
+  const marker = "WONLY International Sales Team";
+  const escaped = escapeHtml(value).replace(/\n/g, "<br>");
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#17231f">${escaped.replace(marker, `${marker}<br><img src="https://letter.foreverdoodle.com/wonly-logo-gold.png" alt="WONLY" width="210" style="display:block;width:210px;max-width:100%;height:auto;margin:10px 0 8px;border:0">`)}</div>`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -74,7 +84,7 @@ Deno.serve(async (req) => {
       const { data: intake } = await admin.from("email_intake").select("message_id").eq("inquiry_id", inquiryId).maybeSingle();
       const threadId = clean(intake?.message_id, 500);
       const sent = await transport.sendMail({
-        from: `"${caller.full_name || connection.email}" <${connection.email}>`, to: recipient, subject, text: messageBody,
+        from: `"${caller.full_name || connection.email}" <${connection.email}>`, to: recipient, subject, text: messageBody, html: emailHtml(messageBody),
         ...(threadId ? { inReplyTo: threadId, references: [threadId] } : {}),
       });
       const sentAt = new Date().toISOString();

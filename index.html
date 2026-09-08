@@ -1356,7 +1356,7 @@
               <div class="sales-total-main"><b id="hero-sales-cny">¥0</b><span id="hero-sales-usd">$0</span></div>
               <div class="sales-total-meta"><span id="hero-sales-period">本月</span><strong id="hero-sales-change">环比 —</strong></div>
             </section>
-            <div id="hero-sales-ranking"></div>
+            <div id="hero-sales-ranking"><section class="leaderboard featured-sales-ranking"><div class="leaderboard-head"><b>业务员销售额排名</b><span class="dashboard-scope-note">正在加载…</span></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>环比</th><th>团队平均</th></tr></thead><tbody><tr><td colspan="5">正在读取销售额核心数据…</td></tr></tbody></table></div></section></div>
           </div>
           <div class="kpis dashboard-kpis current-dashboard-block" data-dashboard-widget="core-kpis">
             <div class="card">
@@ -3122,6 +3122,31 @@
         let previousValue=null,rank=0;
         return `<section class="leaderboard"><div class="leaderboard-head"><b>${esc(title)}</b><button class="metric-help" data-metric="${metric}">?</button></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>环比</th><th>团队平均</th></tr></thead><tbody>${sorted.length?sorted.map((x,i)=>{if(previousValue===null||x.value!==previousValue)rank=i+1;previousValue=x.value;return `<tr ${x.id?`data-sales-detail="${x.id}" title="查看 ${esc(x.name)} 的业务详情"`:''}><td><span class="rank-pill ${hasRankableValue&&rank<=3?'top':''}">${rank}</span></td><td>${esc(x.name)}${x.unmatched?' <span class="tag">账号待匹配</span>':''}</td><td>${x.insufficient?'<span class="tag">样本不足</span> ':''}${format(x.value)}</td><td class="${x.change>0?'trend-up':x.change<0?'trend-down':''}">${x.change===null?'—':x.change===0?'持平 0.0%':`${x.change>0?'↑':'↓'} ${Math.abs(x.change).toFixed(1)}%`}</td><td>${format(average)}</td></tr>`}).join(''):`<tr><td colspan="5">${emptyText}</td></tr>`}</tbody></table></div></section>`;
       }
+      function renderSalesAmountRankingEarly(rows, profiles, targetPeople, rates) {
+        dashboardState.rates = rates || dashboardState.rates || [];
+        const { start, end, previousStart, previousEnd } = dashboardRange();
+        const selectedTeam = $("#dashboard-team")?.value || "", selectedSales = $("#dashboard-sales")?.value || "", selectedSource = $("#dashboard-source")?.value || "", selectedCountry = $("#dashboard-country")?.value || "", selectedProduct = $("#dashboard-product")?.value || "", selectedDealType = $("#dashboard-deal-type")?.value || "";
+        const allowedProfiles = profiles.filter(p => (!selectedTeam || p.team === selectedTeam) && (!selectedSales || p.id === selectedSales));
+        const allowedIds = new Set(allowedProfiles.map(p => p.id));
+        const scoped = rows.filter(x => (!x.owner_id || allowedIds.has(x.owner_id)) && (!selectedSource || (x.primary_source || x.source) === selectedSource) && (!selectedCountry || x.target_country === selectedCountry) && (!selectedProduct || x.product_category === selectedProduct) && (!selectedDealType || (x.deal_type || "first_order") === selectedDealType) && !x.excluded_from_dashboard);
+        const directory = profiles.filter(p => ["sales", "sales_manager"].includes(p.role));
+        const statsProfiles = [...allowedProfiles.filter(p => ["sales", "sales_manager"].includes(p.role))];
+        if (!selectedSales) (targetPeople || []).filter(p => !selectedTeam || p.department === selectedTeam).forEach(person => {
+          const mapped = person.profile_id ? profiles.find(p => p.id === person.profile_id) : { id: null, full_name: person.display_name, unmatched: true };
+          if (mapped && !statsProfiles.some(p => (p.id && p.id === mapped.id) || (!p.id && p.full_name === mapped.full_name))) statsProfiles.push(mapped);
+        });
+        if (!statsProfiles.length && !selectedSales) directory.forEach(p => statsProfiles.push(p));
+        const change = (current, previous) => previous === 0 ? (current === 0 ? 0 : null) : (current - previous) / Math.abs(previous) * 100;
+        const stats = statsProfiles.map(p => {
+          const amount = sumWonCny(scoped.filter(x => x.owner_id === p.id && x.validity === "valid" && x.status === "won" && inRange(x.won_at || x.created_at, start, end)));
+          const previous = sumWonCny(scoped.filter(x => x.owner_id === p.id && x.validity === "valid" && x.status === "won" && inRange(x.won_at || x.created_at, previousStart, previousEnd)));
+          return { id: p.id, name: p.full_name, unmatched: !!p.unmatched, value: amount, change: change(amount, previous) };
+        });
+        const usdCny = fxToCny("USD") || 0;
+        $("#hero-sales-ranking").innerHTML = renderLeaderboard("业务员销售额排名", "won_amount", stats, value => `${money(value, "CNY")}<br><small>${usdCny ? money(value / usdCny, "USD") : "汇率待更新"}</small>`);
+        $("#hero-sales-ranking").firstElementChild?.classList.add("featured-sales-ranking");
+        bindMetricHelp();
+      }
       function renderAnnualTargetPlan(){
         const people=dashboardState.targetPeople||[],items=(dashboardState.targetPlanItems||[]).filter(x=>x.is_current!==false),metric=dashboardState.targetPlanMetric||"contract_count",month=new Date().getMonth()+1,selectedSales=$("#dashboard-sales")?.value||"";
         const isAmount=metric==="contract_count",unit=isAmount?"万元":"项",formatPlan=value=>`${Number(value||0).toLocaleString("zh-CN",{maximumFractionDigits:2})} ${unit}`;
@@ -3378,6 +3403,14 @@
           toast("阶段时间加载失败：" + historyError.message);
           return;
         }
+        // The sales ranking only needs inquiries, people and exchange rates.
+        // Render it before slower mail, audit, legacy and channel queries finish.
+        const [{ data: earlyProfiles }, { data: earlyTargetPeople }, { data: earlyRates }] = await Promise.all([
+          supabase.from("profiles").select("id,full_name,role,team,active").eq("active", true),
+          supabase.from("sales_target_people").select("profile_id,display_name,department"),
+          supabase.from("exchange_rates").select("*").order("rate_date", { ascending: false }).limit(500),
+        ]);
+        renderSalesAmountRankingEarly(rows, earlyProfiles || [], earlyTargetPeople || [], earlyRates || []);
         const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: dashboardEmailMessages }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }, { data: retentionRequests }, { data: marketingTouches }] = await Promise.all([
           supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active,avatar_url").eq("active", true),
           supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").limit(2000),
@@ -5396,7 +5429,7 @@
         const addressReady = Boolean(address && !/未检索到|无法定位|暂时失败|正在自动识别|待人工核验/i.test(address));
         const checks = [
           { pass: identityReady, label: identityReady ? "公司名称、域名和国家信息已完成交叉匹配" : "公司名称、域名、国家或匹配可信度尚未完成核验", critical: true },
-          { pass: addressReady, label: addressReady ? "公司地址已从官网或地图来源完成匹配" : "必须找到并核验公司地址；当前地址仍待人工核验", critical: true },
+          { pass: addressReady, label: addressReady ? "公司地址已从官网或地图来源完成匹配" : "公司地址待补充（不影响背调保存和开发信生成）", critical: false },
           { pass: traceableFacts.length >= 2 && sources.length >= 1, label: traceableFacts.length >= 2 && sources.length >= 1 ? "至少 2 条已确认事实分别带来源、日期和可信度" : "至少需要 2 条分别带来源、日期和可信度的已确认事实", critical: true },
           { pass: strongSignals.length >= 1, label: strongSignals.length ? "存在带来源与可信度的需求信号" : "尚无可用于个性化写信的中高可信需求信号", critical: true },
           { pass: contacts.length >= 1, label: contacts.length ? "联系人及核验状态已记录" : "联系人身份或邮箱核验状态缺失", critical: false },
@@ -5646,7 +5679,6 @@
         const name = $("#detail-research-company").value.trim();
         if (!name) return toast("请填写公司名称");
         const researchQuality = assessResearchQuality();
-        if ($("#detail-research-deep-status").value === "ready" && !researchQuality.checks.find((item) => item.label.includes("公司地址"))?.pass) return toast("公司地址尚未核验，不能标记为资料可用于销售准备");
         const photoUrls = $("#detail-research-photo-sources").value.split(/\n+/).map((url) => safeExternalUrl(url.trim())).filter(Boolean);
         const button = $("#save-detail-research");
         button.disabled = true;

@@ -1258,6 +1258,8 @@
           <i data-lucide="contact-round"></i><span>询盘商机</span></button
         ><button class="nav" data-view="email">
           <i data-lucide="mail-plus"></i><span>邮件分拣</span></button
+        ><button class="nav" data-view="communications">
+          <i data-lucide="messages-square"></i><span>客户沟通记录</span></button
         ><button class="nav" data-view="assignment">
           <i data-lucide="inbox"></i><span>待分配池</span></button
         ><button class="nav" data-view="nurture">
@@ -2338,6 +2340,7 @@
         const visibility = {
           "marketing-center": ["marketing"].includes(role),
           email: ["owner", "sales_manager", "marketing"].includes(role),
+          communications: ["owner", "sales_manager", "sales", "marketing"].includes(role),
           assignment: ["owner", "sales_manager", "marketing"].includes(role),
           nurture: ["owner", "sales_manager", "marketing"].includes(role),
           "public-pool": ["owner", "sales_manager", "marketing"].includes(role),
@@ -2524,12 +2527,29 @@
         await openInquiryDetail(data.id);
         if(currentInquiry?.id===data.id)setDetailTab("research");
       }
+      function renderCommunicationInsights(messages, mailbox) {
+        const inbound=messages.filter(x=>x.direction==="inbound").length;
+        const outbound=messages.filter(x=>x.direction==="outbound").length;
+        const matched=messages.filter(x=>x.inquiry_id).length;
+        const pending=messages.filter(x=>!x.inquiry_id&&x.association_status==="pending").length;
+        const lastSync=mailbox?.last_synced_at?fmtDate(mailbox.last_synced_at):"尚未同步";
+        const cards=[["收件",inbound],["发件",outbound],["已关联客户",matched],["待关联",pending],["inquiry 邮箱",mailbox?.status==="connected"?`正常 · ${lastSync}`:"未连接"]];
+        const box=$("#module-insights");
+        box.innerHTML=cards.map(([label,value])=>`<div class="module-insight"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("");
+        box.classList.remove("hidden");
+      }
+      function openCommunicationRecord(message){
+        if(message.inquiry_id)return openInquiryDetail(message.inquiry_id);
+        const recipients=(message.recipient_emails||[]).join(", ")||"—";
+        openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>方向</span><div>${message.direction==="inbound"?"客户来信":"业务员发信"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div><div class="legacy-detail-item"><span>关联状态</span><div>${message.inquiry_id?"已关联询盘":"待关联客户"}</div></div><div class="legacy-detail-item"><span>关联方式</span><div>${esc(message.association_method||"—")}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>`);
+      }
       async function loadModule(view, options = {}) {
         if (view !== "inquiries") activeInquiryScope = "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
         const config = {
           inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
+          communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
           assignment: ["待分配池", "主管按国家、语言、产品线和工作量进行分配", "等待分配的询盘"],
           nurture: ["市场培育池", "承接销售退回线索，按原因和复联时间持续培育", "待培育线索"],
           "public-pool": ["客户公海", "展示释放或转派后等待主管重新分配的客户", "待重新分配客户"],
@@ -2617,6 +2637,19 @@
           columns = ["选择","发件人", "邮件主题", "标记", "处理状态", "收件时间", "进入系统时间", "操作"];
           mapper = (x) => ({ id: x.inquiry_id,emailIntakeId:x.id,selectionId:x.id,cells:["",x.sender_email,x.subject,{real:"真实邮件",warmup:"养号邮件"}[x.triage_label]||"待分拣",{pending_review:"待人工分拣",converted:"已转询盘",rejected:"已排除",researching:"背调中",researched:"已完成背调",registered:"已提交分配",forwarded:"已转发业务员"}[x.processing_status]||x.processing_status,fmtDate(x.received_at||x.created_at),fmtDate(x.created_at)],actions:[{label:"查看详情",onClick:()=>openEmailIntakeDetail(x.id)}] });
           clickable = true;
+        } else if (view === "communications") {
+          const [messagesResult,mailboxResult]=await Promise.all([
+            runModuleQuery(supabase.from("email_messages").select("id,inquiry_id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,created_at,association_status,association_method,attachment_count,inquiries(inquiry_no,title)").order("created_at",{ascending:false}).limit(500)),
+            runModuleQuery(supabase.from("mailbox_connections").select("email,status,last_synced_at,error_message").eq("mailbox_kind","shared_inquiry").eq("email","inquiry@wonlyglobal.com").maybeSingle(),2),
+          ]);
+          if(messagesResult.error){query=Promise.resolve(messagesResult)}else{
+            const messages=messagesResult.data||[];
+            renderCommunicationInsights(messages,mailboxResult.data||null);
+            query=Promise.resolve({data:messages,error:null});
+          }
+          columns=["时间","方向","业务员 / 发件人","客户 / 收件人","邮件主题","所属询盘","关联状态","附件"];
+          mapper=(x)=>{const recipients=(x.recipient_emails||[]).join(", "),inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;return{id:x.id,message:x,cells:[fmtDate(x.received_at||x.sent_at||x.created_at),x.direction==="inbound"?"客户来信":"业务员发信",x.sender_email||"—",recipients||"—",x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"待关联",x.inquiry_id?"已关联":({pending:"待关联",ignored:"已忽略"}[x.association_status]||x.association_status||"待关联"),x.attachment_count?`${x.attachment_count} 个`:"—"]}};
+          clickable=true;
         } else if (view === "research") {
           const linked=await supabase.from("inquiries").select("company_id").eq("excluded_from_dashboard",false).not("company_id","is",null);
           const companyIds=[...new Set((linked.data||[]).map(x=>x.company_id).filter(Boolean))];
@@ -2692,7 +2725,7 @@
           $("#email-mark-warmup").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
         }
         const mappedRows = sourceRows.map(mapper);
-        const onRowClick = view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
+        const onRowClick = view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, loadedAt:new Date().toISOString() });
         $("#module-table-context").textContent = `${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;

@@ -1900,6 +1900,7 @@
             <div class="heading-actions"><button id="reply-inquiry" class="ghost" type="button">回复询盘</button><button id="update-outreach" class="ghost" type="button" disabled>更新开发信</button><button id="generate-outreach" class="primary" type="button">一键生成开发信</button></div>
           </div>
           <p id="outreach-status" class="hint" style="margin-top:16px">草稿尚未生成</p>
+          <div id="outreach-history-panel" class="quality-panel hidden" style="margin-top:16px"><div class="quality-panel-head"><div><b>开发信生成历史</b><div class="hint" style="margin-top:6px">默认展示最新版本；点击历史版本可查看并继续编辑。</div></div><span id="outreach-history-count" class="tag">0 个版本</span></div><div id="outreach-history-list" class="heading-actions" style="margin-top:12px;justify-content:flex-start;overflow-x:auto"></div></div>
           <div id="outreach-evidence-panel" class="quality-panel">
             <div class="quality-panel-head"><b>本次写信依据</b><span id="outreach-eligibility" class="tag">尚未检查</span></div>
             <div id="outreach-evidence-list" class="evidence-preview"><div class="evidence-item">完成背调后，系统会在这里列出允许写入客户邮件的事实和需求信号。</div></div>
@@ -3531,7 +3532,7 @@
         detailOriginView = $("#sales-profile-page").classList.contains("hidden")
           ? ($(".nav[data-view].active")?.dataset.view || "dashboard")
           : "sales-profile";
-        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: latestDraft }, { data: retentionRequest }, { data: marketingTouches }, { data: contactPolicy }, { data: journeyEvents }] = await Promise.all([
+        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: draftHistory }, { data: retentionRequest }, { data: marketingTouches }, { data: contactPolicy }, { data: journeyEvents }] = await Promise.all([
           supabase
             .from("inquiries")
             .select(
@@ -3550,7 +3551,7 @@
             .eq("inquiry_id", id)
             .maybeSingle(),
           supabase.from("outreach_drafts").select("id,recipient_email,subject_a,subject_b,selected_subject,body,language,tone,objective,status,sent_at,created_at")
-            .eq("inquiry_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+            .eq("inquiry_id", id).order("created_at", { ascending: false }).limit(30),
           supabase.from("inquiry_retention_requests").select("id,requested_by,requested_until,reason,status,reviewed_by,review_reason,reviewed_at,created_at")
             .eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
           supabase.from("inquiry_marketing_touches").select("id,touch_at,channel,program_name,campaign_name,tactic_name,offer_name,landing_page,evidence_note,is_primary,created_at,created_by,profiles!inquiry_marketing_touches_created_by_fkey(full_name)").eq("inquiry_id",id).order("touch_at",{ascending:false}),
@@ -3694,7 +3695,10 @@
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (latestImport?.summary) showTopeasePreview(latestImport.summary, latestImport.file_name || "粘贴内容", latestImport.created_at);
         else $("#topease-preview").classList.add("hidden");
+        const latestDraft=(draftHistory||[])[0]||null;
+        currentInquiry.outreachDraftHistory=draftHistory||[];
         currentInquiry.outreachDraftId = latestDraft?.id || null;
+        renderOutreachHistory(currentInquiry.outreachDraftHistory);
         currentInquiry.latestOutreachDraft = latestDraft || null;
         $("#outreach-recipient").value = intake?.sender_email || latestDraft?.recipient_email || "";
         const latestDraftMode=/^re\s*:/i.test(latestDraft?.selected_subject||latestDraft?.subject_a||"")?"reply":"outreach";
@@ -3708,6 +3712,7 @@
           const savedLanguageNames={en:"英文",es:"西班牙文",pt:"葡萄牙文",fr:"法文",ar:"阿拉伯文",ru:"俄文"};$("#outreach-target-language").value=savedLanguageNames[latestDraft.language]||"英文";$("#outreach-body-label").textContent=`${$("#outreach-target-language").value}正文`;
           $("#outreach-status").textContent = latestDraft.status === "sent" ? `已发送 · ${fmtDate(latestDraft.sent_at)}` : latestDraft.status === "failed" ? "发送失败，可修改后重试" : `草稿已保存 · ${fmtDate(latestDraft.created_at)}`;
           $("#send-outreach").disabled = latestDraft.status === "sent";
+          $("#save-outreach").disabled = latestDraft.status === "sent";
           $("#send-outreach").classList.toggle("hidden", latestDraft.status === "sent");
           $("#outreach-draft").classList.remove("hidden");
         } else if (latestDraft) {
@@ -5503,6 +5508,12 @@
       async function saveOutreachAnswerDefaults(defaults){
         if(!currentAuthUser)return;const data={...(currentAuthUser.user_metadata||{}),outreach_answer_defaults:defaults};const{error}=await supabase.auth.updateUser({data});if(error)throw error;currentAuthUser.user_metadata=data;
       }
+      function loadOutreachHistoryVersion(draft){
+        if(!draft)return;currentInquiry.outreachDraftId=draft.id;currentInquiry.latestOutreachDraft=draft;outreachComposeMode=/^re\s*:/i.test(draft.selected_subject||draft.subject_a||"")?"reply":"outreach";$("#outreach-draft-title").textContent=outreachComposeMode==="reply"?"询盘回复草稿":"开发邮件草稿";$("#outreach-recipient").value=draft.recipient_email||resolveInquiryRecipient();$("#outreach-subject-a").value=draft.subject_a||"";$("#outreach-subject-b").value=draft.subject_b||"";$("#outreach-selected-subject").value=draft.selected_subject===draft.subject_b?"b":"a";$("#outreach-body").value=draft.body||"";$("#outreach-tone").value=draft.tone||"consultative";$("#outreach-objective").value=draft.objective||"qualify";const names={en:"英文",es:"西班牙文",pt:"葡萄牙文",fr:"法文",ar:"阿拉伯文",ru:"俄文"},language=names[draft.language]||"英文";$("#outreach-target-language").value=language;$("#outreach-body-label").textContent=`${language}正文`;$("#outreach-status").textContent=draft.status==="sent"?`已发送 · ${fmtDate(draft.sent_at)}`:`历史版本 · ${fmtDate(draft.created_at)}`;$("#send-outreach").disabled=draft.status==="sent";$("#save-outreach").disabled=draft.status==="sent";$("#send-outreach").classList.toggle("hidden",draft.status==="sent");$("#outreach-draft").classList.remove("hidden");renderOutreachHistory(currentInquiry.outreachDraftHistory||[]);evaluateOutreachDraft(draft.selected_subject||draft.subject_a||"",draft.body||"",$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim());
+      }
+      function renderOutreachHistory(drafts=[]){
+        const panel=$("#outreach-history-panel"),list=$("#outreach-history-list");if(!panel||!list)return;panel.classList.toggle("hidden",!drafts.length);$("#outreach-history-count").textContent=`${drafts.length} 个版本`;list.replaceChildren();drafts.forEach((draft,index)=>{const button=document.createElement("button");button.type="button";button.className=draft.id===currentInquiry?.outreachDraftId?"primary":"ghost";button.textContent=`${index===0?"最新 · ":""}${fmtDate(draft.created_at)} · ${{sent:"已发送",failed:"失败",draft:"草稿"}[draft.status]||draft.status}`;button.addEventListener("click",()=>loadOutreachHistoryVersion(draft));list.append(button)});
+      }
       function unifiedEnglishSignature(signerName = preferredEnglishName()) {
         return [
           "Best regards,",
@@ -5642,6 +5653,11 @@
           $("#outreach-body").value = bodyWithSignature;
           $("#outreach-body-label").textContent=`${targetLanguage}正文`;
           $("#outreach-recipient").value = recipient;
+          currentInquiry.outreachDraftId=null;
+          const savedVersion=await saveOutreachDraft();
+          currentInquiry.outreachDraftHistory=[savedVersion,...(currentInquiry.outreachDraftHistory||[]).filter(item=>item.id!==savedVersion.id)];
+          renderOutreachHistory(currentInquiry.outreachDraftHistory);
+          $("#save-outreach").disabled=false;$("#send-outreach").disabled=false;$("#send-outreach").classList.remove("hidden");
           $("#outreach-status").textContent = `已通过证据门槛与 ${quality.checks.length} 项质检 · ${quality.words} 词 · 待人工审核`;
           $("#outreach-draft").classList.remove("hidden");
           const summary=$("#outreach-change-summary"),changes=[];if(previousLanguage!==targetLanguage)changes.push(`语言：${previousLanguage} → ${targetLanguage}`);if(previousSubject&&previousSubject!==subjectA)changes.push("主题已重写");if(previousBody&&previousBody!==stripExistingSignature(bodyWithSignature))changes.push("正文已根据补充答案重新组织");if(guidance.lines.length)changes.push(`已采用 ${guidance.lines.length} 项补充信息`);summary.textContent=previousBody?(changes.length?`本次变化：${changes.join("；")}`:"本次生成内容与上一版基本一致"):`已生成${targetLanguage}开发信，可在下方直接审核修改`;summary.classList.remove("hidden");summary.scrollIntoView({behavior:"smooth",block:"center"});
@@ -5677,13 +5693,15 @@
         const quality = evaluateOutreachDraft(subject, body, $("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim());
         if (!quality.passed) throw new Error(quality.blockers.map((item) => item.label).join("；"));
         const languageCodes={英文:"en",西班牙文:"es",葡萄牙文:"pt",法文:"fr",阿拉伯文:"ar",俄文:"ru"};
-        const { data, error } = await supabase.from("outreach_drafts").insert({ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: languageCodes[$("#outreach-target-language").value]||"en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" }).select().single();
+        const payload={ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: languageCodes[$("#outreach-target-language").value]||"en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" };
+        const query=currentInquiry.outreachDraftId?supabase.from("outreach_drafts").update(payload).eq("id",currentInquiry.outreachDraftId):supabase.from("outreach_drafts").insert(payload);
+        const { data, error } = await query.select().single();
         if (error) throw error;
         currentInquiry.outreachDraftId = data.id;
         currentInquiry.latestOutreachDraft=data;
         assessResearchQuality();
         $("#outreach-status").textContent = `草稿已保存 · ${fmtDate(data.created_at)}`;
-        return { id: data.id, subject, body };
+        return { ...data, subject, body };
       }
       $("#save-outreach").addEventListener("click", async () => {
         const button = $("#save-outreach"); button.disabled = true;

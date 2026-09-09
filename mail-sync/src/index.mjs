@@ -121,6 +121,30 @@ async function matchInquiry(message, connection){
   return {id:null,method:null};
 }
 
+async function reconcileMessageCopies(row){
+  if(!row?.message_id||!row?.inquiry_id)return row;
+  const {data:copies,error}=await db.from('email_messages')
+    .select('id,direction,inquiry_id,created_at')
+    .eq('message_id',row.message_id)
+    .not('inquiry_id','is',null);
+  if(error)throw error;
+  if(!copies||copies.length<2)return row;
+  // The sender's Sent copy is the authoritative CRM association. Shared-mailbox
+  // delivery can be synchronized at the same moment and otherwise fall back to
+  // an unrelated inquiry that happens to use the same internal email address.
+  const canonical=copies.find(copy=>copy.direction==='outbound')||copies[0];
+  const duplicateIds=copies.map(copy=>copy.id);
+  const {error:updateError}=await db.from('email_messages')
+    .update({inquiry_id:canonical.inquiry_id,association_status:'matched',association_method:'duplicate_message_id'})
+    .in('id',duplicateIds);
+  if(updateError)throw updateError;
+  // A faster mailbox worker may already have created derived records using the
+  // temporary match. Keep those records attached to the same canonical inquiry.
+  await db.from('follow_ups').update({inquiry_id:canonical.inquiry_id}).in('email_message_id',duplicateIds);
+  await db.from('communication_summaries').update({inquiry_id:canonical.inquiry_id}).in('source_message_id',duplicateIds);
+  return {...row,inquiry_id:canonical.inquiry_id,association_status:'matched',association_method:'duplicate_message_id'};
+}
+
 async function createInquiryFromShared(message, connection){
   if(connection.mailbox_kind!=='shared_inquiry'||message.direction!=='inbound')return null;
   const creator=connection.created_by;
@@ -212,8 +236,10 @@ async function syncFolder(connection,password,folder){
         const nurturing=isInstantlyNurturing(record,connection);
         let match=nurturing?{id:null,method:'instantly_warmup_filter'}:await matchInquiry(record,connection);
         if(!nurturing&&!match.id)match=await createInquiryFromShared(record,connection)||match;
-        const {data:row,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:nurturing?'ignored':match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
-        if(error)throw error;if(row?.inquiry_id)await applyMatchedMessage(row,connection);
+        const {data:storedRow,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:nurturing?'ignored':match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
+        if(error)throw error;
+        const row=await reconcileMessageCopies(storedRow);
+        if(row?.inquiry_id)await applyMatchedMessage(row,connection);
       }
       await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:maxUid,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
       console.log(`${connection.email} finished ${folder} at UID ${maxUid}`);

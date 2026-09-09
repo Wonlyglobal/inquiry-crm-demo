@@ -2848,7 +2848,7 @@
                 const reads=new Set((readsResult.data||[]).map(item=>item.email_message_id)),all=messagesResult.data||[],latestByConversation=new Map();
                 const conversationKey=item=>item.inquiry_id||`${item.direction==="inbound"?item.sender_email:(item.recipient_emails||[])[0]||""}|${String(item.subject||"").replace(/^\s*((re|fw|fwd|答复|回复|转发)\s*[:：]\s*)+/i,"").trim().toLowerCase()}`;
                 all.forEach(item=>{const key=conversationKey(item);if(key&&!latestByConversation.has(key))latestByConversation.set(key,item.id)});
-                all.forEach(item=>{item.mailRead=item.direction!=="inbound"||reads.has(item.id);item.awaitingReply=item.direction==="inbound"&&latestByConversation.get(conversationKey(item))===item.id;});
+                all.forEach(item=>{item.mailRead=item.direction!=="inbound"||reads.has(item.id);item.awaitingReply=Boolean(item.inquiry_id)&&item.direction==="inbound"&&latestByConversation.get(conversationKey(item))===item.id;});
                 const visible=all.filter(item=>mailboxFolder==="inbox"?item.direction==="inbound":mailboxFolder==="sent"?item.direction==="outbound":true);
                 const unread=all.filter(item=>item.direction==="inbound"&&!item.mailRead).length,awaiting=all.filter(item=>item.awaitingReply).length,overdue=all.filter(item=>item.awaitingReply&&Date.now()-new Date(item.received_at||item.created_at).getTime()>=24*3600000).length;
                 $("#module-insights").innerHTML=[["未读邮件",unread],["待回复",awaiting],["超过24小时",overdue],["最近同步",connection.last_synced_at?fmtDate(connection.last_synced_at):"等待首次同步"]].map(([label,value])=>`<div class="module-insight"><span>${label}</span><b>${value}</b></div>`).join("");

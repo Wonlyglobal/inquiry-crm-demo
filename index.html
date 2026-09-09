@@ -2577,6 +2577,11 @@
       function bindEmailAttachmentDownloads(){
         $$('[data-mail-attachment]').forEach(button=>button.onclick=async()=>{const preview=window.open("","_blank");if(!preview)return toast("浏览器阻止了附件窗口");preview.document.body.textContent="正在打开附件…";const {data,error}=await supabase.storage.from("email-attachments").createSignedUrl(button.dataset.storagePath,120,{download:true});if(error||!data?.signedUrl){preview.close();return toast("附件暂时无法打开："+(error?.message||"未生成链接"))}preview.location.replace(data.signedUrl)});
       }
+      async function openMessageAttachments(message){
+        const attachments=await emailAttachmentMarkup(message.id);
+        if(!attachments)return toast("该邮件附件尚未保存，历史邮件可能只记录了附件数量");
+        openDashboardModal(`邮件附件 · ${message.subject||"无主题"}`,attachments);bindEmailAttachmentDownloads();
+      }
       async function openCommunicationRecord(message){
         if(message.inquiry_id)return openInquiryDetail(message.inquiry_id);
         const recipients=(message.recipient_emails||[]).join(", ")||"—";
@@ -4044,7 +4049,7 @@
           head.append(who,time);const subject=document.createElement("strong");subject.textContent=message.subject||"无主题";
           const body=document.createElement("p");body.textContent=(message.body_text||"").slice(0,4000)||"（无纯文本正文）";
           item.append(head,subject,body);
-          if(message.attachment_count){const attachment=document.createElement("small");attachment.textContent=`附件 ${message.attachment_count} 个`;item.append(attachment)}
+          if(message.attachment_count){const attachment=document.createElement("button");attachment.className="table-action";attachment.type="button";attachment.textContent=`查看附件（${message.attachment_count}）`;attachment.addEventListener("click",()=>openMessageAttachments(message));item.append(attachment)}
           if(summaryByMessage.has(message.id)){const summary=document.createElement("div");summary.className="mail-summary";summary.textContent=`智能总结：${summaryByMessage.get(message.id)}`;item.append(summary)}
           mailThread.append(item);
         });

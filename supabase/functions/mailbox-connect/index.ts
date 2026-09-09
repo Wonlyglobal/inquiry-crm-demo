@@ -136,9 +136,9 @@ Deno.serve(async (req) => {
     const mailboxKind = String(body.mailbox_kind || "personal");
     if (!userId || !email || !password) return new Response(JSON.stringify({ error: "成员、邮箱和客户端密码均为必填" }), { status: 400, headers: cors });
     const canManageOthers = caller.role === "owner" || mailboxAdministrators.has(callerEmail);
-    const canSelfConnect = ["sales", "sales_manager"].includes(String(caller.role || ""));
+    const canSelfConnect = ["sales", "sales_manager", "marketing"].includes(String(caller.role || ""));
     if (!canManageOthers && (!canSelfConnect || userId !== user.id || email !== callerEmail)) {
-      return new Response(JSON.stringify({ error: "业务员只能连接自己的企业邮箱" }), { status: 403, headers: cors });
+      return new Response(JSON.stringify({ error: "成员只能连接自己的企业邮箱" }), { status: 403, headers: cors });
     }
     if (mailboxKind === "shared_inquiry" && (!canManageOthers || email !== "inquiry@wonlyglobal.com")) {
       return new Response(JSON.stringify({ error: "公共询盘邮箱只能由授权管理员配置" }), { status: 403, headers: cors });

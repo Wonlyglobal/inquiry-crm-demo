@@ -14,7 +14,7 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   const admin=createClient(url,envKey("SUPABASE_SECRET_KEYS","SUPABASE_SERVICE_ROLE_KEY"),{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:{user},error:userError}=await userClient.auth.getUser();if(userError||!user)throw new Error("未登录");
   const {data:caller,error:callerError}=await userClient.from("profiles").select("id,email,full_name,role,active").eq("id",user.id).single();
-  if(callerError||!caller?.active||!["sales","sales_manager","owner"].includes(caller.role))throw new Error("当前账号无权使用个人邮箱发信");
+  if(callerError||!caller?.active||!["sales","sales_manager","marketing","owner"].includes(caller.role))throw new Error("当前账号无权使用个人邮箱发信");
   const input=await req.json(),to=clean(input.to,320).toLowerCase(),subject=clean(input.subject,300),body=clean(input.body),inquiryId=clean(input.inquiry_id,100)||null,inReplyTo=clean(input.in_reply_to,500)||null;
   const cc=clean(input.cc,2000).split(/[,;\s]+/).map((item:string)=>item.toLowerCase()).filter(Boolean);
   if(!validEmail(to)||cc.some((item:string)=>!validEmail(item))||!subject||!body)throw new Error("收件人、主题或正文格式不正确");

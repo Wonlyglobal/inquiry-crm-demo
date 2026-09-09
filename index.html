@@ -1252,12 +1252,16 @@
         </div>
         <button class="nav active" data-view="dashboard">
           <i data-lucide="layout-dashboard"></i><span>经营看板</span></button
+        ><button class="nav" data-view="sales-today">
+          <i data-lucide="calendar-check"></i><span>今日工作台</span></button
         ><button class="nav" data-view="marketing-center">
           <i data-lucide="list-checks"></i><span>市场任务中心</span></button
         ><button class="nav" data-view="inquiries">
           <i data-lucide="contact-round"></i><span>询盘商机</span></button
         ><button class="nav" data-view="mailbox">
           <i data-lucide="mail"></i><span>我的邮箱</span></button
+        ><button class="nav" data-view="quotes">
+          <i data-lucide="file-text"></i><span>报价管理</span></button
         ><button class="nav" data-view="email">
           <i data-lucide="mail-plus"></i><span>邮件分拣</span></button
         ><button class="nav" data-view="communications">
@@ -2099,6 +2103,8 @@
           <div class="form-actions">
             <button id="add-follow" class="primary">保存跟进</button>
           </div>
+          <h4>客户跟进助手</h4>
+          <div id="detail-follow-assistant" class="next-action-card"><div><span>自动汇总客户收发信</span><b>暂无可总结的邮件</b><p>收到或发出邮件后，系统会更新客户诉求、风险和建议动作。</p></div></div>
           <h4>邮件沟通记录</h4>
           <p class="hint">同步 CRM 发信、阿里邮箱 App 已发送邮件和客户回信；无法可靠关联的邮件不会混入此处。</p>
           <div id="detail-mail-thread" class="mail-thread"></div>
@@ -2356,9 +2362,11 @@
         const canConfigureMailboxes = ["owner", "sales_manager", "marketing"].includes(role);
         const visibility = {
           "marketing-center": ["marketing"].includes(role),
+          "sales-today": ["owner", "sales_manager", "sales"].includes(role),
           email: ["owner", "sales_manager", "marketing"].includes(role),
           communications: ["owner", "sales_manager", "sales", "marketing"].includes(role),
           mailbox: ["owner", "sales_manager", "sales", "marketing"].includes(role),
+          quotes: ["owner", "sales_manager", "sales"].includes(role),
           assignment: ["owner", "sales_manager", "marketing"].includes(role),
           nurture: ["owner", "sales_manager", "marketing"].includes(role),
           "public-pool": ["owner", "sales_manager", "marketing"].includes(role),
@@ -2583,9 +2591,11 @@
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
         const config = {
           inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
+          "sales-today": ["今日工作台", "集中处理客户回复、首次响应、今日跟进、逾期任务和报价后跟进", "今日销售任务"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
           communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
           mailbox: ["我的邮箱", "与个人阿里邮箱双向同步；可直接收件、写信、查看已发送并回复客户", "邮件列表"],
+          quotes: ["报价管理", "统一查看待报价、已报价及后续商机；点击进入询盘补充金额、币种和客户反馈", "报价商机"],
           assignment: ["待分配池", "主管按国家、语言、产品线和工作量进行分配", "等待分配的询盘"],
           nurture: ["市场培育池", "承接销售退回线索，按原因和复联时间持续培育", "待培育线索"],
           "public-pool": ["客户公海", "展示释放或转派后等待主管重新分配的客户", "待重新分配客户"],
@@ -2657,8 +2667,10 @@
           return;
         }
         let query, columns, mapper, clickable = false, ownerNames = {};
-        if (["inquiries", "assignment", "nurture", "public-pool"].includes(view)) {
-          query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason,qualification_score,lead_priority,sales_disposition,recycle_reason,nurture_status,nurture_next_at,nurture_note").eq("excluded_from_dashboard",false).order("created_at", { ascending: false }).limit(200);
+        if (["inquiries", "assignment", "nurture", "public-pool", "sales-today", "quotes"].includes(view)) {
+          query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason,qualification_score,lead_priority,sales_disposition,recycle_reason,nurture_status,nurture_next_at,nurture_note,estimated_amount,currency,quoted_at,next_follow_up_at").eq("excluded_from_dashboard",false).order("created_at", { ascending: false }).limit(200);
+          if(view==="sales-today")query=query.eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)");
+          if(view==="quotes"){query=query.eq("validity","valid").in("status",["qualified","contacted","quoted","sample_sent","negotiating"]);if(profile.role==="sales")query=query.eq("owner_id",profile.id)}
           if (view === "inquiries" && activeInquiryScope === "open") {
             query = query.eq("validity", "valid").not("status", "in", "(won,lost)");
             $("#module-table-title").textContent = "进行中询盘";
@@ -2668,8 +2680,8 @@
           if (view === "assignment") query = query.eq("validity", "valid").eq("status", "pending_assignment");
           if (view === "nurture") query = query.eq("validity", "valid").eq("sales_disposition", "recycled");
           if (view === "public-pool") query = query.eq("validity", "valid").is("owner_id", null).not("status", "in", "(pending_assignment,won,lost)");
-          columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : view === "nurture" ? ["编号","询盘主题","国家/地区","优先级","成熟度","退回原因","建议复联","培育状态","操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
-          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写";return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions:[{label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)}]}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
+          columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : view === "nurture" ? ["编号","询盘主题","国家/地区","优先级","成熟度","退回原因","建议复联","培育状态","操作"] : view === "sales-today" ? ["优先级","询盘","国家/地区","当前阶段","任务原因","更新时间","操作"] : view === "quotes" ? ["编号","客户/询盘","阶段","报价金额","报价时间","下次跟进","操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
+          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写";return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions:[{label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)}]}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : view === "sales-today" ? (x)=>{const age=(Date.now()-new Date(x.updated_at||x.created_at))/3600000,reason=x.status==="received"?"尽快完成首次有效联系":x.status==="quoted"&&age>168?"报价已超过 7 天，确认客户反馈":x.status==="qualified"?"确认需求并推进首次联系":"补充最新进展并安排下次跟进";return{id:x.id,meta:{status:x.status,validity:x.validity,risk:age>72},cells:[age>168?"紧急":age>72?"优先":"正常",`#${String(x.inquiry_no).padStart(6,"0")} · ${x.title}`,displayCountry(x.target_country),displayInquiryStage(x),reason,fmtDate(x.updated_at||x.created_at)],actions:[{label:"立即处理",onClick:()=>openInquiryDetail(x.id)}]}} : view === "quotes" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryStage(x),x.estimated_amount?`${x.currency||""} ${Number(x.estimated_amount).toLocaleString()}`:"待填写",x.quoted_at?fmtDate(x.quoted_at):"待报价",x.next_follow_up_at?fmtDate(x.next_follow_up_at):"待安排"],actions:[{label:x.quoted_at?"查看/跟进":"准备报价",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
           clickable = true;
         } else if (view === "email") {
           query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,triage_label,received_at,created_at,inquiry_id,trashed_at,trashed_by").order("created_at", { ascending: false }).limit(200);
@@ -3973,6 +3985,9 @@
         lastContactEl.textContent=lastContact?taskTimeText(lastContact):"暂无沟通记录";lastContactEl.classList.toggle("danger-text",Boolean(lastContact&&Date.now()-new Date(lastContact)>7*86400000));
         nextFollowEl.textContent=nextFollow?taskTimeText(nextFollow.next_follow_up_at):(['won','lost'].includes(currentInquiry?.status)?"商机已关闭":"尚未安排");nextFollowEl.classList.toggle("danger-text",Boolean(nextFollow&&new Date(nextFollow.next_follow_up_at)<new Date()));
         const summaryByMessage=new Map((summaries||[]).map(x=>[x.source_message_id,x.summary_zh]));
+        const latestSummary=(summaries||[])[0];
+        const latestInbound=[...(messages||[])].reverse().find(x=>x.direction==="inbound");
+        $("#detail-follow-assistant").innerHTML=`<div><span>客户当前跟进摘要</span><b>${esc(latestInbound?latestInbound.subject||"客户有新回复":"暂未收到客户回复")}</b><p>${esc(latestSummary?.summary_zh||"当前尚无自动总结；新邮件同步后系统会自动生成。")}</p><small>${latestInbound?`最近客户来信：${fmtDate(latestInbound.received_at||latestInbound.created_at)}`:"建议：确认关键需求，并安排明确的下次跟进时间。"}</small></div>`;
         const mailThread=$("#detail-mail-thread");mailThread.replaceChildren();
         if(!messages?.length)mailThread.textContent="暂无已关联邮件";
         else messages.forEach(message=>{

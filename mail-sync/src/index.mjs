@@ -108,6 +108,10 @@ async function matchInquiry(message, connection){
     if(intake?.[0]?.inquiry_id)return {id:intake[0].inquiry_id,method:'original_message_id'};
     const {data:draft}=await db.from('outreach_drafts').select('inquiry_id').in('message_id',ids).limit(1);
     if(draft?.[0]?.inquiry_id)return {id:draft[0].inquiry_id,method:'outreach_message_id'};
+    for(const messageId of ids){
+      const {data:audit}=await db.from('audit_logs').select('entity_id,after_data').eq('action','mailbox_message_sent').contains('after_data',{message_id:messageId}).limit(1);
+      if(audit?.[0]?.after_data?.inquiry_id)return {id:audit[0].after_data.inquiry_id,method:'mailbox_compose_message_id'};
+    }
   }
   const counterpart=message.direction==='inbound'?message.sender_email:message.recipient_emails[0];
   if(counterpart){

@@ -18,6 +18,7 @@ const cleanEmail=(v)=>String(v||'').trim().toLowerCase();
 const normalizeSubject=(v)=>String(v||'').replace(/^\s*((re|fw|fwd|答复|回复|转发)\s*[:：]\s*)+/i,'').replace(/\s+/g,' ').trim().toLowerCase();
 const addrList=(node)=>[...(node?.value||[])].map(x=>cleanEmail(x.address)).filter(Boolean);
 const headerId=(v)=>String(v||'').trim().replace(/^<|>$/g,'');
+const safeFileName=(v,index)=>String(v||`attachment-${index+1}`).replace(/[^a-zA-Z0-9._()\-\u4e00-\u9fff]/g,'_').slice(0,180);
 const escapeHtml=(v)=>String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const emailHtml=(v)=>`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#17231f">${escapeHtml(v).replace(/\n/g,'<br>').replace('WONLY International Sales Team','WONLY International Sales Team<br><img src="https://letter.foreverdoodle.com/wonly-logo-gold.png" alt="WONLY" width="210" style="display:block;width:210px;max-width:100%;height:auto;margin:10px 0 8px;border:0">')}</div>`;
 const isSentFolder=(name)=>/sent|已发送|发件箱/i.test(name);
@@ -230,7 +231,7 @@ async function syncFolder(connection,password,folder){
       }
       const start=last?last+1:Math.max(1,Number(client.mailbox.uidNext||1)-initialLimit);
       let maxUid=last;
-      for await(const msg of client.fetch(`${start}:*`,{uid:true,source:{start:0,maxLength:2_000_000},envelope:true,headers:['message-id','in-reply-to','references']})){
+      for await(const msg of client.fetch(`${start}:*`,{uid:true,source:{start:0,maxLength:12_000_000},envelope:true,headers:['message-id','in-reply-to','references']})){
         if(msg.uid<=last)continue;
         maxUid=Math.max(maxUid,msg.uid);
         const parsed=await simpleParser(msg.source);
@@ -242,6 +243,14 @@ async function syncFolder(connection,password,folder){
         if(!nurturing&&!match.id)match=await createInquiryFromShared(record,connection)||match;
         const {data:storedRow,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:nurturing?'ignored':match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
         if(error)throw error;
+        for(const [index,attachment] of (parsed.attachments||[]).entries()){
+          if(!attachment.content?.length||attachment.content.length>10*1024*1024)continue;
+          const fileName=safeFileName(attachment.filename,index),storagePath=`${storedRow.id}/${index}-${fileName}`;
+          const {error:uploadError}=await db.storage.from('email-attachments').upload(storagePath,attachment.content,{upsert:true,contentType:attachment.contentType||'application/octet-stream'});
+          if(uploadError){console.error(`Attachment upload ${storagePath}: ${uploadError.message}`);continue}
+          const {error:attachmentError}=await db.from('email_attachments').upsert({email_message_id:storedRow.id,file_name:fileName,content_type:attachment.contentType||null,size_bytes:attachment.content.length,storage_path:storagePath,content_id:attachment.contentId||null,inline:attachment.contentDisposition==='inline'},{onConflict:'storage_path'});
+          if(attachmentError)console.error(`Attachment record ${storagePath}: ${attachmentError.message}`);
+        }
         const row=await reconcileMessageCopies(storedRow);
         if(row?.inquiry_id)await applyMatchedMessage(row,connection);
       }

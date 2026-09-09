@@ -1764,6 +1764,7 @@
           <div class="field"><label>抄送（多个邮箱用逗号分隔）</label><input id="mail-compose-cc" class="input" placeholder="cc@company.com" /></div>
           <div class="field"><label>主题</label><input id="mail-compose-subject" class="input" required /></div>
           <div class="field"><label>正文</label><textarea id="mail-compose-body" class="input" rows="12" required></textarea></div>
+          <div class="field"><label>附件（最多 10 个，总计不超过 8MB）</label><input id="mail-compose-files" class="input" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.webp,.zip" /><small id="mail-compose-files-summary" class="hint">未选择附件</small></div>
           <p class="hint">邮件将从当前登录业务员已连接的阿里邮箱发出，并在约 60 秒内同步到“已发送”和客户沟通记录。</p>
           <div class="form-actions"><button id="cancel-mail-compose" class="ghost" type="button">取消</button><button id="send-mail-compose" class="primary" type="submit">发送</button></div>
         </form>
@@ -2568,10 +2569,19 @@
         box.innerHTML=cards.map(([label,value])=>`<div class="module-insight"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("");
         box.classList.remove("hidden");
       }
-      function openCommunicationRecord(message){
+      async function emailAttachmentMarkup(messageId){
+        const {data,error}=await supabase.from("email_attachments").select("id,file_name,content_type,size_bytes,storage_path").eq("email_message_id",messageId).order("created_at");
+        if(error||!data?.length)return "";
+        return `<div style="margin-top:16px"><b>附件（${data.length}）</b><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${data.map(a=>`<button class="secondary" type="button" data-mail-attachment="${a.id}" data-storage-path="${esc(a.storage_path)}">${esc(a.file_name)} · ${(Number(a.size_bytes)/1024).toFixed(1)}KB</button>`).join("")}</div></div>`;
+      }
+      function bindEmailAttachmentDownloads(){
+        $$('[data-mail-attachment]').forEach(button=>button.onclick=async()=>{const preview=window.open("","_blank");if(!preview)return toast("浏览器阻止了附件窗口");preview.document.body.textContent="正在打开附件…";const {data,error}=await supabase.storage.from("email-attachments").createSignedUrl(button.dataset.storagePath,120,{download:true});if(error||!data?.signedUrl){preview.close();return toast("附件暂时无法打开："+(error?.message||"未生成链接"))}preview.location.replace(data.signedUrl)});
+      }
+      async function openCommunicationRecord(message){
         if(message.inquiry_id)return openInquiryDetail(message.inquiry_id);
         const recipients=(message.recipient_emails||[]).join(", ")||"—";
-        openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>方向</span><div>${message.direction==="inbound"?"客户来信":"业务员发信"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div><div class="legacy-detail-item"><span>关联状态</span><div>${message.inquiry_id?"已关联询盘":"待关联客户"}</div></div><div class="legacy-detail-item"><span>关联方式</span><div>${esc(message.association_method||"—")}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>`);
+        const attachments=await emailAttachmentMarkup(message.id);
+        openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>方向</span><div>${message.direction==="inbound"?"客户来信":"业务员发信"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div><div class="legacy-detail-item"><span>关联状态</span><div>${message.inquiry_id?"已关联询盘":"待关联客户"}</div></div><div class="legacy-detail-item"><span>关联方式</span><div>${esc(message.association_method||"—")}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>${attachments}`);bindEmailAttachmentDownloads();
       }
       function openMailComposer(message=null){
         const replying=Boolean(message);
@@ -2583,12 +2593,15 @@
         $("#mail-compose-cc").value="";
         $("#mail-compose-subject").value=replying&&message.subject&&!/^re:/i.test(message.subject)?`Re: ${message.subject}`:(message?.subject||"");
         $("#mail-compose-body").value=replying?`\n\n------------------ 原始邮件 ------------------\n发件人：${message.sender_email||""}\n时间：${fmtDate(message.received_at||message.sent_at||message.created_at)}\n主题：${message.subject||""}\n\n${message.body_text||""}`:"";
+        $("#mail-compose-files").value="";$("#mail-compose-files-summary").textContent="未选择附件";
         $("#mail-compose-modal").classList.remove("hidden");
         setTimeout(()=>$(replying?"#mail-compose-body":"#mail-compose-to").focus(),0);
       }
-      function openMailboxMessage(message){
+      async function openMailboxMessage(message){
         const recipients=(message.recipient_emails||[]).join(", ")||"—";
-        openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>文件夹</span><div>${message.direction==="inbound"?"收件箱":"已发送"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div><div class="form-actions"><button id="mail-detail-reply" class="primary" type="button">回复</button></div>`);
+        const attachments=await emailAttachmentMarkup(message.id);
+        openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>文件夹</span><div>${message.direction==="inbound"?"收件箱":"已发送"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>${attachments}<div class="form-actions"><button id="mail-detail-reply" class="primary" type="button">回复</button></div>`);
+        bindEmailAttachmentDownloads();
         setTimeout(()=>$("#mail-detail-reply")?.addEventListener("click",()=>{$("#dashboard-modal").classList.add("hidden");openMailComposer(message)}),0);
       }
       async function openQuoteManager(inquiry){
@@ -6048,13 +6061,17 @@
         toast("测试邮件已发送，等待 inquiry 邮箱同步");setTimeout(()=>loadModule("communications"),5000);
       });
       ["#close-mail-compose","#cancel-mail-compose"].forEach(selector=>$(selector).addEventListener("click",()=>$("#mail-compose-modal").classList.add("hidden")));
+      $("#mail-compose-files").addEventListener("change",event=>{const files=[...(event.target.files||[])],bytes=files.reduce((sum,file)=>sum+file.size,0);$("#mail-compose-files-summary").textContent=files.length?`${files.length} 个附件 · ${(bytes/1024/1024).toFixed(2)}MB`:"未选择附件";if(files.length>10||bytes>8*1024*1024){toast("附件最多 10 个，总大小不能超过 8MB");event.target.value="";$("#mail-compose-files-summary").textContent="未选择附件"}});
+      const attachmentBase64=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||"").split(",")[1]||"");reader.onerror=()=>reject(new Error(`无法读取附件：${file.name}`));reader.readAsDataURL(file)});
       $("#mail-compose-form").addEventListener("submit",async event=>{
         event.preventDefault();
         const to=$("#mail-compose-to").value.trim(),subject=$("#mail-compose-subject").value.trim(),body=$("#mail-compose-body").value.trim();
         if(!to||!subject||!body)return toast("请完整填写收件人、主题和正文");
+        const files=[...($("#mail-compose-files").files||[])],totalBytes=files.reduce((sum,file)=>sum+file.size,0);if(files.length>10||totalBytes>8*1024*1024)return toast("附件最多 10 个，总大小不能超过 8MB");
         if(!await appConfirm(`确认从 ${profile.email} 发送邮件给 ${to}？`,{title:"发送邮件",confirmText:"确认发送"}))return;
         const button=$("#send-mail-compose");button.disabled=true;button.textContent="发送中…";
-        const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,in_reply_to:$("#mail-compose-reply-id").value||null}});
+        let attachments=[];try{attachments=await Promise.all(files.map(async file=>({name:file.name,type:file.type,base64:await attachmentBase64(file)})))}catch(readError){button.disabled=false;button.textContent="发送";return toast(readError.message)}
+        const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,in_reply_to:$("#mail-compose-reply-id").value||null,attachments}});
         button.disabled=false;button.textContent="发送";
         if(error||data?.error)return toast("邮件发送失败："+(data?.error||error?.message));
         const quotationId=$("#mail-compose-quotation").value;if(quotationId)await supabase.from("quotation_versions").update({status:"sent",updated_at:new Date().toISOString()}).eq("id",quotationId);

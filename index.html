@@ -1767,6 +1767,12 @@
             <div class="field"><label>常用回复模板</label><select id="mail-template-select" class="input"><option value="">选择模板（不会自动发送）</option></select></div>
             <div class="field"><label>保存为个人模板</label><div style="display:flex;gap:8px"><input id="mail-template-name" class="input" maxlength="80" placeholder="模板名称" /><button id="save-mail-template" class="secondary" type="button" style="white-space:nowrap">保存模板</button></div></div>
           </div>
+          <div class="detail-grid">
+            <div class="field"><label>邮件语言</label><select id="mail-compose-language" class="input"><option value="English">英文</option><option value="Spanish">西班牙文</option><option value="Portuguese">葡萄牙文</option><option value="French">法文</option><option value="Arabic">阿拉伯文</option><option value="Russian">俄文</option><option value="Chinese">中文</option></select></div>
+            <div class="field"><label>AI 邮件助手</label><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mail-ai-reply" class="secondary" type="button">根据客户来信生成回复</button><button id="mail-ai-translate" class="secondary" type="button">翻译当前草稿</button></div></div>
+          </div>
+          <div class="field"><label>本次回复补充说明（可选）</label><textarea id="mail-ai-instruction" class="input" rows="2" maxlength="2000" placeholder="例如：告知客户样品可在 7 天内准备；不要承诺最终交期"></textarea><small class="hint">AI 只使用邮件、CRM 已确认事实和这里的补充说明；缺少的信息会转为待确认问题，不会编造。</small></div>
+          <div id="mail-ai-status" class="notice hidden"></div>
           <div class="field"><label>收件人</label><input id="mail-compose-to" class="input" type="email" required placeholder="name@company.com" /></div>
           <div class="field"><label>抄送（多个邮箱用逗号分隔）</label><input id="mail-compose-cc" class="input" placeholder="cc@company.com" /></div>
           <div class="field"><label>主题</label><input id="mail-compose-subject" class="input" required /></div>
@@ -2420,7 +2426,7 @@
           })
           .subscribe();
       }
-      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, mailTemplateItems = new Map();
+      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, mailTemplateItems = new Map(), mailComposerMessage = null;
       const builtinMailTemplates = [
         {id:"first-reply",name:"首次回复询盘",subject:"Re: Your inquiry",body:"Dear Customer,\n\nThank you for contacting WONLY. We have received your inquiry and are reviewing the requirements now.\n\nTo prepare an accurate proposal, could you please confirm the required quantity, dimensions, application, destination country and expected delivery time?\n\nBest regards,\nWONLY International Sales Team"},
         {id:"specification",name:"补充规格确认",subject:"Re: Product specifications",body:"Dear Customer,\n\nThank you for the information. To confirm the correct configuration, could you please share the detailed dimensions, material, finish, hardware or locking requirements, and applicable certification standard?\n\nOnce confirmed, we will prepare the matching solution and quotation.\n\nBest regards,\nWONLY International Sales Team"},
@@ -2614,7 +2620,7 @@
       function applySelectedMailTemplate(){
         const item=mailTemplateItems.get($("#mail-template-select").value);if(!item)return;
         if(item.subject)$("#mail-compose-subject").value=item.subject;
-        $("#mail-compose-body").value=item.body||item.body_text||"";
+        const body=item.body||item.body_text||"",quoted=mailComposerMessage?quotedOriginalMail(mailComposerMessage):"";$("#mail-compose-body").value=quoted?`${body}\n\n${quoted}`:body;
       }
       async function saveCurrentMailTemplate(){
         const name=$("#mail-template-name").value.trim(),body=$("#mail-compose-body").value.trim();
@@ -2624,8 +2630,35 @@
         button.disabled=false;if(error)return toast("模板保存失败："+error.message);
         $("#mail-template-name").value="";await loadMailTemplates();toast("个人模板已保存");
       }
+      function quotedOriginalMail(message){
+        if(!message)return "";
+        return `------------------ 原始邮件 ------------------\n发件人：${message.sender_email||""}\n时间：${fmtDate(message.received_at||message.sent_at||message.created_at)}\n主题：${message.subject||""}\n\n${message.body_text||""}`;
+      }
+      function editableMailBody(){return $("#mail-compose-body").value.split(/\n\s*-{10,}\s*原始邮件\s*-{10,}\s*\n/)[0].trim()}
+      function mailboxSignature(){
+        const local=String(profile?.email||"").toLowerCase().split("@")[0].replace(/[^a-z]/g,""),known={sander:"Sander",chloelee:"Chloe Lee",lyle:"Lyle",jackson:"Jackson",kevinli:"Kevin Li",yuna:"Yuna",megan:"Megan",lawrencewang:"Lawrence Wang",alice:"Alice",haiyangliu:"Haiyang Liu",lily:"Lily",renee:"Renee"};
+        return unifiedEnglishSignature(known[local]||local.replace(/^[a-z]/,letter=>letter.toUpperCase())||profile?.full_name||"WONLY Sales");
+      }
+      async function runMailboxAi(action){
+        const translating=action==="translate",button=$(translating?"#mail-ai-translate":"#mail-ai-reply"),originalText=button.textContent;
+        const currentBody=editableMailBody();if(translating&&!currentBody)return toast("请先填写或生成邮件正文");
+        if(!translating&&(!mailComposerMessage?.id||!mailComposerMessage?.inquiry_id))return toast("该来信尚未关联客户询盘，无法读取完整客户上下文");
+        button.disabled=true;button.textContent=translating?"正在翻译…":"正在理解客户并生成…";$("#mail-ai-status").textContent=translating?"正在翻译当前草稿，历史引用不会被修改…":"正在读取该客户全部往来邮件、跟进总结和背调信息…";$("#mail-ai-status").classList.remove("hidden");
+        try{
+          const {data,error}=await supabase.functions.invoke("mailbox-ai-draft",{body:{action,target_language:$("#mail-compose-language").value,subject:$("#mail-compose-subject").value.trim(),body:stripExistingSignature(currentBody),message_id:mailComposerMessage?.id||null,instruction:$("#mail-ai-instruction").value.trim()}});
+          if(error||data?.error){let detail=data?.error||error?.message||"邮件助手未返回结果";if(error?.context)try{detail=(await error.context.clone().json())?.error||detail}catch{}throw new Error(detail)}
+          const draft=data?.draft;if(!draft?.subject||!draft?.body)throw new Error("邮件助手返回的草稿不完整");
+          $("#mail-compose-subject").value=draft.subject;
+          const responseBody=`${stripExistingSignature(draft.body)}\n\n${mailboxSignature()}`.trim(),quoted=mailComposerMessage?quotedOriginalMail(mailComposerMessage):"";
+          $("#mail-compose-body").value=quoted?`${responseBody}\n\n${quoted}`:responseBody;
+          $("#mail-ai-status").textContent=draft.rationale_zh?`生成说明：${draft.rationale_zh}`:"草稿已生成，请人工核对后再发送";
+          toast(translating?"已完成翻译，请检查后发送":"已根据完整客户上下文生成回复，请检查后发送");
+        }catch(error){$("#mail-ai-status").textContent="生成失败："+(error.message||error);toast("邮件助手失败："+(error.message||error))}
+        finally{button.disabled=false;button.textContent=originalText}
+      }
       async function openMailComposer(message=null){
         const replying=Boolean(message);
+        mailComposerMessage=message;
         $("#mail-compose-title").textContent=replying?"回复邮件":"写邮件";
         $("#mail-compose-inquiry").value=message?.inquiry_id||"";
         $("#mail-compose-reply-id").value=message?.message_id||"";
@@ -2633,8 +2666,9 @@
         $("#mail-compose-to").value=replying?(message.direction==="inbound"?message.sender_email:(message.recipient_emails||[])[0]||""):"";
         $("#mail-compose-cc").value="";
         $("#mail-compose-subject").value=replying&&message.subject&&!/^re:/i.test(message.subject)?`Re: ${message.subject}`:(message?.subject||"");
-        $("#mail-compose-body").value=replying?`\n\n------------------ 原始邮件 ------------------\n发件人：${message.sender_email||""}\n时间：${fmtDate(message.received_at||message.sent_at||message.created_at)}\n主题：${message.subject||""}\n\n${message.body_text||""}`:"";
-        $("#mail-compose-files").value="";$("#mail-compose-files-summary").textContent="未选择附件";$("#mail-compose-scheduled-at").value="";$("#mail-template-name").value="";
+        $("#mail-compose-body").value=replying?`\n\n${quotedOriginalMail(message)}`:"";
+        $("#mail-compose-files").value="";$("#mail-compose-files-summary").textContent="未选择附件";$("#mail-compose-scheduled-at").value="";$("#mail-template-name").value="";$("#mail-compose-language").value="English";$("#mail-ai-instruction").value="";$("#mail-ai-status").classList.add("hidden");
+        $("#mail-ai-reply").disabled=!(message?.direction==="inbound"&&message?.inquiry_id);$("#mail-ai-reply").title=$("#mail-ai-reply").disabled?"只有已关联客户询盘的来信才能生成上下文回复":"";
         const minimum=new Date(Date.now()+2*60000);minimum.setSeconds(0,0);$("#mail-compose-scheduled-at").min=localDateTimeInputValue(minimum.toISOString());
         await loadMailTemplates();$("#mail-template-select").value="";
         $("#mail-compose-modal").classList.remove("hidden");
@@ -6177,6 +6211,8 @@
       ["#close-mail-compose","#cancel-mail-compose"].forEach(selector=>$(selector).addEventListener("click",()=>$("#mail-compose-modal").classList.add("hidden")));
       $("#mail-template-select").addEventListener("change",applySelectedMailTemplate);
       $("#save-mail-template").addEventListener("click",saveCurrentMailTemplate);
+      $("#mail-ai-reply").addEventListener("click",()=>runMailboxAi("reply"));
+      $("#mail-ai-translate").addEventListener("click",()=>runMailboxAi("translate"));
       $("#mail-compose-files").addEventListener("change",event=>{const files=[...(event.target.files||[])],bytes=files.reduce((sum,file)=>sum+file.size,0);$("#mail-compose-files-summary").textContent=files.length?`${files.length} 个附件 · ${(bytes/1024/1024).toFixed(2)}MB`:"未选择附件";if(files.length>10||bytes>8*1024*1024){toast("附件最多 10 个，总大小不能超过 8MB");event.target.value="";$("#mail-compose-files-summary").textContent="未选择附件"}});
       const attachmentBase64=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||"").split(",")[1]||"");reader.onerror=()=>reject(new Error(`无法读取附件：${file.name}`));reader.readAsDataURL(file)});
       $("#mail-compose-form").addEventListener("submit",async event=>{

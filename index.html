@@ -1794,9 +1794,9 @@
           <div class="detail-kpi"><span>下次跟进</span><b id="detail-kpi-next-followup">—</b></div>
         </div>
         <nav class="detail-tabs" aria-label="询盘详情分区">
-          <button class="detail-tab active" type="button" data-detail-tab="pipeline">流水线</button>
           <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信与邮件</button>
+          <button class="detail-tab active" type="button" data-detail-tab="pipeline">流水线</button>
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
@@ -3016,7 +3016,8 @@
       function detailTabsStorageKey(){return `wonly_detail_tabs_order_${profile?.id||"anonymous"}`}
       function applyDetailTabsOrder(order){
         const container=$(".detail-tabs"),tabs=new Map(detailTabsInitialOrder.map(key=>[key,container.querySelector(`[data-detail-tab="${key}"]`)]));
-        [...new Set([...(Array.isArray(order)?order:[]),...detailTabsInitialOrder])].filter(key=>tabs.has(key)).forEach(key=>container.append(tabs.get(key)));
+        const priority=["research","outreach"];
+        [...new Set([...priority,...(Array.isArray(order)?order:[]),...detailTabsInitialOrder])].filter(key=>tabs.has(key)).forEach(key=>container.append(tabs.get(key)));
       }
       function storedDetailTabsOrder(){
         const remote=currentAuthUser?.user_metadata?.detail_tabs_order;if(Array.isArray(remote)&&remote.length)return remote;

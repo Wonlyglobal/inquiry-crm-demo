@@ -2109,8 +2109,8 @@
           <div class="form-actions">
             <button id="add-follow" class="primary">保存跟进</button>
           </div>
-          <h4>客户跟进助手</h4>
-          <div id="detail-follow-assistant" class="next-action-card"><div><span>自动汇总客户收发信</span><b>暂无可总结的邮件</b><p>收到或发出邮件后，系统会更新客户诉求、风险和建议动作。</p></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px"><div><h4 style="margin:0">客户跟进助手</h4><p class="hint" style="margin:6px 0 0">依据该客户全部已关联收发邮件生成，并保留每次更新记录。</p></div><button id="refresh-follow-assistant" class="ghost" type="button">更新总结</button></div>
+          <div id="detail-follow-assistant" class="next-action-card" style="margin-top:12px"><div><span>自动汇总客户收发信</span><b>暂无可总结的邮件</b><p>收到或发出邮件后，系统会更新客户诉求、风险和建议动作。</p></div></div>
           <h4>邮件沟通记录</h4>
           <p class="hint">同步 CRM 发信、阿里邮箱 App 已发送邮件和客户回信；无法可靠关联的邮件不会混入此处。</p>
           <div id="detail-mail-thread" class="mail-thread"></div>
@@ -4059,7 +4059,7 @@
             .eq("inquiry_id", id)
             .order("created_at", { ascending: false }),
           supabase.from("email_messages").select("id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,attachment_count,association_method").eq("inquiry_id",id).order("created_at",{ascending:true}),
-          supabase.from("communication_summaries").select("source_message_id,summary_zh,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}),
+          supabase.from("communication_summaries").select("source_message_id,summary_zh,latest_customer_request,confirmed_items,pending_items,objections,commitments,risks,recommended_next_step,recommended_follow_up_at,summary_scope,message_count,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}),
           supabase.from("audit_logs").select("id,actor_id,action,reason,before_data,after_data,created_at").eq("entity_type","inquiry").eq("entity_id",id).order("created_at",{ascending:false}).limit(200),
         ]);
         renderAuditTrail(audits||[]);
@@ -4071,7 +4071,8 @@
         const summaryByMessage=new Map((summaries||[]).map(x=>[x.source_message_id,x.summary_zh]));
         const latestSummary=(summaries||[])[0];
         const latestInbound=[...(messages||[])].reverse().find(x=>x.direction==="inbound");
-        $("#detail-follow-assistant").innerHTML=`<div><span>客户当前跟进摘要</span><b>${esc(latestInbound?latestInbound.subject||"客户有新回复":"暂未收到客户回复")}</b><p>${esc(latestSummary?.summary_zh||"当前尚无自动总结；新邮件同步后系统会自动生成。")}</p><small>${latestInbound?`最近客户来信：${fmtDate(latestInbound.received_at||latestInbound.created_at)}`:"建议：确认关键需求，并安排明确的下次跟进时间。"}</small></div>`;
+        const assistantFields=latestSummary?[["客户当前需求与痛点",latestSummary.latest_customer_request],["已确认事项",latestSummary.confirmed_items],["待确认事项",latestSummary.pending_items],["客户异议",latestSummary.objections],["我方承诺",latestSummary.commitments],["风险提醒",latestSummary.risks],["下一步建议",latestSummary.recommended_next_step],["推荐跟进时间",latestSummary.recommended_follow_up_at?fmtDate(latestSummary.recommended_follow_up_at):"尚未生成"]]:[];
+        $("#detail-follow-assistant").innerHTML=latestSummary?`<div style="width:100%"><span>客户跟进总览 · 已分析 ${latestSummary.message_count||messages?.length||0} 封邮件</span><b>${esc(latestSummary.summary_zh)}</b><div class="detail-grid" style="margin-top:14px">${assistantFields.map(([label,value])=>`<div class="detail-kpi"><span>${esc(label)}</span><b style="font-size:13px;line-height:1.55;white-space:pre-wrap">${esc(value||"暂无明确证据")}</b></div>`).join("")}</div><small>总结更新于 ${fmtDate(latestSummary.created_at)}；请在对客发送前人工核对。</small></div>`:`<div><span>自动汇总客户全部收发信</span><b>${esc(latestInbound?latestInbound.subject||"客户有新回复":"暂无可总结的邮件")}</b><p>点击“更新总结”后，系统会分析客户需求与痛点、待确认项、异议、我方承诺和下一步建议。</p></div>`;
         const mailThread=$("#detail-mail-thread");mailThread.replaceChildren();
         if(!messages?.length)mailThread.textContent="暂无已关联邮件";
         else messages.forEach(message=>{
@@ -6048,6 +6049,15 @@
         $("#follow-first-contact").checked=false;
         toast(markFirst?"跟进已保存，并计为首次有效联系":"跟进记录已保存");
         await openInquiryDetail(currentInquiry.id);
+      });
+      $("#refresh-follow-assistant").addEventListener("click",async()=>{
+        if(!currentInquiry)return;
+        const button=$("#refresh-follow-assistant"),original=button.textContent;button.disabled=true;button.textContent="正在分析全部邮件…";
+        const {data,error}=await supabase.functions.invoke("email-communication-ai",{body:{inquiry_id:currentInquiry.id}});
+        button.disabled=false;button.textContent=original;
+        if(error||data?.error)return toast("客户跟进总结失败："+(data?.error||error?.message||"服务暂时不可用"));
+        toast(`客户跟进总结已更新，已分析 ${data?.summary?.message_count||0} 封邮件`);
+        await loadTimeline(currentInquiry.id);
       });
       let mailboxBindingKind = "personal";
       async function openMailboxBinding(selectedUserId = "", selfOnly = false, sharedInquiry = false) {

@@ -536,6 +536,9 @@
       @keyframes module-spin { to { transform:rotate(360deg); } }
       .module-insights { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:11px; margin-bottom:14px; }
       .module-insight { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 15px; }
+      button.module-insight { color:inherit; font:inherit; text-align:left; cursor:pointer; }
+      button.module-insight:hover { border-color:#91aa9a; background:#fbfcfb; }
+      button.module-insight.active { border-color:var(--green); background:var(--soft); box-shadow:inset 0 0 0 1px var(--green); }
       .module-insight span { display:block; margin-bottom:8px; color:var(--muted); font-size:11px; }
       .module-insight b { font-size:21px; }
       .inquiry-command { margin-bottom:14px; padding:17px; border:1px solid var(--line); border-radius:17px; background:#fff; }
@@ -1792,16 +1795,15 @@
         </div>
         <nav class="detail-tabs" aria-label="询盘详情分区">
           <button class="detail-tab active" type="button" data-detail-tab="pipeline">流水线</button>
+          <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
+          <button class="detail-tab" type="button" data-detail-tab="outreach">开发信与邮件</button>
+          <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
           <button class="detail-tab" type="button" data-detail-tab="qualification">资格核验</button>
           <button class="detail-tab" type="button" data-detail-tab="attribution">营销归因</button>
           <button class="detail-tab" type="button" data-detail-tab="journey">用户路径</button>
-          <button class="detail-tab" type="button" data-detail-tab="contact-policy">触达规则</button>
-          <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="events">公司大事件</button>
-          <button class="detail-tab" type="button" data-detail-tab="outreach">邮件沟通</button>
-          <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
           <button class="detail-tab" type="button" data-detail-tab="audit">修改记录</button>
         </nav>
         <div class="detail-pipeline-wrap detail-section" data-detail-section="pipeline">
@@ -2413,7 +2415,7 @@
           })
           .subscribe();
       }
-      let activeModuleView = "", activeInquiryScope = "", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
+      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
       const selectedEmailIntakeIds=new Set();
       const moduleMemoryCache = new Map();
       const inquiryManagementDefinitions = {
@@ -2475,14 +2477,15 @@
         const filteredRows = moduleRows.filter((row) => {
           const matchesQuery = !query || row.cells.some((value) => String(value ?? "").toLocaleLowerCase().includes(query));
           const matchesStage = !activeInquiryScope || activeInquiryScope === "all" || (activeInquiryScope === "open" ? row.meta?.validity === "valid" && !["won","lost"].includes(row.meta?.status) : activeInquiryScope === "risk" ? row.meta?.risk : row.meta?.status === activeInquiryScope);
-          return matchesQuery && matchesStage && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source);
+          const matchesTodayCategory = activeModuleView !== "sales-today" || activeTodayCategory === "all" || row.meta?.category === activeTodayCategory;
+          return matchesQuery && matchesStage && matchesTodayCategory && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source);
         });
         renderModuleTable(moduleColumns, filteredRows, moduleRowClick, true);
-        const hasFilter = Boolean(query || validity || source || (activeInquiryScope && activeInquiryScope !== "all"));
+        const hasFilter = Boolean(query || validity || source || (activeInquiryScope && activeInquiryScope !== "all") || (activeModuleView === "sales-today" && activeTodayCategory !== "all"));
         $("#module-filter-summary").classList.toggle("hidden", !hasFilter);
         $("#module-reset-filters").classList.toggle("hidden", !hasFilter);
         if (hasFilter) $("#module-filter-summary").textContent = `显示 ${filteredRows.length} / ${moduleRows.length} 条`;
-        $("#module-table-context").textContent = hasFilter ? "已应用筛选 · 点击任意记录查看完整详情" : "按最新创建时间排列 · 点击记录查看完整详情";
+        $("#module-table-context").textContent = hasFilter ? "已应用筛选 · 点击任意记录查看完整详情" : activeModuleView === "sales-today" ? "按紧急程度与计划时间排列 · 点击任务进入处理" : "按最新创建时间排列 · 点击记录查看完整详情";
         if (hasFilter && !filteredRows.length) setModuleState("filtered");
       }
       function renderInquiryCommand(rows) {
@@ -2707,8 +2710,32 @@
           icons();
           return;
         }
-        let query, columns, mapper, clickable = false, ownerNames = {};
-        if(view==="follow-calendar"){
+        let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null;
+        if(view==="sales-today"){
+          const [inquiriesResult,followupsResult,messagesResult,quotesResult]=await Promise.all([
+            runModuleQuery(supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,assigned_at,first_valid_contact_at,retained_until,created_at,updated_at").eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)").eq("excluded_from_dashboard",false).limit(300)),
+            runModuleQuery(supabase.from("follow_ups").select("id,inquiry_id,content,next_follow_up_at,completed_at,created_at").eq("author_id",profile.id).is("completed_at",null).not("next_follow_up_at","is",null).limit(500)),
+            runModuleQuery(supabase.from("email_messages").select("inquiry_id,direction,subject,received_at,sent_at,created_at").order("created_at",{ascending:false}).limit(1000)),
+            runModuleQuery(supabase.from("quotation_versions").select("inquiry_id,status,created_at").order("created_at",{ascending:false}).limit(500)),
+          ]);
+          const firstError=[inquiriesResult,followupsResult,messagesResult,quotesResult].find(x=>x.error)?.error;
+          if(firstError)query=Promise.resolve({data:null,error:firstError});else{
+            const inquiries=inquiriesResult.data||[],byId=new Map(inquiries.map(x=>[x.id,x])),now=new Date(),today=chinaDate(),latestMail=new Map(),latestQuote=new Map(),tasks=[];
+            (messagesResult.data||[]).forEach(x=>{if(x.inquiry_id&&byId.has(x.inquiry_id)&&!latestMail.has(x.inquiry_id))latestMail.set(x.inquiry_id,x)});
+            (quotesResult.data||[]).forEach(x=>{if(x.inquiry_id&&byId.has(x.inquiry_id)&&!latestQuote.has(x.inquiry_id))latestQuote.set(x.inquiry_id,x)});
+            const add=(category,priority,inquiry,reason,time,label)=>tasks.push({category,priority,...inquiry,reason,time,label});
+            inquiries.filter(x=>x.assigned_at&&new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.assigned_at))===today).forEach(x=>add("assigned",1,x,"今日新分配，请核对客户需求并完成首次响应",x.assigned_at,"新分配"));
+            inquiries.filter(x=>latestMail.get(x.id)?.direction==="inbound").forEach(x=>{const mail=latestMail.get(x.id);add("reply",1,x,`客户新回复：${mail.subject||"无主题"}`,mail.received_at||mail.created_at,"客户新回复")});
+            (followupsResult.data||[]).forEach(f=>{const x=byId.get(f.inquiry_id);if(!x)return;const due=new Date(f.next_follow_up_at),category=due<now?"overdue":new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(due)===today?"followup":null;if(category)add(category,category==="overdue"?1:3,x,f.content||"按计划联系客户",f.next_follow_up_at,category==="overdue"?"已逾期":"今日跟进")});
+            inquiries.filter(x=>["qualified","contacted"].includes(x.status)&&!["draft","pending_approval","approved","sent"].includes(latestQuote.get(x.id)?.status)).forEach(x=>add("quote",2,x,"客户已进入可报价阶段，尚无有效报价版本",x.updated_at,"待报价"));
+            inquiries.filter(x=>x.retained_until&&new Date(`${x.retained_until}T23:59:59+08:00`)-now<=7*86400000).forEach(x=>add("expiring",2,x,`客户保留期 ${x.retained_until} 到期`,`${x.retained_until}T23:59:59+08:00`,"即将失效"));
+            tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
+            todayTaskCounts={all:tasks.length,assigned:tasks.filter(x=>x.category==="assigned").length,reply:tasks.filter(x=>x.category==="reply").length,followup:tasks.filter(x=>x.category==="followup").length,overdue:tasks.filter(x=>x.category==="overdue").length,quote:tasks.filter(x=>x.category==="quote").length,expiring:tasks.filter(x=>x.category==="expiring").length};
+            query=Promise.resolve({data:tasks,error:null});
+          }
+          columns=["类型","优先级","询盘","国家/地区","当前阶段","任务原因","时间","操作"];
+          mapper=x=>({id:x.id,meta:{category:x.category,risk:x.priority===1},cells:[x.label,x.priority===1?"紧急":x.priority===2?"优先":"正常",`#${String(x.inquiry_no).padStart(6,"0")} · ${x.title}`,displayCountry(x.target_country),displayInquiryStage(x),x.reason,taskTimeText(x.time)],actions:[{label:x.category==="quote"?"去报价":"立即处理",onClick:()=>x.category==="quote"?openQuoteManager(x):openInquiryDetail(x.id)}]});clickable=true;
+        } else if(view==="follow-calendar"){
           const now=new Date(),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);
           if(followCalendarRange==="week")end.setDate(start.getDate()+7);
           else if(followCalendarRange==="month"){start.setDate(1);end.setMonth(start.getMonth()+1);end.setDate(1)}
@@ -2717,9 +2744,8 @@
           else calendarQuery=calendarQuery.gte("next_follow_up_at",start.toISOString()).lt("next_follow_up_at",end.toISOString());
           query=calendarQuery;columns=["计划时间","询盘","国家/地区","方式","跟进事项","状态","操作"];
           mapper=(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,overdue=!x.completed_at&&new Date(x.next_follow_up_at)<new Date();return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"待联系",x.content||"跟进客户",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions:[{label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)}]}};clickable=true;
-        } else if (["inquiries", "assignment", "nurture", "public-pool", "sales-today", "quotes"].includes(view)) {
+        } else if (["inquiries", "assignment", "nurture", "public-pool", "quotes"].includes(view)) {
           query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason,qualification_score,lead_priority,sales_disposition,recycle_reason,nurture_status,nurture_next_at,nurture_note,estimated_amount,currency,quoted_at,next_follow_up_at").eq("excluded_from_dashboard",false).order("created_at", { ascending: false }).limit(200);
-          if(view==="sales-today")query=query.eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)");
           if(view==="quotes"){query=query.eq("validity","valid").in("status",["received","qualified","contacted","quoted","sample_sent","negotiating"]);if(profile.role==="sales")query=query.eq("owner_id",profile.id)}
           if (view === "inquiries" && activeInquiryScope === "open") {
             query = query.eq("validity", "valid").not("status", "in", "(won,lost)");
@@ -2730,8 +2756,8 @@
           if (view === "assignment") query = query.eq("validity", "valid").eq("status", "pending_assignment");
           if (view === "nurture") query = query.eq("validity", "valid").eq("sales_disposition", "recycled");
           if (view === "public-pool") query = query.eq("validity", "valid").is("owner_id", null).not("status", "in", "(pending_assignment,won,lost)");
-          columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : view === "nurture" ? ["编号","询盘主题","国家/地区","优先级","成熟度","退回原因","建议复联","培育状态","操作"] : view === "sales-today" ? ["优先级","询盘","国家/地区","当前阶段","任务原因","更新时间","操作"] : view === "quotes" ? ["编号","客户/询盘","阶段","报价金额","报价时间","下次跟进","操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
-          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写";return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions:[{label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)}]}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : view === "sales-today" ? (x)=>{const age=(Date.now()-new Date(x.updated_at||x.created_at))/3600000,reason=x.status==="received"?"尽快完成首次有效联系":x.status==="quoted"&&age>168?"报价已超过 7 天，确认客户反馈":x.status==="qualified"?"确认需求并推进首次联系":"补充最新进展并安排下次跟进";return{id:x.id,meta:{status:x.status,validity:x.validity,risk:age>72},cells:[age>168?"紧急":age>72?"优先":"正常",`#${String(x.inquiry_no).padStart(6,"0")} · ${x.title}`,displayCountry(x.target_country),displayInquiryStage(x),reason,fmtDate(x.updated_at||x.created_at)],actions:[{label:"立即处理",onClick:()=>openInquiryDetail(x.id)}]}} : view === "quotes" ? (x)=>({id:x.id,quoteInquiry:x,meta:{status:x.status,validity:x.validity,risk:x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryStage(x),x.estimated_amount?`${x.currency||""} ${Number(x.estimated_amount).toLocaleString()}`:"待填写",x.quoted_at?fmtDate(x.quoted_at):"待报价",x.next_follow_up_at?fmtDate(x.next_follow_up_at):"待安排"],actions:[{label:"报价单",onClick:()=>openQuoteManager(x)},{label:"询盘详情",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
+          columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : view === "nurture" ? ["编号","询盘主题","国家/地区","优先级","成熟度","退回原因","建议复联","培育状态","操作"] : view === "quotes" ? ["编号","客户/询盘","阶段","报价金额","报价时间","下次跟进","操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
+          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写";return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions:[{label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)}]}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : view === "quotes" ? (x)=>({id:x.id,quoteInquiry:x,meta:{status:x.status,validity:x.validity,risk:x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryStage(x),x.estimated_amount?`${x.currency||""} ${Number(x.estimated_amount).toLocaleString()}`:"待填写",x.quoted_at?fmtDate(x.quoted_at):"待报价",x.next_follow_up_at?fmtDate(x.next_follow_up_at):"待安排"],actions:[{label:"报价单",onClick:()=>openQuoteManager(x)},{label:"询盘详情",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)] });
           clickable = true;
         } else if (view === "email") {
           query = supabase.from("email_intake").select("id,sender_email,subject,processing_status,triage_label,received_at,created_at,inquiry_id,trashed_at,trashed_by").order("created_at", { ascending: false }).limit(200);
@@ -2850,6 +2876,13 @@
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, loadedAt:new Date().toISOString() });
         $("#module-table-context").textContent = `${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
         if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
+        if (view === "sales-today" && todayTaskCounts) {
+          const categories=[["all","全部任务"],["assigned","新分配询盘"],["reply","客户新回复"],["followup","今日待跟进"],["overdue","逾期任务"],["quote","待报价"],["expiring","即将失效"]];
+          $("#module-insights").innerHTML=categories.map(([key,label])=>`<button class="module-insight ${activeTodayCategory===key?"active":""}" type="button" data-today-category="${key}"><span>${label}</span><b>${todayTaskCounts[key]||0}</b></button>`).join("");
+          $("#module-insights").classList.remove("hidden");
+          $$("#module-insights [data-today-category]").forEach(button=>button.addEventListener("click",()=>{activeTodayCategory=button.dataset.todayCategory;$$("#module-insights [data-today-category]").forEach(item=>item.classList.toggle("active",item===button));filterModuleRows()}));
+          filterModuleRows();
+        }
         refreshButton.classList.remove("loading");
         refreshButton.disabled = false;
         icons();

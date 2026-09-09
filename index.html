@@ -1477,7 +1477,7 @@
             </div>
             <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="primary" type="button">一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><button id="email-trash-selected" class="email-mark-warmup" type="button">移入垃圾箱</button><button id="email-restore-selected" class="ghost hidden" type="button">恢复所选</button><button id="email-delete-selected" class="email-mark-warmup hidden" type="button">彻底删除</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
             <div id="email-class-tabs" class="email-class-tabs hidden" aria-label="邮件分类"></div>
-            <div id="mailbox-folder-tabs" class="email-class-tabs hidden" aria-label="邮箱文件夹"><button class="email-class-tab active" type="button" data-mailbox-folder="inbox">收件箱</button><button class="email-class-tab" type="button" data-mailbox-folder="sent">已发送</button><button class="email-class-tab" type="button" data-mailbox-folder="all">全部邮件</button></div>
+            <div id="mailbox-folder-tabs" class="email-class-tabs hidden" aria-label="邮箱文件夹"><button class="email-class-tab active" type="button" data-mailbox-folder="inbox">收件箱</button><button class="email-class-tab" type="button" data-mailbox-folder="sent">已发送</button><button class="email-class-tab" type="button" data-mailbox-folder="scheduled">定时发送</button><button class="email-class-tab" type="button" data-mailbox-folder="all">全部邮件</button></div>
             <div id="follow-calendar-tabs" class="email-class-tabs hidden" aria-label="跟进日历范围"><button class="email-class-tab active" type="button" data-calendar-range="week">本周</button><button class="email-class-tab" type="button" data-calendar-range="month">本月</button><button class="email-class-tab" type="button" data-calendar-range="overdue">已逾期</button></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
@@ -1763,12 +1763,17 @@
         <div class="modal-head"><h3 id="mail-compose-title">写邮件</h3><button id="close-mail-compose" class="close" type="button">×</button></div>
         <form id="mail-compose-form" class="form-body">
           <input id="mail-compose-inquiry" type="hidden" /><input id="mail-compose-reply-id" type="hidden" /><input id="mail-compose-quotation" type="hidden" />
+          <div class="detail-grid">
+            <div class="field"><label>常用回复模板</label><select id="mail-template-select" class="input"><option value="">选择模板（不会自动发送）</option></select></div>
+            <div class="field"><label>保存为个人模板</label><div style="display:flex;gap:8px"><input id="mail-template-name" class="input" maxlength="80" placeholder="模板名称" /><button id="save-mail-template" class="secondary" type="button" style="white-space:nowrap">保存模板</button></div></div>
+          </div>
           <div class="field"><label>收件人</label><input id="mail-compose-to" class="input" type="email" required placeholder="name@company.com" /></div>
           <div class="field"><label>抄送（多个邮箱用逗号分隔）</label><input id="mail-compose-cc" class="input" placeholder="cc@company.com" /></div>
           <div class="field"><label>主题</label><input id="mail-compose-subject" class="input" required /></div>
           <div class="field"><label>正文</label><textarea id="mail-compose-body" class="input" rows="12" required></textarea></div>
           <div class="field"><label>附件（最多 10 个，总计不超过 8MB）</label><input id="mail-compose-files" class="input" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.webp,.zip" /><small id="mail-compose-files-summary" class="hint">未选择附件</small></div>
-          <p class="hint">邮件将从当前登录业务员已连接的阿里邮箱发出，并在约 60 秒内同步到“已发送”和客户沟通记录。</p>
+          <div class="field"><label>定时发送（可选）</label><input id="mail-compose-scheduled-at" class="input" type="datetime-local" /><small class="hint">留空立即发送；可安排 2 分钟后至 30 天内。定时邮件暂不支持附件。</small></div>
+          <p class="hint">邮件将从当前登录业务员已连接的阿里邮箱发出，并同步到“已发送”和客户沟通记录。</p>
           <div class="form-actions"><button id="cancel-mail-compose" class="ghost" type="button">取消</button><button id="send-mail-compose" class="primary" type="submit">发送</button></div>
         </form>
       </div>
@@ -2415,7 +2420,13 @@
           })
           .subscribe();
       }
-      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
+      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, mailTemplateItems = new Map();
+      const builtinMailTemplates = [
+        {id:"first-reply",name:"首次回复询盘",subject:"Re: Your inquiry",body:"Dear Customer,\n\nThank you for contacting WONLY. We have received your inquiry and are reviewing the requirements now.\n\nTo prepare an accurate proposal, could you please confirm the required quantity, dimensions, application, destination country and expected delivery time?\n\nBest regards,\nWONLY International Sales Team"},
+        {id:"specification",name:"补充规格确认",subject:"Re: Product specifications",body:"Dear Customer,\n\nThank you for the information. To confirm the correct configuration, could you please share the detailed dimensions, material, finish, hardware or locking requirements, and applicable certification standard?\n\nOnce confirmed, we will prepare the matching solution and quotation.\n\nBest regards,\nWONLY International Sales Team"},
+        {id:"quotation-followup",name:"报价后跟进",subject:"Follow-up on our quotation",body:"Dear Customer,\n\nI am following up on the quotation we sent. Could you please let us know whether the specification, price and delivery schedule meet your current project needs?\n\nIf anything needs adjustment, please tell us your priority and we will update the proposal accordingly.\n\nBest regards,\nWONLY International Sales Team"},
+        {id:"sample-feedback",name:"样品反馈",subject:"Follow-up on the sample",body:"Dear Customer,\n\nMay I ask whether you have received and evaluated the sample? We would appreciate your feedback on the appearance, dimensions, operation and any points that need improvement.\n\nYour comments will help us confirm the production specification before the next step.\n\nBest regards,\nWONLY International Sales Team"},
+      ];
       const selectedEmailIntakeIds=new Set();
       const moduleMemoryCache = new Map();
       const inquiryManagementDefinitions = {
@@ -2591,7 +2602,29 @@
         const attachments=await emailAttachmentMarkup(message.id);
         openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>方向</span><div>${message.direction==="inbound"?"客户来信":"业务员发信"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div><div class="legacy-detail-item"><span>关联状态</span><div>${message.inquiry_id?"已关联询盘":"待关联客户"}</div></div><div class="legacy-detail-item"><span>关联方式</span><div>${esc(message.association_method||"—")}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>${attachments}`);bindEmailAttachmentDownloads();
       }
-      function openMailComposer(message=null){
+      async function loadMailTemplates(){
+        const select=$("#mail-template-select");if(!select)return;
+        mailTemplateItems=new Map(builtinMailTemplates.map(item=>[`builtin:${item.id}`,item]));
+        const {data,error}=await supabase.from("email_templates").select("id,name,subject,body_text,language,category").eq("owner_id",profile.id).order("updated_at",{ascending:false});
+        if(!error)(data||[]).forEach(item=>mailTemplateItems.set(`personal:${item.id}`,{...item,body:item.body_text}));
+        const builtins=builtinMailTemplates.map(item=>`<option value="builtin:${item.id}">${esc(item.name)}</option>`).join("");
+        const personal=(data||[]).map(item=>`<option value="personal:${item.id}">${esc(item.name)}</option>`).join("");
+        select.innerHTML=`<option value="">选择模板（不会自动发送）</option><optgroup label="系统常用模板">${builtins}</optgroup>${personal?`<optgroup label="我的模板">${personal}</optgroup>`:""}`;
+      }
+      function applySelectedMailTemplate(){
+        const item=mailTemplateItems.get($("#mail-template-select").value);if(!item)return;
+        if(item.subject)$("#mail-compose-subject").value=item.subject;
+        $("#mail-compose-body").value=item.body||item.body_text||"";
+      }
+      async function saveCurrentMailTemplate(){
+        const name=$("#mail-template-name").value.trim(),body=$("#mail-compose-body").value.trim();
+        if(!name)return toast("请填写模板名称");if(!body)return toast("正文为空，不能保存模板");
+        const button=$("#save-mail-template");button.disabled=true;
+        const {error}=await supabase.from("email_templates").upsert({owner_id:profile.id,name,category:"reply",language:"英文",subject:$("#mail-compose-subject").value.trim()||null,body_text:body,updated_at:new Date().toISOString()},{onConflict:"owner_id,name"});
+        button.disabled=false;if(error)return toast("模板保存失败："+error.message);
+        $("#mail-template-name").value="";await loadMailTemplates();toast("个人模板已保存");
+      }
+      async function openMailComposer(message=null){
         const replying=Boolean(message);
         $("#mail-compose-title").textContent=replying?"回复邮件":"写邮件";
         $("#mail-compose-inquiry").value=message?.inquiry_id||"";
@@ -2601,16 +2634,33 @@
         $("#mail-compose-cc").value="";
         $("#mail-compose-subject").value=replying&&message.subject&&!/^re:/i.test(message.subject)?`Re: ${message.subject}`:(message?.subject||"");
         $("#mail-compose-body").value=replying?`\n\n------------------ 原始邮件 ------------------\n发件人：${message.sender_email||""}\n时间：${fmtDate(message.received_at||message.sent_at||message.created_at)}\n主题：${message.subject||""}\n\n${message.body_text||""}`:"";
-        $("#mail-compose-files").value="";$("#mail-compose-files-summary").textContent="未选择附件";
+        $("#mail-compose-files").value="";$("#mail-compose-files-summary").textContent="未选择附件";$("#mail-compose-scheduled-at").value="";$("#mail-template-name").value="";
+        const minimum=new Date(Date.now()+2*60000);minimum.setSeconds(0,0);$("#mail-compose-scheduled-at").min=localDateTimeInputValue(minimum.toISOString());
+        await loadMailTemplates();$("#mail-template-select").value="";
         $("#mail-compose-modal").classList.remove("hidden");
         setTimeout(()=>$(replying?"#mail-compose-body":"#mail-compose-to").focus(),0);
       }
       async function openMailboxMessage(message){
+        if(message.direction==="inbound"){
+          const {error}=await supabase.from("email_message_reads").upsert({email_message_id:message.id,user_id:profile.id,read_at:new Date().toISOString()},{onConflict:"email_message_id,user_id"});
+          if(!error){message.mailRead=true;const row=moduleRows.find(item=>item.message?.id===message.id);if(row){row.cells[2]=mailboxMessageState(message);renderModuleTable(moduleColumns,moduleRows,moduleRowClick)}}
+        }
         const recipients=(message.recipient_emails||[]).join(", ")||"—";
         const attachments=await emailAttachmentMarkup(message.id);
         openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>文件夹</span><div>${message.direction==="inbound"?"收件箱":"已发送"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>${attachments}<div class="form-actions"><button id="mail-detail-reply" class="primary" type="button">回复</button></div>`);
         bindEmailAttachmentDownloads();
         setTimeout(()=>$("#mail-detail-reply")?.addEventListener("click",()=>{$("#dashboard-modal").classList.add("hidden");openMailComposer(message)}),0);
+      }
+      async function cancelScheduledMail(outboxId){
+        if(!await appConfirm("确认取消这封定时邮件？取消后不会发送给客户。",{title:"取消定时发送",confirmText:"确认取消"}))return;
+        const {error}=await supabase.rpc("cancel_scheduled_mailbox_message",{target_outbox_id:outboxId});
+        if(error)return toast("取消失败："+error.message);toast("定时邮件已取消");await loadModule("mailbox");
+      }
+      function mailboxMessageState(message){
+        if(message.direction!=="inbound")return "已发送";
+        const state=[message.mailRead?"已读":"未读"];
+        if(message.awaitingReply)state.push(Date.now()-new Date(message.received_at||message.created_at).getTime()>=24*3600000?"待回复 · 已超24小时":"待回复");
+        return state.join(" · ");
       }
       async function openQuoteManager(inquiry){
         const {data:versions,error}=await supabase.from("quotation_versions").select("*").eq("inquiry_id",inquiry.id).order("version_no",{ascending:false});if(error)return toast("报价记录加载失败："+error.message);
@@ -2710,7 +2760,7 @@
           icons();
           return;
         }
-        let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null;
+        let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null, mailboxScheduledView = false;
         if(view==="sales-today"){
           const [inquiriesResult,followupsResult,messagesResult,quotesResult]=await Promise.all([
             runModuleQuery(supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,assigned_at,first_valid_contact_at,retained_until,created_at,updated_at").eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)").eq("excluded_from_dashboard",false).limit(300)),
@@ -2786,14 +2836,29 @@
             $("#module-subtitle").textContent="请先连接你的阿里邮箱，连接后可在这里收件、写信和回复客户";
             modulePrimary.textContent="连接我的邮箱";
           }else{
-            let messageQuery=supabase.from("email_messages").select("id,inquiry_id,message_id,direction,sender_email,recipient_emails,cc_emails,subject,body_text,sent_at,received_at,created_at,attachment_count,association_status,inquiries(inquiry_no,title)").eq("mailbox_connection_id",connection.id).order("created_at",{ascending:false}).limit(500);
-            if(mailboxFolder==="inbox")messageQuery=messageQuery.eq("direction","inbound");
-            if(mailboxFolder==="sent")messageQuery=messageQuery.eq("direction","outbound");
-            query=messageQuery;
+            if(mailboxFolder==="scheduled"){
+              mailboxScheduledView=true;
+              query=supabase.from("mail_outbox").select("id,inquiry_id,recipient_email,cc_emails,subject,body_text,status,next_attempt_at,sent_at,last_error,created_at,delivery_mode,inquiries(inquiry_no,title)").eq("sender_user_id",profile.id).eq("delivery_mode","scheduled").order("next_attempt_at",{ascending:false}).limit(200);
+            }else{
+              const [messagesResult,readsResult]=await Promise.all([
+                runModuleQuery(supabase.from("email_messages").select("id,inquiry_id,message_id,direction,sender_email,recipient_emails,cc_emails,subject,body_text,sent_at,received_at,created_at,attachment_count,association_status,inquiries(inquiry_no,title)").eq("mailbox_connection_id",connection.id).order("created_at",{ascending:false}).limit(500)),
+                runModuleQuery(supabase.from("email_message_reads").select("email_message_id").eq("user_id",profile.id).limit(1000)),
+              ]);
+              if(messagesResult.error)query=Promise.resolve(messagesResult);else{
+                const reads=new Set((readsResult.data||[]).map(item=>item.email_message_id)),all=messagesResult.data||[],latestByConversation=new Map();
+                const conversationKey=item=>item.inquiry_id||`${item.direction==="inbound"?item.sender_email:(item.recipient_emails||[])[0]||""}|${String(item.subject||"").replace(/^\s*((re|fw|fwd|答复|回复|转发)\s*[:：]\s*)+/i,"").trim().toLowerCase()}`;
+                all.forEach(item=>{const key=conversationKey(item);if(key&&!latestByConversation.has(key))latestByConversation.set(key,item.id)});
+                all.forEach(item=>{item.mailRead=item.direction!=="inbound"||reads.has(item.id);item.awaitingReply=item.direction==="inbound"&&latestByConversation.get(conversationKey(item))===item.id;});
+                const visible=all.filter(item=>mailboxFolder==="inbox"?item.direction==="inbound":mailboxFolder==="sent"?item.direction==="outbound":true);
+                const unread=all.filter(item=>item.direction==="inbound"&&!item.mailRead).length,awaiting=all.filter(item=>item.awaitingReply).length,overdue=all.filter(item=>item.awaitingReply&&Date.now()-new Date(item.received_at||item.created_at).getTime()>=24*3600000).length;
+                $("#module-insights").innerHTML=[["未读邮件",unread],["待回复",awaiting],["超过24小时",overdue],["最近同步",connection.last_synced_at?fmtDate(connection.last_synced_at):"等待首次同步"]].map(([label,value])=>`<div class="module-insight"><span>${label}</span><b>${value}</b></div>`).join("");
+                $("#module-insights").classList.remove("hidden");query=Promise.resolve({data:visible,error:null});
+              }
+            }
             $("#module-table-context").textContent=`${connection.email} · 最近同步 ${connection.last_synced_at?fmtDate(connection.last_synced_at):"等待首次同步"}`;
           }
-          columns=["时间","文件夹","发件人","收件人","主题","所属询盘","附件"];
-          mapper=(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;return{id:x.id,message:x,cells:[fmtDate(x.received_at||x.sent_at||x.created_at),x.direction==="inbound"?"收件箱":"已发送",x.sender_email||"—",(x.recipient_emails||[]).join(", ")||"—",x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"待关联",x.attachment_count?`${x.attachment_count} 个`:"—"]}};
+          columns=mailboxScheduledView?["计划发送","收件人","主题","所属询盘","状态","操作"]:["时间","文件夹","状态","发件人","收件人","主题","所属询盘","附件"];
+          mapper=mailboxScheduledView?(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,status={pending:"等待发送",sending:"发送中",sent:"已发送",failed:"发送失败",cancelled:"已取消"}[x.status]||x.status;return{id:x.id,cells:[fmtDate(x.next_attempt_at),x.recipient_email,x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"未关联询盘",status],actions:x.status==="pending"?[{label:"取消发送",onClick:()=>cancelScheduledMail(x.id)}]:[]}}:(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;return{id:x.id,message:x,meta:{risk:x.awaitingReply&&Date.now()-new Date(x.received_at||x.created_at).getTime()>=24*3600000},cells:[fmtDate(x.received_at||x.sent_at||x.created_at),x.direction==="inbound"?"收件箱":"已发送",mailboxMessageState(x),x.sender_email||"—",(x.recipient_emails||[]).join(", ")||"—",x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"待关联",x.attachment_count?`${x.attachment_count} 个`:"—"]}};
           clickable=true;
         } else if (view === "research") {
           const linked=await supabase.from("inquiries").select("company_id").eq("excluded_from_dashboard",false).not("company_id","is",null);
@@ -6110,6 +6175,8 @@
         toast("测试邮件已发送，等待 inquiry 邮箱同步");setTimeout(()=>loadModule("communications"),5000);
       });
       ["#close-mail-compose","#cancel-mail-compose"].forEach(selector=>$(selector).addEventListener("click",()=>$("#mail-compose-modal").classList.add("hidden")));
+      $("#mail-template-select").addEventListener("change",applySelectedMailTemplate);
+      $("#save-mail-template").addEventListener("click",saveCurrentMailTemplate);
       $("#mail-compose-files").addEventListener("change",event=>{const files=[...(event.target.files||[])],bytes=files.reduce((sum,file)=>sum+file.size,0);$("#mail-compose-files-summary").textContent=files.length?`${files.length} 个附件 · ${(bytes/1024/1024).toFixed(2)}MB`:"未选择附件";if(files.length>10||bytes>8*1024*1024){toast("附件最多 10 个，总大小不能超过 8MB");event.target.value="";$("#mail-compose-files-summary").textContent="未选择附件"}});
       const attachmentBase64=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||"").split(",")[1]||"");reader.onerror=()=>reject(new Error(`无法读取附件：${file.name}`));reader.readAsDataURL(file)});
       $("#mail-compose-form").addEventListener("submit",async event=>{
@@ -6117,8 +6184,20 @@
         const to=$("#mail-compose-to").value.trim(),subject=$("#mail-compose-subject").value.trim(),body=$("#mail-compose-body").value.trim();
         if(!to||!subject||!body)return toast("请完整填写收件人、主题和正文");
         const files=[...($("#mail-compose-files").files||[])],totalBytes=files.reduce((sum,file)=>sum+file.size,0);if(files.length>10||totalBytes>8*1024*1024)return toast("附件最多 10 个，总大小不能超过 8MB");
-        if(!await appConfirm(`确认从 ${profile.email} 发送邮件给 ${to}？`,{title:"发送邮件",confirmText:"确认发送"}))return;
+        const scheduledValue=$("#mail-compose-scheduled-at").value,scheduledAt=scheduledValue?new Date(scheduledValue):null;
+        if(scheduledAt&&Number.isNaN(scheduledAt.getTime()))return toast("定时发送时间无效");
+        if(scheduledAt&&scheduledAt.getTime()<Date.now()+115000)return toast("定时发送至少安排在 2 分钟后");
+        if(scheduledAt&&scheduledAt.getTime()>Date.now()+30*86400000)return toast("定时发送最多可安排在 30 天内");
+        if(scheduledAt&&files.length)return toast("定时邮件暂不支持附件，请移除附件或改为立即发送");
+        const confirmation=scheduledAt?`确认安排在 ${fmtDate(scheduledAt.toISOString())} 发送给 ${to}？\n\n主题：${subject}`:`确认从 ${profile.email} 发送邮件给 ${to}？\n\n主题：${subject}${files.length?`\n附件：${files.length} 个`:""}`;
+        if(!await appConfirm(confirmation,{title:scheduledAt?"确认定时发送":"发送邮件",confirmText:scheduledAt?"确认安排":"确认发送"}))return;
         const button=$("#send-mail-compose");button.disabled=true;button.textContent="发送中…";
+        if(scheduledAt){
+          const ccList=$("#mail-compose-cc").value.split(/[,;，；]/).map(value=>value.trim().toLowerCase()).filter(Boolean);
+          const {error}=await supabase.rpc("schedule_mailbox_message",{target_inquiry_id:$("#mail-compose-inquiry").value||null,recipient_email:to,cc_list:ccList,mail_subject:subject,mail_body:body,reply_message_id:$("#mail-compose-reply-id").value||null,scheduled_for:scheduledAt.toISOString()});
+          button.disabled=false;button.textContent="发送";if(error)return toast("定时发送失败："+error.message);
+          $("#mail-compose-modal").classList.add("hidden");mailboxFolder="scheduled";$$('#mailbox-folder-tabs [data-mailbox-folder]').forEach(item=>item.classList.toggle("active",item.dataset.mailboxFolder==="scheduled"));toast("定时邮件已保存，发送前可在“定时发送”中取消");return loadModule("mailbox");
+        }
         let attachments=[];try{attachments=await Promise.all(files.map(async file=>({name:file.name,type:file.type,base64:await attachmentBase64(file)})))}catch(readError){button.disabled=false;button.textContent="发送";return toast(readError.message)}
         const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,in_reply_to:$("#mail-compose-reply-id").value||null,attachments}});
         button.disabled=false;button.textContent="发送";

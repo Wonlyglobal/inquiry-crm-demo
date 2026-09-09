@@ -79,16 +79,17 @@ async function processOutbox(){
     const {data:claimed}=await db.from('mail_outbox').update({status:'sending',started_at:claimedAt,attempts:Number(job.attempts||0)+1}).eq('id',job.id).eq('status','pending').select('*').maybeSingle();
     if(!claimed)continue;
     try{
+      const intakePromise=job.inquiry_id?db.from('email_intake').select('message_id').eq('inquiry_id',job.inquiry_id).order('created_at',{ascending:false}).limit(1).maybeSingle():Promise.resolve({data:null,error:null});
       const [{data:connection,error:connectionError},{data:caller},{data:intake}]=await Promise.all([
         db.from('mailbox_connections').select('*').eq('user_id',job.sender_user_id).eq('status','connected').single(),
         db.from('profiles').select('full_name').eq('id',job.sender_user_id).single(),
-        db.from('email_intake').select('message_id').eq('inquiry_id',job.inquiry_id).maybeSingle(),
+        intakePromise,
       ]);
       if(connectionError||!connection)throw connectionError||new Error('业务员邮箱未连接');
       const password=await secretFor(connection.id);
       const transport=nodemailer.createTransport({host:connection.smtp_host,port:connection.smtp_port,secure:Number(connection.smtp_port)===465,auth:{user:connection.email,pass:password},connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000});
-      const threadId=headerId(intake?.message_id);
-      const sent=await transport.sendMail({from:`"${caller?.full_name||connection.email}" <${connection.email}>`,to:job.recipient_email,subject:job.subject,text:job.body_text,html:emailHtml(job.body_text),...(threadId?{inReplyTo:threadId,references:[threadId]}:{})});
+      const threadId=headerId(job.in_reply_to||intake?.message_id);
+      const sent=await transport.sendMail({from:`"${caller?.full_name||connection.email}" <${connection.email}>`,to:job.recipient_email,...(job.cc_emails?.length?{cc:job.cc_emails}:{}),subject:job.subject,text:job.body_text,html:emailHtml(job.body_text),...(threadId?{inReplyTo:threadId,references:[threadId]}:{})});
       const sentAt=new Date().toISOString();
       await db.from('mail_outbox').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null}).eq('id',job.id);
       if(job.draft_id)await db.from('outreach_drafts').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null,updated_at:sentAt}).eq('id',job.draft_id);

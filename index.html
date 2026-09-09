@@ -1254,6 +1254,8 @@
           <i data-lucide="layout-dashboard"></i><span>经营看板</span></button
         ><button class="nav" data-view="sales-today">
           <i data-lucide="calendar-check"></i><span>今日工作台</span></button
+        ><button class="nav" data-view="follow-calendar">
+          <i data-lucide="calendar-days"></i><span>跟进日历</span></button
         ><button class="nav" data-view="marketing-center">
           <i data-lucide="list-checks"></i><span>市场任务中心</span></button
         ><button class="nav" data-view="inquiries">
@@ -1473,6 +1475,7 @@
             <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="primary" type="button">一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><button id="email-trash-selected" class="email-mark-warmup" type="button">移入垃圾箱</button><button id="email-restore-selected" class="ghost hidden" type="button">恢复所选</button><button id="email-delete-selected" class="email-mark-warmup hidden" type="button">彻底删除</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
             <div id="email-class-tabs" class="email-class-tabs hidden" aria-label="邮件分类"></div>
             <div id="mailbox-folder-tabs" class="email-class-tabs hidden" aria-label="邮箱文件夹"><button class="email-class-tab active" type="button" data-mailbox-folder="inbox">收件箱</button><button class="email-class-tab" type="button" data-mailbox-folder="sent">已发送</button><button class="email-class-tab" type="button" data-mailbox-folder="all">全部邮件</button></div>
+            <div id="follow-calendar-tabs" class="email-class-tabs hidden" aria-label="跟进日历范围"><button class="email-class-tab active" type="button" data-calendar-range="week">本周</button><button class="email-class-tab" type="button" data-calendar-range="month">本月</button><button class="email-class-tab" type="button" data-calendar-range="overdue">已逾期</button></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
             <div class="module-table-scroll"><table id="module-table"><thead><tr id="module-head"></tr></thead><tbody id="module-body"></tbody></table></div>
@@ -2363,6 +2366,7 @@
         const visibility = {
           "marketing-center": ["marketing"].includes(role),
           "sales-today": ["owner", "sales_manager", "sales"].includes(role),
+          "follow-calendar": ["owner", "sales_manager", "sales"].includes(role),
           email: ["owner", "sales_manager", "marketing"].includes(role),
           communications: ["owner", "sales_manager", "sales", "marketing"].includes(role),
           mailbox: ["owner", "sales_manager", "sales", "marketing"].includes(role),
@@ -2408,7 +2412,7 @@
           })
           .subscribe();
       }
-      let activeModuleView = "", activeInquiryScope = "", emailTriageFilter = "pending", mailboxFolder = "inbox", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
+      let activeModuleView = "", activeInquiryScope = "", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null;
       const selectedEmailIntakeIds=new Set();
       const moduleMemoryCache = new Map();
       const inquiryManagementDefinitions = {
@@ -2592,6 +2596,7 @@
         const config = {
           inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
           "sales-today": ["今日工作台", "集中处理客户回复、首次响应、今日跟进、逾期任务和报价后跟进", "今日销售任务"],
+          "follow-calendar": ["跟进日历", "按周、月查看本人计划跟进任务，逾期任务单独汇总", "跟进计划"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
           communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
           mailbox: ["我的邮箱", "与个人阿里邮箱双向同步；可直接收件、写信、查看已发送并回复客户", "邮件列表"],
@@ -2623,6 +2628,7 @@
         $("#email-triage-actions").classList.toggle("hidden",view!=="email");
         $("#email-class-tabs").classList.toggle("hidden",view!=="email");
         $("#mailbox-folder-tabs").classList.toggle("hidden",view!=="mailbox");
+        $("#follow-calendar-tabs").classList.toggle("hidden",view!=="follow-calendar");
         selectedEmailIntakeIds.clear();$("#email-selected-count").textContent="已选 0 条";
         $("#inquiry-filter-group").classList.toggle("hidden", view !== "inquiries");
         $("#inquiry-validity-filter").value = "";
@@ -2667,7 +2673,16 @@
           return;
         }
         let query, columns, mapper, clickable = false, ownerNames = {};
-        if (["inquiries", "assignment", "nurture", "public-pool", "sales-today", "quotes"].includes(view)) {
+        if(view==="follow-calendar"){
+          const now=new Date(),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);
+          if(followCalendarRange==="week")end.setDate(start.getDate()+7);
+          else if(followCalendarRange==="month"){start.setDate(1);end.setMonth(start.getMonth()+1);end.setDate(1)}
+          let calendarQuery=supabase.from("follow_ups").select("id,inquiry_id,method,content,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at,inquiries(inquiry_no,title,status,owner_id,target_country)").eq("author_id",profile.id).not("next_follow_up_at","is",null).order("next_follow_up_at",{ascending:true}).limit(500);
+          if(followCalendarRange==="overdue")calendarQuery=calendarQuery.is("completed_at",null).lt("next_follow_up_at",now.toISOString());
+          else calendarQuery=calendarQuery.gte("next_follow_up_at",start.toISOString()).lt("next_follow_up_at",end.toISOString());
+          query=calendarQuery;columns=["计划时间","询盘","国家/地区","方式","跟进事项","状态","操作"];
+          mapper=(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,overdue=!x.completed_at&&new Date(x.next_follow_up_at)<new Date();return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"待联系",x.content||"跟进客户",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions:[{label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)}]}};clickable=true;
+        } else if (["inquiries", "assignment", "nurture", "public-pool", "sales-today", "quotes"].includes(view)) {
           query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason,qualification_score,lead_priority,sales_disposition,recycle_reason,nurture_status,nurture_next_at,nurture_note,estimated_amount,currency,quoted_at,next_follow_up_at").eq("excluded_from_dashboard",false).order("created_at", { ascending: false }).limit(200);
           if(view==="sales-today")query=query.eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)");
           if(view==="quotes"){query=query.eq("validity","valid").in("status",["qualified","contacted","quoted","sample_sent","negotiating"]);if(profile.role==="sales")query=query.eq("owner_id",profile.id)}
@@ -2820,6 +2835,7 @@
       $("#module-refresh").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       $("#module-stale-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       $$("#mailbox-folder-tabs button").forEach(button=>button.addEventListener("click",()=>{mailboxFolder=button.dataset.mailboxFolder;$$("#mailbox-folder-tabs button").forEach(item=>item.classList.toggle("active",item===button));loadModule("mailbox")}));
+      $$("#follow-calendar-tabs button").forEach(button=>button.addEventListener("click",()=>{followCalendarRange=button.dataset.calendarRange;$$("#follow-calendar-tabs button").forEach(item=>item.classList.toggle("active",item===button));loadModule("follow-calendar")}));
       $("#email-select-all").addEventListener("click",()=>{const ids=moduleRows.map(x=>x.selectionId).filter(Boolean),all=ids.length&&ids.every(id=>selectedEmailIntakeIds.has(id));ids.forEach(id=>all?selectedEmailIntakeIds.delete(id):selectedEmailIntakeIds.add(id));$("#email-selected-count").textContent="已选 "+selectedEmailIntakeIds.size+" 条";renderModuleTable(moduleColumns,moduleRows,moduleRowClick,true)});
       async function markSelectedEmails(label){const ids=[...selectedEmailIntakeIds];if(!ids.length)return toast("请先勾选邮件");if(label==="warmup"&&!await appConfirm(`确认将所选 ${ids.length} 封邮件标记为养号邮件？\n\n这些邮件将退出待分拣队列，且不能转为询盘商机。`,{title:"标记养号邮件",confirmText:"确认标记"}))return;const button=$("#email-mark-warmup");button.disabled=true;const result=await supabase.rpc("triage_email_intakes",{target_ids:ids,target_label:label});button.disabled=false;if(result.error)return toast("邮件标记失败："+result.error.message);toast("已标记 "+result.data+" 条"+(label==="warmup"?"养号邮件":"真实邮件"));selectedEmailIntakeIds.clear();await loadModule("email")}
       async function convertEmailIntakes(ids,openAfter=false){if(!ids.length)return toast("请先勾选邮件");const button=$("#email-convert-inquiry");button.disabled=true;button.textContent="正在生成…";try{const result=await supabase.rpc("convert_email_intakes_to_inquiries",{target_ids:ids});if(result.error)return toast("转为询盘失败："+result.error.message);const converted=result.data||[];toast(`已处理 ${converted.length} 封邮件，询盘商机已生成`);selectedEmailIntakeIds.clear();await loadModule("email");if(openAfter&&converted[0]?.result_inquiry_id)await openInquiryDetail(converted[0].result_inquiry_id)}finally{button.disabled=false;button.textContent="一键转为询盘商机"}}

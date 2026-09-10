@@ -1490,6 +1490,7 @@
               <button id="inquiry-definitions" class="ghost hidden">询盘口径说明 ?</button>
               <button id="add-member" class="ghost hidden">+ 新增成员</button>
               <button id="connect-shared-inquiry" class="ghost hidden">连接公共询盘邮箱</button>
+              <button id="calendar-generate-daily" class="ghost hidden">一键生成日报</button>
               <button id="module-primary" class="primary hidden"></button>
             </div>
           </div>
@@ -2744,6 +2745,34 @@
         const {error}=await supabase.rpc("cancel_scheduled_mailbox_message",{target_outbox_id:outboxId});
         if(error)return toast("取消失败："+error.message);toast("定时邮件已取消");await loadModule("mailbox");
       }
+      async function completeFollowUpFromCalendar(task){
+        if(!task?.id)return;
+        if(!await appConfirm(`确认完成这条跟进任务？\n\n${task.content||"跟进客户"}`,{title:"完成跟进任务",confirmText:"确认完成"}))return;
+        const {error}=await supabase.rpc("complete_follow_up_task",{target_follow_up_id:task.id});
+        if(error)return toast("任务完成失败："+error.message);
+        toast("跟进任务已完成，询盘的下一跟进时间已同步");
+        await loadModule("follow-calendar");
+      }
+      async function openDailyPlanEditor(){
+        const {data:inquiries,error}=await supabase.from("inquiries").select("id,inquiry_no,title").eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)").order("updated_at",{ascending:false}).limit(300);
+        if(error)return toast("可关联询盘加载失败："+error.message);
+        openDashboardModal("新增每日计划",`<form id="daily-plan-create-form"><div class="detail-grid"><div class="field"><label>计划日期 *</label><input id="daily-plan-date" class="input" type="date" required value="${chinaDate()}" /></div><div class="field"><label>计划时间（可选）</label><input id="daily-plan-time" class="input" type="time" /></div><div class="field"><label>优先级</label><select id="daily-plan-priority" class="input"><option value="high">高</option><option value="normal" selected>普通</option><option value="low">低</option></select></div><div class="field"><label>关联询盘（可选）</label><select id="daily-plan-inquiry" class="input"><option value="">不关联询盘</option>${(inquiries||[]).map(item=>`<option value="${item.id}">#${String(item.inquiry_no||"").padStart(6,"0")} · ${esc(item.title)}</option>`).join("")}</select></div></div><div class="field"><label>计划事项 *</label><textarea id="daily-plan-title" class="input" rows="4" required placeholder="写清今天要完成的动作和预期结果"></textarea></div><div class="form-actions"><button class="primary" type="submit">保存每日计划</button></div></form>`);
+        $("#daily-plan-create-form").onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const date=$("#daily-plan-date").value,time=$("#daily-plan-time").value,planned=time?new Date(`${date}T${time}:00+08:00`).toISOString():null;const {error:createError}=await supabase.rpc("create_sales_daily_plan",{target_plan_date:date,plan_title:$("#daily-plan-title").value.trim(),plan_priority:$("#daily-plan-priority").value,planned_for:planned,target_inquiry_id:$("#daily-plan-inquiry").value||null});button.disabled=false;if(createError)return toast("每日计划保存失败："+createError.message);$("#dashboard-modal").classList.add("hidden");toast("每日计划已保存");await loadModule("follow-calendar")};
+      }
+      async function writeDailyPlanResult(plan){
+        openDashboardModal(plan.completed_at?"修改关键成果":"完成计划并填写成果",`<form id="daily-plan-result-form"><p class="hint">${esc(plan.title)}</p><div class="field"><label>关键成果 *</label><textarea id="daily-plan-result" class="input" rows="5" required placeholder="记录完成内容、客户反馈、形成的结论或下一步">${esc(plan.key_result||"")}</textarea></div><div class="form-actions"><button class="primary" type="submit">保存关键成果</button></div></form>`);
+        $("#daily-plan-result-form").onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const {error}=await supabase.rpc("save_sales_daily_plan_result",{target_plan_id:plan.id,result_text:$("#daily-plan-result").value.trim()});button.disabled=false;if(error)return toast("关键成果保存失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("关键成果已保存并计入日报");await loadModule("follow-calendar")};
+      }
+      async function generateDailyReportFromCalendar(){
+        const button=$("#calendar-generate-daily"),date=chinaDate();button.disabled=true;button.textContent="智能生成中…";
+        try{
+          $("#daily-date").value=date;await openDailyReport();
+          const {data,error}=await supabase.functions.invoke("daily-report-ai",{body:{report_date:date}});
+          if(error||data?.error)throw new Error(data?.error||error?.message||"日报生成失败");
+          $("#daily-progress").value=data.draft?.key_progress||"";$("#daily-blockers").value=data.draft?.blockers||"";$("#daily-plan").value=data.draft?.tomorrow_plan||"";
+          toast(`已根据 ${data.source_counts?.plans||0} 项计划和 ${data.source_counts?.follow_ups||0} 条跟进生成日报草稿，请确认后保存`);
+        }catch(error){toast("智能日报生成失败："+(error?.message||error))}finally{button.disabled=false;button.textContent="一键生成日报"}
+      }
       function mailboxMessageState(message){
         if(message.direction!=="inbound")return "已发送";
         const state=[message.mailRead?"已读":"未读"];
@@ -2923,7 +2952,8 @@
         $("#module-table-context").textContent = "按最新创建时间排列";
         setModuleState("loading");
         const modulePrimary = $("#module-primary");
-        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","knowledge"].includes(view) || (view==="knowledge"&&!['owner','sales_manager','marketing'].includes(profile.role)));
+        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","knowledge","follow-calendar"].includes(view) || (view==="knowledge"&&!['owner','sales_manager','marketing'].includes(profile.role)));
+        $("#calendar-generate-daily").classList.toggle("hidden",view!=="follow-calendar"||profile.role!=="sales");
         const canManageSharedInquiry = ["owner", "sales_manager", "marketing"].includes(profile.role);
         const sharedInquiryButton = $("#connect-shared-inquiry");
         sharedInquiryButton.classList.toggle("hidden", view !== "settings" || !canManageSharedInquiry);
@@ -2949,6 +2979,7 @@
         if (view === "communications") modulePrimary.textContent = "测试我的邮箱收发";
         if (view === "mailbox") modulePrimary.textContent = "+ 写邮件";
         if (view === "knowledge") modulePrimary.textContent = "+ 新建知识";
+        if (view === "follow-calendar") modulePrimary.textContent = "+ 新增每日计划";
         const denied =
           (view === "settings" && !["owner", "sales_manager", "marketing"].includes(profile.role)) ||
           (["email", "assignment", "nurture", "research"].includes(view) &&
@@ -3051,8 +3082,21 @@
           let calendarQuery=supabase.from("follow_ups").select("id,inquiry_id,method,content,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at,priority,remind_at,original_due_at,rollover_count,inquiries(inquiry_no,title,status,owner_id,target_country)").eq("author_id",profile.id).not("next_follow_up_at","is",null).order("priority",{ascending:true}).order("next_follow_up_at",{ascending:true}).limit(500);
           if(followCalendarRange==="overdue")calendarQuery=calendarQuery.is("completed_at",null).lt("next_follow_up_at",now.toISOString());
           else calendarQuery=calendarQuery.gte("next_follow_up_at",start.toISOString()).lt("next_follow_up_at",end.toISOString());
-          query=calendarQuery;columns=["计划时间","优先级","提醒","询盘","国家/地区","方式","跟进事项","顺延","状态","操作"];
-          mapper=(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,overdue=!x.completed_at&&new Date(x.next_follow_up_at)<new Date();return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),{high:"高",normal:"普通",low:"低"}[x.priority]||"普通",x.remind_at?fmtDate(x.remind_at):"未设置",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"待联系",x.content||"跟进客户",x.rollover_count?`${x.rollover_count} 次` : "—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions:[{label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)}]}};clickable=true;
+          const dateText=value=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(value),todayDate=dateText(now);let dailyPlanQuery=supabase.from("sales_daily_plans").select("id,inquiry_id,plan_date,planned_at,title,priority,key_result,completed_at,created_at,inquiries(inquiry_no,title,status,owner_id,target_country)").eq("owner_id",profile.id).order("plan_date",{ascending:true}).order("planned_at",{ascending:true}).limit(500);
+          if(followCalendarRange==="overdue")dailyPlanQuery=dailyPlanQuery.is("completed_at",null).lt("plan_date",todayDate);else dailyPlanQuery=dailyPlanQuery.gte("plan_date",dateText(start)).lt("plan_date",dateText(end));
+          query=(async()=>{const [followResult,planResult]=await Promise.all([runModuleQuery(calendarQuery),runModuleQuery(dailyPlanQuery)]);if(followResult.error||planResult.error)return {data:null,error:followResult.error||planResult.error};return {data:[...(planResult.data||[]).map(item=>({...item,calendar_type:"daily_plan"})),...(followResult.data||[]).map(item=>({...item,calendar_type:"follow_up"}))],error:null}})();columns=["计划时间","优先级","提醒","询盘","国家/地区","类型","计划/跟进事项","关键成果","顺延","状态","操作"];
+          mapper=(x)=>{
+            const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;
+            if(x.calendar_type==="daily_plan"){
+              const overdue=!x.completed_at&&x.plan_date<todayDate,actions=[{label:x.completed_at?"修改成果":"填写成果",onClick:()=>writeDailyPlanResult(x)}];
+              if(x.inquiry_id)actions.push({label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)});
+              return{id:x.inquiry_id||x.id,meta:{risk:overdue},cells:[x.planned_at?fmtDate(x.planned_at):x.plan_date,{high:"高",normal:"普通",low:"低"}[x.priority]||"普通","—",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"未关联",displayCountry(inquiry?.target_country),"每日计划",x.title,x.key_result||"待填写","—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions};
+            }
+            const overdue=!x.completed_at&&new Date(x.next_follow_up_at)<new Date(),actions=[];
+            if(!x.completed_at)actions.push({label:"完成任务",onClick:()=>completeFollowUpFromCalendar(x)});
+            actions.push({label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)});
+            return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),{high:"高",normal:"普通",low:"低"}[x.priority]||"普通",x.remind_at?fmtDate(x.remind_at):"未设置",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"客户跟进",x.content||"跟进客户",x.customer_feedback||"—",x.rollover_count?`${x.rollover_count} 次` : "—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions};
+          };clickable=true;
         } else if (["inquiries", "assignment", "nurture", "public-pool", "quotes"].includes(view)) {
           if(view==="public-pool"){
             const requestResult=await runModuleQuery(supabase.from("inquiry_public_pool_requests").select("id,inquiry_id,requested_by,request_type,reason,status,review_reason,created_at,profiles!inquiry_public_pool_requests_requested_by_fkey(full_name)").eq("status","pending").order("created_at",{ascending:true}).limit(500));
@@ -6509,6 +6553,7 @@
         });
       }
       $("#module-primary").addEventListener("click", async () => {
+        if(activeModuleView==="follow-calendar")return openDailyPlanEditor();
         if(activeModuleView==="knowledge")return openKnowledgeEditor();
         if(activeModuleView==="mailbox"){
           if(mailboxFolder==="templates")return openMailTemplateEditor();
@@ -6523,6 +6568,7 @@
         if(error||data?.error)return toast("测试邮件发送失败："+(data?.error||error?.message));
         toast("测试邮件已发送，等待 inquiry 邮箱同步");setTimeout(()=>loadModule("communications"),5000);
       });
+      $("#calendar-generate-daily").addEventListener("click",generateDailyReportFromCalendar);
       ["#close-mail-compose","#cancel-mail-compose"].forEach(selector=>$(selector).addEventListener("click",()=>$("#mail-compose-modal").classList.add("hidden")));
       $("#mail-template-select").addEventListener("change",applySelectedMailTemplate);
       $("#save-mail-template").addEventListener("click",saveCurrentMailTemplate);

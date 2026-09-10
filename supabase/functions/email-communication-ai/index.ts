@@ -25,7 +25,8 @@ Deno.serve(async req=>{
     if(!secret||!token)return new Response(JSON.stringify({error:"无权调用"}),{status:403,headers:cors});
     const apiKey=Deno.env.get("DEEPSEEK_API_KEY")||"";if(!apiKey)throw new Error("DeepSeek API Key 未配置");
     const db=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
-    const body=await req.json();let inquiryId=clean(body?.inquiry_id,80),sourceMessageId=clean(body?.message_id,80);
+    const body=await req.json();let inquiryId=clean(body?.inquiry_id,80),sourceMessageId=clean(body?.message_id,80),generationTrigger=clean(body?.trigger,30);
+    if(!["mail_sync","manual","automatic_refresh"].includes(generationTrigger))generationTrigger=sourceMessageId?"mail_sync":"manual";
     if(sourceMessageId){const {data:source,error}=await db.from("email_messages").select("id,inquiry_id").eq("id",sourceMessageId).single();if(error||!source?.inquiry_id)throw error||new Error("邮件尚未关联询盘");inquiryId=source.inquiry_id}
     if(!inquiryId)throw new Error("缺少询盘编号");
     if(token!==secret){
@@ -47,8 +48,7 @@ Deno.serve(async req=>{
     const response=await fetch("https://api.deepseek.com/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model:Deno.env.get("DEEPSEEK_MODEL")||"deepseek-chat",temperature:0.1,max_tokens:1800,response_format:{type:"json_object"},messages:[{role:"system",content:systemPrompt},{role:"user",content:`当前时间：${new Date().toISOString()}\n询盘资料：${JSON.stringify(inquiry)}\n客户背调（只可作为背景，不得冒充客户表述）：${JSON.stringify(company)}\n\n全部邮件（按时间正序，共 ${chronological.length} 封）：\n${emailHistory}`}]}),signal:AbortSignal.timeout(40000)});
     const payload=await response.json();if(!response.ok)throw new Error(payload?.error?.message||`DeepSeek ${response.status}`);
     const result=jsonObject(clean(payload?.choices?.[0]?.message?.content));
-    const record={inquiry_id:inquiryId,source_message_id:sourceMessageId,summary_zh:clean(result.summary_zh,4000)||"暂未生成有效总结",latest_customer_request:clean(result.customer_needs_pain_points,4000)||"暂无明确证据",confirmed_items:clean(result.confirmed_items,4000)||"暂无明确证据",pending_items:clean(result.pending_items,4000)||"暂无明确证据",objections:clean(result.objections,3000)||"暂无明确证据",commitments:clean(result.commitments,3000)||"暂无明确证据",risks:clean(result.risks,3000)||"暂无明确证据",recommended_next_step:clean(result.recommended_next_step,3000)||"核对客户最新问题并安排下一次联系",recommended_follow_up_at:safeDate(result.recommended_follow_up_at),summary_scope:"thread",message_count:chronological.length,provider:"deepseek"};
-    await db.from("communication_summaries").delete().eq("source_message_id",sourceMessageId);
+    const record={inquiry_id:inquiryId,source_message_id:sourceMessageId,summary_zh:clean(result.summary_zh,4000)||"暂未生成有效总结",latest_customer_request:clean(result.customer_needs_pain_points,4000)||"暂无明确证据",confirmed_items:clean(result.confirmed_items,4000)||"暂无明确证据",pending_items:clean(result.pending_items,4000)||"暂无明确证据",objections:clean(result.objections,3000)||"暂无明确证据",commitments:clean(result.commitments,3000)||"暂无明确证据",risks:clean(result.risks,3000)||"暂无明确证据",recommended_next_step:clean(result.recommended_next_step,3000)||"核对客户最新问题并安排下一次联系",recommended_follow_up_at:safeDate(result.recommended_follow_up_at),summary_scope:"thread",message_count:chronological.length,provider:"deepseek",generation_trigger:generationTrigger};
     const saved=await db.from("communication_summaries").insert(record);if(saved.error)throw saved.error;
     return new Response(JSON.stringify({summarized:true,summary:record}),{headers:cors});
   }catch(error){return new Response(JSON.stringify({error:error instanceof Error?error.message:String(error)}),{status:400,headers:cors})}

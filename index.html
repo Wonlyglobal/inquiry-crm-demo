@@ -4441,7 +4441,7 @@
             .eq("inquiry_id", id)
             .order("created_at", { ascending: false }),
           supabase.from("email_messages").select("id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,attachment_count,association_method").eq("inquiry_id",id).order("created_at",{ascending:true}),
-          supabase.from("communication_summaries").select("source_message_id,summary_zh,latest_customer_request,confirmed_items,pending_items,objections,commitments,risks,recommended_next_step,recommended_follow_up_at,summary_scope,message_count,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}),
+          supabase.from("communication_summaries").select("id,source_message_id,summary_zh,latest_customer_request,confirmed_items,pending_items,objections,commitments,risks,recommended_next_step,recommended_follow_up_at,summary_scope,message_count,provider,generation_trigger,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}),
           supabase.from("audit_logs").select("id,actor_id,action,reason,before_data,after_data,created_at").eq("entity_type","inquiry").eq("entity_id",id).order("created_at",{ascending:false}).limit(200),
         ]);
         renderAuditTrail(audits||[]);
@@ -4456,7 +4456,8 @@
         const latestInbound=[...(messages||[])].reverse().find(x=>x.direction==="inbound");
         const assistantFields=latestSummary?[["客户当前需求与痛点",latestSummary.latest_customer_request],["已确认事项",latestSummary.confirmed_items],["待确认事项",latestSummary.pending_items],["客户异议",latestSummary.objections],["我方承诺",latestSummary.commitments],["风险提醒",latestSummary.risks],["下一步建议",latestSummary.recommended_next_step],["推荐跟进时间",latestSummary.recommended_follow_up_at?fmtDate(latestSummary.recommended_follow_up_at):"尚未生成"]]:[];
         const newestMessage=messages?.[messages.length-1],summaryStale=Boolean(newestMessage&&(!latestSummary||latestSummary.source_message_id!==newestMessage.id||Number(latestSummary.message_count)!==messages.length));
-        $("#detail-follow-assistant").innerHTML=latestSummary?`<div style="width:100%"><span>客户跟进总览 · 已分析 ${latestSummary.message_count||messages?.length||0} 封邮件${summaryStale?" · 检测到新邮件，正在自动更新":""}</span><b>${esc(latestSummary.summary_zh)}</b><div class="detail-grid" style="margin-top:14px">${assistantFields.map(([label,value])=>`<div class="detail-kpi"><span>${esc(label)}</span><b style="font-size:13px;line-height:1.55;white-space:pre-wrap">${esc(value||"暂无明确证据")}</b></div>`).join("")}</div><small>总结更新于 ${fmtDate(latestSummary.created_at)}；请在对客发送前人工核对。</small></div>`:`<div><span>自动汇总客户全部收发信</span><b>${esc(latestInbound?latestInbound.subject||"客户有新回复":"暂无可总结的邮件")}</b><p>${summaryStale?"正在首次自动分析完整邮件线程…":"当前没有可总结的邮件"}</p></div>`;
+        const summaryHistory=(summaries||[]).slice(1),triggerNames={mail_sync:"邮件同步自动生成",manual:"人工更新",automatic_refresh:"检测到新邮件自动更新"};
+        $("#detail-follow-assistant").innerHTML=latestSummary?`<div style="width:100%"><span>客户跟进总览 · 已分析 ${latestSummary.message_count||messages?.length||0} 封邮件${summaryStale?" · 检测到新邮件，正在自动更新":""}</span><b>${esc(latestSummary.summary_zh)}</b><div class="detail-grid" style="margin-top:14px">${assistantFields.map(([label,value])=>`<div class="detail-kpi"><span>${esc(label)}</span><b style="font-size:13px;line-height:1.55;white-space:pre-wrap">${esc(value||"暂无明确证据")}</b></div>`).join("")}</div><small>总结更新于 ${fmtDate(latestSummary.created_at)} · ${esc(triggerNames[latestSummary.generation_trigger]||"历史数据")}；请在对客发送前人工核对。</small>${summaryHistory.length?`<details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">查看历史总结（${summaryHistory.length}）</summary><div style="display:grid;gap:10px;margin-top:10px">${summaryHistory.map(item=>`<article style="padding:12px;border:1px solid var(--line);border-radius:12px"><small>${fmtDate(item.created_at)} · ${esc(triggerNames[item.generation_trigger]||item.provider||"历史数据")} · ${item.message_count||0} 封邮件</small><p style="margin:6px 0 0;white-space:pre-wrap">${esc(item.summary_zh)}</p></article>`).join("")}</div></details>`:""}</div>`:`<div><span>自动汇总客户全部收发信</span><b>${esc(latestInbound?latestInbound.subject||"客户有新回复":"暂无可总结的邮件")}</b><p>${summaryStale?"正在首次自动分析完整邮件线程…":"当前没有可总结的邮件"}</p></div>`;
         if(summaryStale&&!followAssistantRefreshing.has(id))void refreshFollowAssistant(id,{automatic:true});
         const mailThread=$("#detail-mail-thread");mailThread.replaceChildren();
         if(!messages?.length)mailThread.textContent="暂无已关联邮件";
@@ -6456,7 +6457,7 @@
         let completed=false,messageCount=0;
         if(currentInquiry?.id===inquiryId){button.disabled=true;button.textContent=automatic?"自动更新中…":"正在分析全部邮件…"}
         try{
-          const {data,error}=await supabase.functions.invoke("email-communication-ai",{body:{inquiry_id:inquiryId}});
+          const {data,error}=await supabase.functions.invoke("email-communication-ai",{body:{inquiry_id:inquiryId,trigger:automatic?"automatic_refresh":"manual"}});
           if(error||data?.error)throw new Error(data?.error||error?.message||"服务暂时不可用");
           completed=true;messageCount=data?.summary?.message_count||0;
         }catch(error){

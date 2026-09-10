@@ -209,7 +209,7 @@ async function applyMatchedMessage(row, connection){
   }
   await db.from('communication_summaries').insert({inquiry_id:inq.id,source_message_id:row.id,summary_zh:ruleSummary(row),latest_customer_request:row.direction==='inbound'?(row.body_text||'').slice(0,2000):null,provider:'rules'});
   try{
-    const response=await fetch(`${url}/functions/v1/email-communication-ai`,{method:'POST',headers:{Authorization:`Bearer ${key}`,apikey:key,'Content-Type':'application/json'},body:JSON.stringify({message_id:row.id}),signal:AbortSignal.timeout(45000)});
+    const response=await fetch(`${url}/functions/v1/email-communication-ai`,{method:'POST',headers:{Authorization:`Bearer ${key}`,apikey:key,'Content-Type':'application/json'},body:JSON.stringify({message_id:row.id,trigger:'mail_sync'}),signal:AbortSignal.timeout(45000)});
     if(!response.ok)console.error(`AI summary ${row.id}: ${await response.text()}`);
   }catch(error){console.error(`AI summary ${row.id}:`,error?.message||error)}
 }

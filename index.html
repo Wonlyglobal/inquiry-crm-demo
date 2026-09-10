@@ -6458,7 +6458,8 @@
         if(currentInquiry?.id===inquiryId){button.disabled=true;button.textContent=automatic?"自动更新中…":"正在分析全部邮件…"}
         try{
           const {data,error}=await supabase.functions.invoke("email-communication-ai",{body:{inquiry_id:inquiryId,trigger:automatic?"automatic_refresh":"manual"}});
-          if(error||data?.error)throw new Error(data?.error||error?.message||"服务暂时不可用");
+          let detail=data?.error;if(error?.context&&typeof error.context.json==="function")try{detail=(await error.context.json())?.error||detail}catch{}
+          if(error||detail)throw new Error(detail||error?.message||"服务暂时不可用");
           completed=true;messageCount=data?.summary?.message_count||0;
         }catch(error){
           if(!automatic)toast("客户跟进总结失败："+(error?.message||"服务暂时不可用"));

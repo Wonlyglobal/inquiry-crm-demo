@@ -18,3 +18,9 @@ test('generation origin is retained for sync, automatic and manual updates',()=>
   assert.match(html,/automatic\?"automatic_refresh":"manual"/);
   assert.match(html,/邮件同步自动生成/);
 });
+
+test('legacy inquiries fall back to their original email intake',()=>{
+  assert.match(edge,/from\("email_intake"\)/);
+  assert.match(edge,/source_message_id:sourceMessageId\|\|null/);
+  assert.match(html,/error\.context\.json/);
+});

@@ -134,6 +134,7 @@
       }
       .primary:disabled {
         opacity: 0.55;
+        cursor: not-allowed;
       }
       .login-card .primary {
         width: 100%;
@@ -274,6 +275,13 @@
         cursor: pointer;
       }
       .table-action:hover { background: #dfeae2; }
+      button { font: inherit; }
+      button:not(:disabled) { cursor: pointer; }
+      button:focus-visible { outline: 3px solid rgba(198,95,19,.3); outline-offset: 2px; }
+      .primary,.secondary,.ghost,.table-action { min-height:38px; display:inline-flex; align-items:center; justify-content:center; gap:7px; line-height:1.2; transition:background-color .18s,border-color .18s,color .18s,box-shadow .18s,transform .18s; }
+      .primary:not(:disabled):hover { background:#204a3c; box-shadow:0 9px 22px rgba(24,52,43,.2); transform:translateY(-1px); }
+      .ghost:not(:disabled):hover { background:#f1f5f2; border-color:#b9cabe; }
+      .table-action:disabled { opacity:.48; cursor:not-allowed; }
       .notice-wrap {
         position: relative;
       }
@@ -1501,7 +1509,7 @@
             </div>
             <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="primary" type="button">一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><button id="email-trash-selected" class="email-mark-warmup" type="button">移入垃圾箱</button><button id="email-restore-selected" class="ghost hidden" type="button">恢复所选</button><button id="email-delete-selected" class="email-mark-warmup hidden" type="button">彻底删除</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
             <div id="email-class-tabs" class="email-class-tabs hidden" aria-label="邮件分类"></div>
-            <div id="mailbox-folder-tabs" class="email-class-tabs hidden" aria-label="邮箱文件夹"><button class="email-class-tab active" type="button" data-mailbox-folder="inbox">收件箱</button><button class="email-class-tab" type="button" data-mailbox-folder="sent">已发送</button><button class="email-class-tab" type="button" data-mailbox-folder="scheduled">定时发送</button><button class="email-class-tab" type="button" data-mailbox-folder="all">全部邮件</button></div>
+            <div id="mailbox-folder-tabs" class="email-class-tabs hidden" aria-label="邮箱文件夹"><button class="email-class-tab active" type="button" data-mailbox-folder="inbox">收件箱</button><button class="email-class-tab" type="button" data-mailbox-folder="sent">已发送</button><button class="email-class-tab" type="button" data-mailbox-folder="scheduled">定时发送</button><button class="email-class-tab" type="button" data-mailbox-folder="templates">我的模板</button><button class="email-class-tab" type="button" data-mailbox-folder="all">全部邮件</button></div>
             <div id="follow-calendar-tabs" class="email-class-tabs hidden" aria-label="跟进日历范围"><button class="email-class-tab active" type="button" data-calendar-range="week">本周</button><button class="email-class-tab" type="button" data-calendar-range="month">本月</button><button class="email-class-tab" type="button" data-calendar-range="overdue">已逾期</button></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
@@ -2665,6 +2673,17 @@
         button.disabled=false;if(error)return toast("模板保存失败："+error.message);
         $("#mail-template-name").value="";await loadMailTemplates();toast("个人模板已保存");
       }
+      const mailTemplateCategoryNames={reply:"客户回复",follow_up:"跟进邮件",quotation:"报价邮件",sample:"样品邮件",other:"其他"};
+      function openMailTemplateEditor(template=null){
+        openDashboardModal(template?"编辑邮件模板":"新建邮件模板",`<form id="mail-template-editor"><div class="detail-grid"><div class="field"><label>模板名称 *</label><input id="template-edit-name" class="input" required maxlength="80" value="${esc(template?.name||"")}" /></div><div class="field"><label>分类 *</label><select id="template-edit-category" class="input">${Object.entries(mailTemplateCategoryNames).map(([value,label])=>`<option value="${value}" ${template?.category===value?"selected":""}>${label}</option>`).join("")}</select></div><div class="field"><label>语言 *</label><input id="template-edit-language" class="input" required maxlength="40" value="${esc(template?.language||"英文")}" placeholder="例如：英文、中文、西班牙语" /></div><div class="field"><label>邮件主题</label><input id="template-edit-subject" class="input" maxlength="240" value="${esc(template?.subject||"")}" /></div></div><div class="field"><label>模板正文 *</label><textarea id="template-edit-body" class="input" rows="12" required placeholder="填写可重复使用的邮件正文">${esc(template?.body_text||"")}</textarea></div><p class="hint">模板仅自己可见；保存后可在写邮件时直接套用并继续编辑。</p><div class="form-actions"><button id="template-edit-cancel" class="ghost" type="button">取消</button><button class="primary" type="submit">${template?"保存修改":"创建模板"}</button></div></form>`);
+        $("#template-edit-cancel").onclick=()=>$("#dashboard-modal").classList.add("hidden");
+        $("#mail-template-editor").onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const values={owner_id:profile.id,name:$("#template-edit-name").value.trim(),category:$("#template-edit-category").value,language:$("#template-edit-language").value.trim(),subject:$("#template-edit-subject").value.trim()||null,body_text:$("#template-edit-body").value.trim(),updated_at:new Date().toISOString()};const result=template?await supabase.from("email_templates").update(values).eq("id",template.id).eq("owner_id",profile.id):await supabase.from("email_templates").insert(values);button.disabled=false;if(result.error)return toast("模板保存失败："+result.error.message);$("#dashboard-modal").classList.add("hidden");toast(template?"模板修改已保存":"模板已创建");await loadModule("mailbox")};
+      }
+      async function deleteMailTemplate(template){
+        if(!await appConfirm(`确认删除模板“${template.name}”？删除后无法恢复。`,{title:"删除邮件模板",confirmText:"确认删除"}))return;
+        const {error}=await supabase.from("email_templates").delete().eq("id",template.id).eq("owner_id",profile.id);
+        if(error)return toast("模板删除失败："+error.message);toast("模板已删除");await loadModule("mailbox");
+      }
       function quotedOriginalMail(message){
         if(!message)return "";
         return `------------------ 原始邮件 ------------------\n发件人：${message.sender_email||""}\n时间：${fmtDate(message.received_at||message.sent_at||message.created_at)}\n主题：${message.subject||""}\n\n${message.body_text||""}`;
@@ -2937,7 +2956,7 @@
           icons();
           return;
         }
-        let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null, mailboxScheduledView = false, publicPoolRequests = [], publicPoolRequestError = null;
+        let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null, mailboxScheduledView = false, mailboxTemplateView = false, publicPoolRequests = [], publicPoolRequestError = null;
         if(["sales-today","follow-calendar"].includes(view)){
           const rollover=await runModuleQuery(supabase.rpc("rollover_my_follow_up_tasks"),2);
           if(rollover.error)console.warn("跟进任务自动顺延失败",rollover.error);
@@ -3069,6 +3088,10 @@
           mapper=(x)=>{const recipients=(x.recipient_emails||[]).join(", "),inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;return{id:x.id,message:x,cells:[fmtDate(x.received_at||x.sent_at||x.created_at),x.direction==="inbound"?"客户来信":"业务员发信",x.sender_email||"—",recipients||"—",x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"待关联",x.inquiry_id?"已关联":({pending:"待关联",ignored:"已忽略"}[x.association_status]||x.association_status||"待关联"),x.attachment_count?`${x.attachment_count} 个`:"—"]}};
           clickable=true;
         } else if (view === "mailbox") {
+          if(mailboxFolder==="templates"){
+            mailboxTemplateView=true;modulePrimary.textContent="+ 新建模板";$("#module-table-title").textContent="我的邮件模板";$("#module-table-context").textContent="仅自己可见 · 可编辑、删除并在写信时套用";
+            query=supabase.from("email_templates").select("id,name,category,language,subject,body_text,created_at,updated_at").eq("owner_id",profile.id).order("updated_at",{ascending:false}).limit(500);
+          }else{
           const connectionResult=await runModuleQuery(supabase.from("mailbox_connections").select("id,email,status,last_synced_at,error_message").eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle(),2);
           const connection=connectionResult.data;
           if(connectionResult.error)query=Promise.resolve(connectionResult);
@@ -3097,9 +3120,10 @@
             }
             $("#module-table-context").textContent=`${connection.email} · 最近同步 ${connection.last_synced_at?fmtDate(connection.last_synced_at):"等待首次同步"}`;
           }
-          columns=mailboxScheduledView?["计划发送","收件人","主题","所属询盘","状态","操作"]:["时间","文件夹","状态","发件人","收件人","主题","所属询盘","附件"];
-          mapper=mailboxScheduledView?(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,status={pending:"等待发送",sending:"发送中",sent:"已发送",failed:"发送失败",cancelled:"已取消"}[x.status]||x.status;return{id:x.id,cells:[fmtDate(x.next_attempt_at),x.recipient_email,x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"未关联询盘",status],actions:x.status==="pending"?[{label:"取消发送",onClick:()=>cancelScheduledMail(x.id)}]:[]}}:(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;return{id:x.id,message:x,meta:{risk:x.awaitingReply&&Date.now()-new Date(x.received_at||x.created_at).getTime()>=24*3600000},cells:[fmtDate(x.received_at||x.sent_at||x.created_at),x.direction==="inbound"?"收件箱":"已发送",mailboxMessageState(x),x.sender_email||"—",(x.recipient_emails||[]).join(", ")||"—",x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"待关联",x.attachment_count?`${x.attachment_count} 个`:"—"]}};
-          clickable=true;
+          }
+          columns=mailboxTemplateView?["模板名称","分类","语言","邮件主题","正文预览","最后修改","操作"]:mailboxScheduledView?["计划发送","收件人","主题","所属询盘","状态","操作"]:["时间","文件夹","状态","发件人","收件人","主题","所属询盘","附件"];
+          mapper=mailboxTemplateView?(x)=>({id:x.id,cells:[x.name,mailTemplateCategoryNames[x.category]||x.category,x.language,x.subject||"使用时填写",String(x.body_text||"").slice(0,100)+(String(x.body_text||"").length>100?"…":""),fmtDate(x.updated_at||x.created_at)],actions:[{label:"编辑",onClick:()=>openMailTemplateEditor(x)},{label:"删除",onClick:()=>deleteMailTemplate(x)}]}):mailboxScheduledView?(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,status={pending:"等待发送",sending:"发送中",sent:"已发送",failed:"发送失败",cancelled:"已取消"}[x.status]||x.status;return{id:x.id,cells:[fmtDate(x.next_attempt_at),x.recipient_email,x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"未关联询盘",status],actions:x.status==="pending"?[{label:"取消发送",onClick:()=>cancelScheduledMail(x.id)}]:[]}}:(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;return{id:x.id,message:x,meta:{risk:x.awaitingReply&&Date.now()-new Date(x.received_at||x.created_at).getTime()>=24*3600000},cells:[fmtDate(x.received_at||x.sent_at||x.created_at),x.direction==="inbound"?"收件箱":"已发送",mailboxMessageState(x),x.sender_email||"—",(x.recipient_emails||[]).join(", ")||"—",x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"待关联",x.attachment_count?`${x.attachment_count} 个`:"—"]}};
+          clickable=!mailboxTemplateView;
         } else if (view === "research") {
           const linked=await supabase.from("inquiries").select("company_id").eq("excluded_from_dashboard",false).not("company_id","is",null);
           const companyIds=[...new Set((linked.data||[]).map(x=>x.company_id).filter(Boolean))];
@@ -6481,6 +6505,7 @@
       $("#module-primary").addEventListener("click", async () => {
         if(activeModuleView==="knowledge")return openKnowledgeEditor();
         if(activeModuleView==="mailbox"){
+          if(mailboxFolder==="templates")return openMailTemplateEditor();
           const {data:connection}=await supabase.from("mailbox_connections").select("id,status").eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle();
           return connection?.status==="connected"?openMailComposer():openMailboxBinding(profile.id,true);
         }

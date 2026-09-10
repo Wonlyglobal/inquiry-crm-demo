@@ -2113,6 +2113,12 @@
               <label>下次跟进时间</label
               ><input id="follow-next" class="input" type="datetime-local" />
             </div>
+            <div class="field">
+              <label>优先级</label><select id="follow-priority" class="input"><option value="high">高</option><option value="normal" selected>普通</option><option value="low">低</option></select>
+            </div>
+            <div class="field">
+              <label>提醒时间</label><input id="follow-remind" class="input" type="datetime-local" />
+            </div>
           </div>
           <div class="field">
             <label>跟进内容 *</label
@@ -2882,12 +2888,17 @@
           return;
         }
         let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null, mailboxScheduledView = false;
+        if(["sales-today","follow-calendar"].includes(view)){
+          const rollover=await runModuleQuery(supabase.rpc("rollover_my_follow_up_tasks"),2);
+          if(rollover.error)console.warn("跟进任务自动顺延失败",rollover.error);
+          else if(Number(rollover.data)>0)toast(`已将 ${rollover.data} 条未完成任务顺延到今日`);
+        }
         if(view==="sales-today"){
           const qualityRefresh=await runModuleQuery(supabase.rpc("refresh_my_data_quality_alerts"),2);
           if(qualityRefresh.error)console.warn("数据质量提醒刷新失败",qualityRefresh.error);
           const [inquiriesResult,followupsResult,messagesResult,quotesResult,qualityResult]=await Promise.all([
             runModuleQuery(supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,assigned_at,first_valid_contact_at,retained_until,created_at,updated_at").eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)").eq("excluded_from_dashboard",false).limit(300)),
-            runModuleQuery(supabase.from("follow_ups").select("id,inquiry_id,content,next_follow_up_at,completed_at,created_at").eq("author_id",profile.id).is("completed_at",null).not("next_follow_up_at","is",null).limit(500)),
+            runModuleQuery(supabase.from("follow_ups").select("id,inquiry_id,content,next_follow_up_at,completed_at,created_at,priority,remind_at,rollover_count").eq("author_id",profile.id).is("completed_at",null).not("next_follow_up_at","is",null).limit(500)),
             runModuleQuery(supabase.from("email_messages").select("inquiry_id,direction,subject,received_at,sent_at,created_at").order("created_at",{ascending:false}).limit(1000)),
             runModuleQuery(supabase.from("quotation_versions").select("inquiry_id,status,created_at").order("created_at",{ascending:false}).limit(500)),
             runModuleQuery(supabase.from("data_quality_alerts").select("inquiry_id,alert_key,severity,message,detected_at").eq("owner_id",profile.id).is("resolved_at",null).order("severity",{ascending:true}).order("detected_at",{ascending:true}).limit(1000)),
@@ -2900,7 +2911,7 @@
             const add=(category,priority,inquiry,reason,time,label)=>tasks.push({category,priority,...inquiry,reason,time,label});
             inquiries.filter(x=>x.assigned_at&&new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(new Date(x.assigned_at))===today).forEach(x=>add("assigned",1,x,"今日新分配，请核对客户需求并完成首次响应",x.assigned_at,"新分配"));
             inquiries.filter(x=>latestMail.get(x.id)?.direction==="inbound").forEach(x=>{const mail=latestMail.get(x.id);add("reply",1,x,`客户新回复：${mail.subject||"无主题"}`,mail.received_at||mail.created_at,"客户新回复")});
-            (followupsResult.data||[]).forEach(f=>{const x=byId.get(f.inquiry_id);if(!x)return;const due=new Date(f.next_follow_up_at),category=due<now?"overdue":new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(due)===today?"followup":null;if(category)add(category,category==="overdue"?1:3,x,f.content||"按计划联系客户",f.next_follow_up_at,category==="overdue"?"已逾期":"今日跟进")});
+            (followupsResult.data||[]).forEach(f=>{const x=byId.get(f.inquiry_id);if(!x)return;const due=new Date(f.next_follow_up_at),category=due<now?"overdue":new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(due)===today?"followup":null;if(category){const p=f.priority==="high"?1:f.priority==="low"?4:3,rolled=f.rollover_count?` · 已自动顺延 ${f.rollover_count} 次`:"";add(category,category==="overdue"?1:p,x,(f.content||"按计划联系客户")+rolled,f.next_follow_up_at,category==="overdue"?"已逾期":f.priority==="high"?"今日跟进 · 高":"今日跟进")}});
             inquiries.filter(x=>["qualified","contacted"].includes(x.status)&&!["draft","pending_approval","approved","sent"].includes(latestQuote.get(x.id)?.status)).forEach(x=>add("quote",2,x,"客户已进入可报价阶段，尚无有效报价版本",x.updated_at,"待报价"));
             inquiries.filter(x=>x.retained_until&&new Date(`${x.retained_until}T23:59:59+08:00`)-now<=7*86400000).forEach(x=>add("expiring",2,x,`客户保留期 ${x.retained_until} 到期`,`${x.retained_until}T23:59:59+08:00`,"即将失效"));
             (qualityResult.data||[]).forEach(alert=>{const x=byId.get(alert.inquiry_id);if(x)add("quality",alert.severity==="high"?1:3,x,alert.message,alert.detected_at,alert.severity==="high"?"数据缺失 · 高":"数据缺失")});
@@ -2935,11 +2946,11 @@
           const now=new Date(),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);
           if(followCalendarRange==="week")end.setDate(start.getDate()+7);
           else if(followCalendarRange==="month"){start.setDate(1);end.setMonth(start.getMonth()+1);end.setDate(1)}
-          let calendarQuery=supabase.from("follow_ups").select("id,inquiry_id,method,content,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at,inquiries(inquiry_no,title,status,owner_id,target_country)").eq("author_id",profile.id).not("next_follow_up_at","is",null).order("next_follow_up_at",{ascending:true}).limit(500);
+          let calendarQuery=supabase.from("follow_ups").select("id,inquiry_id,method,content,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at,priority,remind_at,original_due_at,rollover_count,inquiries(inquiry_no,title,status,owner_id,target_country)").eq("author_id",profile.id).not("next_follow_up_at","is",null).order("priority",{ascending:true}).order("next_follow_up_at",{ascending:true}).limit(500);
           if(followCalendarRange==="overdue")calendarQuery=calendarQuery.is("completed_at",null).lt("next_follow_up_at",now.toISOString());
           else calendarQuery=calendarQuery.gte("next_follow_up_at",start.toISOString()).lt("next_follow_up_at",end.toISOString());
-          query=calendarQuery;columns=["计划时间","询盘","国家/地区","方式","跟进事项","状态","操作"];
-          mapper=(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,overdue=!x.completed_at&&new Date(x.next_follow_up_at)<new Date();return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"待联系",x.content||"跟进客户",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions:[{label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)}]}};clickable=true;
+          query=calendarQuery;columns=["计划时间","优先级","提醒","询盘","国家/地区","方式","跟进事项","顺延","状态","操作"];
+          mapper=(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,overdue=!x.completed_at&&new Date(x.next_follow_up_at)<new Date();return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),{high:"高",normal:"普通",low:"低"}[x.priority]||"普通",x.remind_at?fmtDate(x.remind_at):"未设置",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"待联系",x.content||"跟进客户",x.rollover_count?`${x.rollover_count} 次` : "—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions:[{label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)}]}};clickable=true;
         } else if (["inquiries", "assignment", "nurture", "public-pool", "quotes"].includes(view)) {
           query = supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason,qualification_score,lead_priority,sales_disposition,recycle_reason,nurture_status,nurture_next_at,nurture_note,estimated_amount,currency,quoted_at,next_follow_up_at").eq("excluded_from_dashboard",false).order("created_at", { ascending: false }).limit(200);
           if(view==="quotes"){query=query.eq("validity","valid").in("status",["received","qualified","contacted","quoted","sample_sent","negotiating"]);if(profile.role==="sales")query=query.eq("owner_id",profile.id)}
@@ -4266,7 +4277,7 @@
           supabase
             .from("follow_ups")
             .select(
-              "id,author_id,method,content,customer_feedback,next_follow_up_at,is_first_valid_contact,completed_at,completion_status,created_at,profiles(full_name)",
+              "id,author_id,method,content,customer_feedback,next_follow_up_at,is_first_valid_contact,completed_at,completion_status,created_at,priority,remind_at,original_due_at,rollover_count,profiles(full_name)",
             )
             .eq("inquiry_id", id)
             .order("created_at", { ascending: false }),
@@ -4339,7 +4350,7 @@
             time: x.created_at,
             text: `${x.profiles?.full_name || "成员"} · ${x.method}：${x.content}`,
             sub: `${x.is_first_valid_contact ? "首次有效联系 · " : ""}${x.completed_at ? `${x.completion_status === "overdue" ? "逾期完成" : "按期完成"} · ${fmtDate(x.completed_at)}` : x.next_follow_up_at
-              ? `待办：${fmtDate(x.next_follow_up_at)}`
+              ? `${{high:"高优先级",normal:"普通优先级",low:"低优先级"}[x.priority]||"普通优先级"} · 待办：${fmtDate(x.next_follow_up_at)}${x.remind_at?` · 提醒：${fmtDate(x.remind_at)}`:""}${x.rollover_count?` · 已顺延 ${x.rollover_count} 次`:""}`
               : x.customer_feedback || "跟进记录"}`,
             followId: x.id,
             canComplete: Boolean(x.next_follow_up_at && !x.completed_at && (x.author_id === profile.id || ["owner","sales_manager"].includes(profile.role))),
@@ -6238,17 +6249,21 @@
         }
         const next = $("#follow-next").value;
         if(!next&&!['won','lost'].includes(currentInquiry.status))return toast("进行中商机必须设置下次跟进时间");
+        const reminder=$("#follow-remind").value;
+        if(reminder&&(!next||new Date(reminder)>new Date(next)))return toast("提醒时间不能晚于下次跟进时间");
         const markFirst=$("#follow-first-contact").checked;
         if(markFirst&&currentInquiry.first_valid_contact_at)return toast("该询盘已记录首次有效联系，请勿重复勾选");
         const button = $("#add-follow");
         button.disabled = true;
-        const { error } = await supabase.rpc("record_inquiry_followup",{
+        const { error } = await supabase.rpc("record_inquiry_followup_v2",{
           target_inquiry_id:currentInquiry.id,
           follow_method:$("#follow-method").value,
           follow_content:content,
           customer_response:$("#follow-feedback").value.trim()||null,
           next_follow_at:next?new Date(next).toISOString():null,
           mark_first_valid_contact:markFirst,
+          task_priority:$("#follow-priority").value,
+          reminder_at:reminder?new Date(reminder).toISOString():null,
         });
         button.disabled = false;
         if (error) {
@@ -6258,6 +6273,8 @@
         $("#follow-content").value = "";
         $("#follow-feedback").value = "";
         $("#follow-next").value = "";
+        $("#follow-remind").value = "";
+        $("#follow-priority").value = "normal";
         $("#follow-first-contact").checked=false;
         toast(markFirst?"跟进已保存，并计为首次有效联系":"跟进记录已保存");
         await openInquiryDetail(currentInquiry.id);

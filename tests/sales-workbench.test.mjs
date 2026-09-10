@@ -14,3 +14,9 @@ test('pending quotation queue is actionable',()=>{
   assert.match(html,/label:"创建报价"/);
   assert.match(html,/data-open-sales-work/);
 });
+
+test('customer reply queue only shows durable open reply reminders',()=>{
+  assert.match(html,/from\("email_reply_reminders"\).*eq\("owner_id",profile\.id\)\.eq\("status","open"\)/);
+  assert.match(html,/replyRemindersResult\.data/);
+  assert.doesNotMatch(html,/inquiries\.filter\(x=>latestMail\.get\(x\.id\)\?\.direction==="inbound"\)/);
+});

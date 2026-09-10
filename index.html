@@ -3081,15 +3081,14 @@
               mailboxScheduledView=true;
               query=supabase.from("mail_outbox").select("id,inquiry_id,recipient_email,cc_emails,subject,body_text,status,next_attempt_at,sent_at,last_error,created_at,delivery_mode,inquiries(inquiry_no,title)").eq("sender_user_id",profile.id).eq("delivery_mode","scheduled").order("next_attempt_at",{ascending:false}).limit(200);
             }else{
-              const [messagesResult,readsResult]=await Promise.all([
+              const [messagesResult,readsResult,remindersResult]=await Promise.all([
                 runModuleQuery(supabase.from("email_messages").select("id,inquiry_id,message_id,direction,sender_email,recipient_emails,cc_emails,subject,body_text,sent_at,received_at,created_at,attachment_count,association_status,inquiries(inquiry_no,title)").eq("mailbox_connection_id",connection.id).order("created_at",{ascending:false}).limit(500)),
                 runModuleQuery(supabase.from("email_message_reads").select("email_message_id").eq("user_id",profile.id).limit(1000)),
+                runModuleQuery(supabase.from("email_reply_reminders").select("id,inbound_message_id,received_at,status,overdue_notified_at").eq("owner_id",profile.id).eq("status","open").limit(1000)),
               ]);
               if(messagesResult.error)query=Promise.resolve(messagesResult);else{
-                const reads=new Set((readsResult.data||[]).map(item=>item.email_message_id)),all=messagesResult.data||[],latestByConversation=new Map();
-                const conversationKey=item=>item.inquiry_id||`${item.direction==="inbound"?item.sender_email:(item.recipient_emails||[])[0]||""}|${String(item.subject||"").replace(/^\s*((re|fw|fwd|答复|回复|转发)\s*[:：]\s*)+/i,"").trim().toLowerCase()}`;
-                all.forEach(item=>{const key=conversationKey(item);if(key&&!latestByConversation.has(key))latestByConversation.set(key,item.id)});
-                all.forEach(item=>{item.mailRead=item.direction!=="inbound"||reads.has(item.id);item.awaitingReply=Boolean(item.inquiry_id)&&item.direction==="inbound"&&latestByConversation.get(conversationKey(item))===item.id;});
+                const reads=new Set((readsResult.data||[]).map(item=>item.email_message_id)),openReminders=new Map((remindersResult.data||[]).map(item=>[item.inbound_message_id,item])),all=messagesResult.data||[];
+                all.forEach(item=>{item.mailRead=item.direction!=="inbound"||reads.has(item.id);item.awaitingReply=openReminders.has(item.id);item.replyReminder=openReminders.get(item.id)||null;});
                 const visible=all.filter(item=>mailboxFolder==="inbox"?item.direction==="inbound":mailboxFolder==="sent"?item.direction==="outbound":true);
                 const unread=all.filter(item=>item.direction==="inbound"&&!item.mailRead).length,awaiting=all.filter(item=>item.awaitingReply).length,overdue=all.filter(item=>item.awaitingReply&&Date.now()-new Date(item.received_at||item.created_at).getTime()>=24*3600000).length;
                 $("#module-insights").innerHTML=[["未读邮件",unread],["待回复",awaiting],["超过24小时",overdue],["最近同步",connection.last_synced_at?fmtDate(connection.last_synced_at):"等待首次同步"]].map(([label,value])=>`<div class="module-insight"><span>${label}</span><b>${value}</b></div>`).join("");
@@ -3484,7 +3483,7 @@
         legacy_amount:["历史工程合同额","旧 CRM 原表合同总金额汇总，单位为人民币万元。","仅用于历史工程分析，不等同于新 CRM 的已确认成交额。"],
         legacy_distribution:["历史工程分布","按旧 CRM 的国家/地区与产品类型统计项目数。","空值保留为未填写；历史项目不参与当前询盘转化指标。"]
       };
-      let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], replyReminders:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
       function dashboardRange() {
         const now = new Date(), type = $("#dashboard-period")?.value || "month";
         let start = new Date(now), end = new Date(now);
@@ -3539,11 +3538,11 @@
       }
       function latestInboundTasks(rows){
         const ids=new Set(rows.map(x=>x.id)),latest=new Map();
-        for(const message of dashboardState.emailMessages||[]){
-          if(!ids.has(message.inquiry_id)||latest.has(message.inquiry_id))continue;
-          latest.set(message.inquiry_id,message);
+        for(const reminder of dashboardState.replyReminders||[]){
+          if(reminder.status!=="open"||!ids.has(reminder.inquiry_id)||latest.has(reminder.inquiry_id))continue;
+          latest.set(reminder.inquiry_id,reminder);
         }
-        return rows.filter(x=>latest.get(x.id)?.direction==="inbound").map(x=>({...x,latestInboundAt:latest.get(x.id).received_at||latest.get(x.id).created_at}));
+        return rows.filter(x=>latest.has(x.id)).map(x=>({...x,latestInboundAt:latest.get(x.id).received_at,replyReminderId:latest.get(x.id).id}));
       }
       function hasInboundAfter(inquiryId,time){
         if(!time)return false;
@@ -3960,10 +3959,11 @@
           supabase.from("exchange_rates").select("*").order("rate_date", { ascending: false }).limit(500),
         ]);
         renderSalesAmountRankingEarly(rows, earlyProfiles || [], earlyTargetPeople || [], earlyRates || []);
-        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: dashboardEmailMessages }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }, { data: retentionRequests }, { data: marketingTouches }] = await Promise.all([
+        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: dashboardEmailMessages }, { data: replyReminders }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }, { data: retentionRequests }, { data: marketingTouches }] = await Promise.all([
           supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active,avatar_url").eq("active", true),
           supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").limit(2000),
           supabase.from("email_messages").select("id,inquiry_id,direction,received_at,sent_at,created_at").order("created_at",{ascending:false}).limit(2000),
+          supabase.from("email_reply_reminders").select("id,inquiry_id,owner_id,inbound_message_id,received_at,status,overdue_notified_at").eq("status","open").order("received_at",{ascending:false}).limit(2000),
           supabase.from("channel_costs").select("*").limit(500),
           supabase.from("sales_targets").select("*").limit(500),
           supabase.from("sales_target_people").select("*").order("sales_region").order("display_name"),
@@ -3990,7 +3990,7 @@
         if(productSelect&&productSelect.options.length===1)[...new Set([...rows.map(x=>x.product_category),...(legacyProjects||[]).map(x=>x.product_type)].filter(Boolean))].sort().forEach(v=>productSelect.add(new Option(v,v)));
         const syncedRates=await syncDailyExchangeRates(rows,exchangeRates||[]);
         const primaryTouchByInquiry=new Map();for(const touch of marketingTouches||[]){if(touch.is_primary&&!primaryTouchByInquiry.has(touch.inquiry_id))primaryTouchByInquiry.set(touch.inquiry_id,touch)}rows.forEach(x=>{x.primary_marketing_touch=primaryTouchByInquiry.get(x.id)||null});
-        dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
+        dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.replyReminders=replyReminders||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         if($(".nav[data-view=\"marketing-center\"]")?.classList.contains("active"))renderMarketingWorkbench(rows);
         const latestByInquiry = new Map();

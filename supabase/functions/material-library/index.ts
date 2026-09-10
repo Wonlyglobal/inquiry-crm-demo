@@ -33,7 +33,7 @@ Deno.serve(async request=>{
       const response=await fetch(`${serviceUrl}/api/integrations/crm/assets/${encodeURIComponent(assetId)}/download`,{headers:{Authorization:`Bearer ${integrationSecret}`,"X-CRM-User-ID":user.id},signal:AbortSignal.timeout(30000)});
       if(!response.ok)throw new Error(response.status===404?"物料不存在或已更新":"物料下载失败");
       const bytes=new Uint8Array(await response.arrayBuffer());
-      if(!bytes.length||bytes.length>8*1024*1024)throw new Error("单个邮件附件必须小于 8MB");
+      if(!bytes.length||bytes.length>100*1024*1024)throw new Error("单个邮件附件必须小于 100MB");
       const disposition=response.headers.get("content-disposition")||"",encoded=disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
       const name=encoded?decodeURIComponent(encoded):`material-${assetId}`;
       await admin.from("audit_logs").insert({actor_id:user.id,entity_type:"material_asset",entity_id:null,action:"material_attachment_loaded",after_data:{asset_id:assetId,name,size_bytes:bytes.length},reason:"CRM 邮件选择物料库附件"});

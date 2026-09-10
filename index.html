@@ -1267,6 +1267,8 @@
           <i data-lucide="building-2"></i><span>客户资料库</span></button
         ><button class="nav" data-view="mailbox">
           <i data-lucide="mail"></i><span>我的邮箱</span></button
+        ><button class="nav" data-view="knowledge">
+          <i data-lucide="book-open-text"></i><span>销售知识库</span></button
         ><button class="nav" data-view="quotes">
           <i data-lucide="file-text"></i><span>报价管理</span></button
         ><button class="nav" data-view="fulfillment">
@@ -2389,6 +2391,7 @@
           email: ["owner", "sales_manager", "marketing"].includes(role),
           communications: ["owner", "sales_manager", "sales", "marketing"].includes(role),
           mailbox: ["owner", "sales_manager", "sales", "marketing"].includes(role),
+          knowledge: ["owner", "sales_manager", "sales", "marketing"].includes(role),
           quotes: ["owner", "sales_manager", "sales"].includes(role),
           fulfillment: ["owner", "sales_manager", "sales", "marketing"].includes(role),
           assignment: ["owner", "sales_manager", "marketing"].includes(role),
@@ -2498,7 +2501,7 @@
         const source = activeModuleView === "inquiries" ? $("#inquiry-source-filter").value : "";
         $("#module-search-clear").classList.toggle("hidden", !query);
         const filteredRows = moduleRows.filter((row) => {
-          const matchesQuery = !query || row.cells.some((value) => String(value ?? "").toLocaleLowerCase().includes(query));
+          const matchesQuery = !query || row.cells.some((value) => String(value ?? "").toLocaleLowerCase().includes(query)) || String(row.meta?.searchText||"").toLocaleLowerCase().includes(query);
           const matchesStage = !activeInquiryScope || activeInquiryScope === "all" || (activeInquiryScope === "open" ? row.meta?.validity === "valid" && !["won","lost"].includes(row.meta?.status) : activeInquiryScope === "risk" ? row.meta?.risk : row.meta?.status === activeInquiryScope);
           const matchesTodayCategory = activeModuleView !== "sales-today" || activeTodayCategory === "all" || row.meta?.category === activeTodayCategory;
           return matchesQuery && matchesStage && matchesTodayCategory && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source);
@@ -2774,6 +2777,22 @@
         $$('[data-customer-inquiry]').forEach(row=>row.addEventListener("click",()=>{$("#dashboard-modal").classList.add("hidden");openInquiryDetail(row.dataset.customerInquiry)}));
         $("#customer-contact-form")?.addEventListener("submit",async event=>{event.preventDefault();const button=event.submitter||event.currentTarget.querySelector("button[type=submit]");button.disabled=true;const result=await supabase.rpc("add_customer_contact",{target_company_id:companyId,contact_name:$("#customer-contact-name").value,contact_email:$("#customer-contact-email").value||null,contact_phone:$("#customer-contact-phone").value||null,contact_whatsapp:$("#customer-contact-whatsapp").value||null,contact_job_title:$("#customer-contact-title").value||null,contact_linkedin_url:$("#customer-contact-linkedin").value||null,change_reason:$("#customer-contact-reason").value});button.disabled=false;if(result.error)return toast("联系人保存失败："+result.error.message);toast("联系人已保存并完成审计留痕");await openCustomerRecord(companyId)});
       }
+      const knowledgeCategoryNames={product:"产品参数",certification:"认证资料",faq:"常见问题",quotation:"报价规范",case:"成功案例"};
+      async function insertKnowledgeIntoMail(article){
+        $("#dashboard-modal").classList.add("hidden");
+        if($("#mail-compose-modal").classList.contains("hidden"))await openMailComposer();
+        const body=$("#mail-compose-body"),separator=body.value.trim()?"\n\n":"";
+        body.value=`${body.value}${separator}${article.content}`;
+        body.focus();toast("知识内容已插入邮件，可继续编辑后发送");
+      }
+      function openKnowledgeArticle(article){
+        openDashboardModal(article.title,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>分类</span><div>${esc(knowledgeCategoryNames[article.category]||article.category)}</div></div><div class="legacy-detail-item"><span>标签</span><div>${esc((article.tags||[]).join("、")||"—")}</div></div></div>${article.summary?`<p class="hint" style="margin-top:16px">${esc(article.summary)}</p>`:""}<pre style="padding:16px;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit;line-height:1.7">${esc(article.content)}</pre><div class="form-actions"><button id="knowledge-insert-mail" class="primary" type="button">插入到邮件</button></div>`);
+        $("#knowledge-insert-mail").addEventListener("click",()=>insertKnowledgeIntoMail(article));
+      }
+      function openKnowledgeEditor(){
+        openDashboardModal("新建销售知识",`<form id="knowledge-create-form"><div class="detail-grid"><div class="field"><label>分类 *</label><select id="knowledge-category" class="input"><option value="product">产品参数</option><option value="certification">认证资料</option><option value="faq">常见问题</option><option value="quotation">报价规范</option><option value="case">成功案例</option></select></div><div class="field"><label>语言</label><input id="knowledge-language" class="input" value="zh-CN" /></div></div><div class="field"><label>标题 *</label><input id="knowledge-title" class="input" required maxlength="160" /></div><div class="field"><label>摘要</label><textarea id="knowledge-summary" class="input" rows="2"></textarea></div><div class="field"><label>正文 *</label><textarea id="knowledge-content" class="input" rows="10" required placeholder="填写已经核实、可直接用于客户沟通的内容"></textarea></div><div class="field"><label>标签（逗号分隔）</label><input id="knowledge-tags" class="input" placeholder="防火门, CE, 酒店项目" /></div><div class="form-actions"><button class="primary" type="submit">保存知识</button></div></form>`);
+        $("#knowledge-create-form").addEventListener("submit",async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const {error}=await supabase.from("sales_knowledge_articles").insert({category:$("#knowledge-category").value,title:$("#knowledge-title").value.trim(),summary:$("#knowledge-summary").value.trim()||null,content:$("#knowledge-content").value.trim(),tags:$("#knowledge-tags").value.split(/[,，]/).map(x=>x.trim()).filter(Boolean),language:$("#knowledge-language").value.trim()||"zh-CN",created_by:profile.id});button.disabled=false;if(error)return toast("知识保存失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("销售知识已保存");await loadModule("knowledge")});
+      }
       async function loadModule(view, options = {}) {
         if (view !== "inquiries") activeInquiryScope = "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
@@ -2787,6 +2806,7 @@
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
           communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
           mailbox: ["我的邮箱", "与个人阿里邮箱双向同步；可直接收件、写信、查看已发送并回复客户", "邮件列表"],
+          knowledge: ["销售知识库", "检索产品参数、认证、常见问题、报价规范和成功案例，并一键插入邮件", "知识条目"],
           quotes: ["报价管理", "统一查看待报价、已报价及后续商机；点击进入询盘补充金额、币种和客户反馈", "报价商机"],
           fulfillment: ["履约跟踪", "统一记录样品、订单、回款、交付和售后进度", "样品与订单"],
           assignment: ["待分配池", "主管按国家、语言、产品线和工作量进行分配", "等待分配的询盘"],
@@ -2824,7 +2844,7 @@
         $("#module-table-context").textContent = "按最新创建时间排列";
         setModuleState("loading");
         const modulePrimary = $("#module-primary");
-        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox"].includes(view));
+        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","knowledge"].includes(view) || (view==="knowledge"&&!['owner','sales_manager','marketing'].includes(profile.role)));
         const canManageSharedInquiry = ["owner", "sales_manager", "marketing"].includes(profile.role);
         const sharedInquiryButton = $("#connect-shared-inquiry");
         sharedInquiryButton.classList.toggle("hidden", view !== "settings" || !canManageSharedInquiry);
@@ -2849,6 +2869,7 @@
         if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";
         if (view === "communications") modulePrimary.textContent = "测试我的邮箱收发";
         if (view === "mailbox") modulePrimary.textContent = "+ 写邮件";
+        if (view === "knowledge") modulePrimary.textContent = "+ 新建知识";
         const denied =
           (view === "settings" && !["owner", "sales_manager", "marketing"].includes(profile.role)) ||
           (["email", "assignment", "nurture", "public-pool", "research"].includes(view) &&
@@ -2862,13 +2883,16 @@
         }
         let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null, mailboxScheduledView = false;
         if(view==="sales-today"){
-          const [inquiriesResult,followupsResult,messagesResult,quotesResult]=await Promise.all([
+          const qualityRefresh=await runModuleQuery(supabase.rpc("refresh_my_data_quality_alerts"),2);
+          if(qualityRefresh.error)console.warn("数据质量提醒刷新失败",qualityRefresh.error);
+          const [inquiriesResult,followupsResult,messagesResult,quotesResult,qualityResult]=await Promise.all([
             runModuleQuery(supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,assigned_at,first_valid_contact_at,retained_until,created_at,updated_at").eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)").eq("excluded_from_dashboard",false).limit(300)),
             runModuleQuery(supabase.from("follow_ups").select("id,inquiry_id,content,next_follow_up_at,completed_at,created_at").eq("author_id",profile.id).is("completed_at",null).not("next_follow_up_at","is",null).limit(500)),
             runModuleQuery(supabase.from("email_messages").select("inquiry_id,direction,subject,received_at,sent_at,created_at").order("created_at",{ascending:false}).limit(1000)),
             runModuleQuery(supabase.from("quotation_versions").select("inquiry_id,status,created_at").order("created_at",{ascending:false}).limit(500)),
+            runModuleQuery(supabase.from("data_quality_alerts").select("inquiry_id,alert_key,severity,message,detected_at").eq("owner_id",profile.id).is("resolved_at",null).order("severity",{ascending:true}).order("detected_at",{ascending:true}).limit(1000)),
           ]);
-          const firstError=[inquiriesResult,followupsResult,messagesResult,quotesResult].find(x=>x.error)?.error;
+          const firstError=[inquiriesResult,followupsResult,messagesResult,quotesResult,qualityResult].find(x=>x.error)?.error;
           if(firstError)query=Promise.resolve({data:null,error:firstError});else{
             const inquiries=inquiriesResult.data||[],byId=new Map(inquiries.map(x=>[x.id,x])),now=new Date(),today=chinaDate(),latestMail=new Map(),latestQuote=new Map(),tasks=[];
             (messagesResult.data||[]).forEach(x=>{if(x.inquiry_id&&byId.has(x.inquiry_id)&&!latestMail.has(x.inquiry_id))latestMail.set(x.inquiry_id,x)});
@@ -2879,12 +2903,18 @@
             (followupsResult.data||[]).forEach(f=>{const x=byId.get(f.inquiry_id);if(!x)return;const due=new Date(f.next_follow_up_at),category=due<now?"overdue":new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(due)===today?"followup":null;if(category)add(category,category==="overdue"?1:3,x,f.content||"按计划联系客户",f.next_follow_up_at,category==="overdue"?"已逾期":"今日跟进")});
             inquiries.filter(x=>["qualified","contacted"].includes(x.status)&&!["draft","pending_approval","approved","sent"].includes(latestQuote.get(x.id)?.status)).forEach(x=>add("quote",2,x,"客户已进入可报价阶段，尚无有效报价版本",x.updated_at,"待报价"));
             inquiries.filter(x=>x.retained_until&&new Date(`${x.retained_until}T23:59:59+08:00`)-now<=7*86400000).forEach(x=>add("expiring",2,x,`客户保留期 ${x.retained_until} 到期`,`${x.retained_until}T23:59:59+08:00`,"即将失效"));
+            (qualityResult.data||[]).forEach(alert=>{const x=byId.get(alert.inquiry_id);if(x)add("quality",alert.severity==="high"?1:3,x,alert.message,alert.detected_at,alert.severity==="high"?"数据缺失 · 高":"数据缺失")});
             tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
-            todayTaskCounts={all:tasks.length,assigned:tasks.filter(x=>x.category==="assigned").length,reply:tasks.filter(x=>x.category==="reply").length,followup:tasks.filter(x=>x.category==="followup").length,overdue:tasks.filter(x=>x.category==="overdue").length,quote:tasks.filter(x=>x.category==="quote").length,expiring:tasks.filter(x=>x.category==="expiring").length};
+            todayTaskCounts={all:tasks.length,assigned:tasks.filter(x=>x.category==="assigned").length,reply:tasks.filter(x=>x.category==="reply").length,followup:tasks.filter(x=>x.category==="followup").length,overdue:tasks.filter(x=>x.category==="overdue").length,quote:tasks.filter(x=>x.category==="quote").length,expiring:tasks.filter(x=>x.category==="expiring").length,quality:tasks.filter(x=>x.category==="quality").length};
             query=Promise.resolve({data:tasks,error:null});
           }
           columns=["类型","优先级","询盘","国家/地区","当前阶段","任务原因","时间","操作"];
           mapper=x=>({id:x.id,meta:{category:x.category,risk:x.priority===1},cells:[x.label,x.priority===1?"紧急":x.priority===2?"优先":"正常",`#${String(x.inquiry_no).padStart(6,"0")} · ${x.title}`,displayCountry(x.target_country),displayInquiryStage(x),x.reason,taskTimeText(x.time)],actions:[{label:x.category==="quote"?"去报价":"立即处理",onClick:()=>x.category==="quote"?openQuoteManager(x):openInquiryDetail(x.id)}]});clickable=true;
+        } else if(view==="knowledge"){
+          query=supabase.from("sales_knowledge_articles").select("id,category,title,summary,content,tags,language,updated_at,created_by").eq("active",true).order("updated_at",{ascending:false}).limit(500);
+          columns=["分类","标题","摘要","标签","语言","更新时间","操作"];
+          mapper=item=>({id:item.id,knowledgeArticle:item,meta:{searchText:item.content},cells:[knowledgeCategoryNames[item.category]||item.category,item.title,item.summary||"—",(item.tags||[]).join("、")||"—",item.language||"—",fmtDate(item.updated_at)],actions:[{label:"查看并插入",onClick:()=>openKnowledgeArticle(item)}]});
+          clickable=true;
         } else if(view==="fulfillment"){
           let inquiryQuery=supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,estimated_amount,currency,won_amount,won_currency,created_at,updated_at,companies(name)").eq("validity","valid").not("status","in","(lost)").eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).limit(500);if(profile.role==="sales")inquiryQuery=inquiryQuery.eq("owner_id",profile.id);
           const inquiryResult=await runModuleQuery(inquiryQuery);if(inquiryResult.error)query=Promise.resolve(inquiryResult);else{const inquiries=inquiryResult.data||[],ids=inquiries.map(item=>item.id),[samplesResult,ordersResult]=ids.length?await Promise.all([runModuleQuery(supabase.from("sample_shipments").select("id,inquiry_id,status,updated_at").in("inquiry_id",ids).limit(1000)),runModuleQuery(supabase.from("sales_orders").select("id,inquiry_id,status,total_amount,currency,expected_delivery_at,updated_at").in("inquiry_id",ids).limit(1000))]):[{data:[],error:null},{data:[],error:null}];const relatedError=samplesResult.error||ordersResult.error;if(relatedError)query=Promise.resolve({data:null,error:relatedError});else{const samples=samplesResult.data||[],orders=ordersResult.data||[];query=Promise.resolve({data:inquiries.map(item=>({...item,samples:samples.filter(row=>row.inquiry_id===item.id),orders:orders.filter(row=>row.inquiry_id===item.id)})),error:null});columns=["询盘","客户","国家/地区","商机阶段","样品","订单","当前履约状态","预计交付","操作"];mapper=item=>{const company=Array.isArray(item.companies)?item.companies[0]:item.companies,activeOrder=item.orders.find(order=>!["completed","cancelled"].includes(order.status))||item.orders[0],sampleStatus=item.samples[0]?.status,fulfillmentStatus=activeOrder?orderStatusNames[activeOrder.status]||activeOrder.status:sampleStatus?sampleStatusNames[sampleStatus]||sampleStatus:"待登记";return{id:item.id,fulfillmentInquiry:item,meta:{risk:activeOrder?.expected_delivery_at&&new Date(activeOrder.expected_delivery_at)<new Date()&&!['delivered','completed'].includes(activeOrder.status)},cells:[`#${String(item.inquiry_no||"").padStart(6,"0")} · ${item.title}`,company?.name||"—",displayCountry(item.target_country),displayInquiryStage(item),`${item.samples.length} 条`,`${item.orders.length} 条`,fulfillmentStatus,activeOrder?.expected_delivery_at?fmtDate(activeOrder.expected_delivery_at):"—"],actions:[{label:"管理履约",onClick:()=>openFulfillmentManager(item)}]}};clickable=true;}}
@@ -3052,13 +3082,13 @@
           $("#email-mark-warmup").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
         }
         const mappedRows = sourceRows.map(mapper);
-        const onRowClick = view === "fulfillment" ? (row)=>row.fulfillmentInquiry&&openFulfillmentManager(row.fulfillmentInquiry) : view === "customers" ? (row)=>row.customerCompanyId&&openCustomerRecord(row.customerCompanyId) : view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : view === "mailbox" ? (row)=>row.message&&openMailboxMessage(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
+        const onRowClick = view === "knowledge" ? (row)=>row.knowledgeArticle&&openKnowledgeArticle(row.knowledgeArticle) : view === "fulfillment" ? (row)=>row.fulfillmentInquiry&&openFulfillmentManager(row.fulfillmentInquiry) : view === "customers" ? (row)=>row.customerCompanyId&&openCustomerRecord(row.customerCompanyId) : view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : view === "mailbox" ? (row)=>row.message&&openMailboxMessage(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, loadedAt:new Date().toISOString() });
         $("#module-table-context").textContent = `${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
         if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
         if (view === "sales-today" && todayTaskCounts) {
-          const categories=[["all","全部任务"],["assigned","新分配询盘"],["reply","客户新回复"],["followup","今日待跟进"],["overdue","逾期任务"],["quote","待报价"],["expiring","即将失效"]];
+          const categories=[["all","全部任务"],["assigned","新分配询盘"],["reply","客户新回复"],["followup","今日待跟进"],["overdue","逾期任务"],["quote","待报价"],["expiring","即将失效"],["quality","数据质量"]];
           $("#module-insights").innerHTML=categories.map(([key,label])=>`<button class="module-insight ${activeTodayCategory===key?"active":""}" type="button" data-today-category="${key}"><span>${label}</span><b>${todayTaskCounts[key]||0}</b></button>`).join("");
           $("#module-insights").classList.remove("hidden");
           $$("#module-insights [data-today-category]").forEach(button=>button.addEventListener("click",()=>{activeTodayCategory=button.dataset.todayCategory;$$("#module-insights [data-today-category]").forEach(item=>item.classList.toggle("active",item===button));filterModuleRows()}));
@@ -6278,6 +6308,7 @@
         });
       }
       $("#module-primary").addEventListener("click", async () => {
+        if(activeModuleView==="knowledge")return openKnowledgeEditor();
         if(activeModuleView==="mailbox"){
           const {data:connection}=await supabase.from("mailbox_connections").select("id,status").eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle();
           return connection?.status==="connected"?openMailComposer():openMailboxBinding(profile.id,true);

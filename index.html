@@ -2741,7 +2741,9 @@
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
         const config = {
           inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
-          customers: ["客户资料库", "查看本人负责客户的公司、联系人、采购偏好、询盘、邮件和成交记录", "本人客户"],
+          customers: profile.role === "sales"
+            ? ["客户资料库", "查看本人负责客户的公司、联系人、采购偏好、询盘、邮件和成交记录", "本人客户"]
+            : ["客户资料库", "查看权限范围内客户的公司、联系人、采购偏好、询盘、邮件和成交记录", "可见客户"],
           "sales-today": ["今日工作台", "集中处理客户回复、首次响应、今日跟进、逾期任务和报价后跟进", "今日销售任务"],
           "follow-calendar": ["跟进日历", "按周、月查看本人计划跟进任务，逾期任务单独汇总", "跟进计划"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],

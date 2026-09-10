@@ -13,6 +13,7 @@ const interval=Math.max(30,Number(process.env.SYNC_INTERVAL_SECONDS||60))*1000;
 const initialLimit=Math.max(10,Number(process.env.INITIAL_SYNC_LIMIT||100));
 const reportHour=Math.min(23,Math.max(0,Number(process.env.DAILY_LEAD_REPORT_HOUR||18)));
 const feishuWebhook=String(process.env.FEISHU_WEBHOOK_URL||'').trim();
+const dingtalkWebhook=String(process.env.DINGTALK_WEBHOOK_URL||'').trim();
 const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
 const cleanEmail=(v)=>String(v||'').trim().toLowerCase();
 const normalizeSubject=(v)=>String(v||'').replace(/^\s*((re|fw|fwd|答复|回复|转发)\s*[:：]\s*)+/i,'').replace(/\s+/g,' ').trim().toLowerCase();
@@ -40,7 +41,7 @@ function chinaParts(date=new Date()){
 }
 
 async function sendDailyLeadReport(){
-  if(!feishuWebhook)return;
+  if(!feishuWebhook&&!dingtalkWebhook)return;
   const now=chinaParts();
   if(now.hour<reportHour)return;
   const start=`${now.date}T00:00:00+08:00`,endDate=new Date(start);endDate.setDate(endDate.getDate()+1);const end=endDate.toISOString();
@@ -63,9 +64,10 @@ async function sendDailyLeadReport(){
     if(rows.length>60)lines.push(`还有 ${rows.length-60} 条未展开，请进入 CRM 查看。`);
   }else lines.push('今日暂无业务员新增客户线索。');
   lines.push('','说明：本日报由 CRM 根据业务员本人新建的真实线索自动生成，不含客户公司名和邮箱。');
-  const response=await fetch(feishuWebhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg_type:'text',content:{text:lines.join('\n')}}),signal:AbortSignal.timeout(15000)});
-  const result=await response.json();if(!response.ok||result.code!==0)throw new Error(`飞书日报发送失败：${result.msg||response.status}`);
-  const {error:auditError}=await db.from('audit_logs').insert({actor_id:null,entity_type:'system',entity_id:null,action:'daily_lead_feishu_report',after_data:{report_date:now.date,lead_count:rows.length,sales_counts:Object.fromEntries(bySales),source_counts:Object.fromEntries(bySource)},reason:'每日新增客户线索自动发送到飞书群'});
+  const content=lines.join('\n'),results=[];
+  if(feishuWebhook){const response=await fetch(feishuWebhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg_type:'text',content:{text:content}}),signal:AbortSignal.timeout(15000)});const result=await response.json();if(!response.ok||result.code!==0)throw new Error(`飞书日报发送失败：${result.msg||response.status}`);results.push('feishu')}
+  if(dingtalkWebhook){const response=await fetch(dingtalkWebhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msgtype:'text',text:{content}}),signal:AbortSignal.timeout(15000)});const result=await response.json();if(!response.ok||Number(result.errcode)!==0)throw new Error(`钉钉日报发送失败：${result.errmsg||response.status}`);results.push('dingtalk')}
+  const {error:auditError}=await db.from('audit_logs').insert({actor_id:null,entity_type:'system',entity_id:null,action:'daily_lead_feishu_report',after_data:{report_date:now.date,lead_count:rows.length,channels:results,sales_counts:Object.fromEntries(bySales),source_counts:Object.fromEntries(bySource)},reason:'每日新增客户线索自动发送到已配置群机器人'});
   if(auditError)throw auditError;console.log(`daily lead report ${now.date}: ${rows.length} leads sent`);
 }
 

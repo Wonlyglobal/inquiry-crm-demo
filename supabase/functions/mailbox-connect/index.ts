@@ -40,6 +40,14 @@ function errorText(error: unknown) {
   return String(error || "未知错误");
 }
 
+function mailboxAuthError(failures: string[]) {
+  const combined = failures.join("；");
+  if (/526\s+Authentication failure|Invalid login|authentication failed/i.test(combined)) {
+    return "阿里邮箱拒绝登录：第三方客户端密码无效、已失效，或尚未开启 IMAP/SMTP。请在阿里邮箱安全设置中重新生成客户端专用密码后再连接（不要使用网页登录密码）。";
+  }
+  return "阿里邮箱连接失败。" + combined;
+}
+
 function quoteImap(value: string) {
   return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
@@ -109,7 +117,7 @@ async function testMailbox(email: string, password: string) {
     // mailbox synchronization runs from the persistent worker environment.
     return endpoint;
   }
-  throw new Error("阿里邮箱连接失败。" + failures.join("；"));
+  throw new Error(mailboxAuthError(failures));
 }
 
 Deno.serve(async (req) => {
@@ -163,7 +171,18 @@ Deno.serve(async (req) => {
         ? admin.from("mailbox_connections").update(connectionPayload).eq("id", existing.id)
         : admin.from("mailbox_connections").insert(connectionPayload);
     } else {
-      connectionQuery = admin.from("mailbox_connections").upsert(connectionPayload, { onConflict: "user_id" });
+      // `user_id` is protected by a partial unique index for personal mailboxes.
+      // PostgREST cannot use a partial index as an ON CONFLICT target, so resolve
+      // the existing row explicitly and then update or insert it.
+      const { data: existing, error: existingError } = await admin.from("mailbox_connections")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("mailbox_kind", "personal")
+        .maybeSingle();
+      if (existingError) throw existingError;
+      connectionQuery = existing
+        ? admin.from("mailbox_connections").update(connectionPayload).eq("id", existing.id)
+        : admin.from("mailbox_connections").insert(connectionPayload);
     }
     const { data: connection, error: saveError } = await connectionQuery.select("id,email,status,last_tested_at").single();
     if (saveError) throw saveError;

@@ -28,3 +28,11 @@ test('fulfillment view shows complete order event history',()=>{
   assert.match(html,/events\.map\(item/);
   assert.match(html,/进展说明/);
 });
+
+test('fulfillment controls only expose valid next actions',()=>{
+  assert.match(html,/const orderNextStatuses=/);
+  assert.match(html,/selectable=\[order\.status,\.\.\.\(orderNextStatuses\[order\.status\]/);
+  assert.match(html,/sample\.status==="feedback_received"/);
+  assert.match(html,/完成跟踪/);
+  assert.doesNotMatch(html,/id="order-payment-status"[^`]*option value="refunded"/);
+});

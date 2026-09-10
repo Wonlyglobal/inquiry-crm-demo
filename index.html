@@ -5213,6 +5213,16 @@
           button.disabled = false;
           return;
         }
+        if (update.status === "quoted" && currentInquiry.status !== "quoted") {
+          toast("请在“报价管理”中完成主管审批并发送客户，系统会自动进入已报价");
+          button.disabled = false;
+          return;
+        }
+        if (update.status === "sample_sent" && currentInquiry.status !== "sample_sent") {
+          toast("请在“履约跟踪”登记样品内容、快递单号和寄出时间，系统会自动进入已寄样");
+          button.disabled = false;
+          return;
+        }
         if (requiresOutcome && !outcomeReasonType) {
           toast("无效或丢单时必须选择原因类型");
           button.disabled = false;

@@ -20,3 +20,9 @@ test('customer reply queue only shows durable open reply reminders',()=>{
   assert.match(html,/replyRemindersResult\.data/);
   assert.doesNotMatch(html,/inquiries\.filter\(x=>latestMail\.get\(x\.id\)\?\.direction==="inbound"\)/);
 });
+
+test('unanswered assignments become overdue after their first-response deadline',()=>{
+  assert.match(html,/assigned_at,first_contact_due_at,first_valid_contact_at/);
+  assert.match(html,/x\.assigned_at&&!x\.first_valid_contact_at/);
+  assert.match(html,/dueAt<now\)add\("overdue",1,x,`首次响应已逾期/);
+});

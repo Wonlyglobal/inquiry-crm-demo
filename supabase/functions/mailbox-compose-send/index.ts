@@ -17,6 +17,19 @@ function decodeAttachment(item:Record<string,unknown>){
   if(!content.length||content.length>8*1024*1024)throw new Error(`附件 ${filename} 必须小于 8MB`);
   return {filename,contentType,content};
 }
+async function loadMaterialAttachment(assetId:string,userId:string){
+  const serviceUrl=clean(Deno.env.get("MATERIAL_LIBRARY_URL"),500).replace(/\/$/,"");
+  const integrationSecret=clean(Deno.env.get("MATERIAL_LIBRARY_SECRET"),500);
+  if(!serviceUrl||!integrationSecret)throw new Error("物料库连接尚未配置");
+  const response=await fetch(`${serviceUrl}/api/integrations/crm/assets/${encodeURIComponent(assetId)}/download`,{headers:{Authorization:`Bearer ${integrationSecret}`,"X-CRM-User-ID":userId},signal:AbortSignal.timeout(30000)});
+  if(!response.ok)throw new Error(response.status===404?"物料不存在或已更新":"物料附件读取失败");
+  const content=new Uint8Array(await response.arrayBuffer());
+  const disposition=response.headers.get("content-disposition")||"",encoded=disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const filename=(encoded?decodeURIComponent(encoded):`material-${assetId}`).replace(/[\\/\0]/g,"_");
+  if(!content.length||content.length>8*1024*1024)throw new Error(`附件 ${filename} 必须小于 8MB`);
+  if(blockedExtension.test(filename))throw new Error(`不支持该附件类型：${filename}`);
+  return {filename,contentType:response.headers.get("content-type")||"application/octet-stream",content};
+}
 
 Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors});try{
   const authorization=req.headers.get("Authorization")||"",url=Deno.env.get("SUPABASE_URL")||"";
@@ -27,7 +40,10 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   if(callerError||!caller?.active||!["sales","sales_manager","marketing","owner"].includes(caller.role))throw new Error("当前账号无权使用个人邮箱发信");
   const input=await req.json(),to=clean(input.to,320).toLowerCase(),subject=clean(input.subject,300),body=clean(input.body),inquiryId=clean(input.inquiry_id,100)||null,inReplyTo=clean(input.in_reply_to,500)||null;
   const cc=clean(input.cc,2000).split(/[,;\s]+/).map((item:string)=>item.toLowerCase()).filter(Boolean);
-  const rawAttachments=Array.isArray(input.attachments)?input.attachments.slice(0,10):[],attachments=rawAttachments.map(decodeAttachment);
+  const rawAttachments=Array.isArray(input.attachments)?input.attachments.slice(0,10):[];
+  const materialAssetIds=Array.isArray(input.material_asset_ids)?[...new Set(input.material_asset_ids.map((item:unknown)=>clean(item,100)).filter(Boolean))].slice(0,10):[];
+  if(rawAttachments.length+materialAssetIds.length>10)throw new Error("附件最多 10 个");
+  const attachments=[...rawAttachments.map(decodeAttachment),...await Promise.all(materialAssetIds.map((assetId:string)=>loadMaterialAttachment(assetId,user.id)))];
   if(attachments.reduce((sum,item)=>sum+item.content.length,0)>8*1024*1024)throw new Error("附件总大小不能超过 8MB");
   if(!validEmail(to)||cc.some((item:string)=>!validEmail(item))||!subject||!body)throw new Error("收件人、主题或正文格式不正确");
   if(inquiryId){const {data:inquiry,error}=await userClient.from("inquiries").select("id,owner_id").eq("id",inquiryId).single();if(error||!inquiry)throw new Error("无权访问关联询盘");if(inquiry.owner_id!==user.id&&!["owner","sales_manager"].includes(caller.role))throw new Error("只能发送本人负责询盘的邮件")}
@@ -36,6 +52,6 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   const {data:password,error:secretError}=await admin.rpc("read_mailbox_secret",{target_connection_id:connection.id});if(secretError||!password)throw new Error("邮箱凭据不可用，请重新连接");
   const transport=nodemailer.createTransport({host:connection.smtp_host,port:connection.smtp_port,secure:Number(connection.smtp_port)===465,auth:{user:connection.email,pass:password},connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000});
   const sent=await transport.sendMail({from:`"${caller.full_name||connection.email}" <${connection.email}>`,to,cc:cc.length?cc:undefined,subject,text:body,html:emailHtml(body),attachments,...(inReplyTo?{inReplyTo,references:[inReplyTo]}:{})});
-  const sentAt=new Date().toISOString();await admin.from("audit_logs").insert({actor_id:user.id,entity_type:inquiryId?"inquiry":"profile",entity_id:inquiryId||user.id,action:"mailbox_message_sent",after_data:{recipient:to,cc,subject,message_id:sent.messageId||null,inquiry_id:inquiryId,attachment_count:attachments.length},reason:"业务员从 CRM 邮箱页面发送邮件"});
+  const sentAt=new Date().toISOString();await admin.from("audit_logs").insert({actor_id:user.id,entity_type:inquiryId?"inquiry":"profile",entity_id:inquiryId||user.id,action:"mailbox_message_sent",after_data:{recipient:to,cc,subject,message_id:sent.messageId||null,inquiry_id:inquiryId,attachment_count:attachments.length,material_asset_ids:materialAssetIds},reason:"业务员从 CRM 邮箱页面发送邮件"});
   return new Response(JSON.stringify({sent:true,recipient:to,message_id:sent.messageId||null,sent_at:sentAt}),{headers:cors});
 }catch(error){return new Response(JSON.stringify({error:errorText(error)}),{status:400,headers:cors})}});

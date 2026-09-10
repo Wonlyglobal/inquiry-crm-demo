@@ -63,6 +63,16 @@ export function parseWebsiteFormMessage(message) {
   const product = clean(fields.interests || fields.interest || fields.product || fields.product_category);
   const sourceDetail = clean(fields.source) || 'website_form';
   const journeyEvents = parseWebsiteJourney(fields);
+  const attribution = {
+    utmSource: clean(fields.utm_source),
+    utmMedium: clean(fields.utm_medium),
+    utmCampaign: clean(fields.utm_campaign),
+    utmContent: clean(fields.utm_content),
+    utmTerm: clean(fields.utm_term),
+    landingPage: clean(fields.landing_page || fields.page_url),
+    referrerUrl: clean(fields.referrer_url || fields.referrer),
+    sessionRef: clean(fields.session_ref || fields.journey_session),
+  };
 
   return {
     name: clean(fields.name),
@@ -78,6 +88,7 @@ export function parseWebsiteFormMessage(message) {
     businessType: clean(fields.business_type),
     customerMessage: clean(fields.message),
     sourceDetail,
+    attribution,
     journeyEvents,
     rawFields: fields,
   };

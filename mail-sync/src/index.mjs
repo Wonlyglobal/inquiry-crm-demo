@@ -179,6 +179,15 @@ async function createInquiryFromShared(message, connection){
   const inquiryPayload={company_id:companyId,contact_id:contactId,title,product_category:websiteForm?.product||null,quantity:websiteForm?.quantity||null,target_country:websiteForm?.country||null,source:websiteForm?'website':'email',source_detail:websiteForm?.sourceDetail||null,original_message:message.body_text||'',status:'pending_assignment',created_by:creator,updated_by:creator,created_at:receivedAt,first_contact_due_at:new Date(new Date(receivedAt).getTime()+10*60000).toISOString(),last_change_reason:websiteForm?'官网表单自动解析入库':'公共询盘邮箱自动收件'};
   const {data:inq,error}=await db.from('inquiries').insert(inquiryPayload).select('id').single();
   if(error)throw error;
+  if(websiteForm){
+    const a=websiteForm.attribution||{};
+    const medium=String(a.utmMedium||'').toLowerCase(),source=String(a.utmSource||'').toLowerCase();
+    const channel=medium==='organic'||medium==='organic_search'||medium==='seo'?'organic_search':
+      ['cpc','ppc','paid','paid_search'].includes(medium)&&['google','googleads','google_ads'].includes(source)?'google_ads':
+      ['facebook','instagram','meta','meta_ads'].includes(source)?'meta_ads':source.includes('linkedin')?'linkedin':'website';
+    const {error:touchError}=await db.from('inquiry_marketing_touches').insert({inquiry_id:inq.id,touch_at:receivedAt,channel,campaign_name:a.utmCampaign||null,landing_page:a.landingPage||null,evidence_note:'官网表单邮件兜底归因',is_primary:true,created_by:creator,utm_source:a.utmSource||null,utm_medium:a.utmMedium||null,utm_campaign:a.utmCampaign||null,utm_content:a.utmContent||null,utm_term:a.utmTerm||null,referrer_url:a.referrerUrl||null,session_ref:a.sessionRef||null});
+    if(touchError)console.error('Website attribution persistence failed:',touchError.message);
+  }
   if(websiteForm?.journeyEvents?.length){
     const {error:journeyError}=await db.from('inquiry_user_journey_events').insert(websiteForm.journeyEvents.map(event=>({...event,inquiry_id:inq.id})));
     if(journeyError)console.error('Website journey persistence failed:',journeyError.message);

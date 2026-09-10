@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const source = await readFile(new URL("../supabase/functions/mailbox-connect/index.ts", import.meta.url), "utf8");
+const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
 test("personal mailbox persistence does not use an unsupported partial-index conflict target", () => {
   assert.doesNotMatch(source, /onConflict:\s*["']user_id["']/);
@@ -15,4 +16,11 @@ test("Ali mailbox 526 authentication failures are translated into actionable gui
   assert.match(source, /526\\s\+Authentication failure/);
   assert.match(source, /客户端专用密码/);
   assert.match(source, /不要使用网页登录密码/);
+});
+
+test("an already connected salesperson mailbox disables the connection entry", () => {
+  assert.match(html, /function refreshPersonalMailboxEntry/);
+  assert.match(html, /button\.disabled=connected/);
+  assert.match(html, /button\.textContent=connected\?"邮箱已连接":"连接我的邮箱"/);
+  assert.match(html, /await refreshPersonalMailboxEntry\(\)/);
 });

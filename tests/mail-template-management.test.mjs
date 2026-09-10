@@ -4,9 +4,11 @@ import fs from 'node:fs';
 
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 
-test('my mailbox has a dedicated personal template tab',()=>{
-  assert.match(html,/data-mailbox-folder="templates">我的模板/);
-  assert.match(html,/mailboxFolder==="templates"/);
+test('personal templates have a dedicated sidebar page',()=>{
+  assert.match(html,/data-view="templates"[\s\S]*?<span>我的模板<\/span>/);
+  assert.match(html,/templates:\s*\["我的模板"/);
+  assert.match(html,/activeModuleView==="templates"/);
+  assert.doesNotMatch(html,/data-mailbox-folder="templates"/);
   assert.match(html,/我的邮件模板/);
 });
 

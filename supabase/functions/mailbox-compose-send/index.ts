@@ -14,7 +14,7 @@ function decodeAttachment(item:Record<string,unknown>){
   const encoded=clean(item.base64,140_000_000).replace(/^data:[^,]*,/,"");
   if(!filename||blockedExtension.test(filename))throw new Error(`不支持该附件类型：${filename||"未命名文件"}`);
   let content:Uint8Array;try{content=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0))}catch{throw new Error(`附件读取失败：${filename}`)}
-  if(!content.length||content.length>100*1024*1024)throw new Error(`附件 ${filename} 必须小于 100MB`);
+  if(!content.length||content.length>50*1024*1024)throw new Error(`附件 ${filename} 必须小于 50MB`);
   return {filename,contentType,content};
 }
 async function loadMaterialAttachment(assetId:string,userId:string){
@@ -26,7 +26,7 @@ async function loadMaterialAttachment(assetId:string,userId:string){
   const content=new Uint8Array(await response.arrayBuffer());
   const disposition=response.headers.get("content-disposition")||"",encoded=disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
   const filename=(encoded?decodeURIComponent(encoded):`material-${assetId}`).replace(/[\\/\0]/g,"_");
-  if(!content.length||content.length>100*1024*1024)throw new Error(`附件 ${filename} 必须小于 100MB`);
+  if(!content.length||content.length>50*1024*1024)throw new Error(`附件 ${filename} 必须小于 50MB`);
   if(blockedExtension.test(filename))throw new Error(`不支持该附件类型：${filename}`);
   return {filename,contentType:response.headers.get("content-type")||"application/octet-stream",content};
 }
@@ -40,11 +40,11 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   if(callerError||!caller?.active||!["sales","sales_manager","marketing","owner"].includes(caller.role))throw new Error("当前账号无权使用个人邮箱发信");
   const input=await req.json(),to=clean(input.to,320).toLowerCase(),subject=clean(input.subject,300),body=clean(input.body),inquiryId=clean(input.inquiry_id,100)||null,inReplyTo=clean(input.in_reply_to,500)||null;
   const cc=clean(input.cc,2000).split(/[,;\s]+/).map((item:string)=>item.toLowerCase()).filter(Boolean);
-  const rawAttachments=Array.isArray(input.attachments)?input.attachments.slice(0,10):[];
-  const materialAssetIds=Array.isArray(input.material_asset_ids)?[...new Set(input.material_asset_ids.map((item:unknown)=>clean(item,100)).filter(Boolean))].slice(0,10):[];
-  if(rawAttachments.length+materialAssetIds.length>10)throw new Error("附件最多 10 个");
+  const rawAttachments=Array.isArray(input.attachments)?input.attachments.slice(0,100):[];
+  const materialAssetIds=Array.isArray(input.material_asset_ids)?[...new Set(input.material_asset_ids.map((item:unknown)=>clean(item,100)).filter(Boolean))].slice(0,100):[];
+  if(rawAttachments.length+materialAssetIds.length>100)throw new Error("附件最多 100 个");
   const attachments=[...rawAttachments.map(decodeAttachment),...await Promise.all(materialAssetIds.map((assetId:string)=>loadMaterialAttachment(assetId,user.id)))];
-  if(attachments.reduce((sum,item)=>sum+item.content.length,0)>100*1024*1024)throw new Error("附件总大小不能超过 100MB");
+  if(attachments.reduce((sum,item)=>sum+item.content.length,0)>50*1024*1024)throw new Error("普通附件总大小不能超过 50MB");
   if(!validEmail(to)||cc.some((item:string)=>!validEmail(item))||!subject||!body)throw new Error("收件人、主题或正文格式不正确");
   if(inquiryId){const {data:inquiry,error}=await userClient.from("inquiries").select("id,owner_id").eq("id",inquiryId).single();if(error||!inquiry)throw new Error("无权访问关联询盘");if(inquiry.owner_id!==user.id&&!["owner","sales_manager"].includes(caller.role))throw new Error("只能发送本人负责询盘的邮件")}
   const {data:connection,error:connectionError}=await admin.from("mailbox_connections").select("id,email,smtp_host,smtp_port,status").eq("user_id",user.id).eq("mailbox_kind","personal").eq("status","connected").single();

@@ -18,6 +18,9 @@ test("mail composer preserves local and material attachments under one limit",()
   assert.match(html,/material_asset_ids:selectedMaterialAttachments\.map/);
   assert.match(html,/files\.length\+selectedMaterialAttachments\.length>10/);
   assert.doesNotMatch(html,/action:"download",asset_id:item\.id/);
+  assert.match(html,/remainingBytes=Math\.max\(0,8\*1024\*1024/);
+  assert.match(html,/文件超过单封邮件 8MB 上限/);
+  assert.match(html,/disabled title=/);
 });
 
 test("邮件发送函数在服务端读取实时物料附件",async()=>{

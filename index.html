@@ -1809,9 +1809,9 @@
           <div class="detail-kpi"><span>下次跟进</span><b id="detail-kpi-next-followup">—</b></div>
         </div>
         <nav class="detail-tabs" aria-label="询盘详情分区">
-          <button class="detail-tab" type="button" data-detail-tab="research">客户背调</button>
-          <button class="detail-tab" type="button" data-detail-tab="outreach">开发信与邮件</button>
-          <button class="detail-tab active" type="button" data-detail-tab="pipeline">流水线</button>
+          <button class="detail-tab active" type="button" data-detail-tab="research">客户背调</button>
+          <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
+          <button class="detail-tab" type="button" data-detail-tab="pipeline">流水线</button>
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
@@ -4146,7 +4146,7 @@
         $("#module-page").classList.add("hidden");
         $("#sales-profile-page").classList.add("hidden");
         $("#detail-modal").classList.remove("hidden");
-        setDetailTab("pipeline");
+        setDetailTab("research");
         const detailHash = `#inquiry/${id}`;
         if (location.hash !== detailHash)
           history.pushState({ inquiryId: id }, "", detailHash);
@@ -4691,7 +4691,7 @@
           );
         }),
       );
-      function setDetailTab(name = "pipeline") {
+      function setDetailTab(name = "research") {
         $$(".detail-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.detailTab === name));
         $$(".detail-section").forEach((section) => section.classList.toggle("hidden", section.dataset.detailSection !== name));
         if(name === "events") renderCompanyEventTimeline();

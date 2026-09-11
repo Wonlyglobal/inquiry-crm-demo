@@ -3232,7 +3232,7 @@
               query=supabase.from("mail_outbox").select("id,inquiry_id,recipient_email,cc_emails,subject,body_text,status,next_attempt_at,sent_at,last_error,created_at,delivery_mode,inquiries(inquiry_no,title)").eq("sender_user_id",profile.id).eq("delivery_mode","scheduled").order("next_attempt_at",{ascending:false}).limit(200);
             }else{
               const [messagesResult,readsResult,remindersResult]=await Promise.all([
-                runModuleQuery(supabase.from("email_messages").select("id,inquiry_id,message_id,direction,sender_email,recipient_emails,cc_emails,subject,body_text,sent_at,received_at,created_at,attachment_count,association_status,inquiries(inquiry_no,title)").eq("mailbox_connection_id",connection.id).order("created_at",{ascending:false}).limit(500)),
+                loadAllMailboxMessages(connection.id),
                 runModuleQuery(supabase.from("email_message_reads").select("email_message_id").eq("user_id",profile.id).limit(1000)),
                 runModuleQuery(supabase.from("email_reply_reminders").select("id,inbound_message_id,received_at,status,overdue_notified_at").eq("owner_id",profile.id).eq("status","open").limit(1000)),
               ]);
@@ -4564,6 +4564,16 @@
         const pageSize = 500, all = [];
         for (let from = 0; ; from += pageSize) {
           const result = await supabase.from("email_messages").select("id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,attachment_count,association_method,created_at").eq("inquiry_id", id).order("created_at", { ascending: true }).range(from, from + pageSize - 1);
+          if (result.error) return { data: null, error: result.error };
+          all.push(...(result.data || []));
+          if ((result.data || []).length < pageSize) break;
+        }
+        return { data: all, error: null };
+      }
+      async function loadAllMailboxMessages(connectionId) {
+        const pageSize = 500, all = [];
+        for (let from = 0; ; from += pageSize) {
+          const result = await supabase.from("email_messages").select("id,inquiry_id,message_id,direction,sender_email,recipient_emails,cc_emails,subject,body_text,sent_at,received_at,created_at,attachment_count,association_status,inquiries(inquiry_no,title)").eq("mailbox_connection_id", connectionId).order("created_at", { ascending: false }).range(from, from + pageSize - 1);
           if (result.error) return { data: null, error: result.error };
           all.push(...(result.data || []));
           if ((result.data || []).length < pageSize) break;

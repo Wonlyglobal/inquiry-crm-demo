@@ -24,3 +24,9 @@ test("an already connected salesperson mailbox disables the connection entry", (
   assert.match(html, /button\.textContent=connected\?"邮箱已连接":"连接我的邮箱"/);
   assert.match(html, /await refreshPersonalMailboxEntry\(\)/);
 });
+
+test("personal mailbox reads all messages with bounded pagination", () => {
+  assert.match(html, /async function loadAllMailboxMessages\(connectionId\)/);
+  assert.match(html, /\.eq\("mailbox_connection_id", connectionId\).*\.range\(from, from \+ pageSize - 1\)/s);
+  assert.match(html, /loadAllMailboxMessages\(connection\.id\)/);
+});

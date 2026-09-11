@@ -15,6 +15,10 @@ test('pending quotation queue is actionable',()=>{
   assert.match(html,/data-open-sales-work/);
 });
 
+test('sales workbench queue cards open the matching operational module',()=>{
+  assert.match(html,/workbenchDestinations=\{"客户新回复":"mailbox","今日待跟进":"follow-calendar","逾期任务":"follow-calendar","待报价":"quotes"\}/);
+});
+
 test('customer reply queue only shows durable open reply reminders',()=>{
   assert.match(html,/from\("email_reply_reminders"\).*eq\("owner_id",profile\.id\)\.eq\("status","open"\)/);
   assert.match(html,/replyRemindersResult\.data/);

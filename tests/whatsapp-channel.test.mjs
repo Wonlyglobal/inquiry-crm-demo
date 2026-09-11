@@ -4,6 +4,7 @@ import fs from "node:fs";
 
 const migration = fs.readFileSync(new URL("../supabase/migrations/20260911065443_whatsapp_business_channel.sql", import.meta.url), "utf8");
 const webhook = fs.readFileSync(new URL("../supabase/functions/whatsapp-webhook/index.ts", import.meta.url), "utf8");
+const sender = fs.readFileSync(new URL("../supabase/functions/whatsapp-send/index.ts", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("WhatsApp channel stores only business-account identifiers and protects rows with RLS", () => {
@@ -30,4 +31,15 @@ test("CRM exposes WhatsApp setup without claiming a personal account is connecte
   assert.match(html, /当前状态：待配置/);
   assert.match(html, /个人 WhatsApp 不支持直接接入/);
   assert.match(html, /activeModuleView==="whatsapp"/);
+});
+
+test("WhatsApp sender is server-side, owner-scoped and records the API result", () => {
+  assert.match(sender, /WHATSAPP_ACCESS_TOKEN/);
+  assert.match(sender, /WHATSAPP_GRAPH_VERSION/);
+  assert.match(sender, /Authorization: `Bearer \$\{graphToken\}`/);
+  assert.match(sender, /\^\\\+\[1-9\]\\d\{7,14\}\$/);
+  assert.match(sender, /只能使用本人负责的 WhatsApp 通道/);
+  assert.match(sender, /whatsapp_messages/);
+  assert.match(sender, /delivery_status: "queued"/);
+  assert.doesNotMatch(sender, /localStorage|sessionStorage|document\.cookie/);
 });

@@ -1634,7 +1634,7 @@
           ><button class="tab" data-tab="email">从客户邮件生成</button>
         </div>
         <form id="manual-form" class="form-body">
-          <p class="hint">适用于展会、LinkedIn、Google Ads、Meta Ads、飞书、转介绍、销售自主开发及其他非邮箱渠道；选择来源后补充具体活动或入口。</p>
+          <p class="hint">适用于展会、LinkedIn、Google Ads、Meta Ads、SEO 自然搜索、转介绍、销售自主开发及其他非邮箱渠道；选择来源后补充具体活动或入口。</p>
           <div class="grid2">
             <div class="field">
               <label>客户邮箱 *</label
@@ -3381,7 +3381,7 @@
           supabase.from("profiles").select("id,full_name,email").eq("role","sales").eq("active",true).order("full_name")
         ]);
         if(error)return toast("询盘加载失败："+error.message);
-        openDashboardModal("分配询盘 #"+String(inquiry.inquiry_no).padStart(6,"0"),'<p><b>'+esc(inquiry.title)+'</b></p><div class="field"><label>分配给业务员 *</label><select id="quick-assignment-owner" class="input"><option value="">请选择业务员</option>'+((sales||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+" · "+esc(x.email)+'</option>').join(""))+'</select></div><div class="field"><label>分配原因 *</label><input id="quick-assignment-reason" class="input" value="销售主管分配新询盘" /></div><div class="form-actions"><button id="quick-assignment-submit" class="primary" type="button">确认分配并转发邮件</button></div><p class="hint">确认后将从公共询盘邮箱把原邮件转发给对应业务员，并向已配置的飞书/钉钉群发送通知。</p>');
+        openDashboardModal("分配询盘 #"+String(inquiry.inquiry_no).padStart(6,"0"),'<p><b>'+esc(inquiry.title)+'</b></p><div class="field"><label>分配给业务员 *</label><select id="quick-assignment-owner" class="input"><option value="">请选择业务员</option>'+((sales||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+" · "+esc(x.email)+'</option>').join(""))+'</select></div><div class="field"><label>分配原因 *</label><input id="quick-assignment-reason" class="input" value="销售主管分配新询盘" /></div><div class="form-actions"><button id="quick-assignment-submit" class="primary" type="button">确认分配并转发邮件</button></div><p class="hint">确认后将从公共询盘邮箱把原邮件转发给对应业务员，并向已配置的群机器人发送通知。</p>');
         $("#quick-assignment-submit").onclick=async()=>{const owner=$("#quick-assignment-owner").value,reason=$("#quick-assignment-reason").value.trim(),button=$("#quick-assignment-submit");if(!owner)return toast("请选择业务员");if(!reason)return toast("请填写分配原因");button.disabled=true;button.textContent="分配中…";const assigned=await supabase.rpc("assign_inquiry_to_sales",{target_inquiry_id:id,target_sales_id:owner,change_reason:reason});if(assigned.error){button.disabled=false;button.textContent="确认分配并转发邮件";return toast("分配失败："+assigned.error.message)}let forwardError=null;if(["email","website"].includes(inquiry.source)){const queued=await supabase.rpc("request_original_email_forward",{target_inquiry_id:id});if(queued.error&&!/转发队列|已经转发/.test(queued.error.message||""))forwardError=queued.error;else if(!queued.error){const delivered=await supabase.functions.invoke("email-forward",{body:{inquiry_id:id}});forwardError=delivered.error}}const notice=await supabase.functions.invoke("group-notify",{body:{inquiry_id:id,action:"assigned"}});$("#dashboard-modal").classList.add("hidden");toast(forwardError?"已分配，但原邮件转发失败："+forwardError.message:notice.error?"已分配并转发邮件，但群通知失败："+notice.error.message:"已分配，原邮件已转发给业务员，并发送群通知");await Promise.all([loadInquiries(),loadNotifications()]);};
       }
       function setActiveNavigation(view) {

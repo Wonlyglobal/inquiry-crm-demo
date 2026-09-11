@@ -1,4 +1,4 @@
-create or replace function public.import_legacy_engineering_projects(p_rows jsonb, p_source_file text)
+create or replace function private.import_legacy_engineering_projects(p_rows jsonb, p_source_file text)
 returns integer
 language plpgsql
 security definer
@@ -63,6 +63,16 @@ begin
   return imported;
 end;
 $$;
+
+revoke all on function private.import_legacy_engineering_projects(jsonb,text) from public;
+grant execute on function private.import_legacy_engineering_projects(jsonb,text) to authenticated;
+
+create or replace function public.import_legacy_engineering_projects(p_rows jsonb, p_source_file text)
+returns integer
+language sql
+security invoker
+set search_path = public
+as $$ select private.import_legacy_engineering_projects(p_rows,p_source_file) $$;
 
 revoke all on function public.import_legacy_engineering_projects(jsonb,text) from public;
 grant execute on function public.import_legacy_engineering_projects(jsonb,text) to authenticated;

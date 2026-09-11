@@ -14,6 +14,8 @@ test("历史工程提供 Excel 模板和导入入口", () => {
 
 test("历史工程导入服务端校验角色并按旧 ID 幂等更新", () => {
   assert.match(sql, /private\.current_crm_role\(\) not in \('owner','sales_manager','marketing'\)/);
+  assert.match(sql, /create or replace function private\.import_legacy_engineering_projects/);
+  assert.match(sql, /create or replace function public\.import_legacy_engineering_projects[\s\S]*security invoker/);
   assert.match(sql, /on conflict \(legacy_project_id\) do update/);
   assert.match(sql, /jsonb_array_length\(p_rows\) > 10000/);
 });

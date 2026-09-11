@@ -53,6 +53,13 @@ test('inquiry, assignment, nurture, public-pool and quote lists paginate',()=>{
   assert.doesNotMatch(branch,/\.limit\(200\)/);
 });
 
+test('dashboard ancillary datasets paginate before ranking and attribution render',()=>{
+  const start=html.indexOf('const [{ data: dashboardProfiles }');
+  const branch=html.slice(start,html.indexOf('const teamSelect',start));
+  for(const table of ['channel_costs','sales_targets','sales_target_plan_items','audit_logs','legacy_engineering_projects','daily_sales_reports','email_intake','companies','inquiry_retention_requests','inquiry_marketing_touches'])
+    assert.match(branch,new RegExp(`loadModuleRowsPaged\\(\\(from,to\\)=>supabase\\.from\\("${table}"`));
+});
+
 test('pending quotation queue is actionable',()=>{
   assert.match(html,/pendingQuote=open\.filter/);
   assert.match(html,/label:"创建报价"/);

@@ -4102,6 +4102,36 @@
         }
         return { data: all, error: null };
       }
+      async function loadAllDashboardFollowups() {
+        const pageSize = 500, all = [];
+        for (let from = 0; ; from += pageSize) {
+          const result = await supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+          if (result.error) return { data: null, error: result.error };
+          all.push(...(result.data || []));
+          if ((result.data || []).length < pageSize) break;
+        }
+        return { data: all, error: null };
+      }
+      async function loadAllDashboardEmailMessages() {
+        const pageSize = 500, all = [];
+        for (let from = 0; ; from += pageSize) {
+          const result = await supabase.from("email_messages").select("id,inquiry_id,direction,received_at,sent_at,created_at").order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+          if (result.error) return { data: null, error: result.error };
+          all.push(...(result.data || []));
+          if ((result.data || []).length < pageSize) break;
+        }
+        return { data: all, error: null };
+      }
+      async function loadAllDashboardReplyReminders() {
+        const pageSize = 500, all = [];
+        for (let from = 0; ; from += pageSize) {
+          const result = await supabase.from("email_reply_reminders").select("id,inquiry_id,owner_id,inbound_message_id,received_at,status,overdue_notified_at").eq("status", "open").order("received_at", { ascending: false }).range(from, from + pageSize - 1);
+          if (result.error) return { data: null, error: result.error };
+          all.push(...(result.data || []));
+          if ((result.data || []).length < pageSize) break;
+        }
+        return { data: all, error: null };
+      }
       async function loadInquiriesUnsafe() {
         const { data, error } = await loadAllDashboardInquiries();
         if (error) {
@@ -4143,9 +4173,9 @@
         renderSalesAmountRankingEarly(rows, earlyProfiles || [], earlyTargetPeople || [], earlyRates || []);
         const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: dashboardEmailMessages }, { data: replyReminders }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }, { data: retentionRequests }, { data: marketingTouches }] = await Promise.all([
           supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active,avatar_url").eq("active", true),
-          supabase.from("follow_ups").select("id,inquiry_id,author_id,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at").limit(2000),
-          supabase.from("email_messages").select("id,inquiry_id,direction,received_at,sent_at,created_at").order("created_at",{ascending:false}).limit(2000),
-          supabase.from("email_reply_reminders").select("id,inquiry_id,owner_id,inbound_message_id,received_at,status,overdue_notified_at").eq("status","open").order("received_at",{ascending:false}).limit(2000),
+          loadAllDashboardFollowups(),
+          loadAllDashboardEmailMessages(),
+          loadAllDashboardReplyReminders(),
           supabase.from("channel_costs").select("*").limit(500),
           supabase.from("sales_targets").select("*").limit(500),
           supabase.from("sales_target_people").select("*").order("sales_region").order("display_name"),

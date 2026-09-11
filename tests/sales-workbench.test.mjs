@@ -17,6 +17,15 @@ test('today workbench loads complete inquiry and stage history datasets',()=>{
   assert.match(html,/const \{ data: history, error: historyError \} = await loadAllStageHistory\(\)/);
 });
 
+test('today workbench paginates follow-ups, mail and reply reminders',()=>{
+  assert.match(html,/async function loadAllDashboardFollowups\(\)/);
+  assert.match(html,/async function loadAllDashboardEmailMessages\(\)/);
+  assert.match(html,/async function loadAllDashboardReplyReminders\(\)/);
+  assert.match(html,/loadAllDashboardFollowups\(\)/);
+  assert.match(html,/loadAllDashboardEmailMessages\(\)/);
+  assert.match(html,/loadAllDashboardReplyReminders\(\)/);
+});
+
 test('pending quotation queue is actionable',()=>{
   assert.match(html,/pendingQuote=open\.filter/);
   assert.match(html,/label:"创建报价"/);

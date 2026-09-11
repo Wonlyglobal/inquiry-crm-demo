@@ -33,6 +33,17 @@ test('today workbench loads every queue dataset with shared pagination',()=>{
   assert.match(html,/async function loadModuleRowsPaged/);
 });
 
+test('customer and research modules paginate complete company datasets',()=>{
+  const customers=html.slice(html.indexOf('} else if(view==="customers")'),html.indexOf('} else if(view==="follow-calendar")'));
+  assert.match(customers,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("inquiries"\)/);
+  assert.match(customers,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("contacts"\)/);
+  const research=html.slice(html.indexOf('} else if (view === "research")'),html.indexOf('} else if (view === "legacy-projects")'));
+  assert.match(research,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("inquiries"\)/);
+  assert.match(research,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("companies"\)/);
+  assert.doesNotMatch(customers,/\.limit\(1000\)/);
+  assert.doesNotMatch(research,/\.limit\(200\)/);
+});
+
 test('pending quotation queue is actionable',()=>{
   assert.match(html,/pendingQuote=open\.filter/);
   assert.match(html,/label:"创建报价"/);

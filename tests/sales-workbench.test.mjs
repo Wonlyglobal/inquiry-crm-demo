@@ -9,6 +9,14 @@ test('today workbench exposes the six required sales queues',()=>{
     assert.match(html,new RegExp(label));
 });
 
+test('today workbench loads complete inquiry and stage history datasets',()=>{
+  assert.match(html,/async function loadAllDashboardInquiries\(\)/);
+  assert.match(html,/async function loadAllDashboardInquiryFields\(\)/);
+  assert.match(html,/async function loadAllStageHistory\(\)/);
+  assert.match(html,/const \{ data, error \} = await loadAllDashboardInquiries\(\)/);
+  assert.match(html,/const \{ data: history, error: historyError \} = await loadAllStageHistory\(\)/);
+});
+
 test('pending quotation queue is actionable',()=>{
   assert.match(html,/pendingQuote=open\.filter/);
   assert.match(html,/label:"创建报价"/);

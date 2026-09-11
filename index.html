@@ -4072,15 +4072,38 @@
           return null;
         }
       }
+      async function loadAllDashboardInquiries() {
+        const pageSize = 500, all = [];
+        for (let from = 0; ; from += pageSize) {
+          const result = await supabase.from("inquiries").select("id,inquiry_no,title,source,status,validity,invalid_reason,lost_reason,created_at,updated_at,owner_id,company_id,target_country,product_category,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,risk_flag,original_message,contacts(email)").eq("excluded_from_dashboard", false).order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+          if (result.error) return { data: null, error: result.error };
+          all.push(...(result.data || []));
+          if ((result.data || []).length < pageSize) break;
+        }
+        return { data: all, error: null };
+      }
+      async function loadAllDashboardInquiryFields() {
+        const pageSize = 500, all = [];
+        for (let from = 0; ; from += pageSize) {
+          const result = await supabase.from("inquiries").select("id,assigned_at,first_valid_contact_at,quoted_at,expected_close_date,probability,deal_type,primary_source,excluded_from_dashboard,risk_flag,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason,retained_until,public_pool_entered_at,qualification_score,lead_priority,sales_disposition,recycle_reason").eq("excluded_from_dashboard", false).range(from, from + pageSize - 1);
+          if (result.error) return { data: null, error: result.error };
+          all.push(...(result.data || []));
+          if ((result.data || []).length < pageSize) break;
+        }
+        return { data: all, error: null };
+      }
+      async function loadAllStageHistory() {
+        const pageSize = 500, all = [];
+        for (let from = 0; ; from += pageSize) {
+          const result = await supabase.from("inquiry_stage_history").select("inquiry_id,to_status,entered_at").order("entered_at", { ascending: false }).range(from, from + pageSize - 1);
+          if (result.error) return { data: null, error: result.error };
+          all.push(...(result.data || []));
+          if ((result.data || []).length < pageSize) break;
+        }
+        return { data: all, error: null };
+      }
       async function loadInquiriesUnsafe() {
-        const { data, error } = await supabase
-          .from("inquiries")
-          .select(
-            "id,inquiry_no,title,source,status,validity,invalid_reason,lost_reason,created_at,updated_at,owner_id,company_id,target_country,product_category,next_follow_up_at,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,risk_flag,original_message,contacts(email)",
-          )
-          .eq("excluded_from_dashboard", false)
-          .order("created_at", { ascending: false })
-          .limit(100);
+        const { data, error } = await loadAllDashboardInquiries();
         if (error) {
           toast("加载失败：" + error.message);
           return;
@@ -4088,7 +4111,7 @@
         const rows = data || [];
         // Optional dashboard columns are loaded separately so the UI remains
         // usable while a newly deployed migration is being applied.
-        const { data: dashboardFields } = await supabase.from("inquiries").select("id,assigned_at,first_valid_contact_at,quoted_at,expected_close_date,probability,deal_type,primary_source,excluded_from_dashboard,risk_flag,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason,retained_until,public_pool_entered_at,qualification_score,lead_priority,sales_disposition,recycle_reason").eq("excluded_from_dashboard", false).limit(1000);
+        const { data: dashboardFields } = await loadAllDashboardInquiryFields();
         if (dashboardFields) {
           const byId = new Map(dashboardFields.map(x => [x.id, x]));
           rows.forEach(x => Object.assign(x, byId.get(x.id) || {}));
@@ -4105,11 +4128,7 @@
             if (intake.sender_email) senderEmailByInquiry.set(intake.inquiry_id, intake.sender_email);
           }
         }
-        const { data: history, error: historyError } = await supabase
-          .from("inquiry_stage_history")
-          .select("inquiry_id,to_status,entered_at")
-          .order("entered_at", { ascending: false })
-          .limit(1000);
+        const { data: history, error: historyError } = await loadAllStageHistory();
         if (historyError) {
           toast("阶段时间加载失败：" + historyError.message);
           return;

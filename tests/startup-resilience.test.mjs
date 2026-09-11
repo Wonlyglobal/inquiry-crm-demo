@@ -26,3 +26,10 @@ test("CRM startup bounds profile loading and sign-out cleanup", () => {
   assert.match(html, /withTimeout\(loadProfile\(session\.user\), 15000, "用户资料加载超时"\)/);
   assert.match(html, /withTimeout\(supabase\.auth\.signOut\(\), 5000, "登录状态清理超时"\)/);
 });
+
+test("CRM startup converts unexpected bootstrap errors into a reloadable state", () => {
+  assert.match(html, /const showBootFailure = \(message = "页面初始化失败，请刷新后重试"\)/);
+  assert.match(html, /window\.addEventListener\("error"/);
+  assert.match(html, /window\.addEventListener\("unhandledrejection"/);
+  assert.match(html, /CRM 暂时无法打开/);
+});

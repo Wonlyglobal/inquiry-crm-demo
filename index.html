@@ -2198,6 +2198,13 @@
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
+      const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
+        const boot = document.querySelector("#boot");
+        if (!boot || boot.classList.contains("hidden")) return;
+        boot.innerHTML = `<div class="boot-card"><strong>CRM 暂时无法打开</strong><span>${message}</span><button class="primary" onclick="location.reload()">重新加载</button></div>`;
+      };
+      window.addEventListener("error", () => showBootFailure());
+      window.addEventListener("unhandledrejection", () => showBootFailure("数据服务或页面依赖加载失败，请刷新后重试"));
       // Some corporate DNS/proxy networks intermittently stall esm.sh. Keep the
       // boot screen from spinning forever by timing out the primary CDN and
       // falling back to jsDelivr (the Supabase client is otherwise identical).

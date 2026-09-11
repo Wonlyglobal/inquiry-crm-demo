@@ -20,3 +20,9 @@ test("CRM startup surfaces Supabase session failures instead of leaving the boot
   assert.match(html, /认证服务连接超时/);
   assert.match(html, /setTimeout\(\(\) => reject\(new Error\("认证服务连接超时"\)\), 15000\)/);
 });
+
+test("CRM startup bounds profile loading and sign-out cleanup", () => {
+  assert.match(html, /const withTimeout = \(promise, timeoutMs, message\)/);
+  assert.match(html, /withTimeout\(loadProfile\(session\.user\), 15000, "用户资料加载超时"\)/);
+  assert.match(html, /withTimeout\(supabase\.auth\.signOut\(\), 5000, "登录状态清理超时"\)/);
+});

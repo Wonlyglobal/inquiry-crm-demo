@@ -2205,6 +2205,10 @@
         import(url),
         new Promise((_, reject) => setTimeout(() => reject(new Error("客户端依赖加载超时")), timeoutMs)),
       ]);
+      const withTimeout = (promise, timeoutMs, message) => Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(message)), timeoutMs)),
+      ]);
       let supabaseModule;
       try {
         supabaseModule = await importWithTimeout("https://esm.sh/@supabase/supabase-js@2.57.4");
@@ -2441,7 +2445,7 @@
           .single();
         if (error) throw error;
         if (!data.active) {
-          await supabase.auth.signOut();
+          await withTimeout(supabase.auth.signOut(), 5000, "账号状态清理超时");
           throw new Error("该成员账号已被管理员禁用");
         }
         profile = data;
@@ -7072,10 +7076,10 @@
         openRecoveryPassword();
       } else if (session) {
         try {
-          await loadProfile(session.user);
+          await withTimeout(loadProfile(session.user), 15000, "用户资料加载超时");
           sessionReady = true;
         } catch {
-          await supabase.auth.signOut();
+          try { await withTimeout(supabase.auth.signOut(), 5000, "登录状态清理超时"); } catch (signOutError) { console.warn("登录状态清理失败", signOutError); }
         }
       }
       $("#boot").classList.add("hidden");

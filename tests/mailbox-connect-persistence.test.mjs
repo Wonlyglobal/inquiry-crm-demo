@@ -29,4 +29,8 @@ test("personal mailbox reads all messages with bounded pagination", () => {
   assert.match(html, /async function loadAllMailboxMessages\(connectionId\)/);
   assert.match(html, /\.eq\("mailbox_connection_id", connectionId\).*\.range\(from, from \+ pageSize - 1\)/s);
   assert.match(html, /loadAllMailboxMessages\(connection\.id\)/);
+  assert.match(html, /async function loadAllMailboxReads\(userId\)/);
+  assert.match(html, /async function loadAllOpenReplyReminders\(userId\)/);
+  assert.match(html, /loadAllMailboxReads\(profile\.id\)/);
+  assert.match(html, /loadAllOpenReplyReminders\(profile\.id\)/);
 });

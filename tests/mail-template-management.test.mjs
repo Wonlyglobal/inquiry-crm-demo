@@ -20,6 +20,13 @@ test('personal templates support create edit and delete with owner scoping',()=>
   assert.match(html,/label:"删除"/);
 });
 
+test('mail history and personal templates use complete paginated lists',()=>{
+  assert.match(html,/query = loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("email_intake"\)/);
+  assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("email_messages"\)/);
+  assert.match(html,/query=loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("email_templates"\)/);
+  assert.match(html,/query=loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("mail_outbox"/);
+});
+
 test('all buttons receive consistent interaction and focus treatment',()=>{
   assert.match(html,/button:not\(:disabled\) \{ cursor: pointer; \}/);
   assert.match(html,/button:focus-visible/);

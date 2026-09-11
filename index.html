@@ -2206,11 +2206,18 @@
         try {
           supabaseModule = await importWithTimeout("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm");
         } catch (fallbackError) {
-          const boot = document.querySelector("#boot");
-          if (boot) {
-            boot.innerHTML = `<div class="boot-card"><strong>系统依赖加载失败</strong><span>请检查网络或代理后刷新页面。</span><button class="primary" onclick="location.reload()">重新加载</button></div>`;
+          try {
+            // A third independent CDN keeps startup usable on networks that
+            // block either esm.sh or jsDelivr. All three sources expose the
+            // same official Supabase ESM package.
+            supabaseModule = await importWithTimeout("https://unpkg.com/@supabase/supabase-js@2.57.4/+esm");
+          } catch (lastError) {
+            const boot = document.querySelector("#boot");
+            if (boot) {
+              boot.innerHTML = `<div class="boot-card"><strong>系统依赖加载失败</strong><span>请检查网络或代理后刷新页面。</span><button class="primary" onclick="location.reload()">重新加载</button></div>`;
+            }
+            throw new Error(`Supabase 客户端加载失败：${lastError?.message || fallbackError?.message || primaryError?.message || "未知错误"}`);
           }
-          throw new Error(`Supabase 客户端加载失败：${fallbackError?.message || primaryError?.message || "未知错误"}`);
         }
       }
       const { createClient } = supabaseModule;

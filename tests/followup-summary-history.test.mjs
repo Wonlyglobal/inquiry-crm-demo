@@ -19,6 +19,15 @@ test('generation origin is retained for sync, automatic and manual updates',()=>
   assert.match(html,/邮件同步自动生成/);
 });
 
+test('automatic follow-up summary refreshes are idempotent per source message',()=>{
+  const migration=fs.readFileSync(new URL('../supabase/migrations/20260911035254_dedupe_followup_summary_generations.sql',import.meta.url),'utf8');
+  assert.match(migration,/add column if not exists generation_dedupe_key text/);
+  assert.match(migration,/communication_summaries_generation_dedupe_key_idx/);
+  assert.match(edge,/generation_dedupe_key:generationDedupeKey/);
+  assert.match(edge,/saved\.error\.code===\"23505\"/);
+  assert.match(edge,/deduplicated:true/);
+});
+
 test('legacy inquiries fall back to their original email intake',()=>{
   assert.match(edge,/from\("email_intake"\)/);
   assert.match(edge,/source_message_id:sourceMessageId\|\|null/);

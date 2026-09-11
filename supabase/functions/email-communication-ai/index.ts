@@ -51,8 +51,20 @@ Deno.serve(async req=>{
     const response=await fetch("https://api.deepseek.com/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model:Deno.env.get("DEEPSEEK_MODEL")||"deepseek-chat",temperature:0.1,max_tokens:1800,response_format:{type:"json_object"},messages:[{role:"system",content:systemPrompt},{role:"user",content:`当前时间：${new Date().toISOString()}\n询盘资料：${JSON.stringify(inquiry)}\n客户背调（只可作为背景，不得冒充客户表述）：${JSON.stringify(company)}\n\n全部邮件（按时间正序，共 ${chronological.length} 封）：\n${emailHistory}`}]}),signal:AbortSignal.timeout(40000)});
     const payload=await response.json();if(!response.ok)throw new Error(payload?.error?.message||`DeepSeek ${response.status}`);
     const result=jsonObject(clean(payload?.choices?.[0]?.message?.content));
-    const record={inquiry_id:inquiryId,source_message_id:sourceMessageId||null,summary_zh:clean(result.summary_zh,4000)||"暂未生成有效总结",latest_customer_request:clean(result.customer_needs_pain_points,4000)||"暂无明确证据",confirmed_items:clean(result.confirmed_items,4000)||"暂无明确证据",pending_items:clean(result.pending_items,4000)||"暂无明确证据",objections:clean(result.objections,3000)||"暂无明确证据",commitments:clean(result.commitments,3000)||"暂无明确证据",risks:clean(result.risks,3000)||"暂无明确证据",recommended_next_step:clean(result.recommended_next_step,3000)||"核对客户最新问题并安排下一次联系",recommended_follow_up_at:safeDate(result.recommended_follow_up_at),summary_scope:"thread",message_count:chronological.length,provider:"deepseek",generation_trigger:generationTrigger};
-    const saved=await db.from("communication_summaries").insert(record);if(saved.error)throw saved.error;
+    const generationDedupeKey=sourceMessageId&&["mail_sync","automatic_refresh"].includes(generationTrigger)?`${inquiryId}:${sourceMessageId}:${generationTrigger}`:null;
+    const record={inquiry_id:inquiryId,source_message_id:sourceMessageId||null,generation_dedupe_key:generationDedupeKey,summary_zh:clean(result.summary_zh,4000)||"暂未生成有效总结",latest_customer_request:clean(result.customer_needs_pain_points,4000)||"暂无明确证据",confirmed_items:clean(result.confirmed_items,4000)||"暂无明确证据",pending_items:clean(result.pending_items,4000)||"暂无明确证据",objections:clean(result.objections,3000)||"暂无明确证据",commitments:clean(result.commitments,3000)||"暂无明确证据",risks:clean(result.risks,3000)||"暂无明确证据",recommended_next_step:clean(result.recommended_next_step,3000)||"核对客户最新问题并安排下一次联系",recommended_follow_up_at:safeDate(result.recommended_follow_up_at),summary_scope:"thread",message_count:chronological.length,provider:"deepseek",generation_trigger:generationTrigger};
+    const saved=await db.from("communication_summaries").insert(record);
+    if(saved.error){
+      // Mail sync and automatic page refreshes can race on the same latest
+      // message. The partial unique index makes that race idempotent while
+      // preserving append-only manual summaries.
+      if(saved.error.code==="23505"&&record.generation_dedupe_key){
+        const existing=await db.from("communication_summaries").select("id,source_message_id,summary_zh,latest_customer_request,confirmed_items,pending_items,objections,commitments,risks,recommended_next_step,recommended_follow_up_at,summary_scope,message_count,provider,generation_trigger,created_at").eq("generation_dedupe_key",record.generation_dedupe_key).maybeSingle();
+        if(existing.error||!existing.data)throw saved.error;
+        return new Response(JSON.stringify({summarized:false,deduplicated:true,summary:existing.data}),{headers:cors});
+      }
+      throw saved.error;
+    }
     return new Response(JSON.stringify({summarized:true,summary:record}),{headers:cors});
   }catch(error){return new Response(JSON.stringify({error:error instanceof Error?error.message:String(error)}),{status:400,headers:cors})}
 });

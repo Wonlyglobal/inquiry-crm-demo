@@ -105,7 +105,10 @@ async function handleWebhook(req: Request) {
       for (const raw of messages) {
         const message = messageFromValue(raw);
         const match = await matchInquiry(admin, message.sender_phone || "");
-        const result = await admin.from("whatsapp_messages").upsert({ ...message, connection_id: connectionId, direction: "inbound", inquiry_id: match.inquiryId, association_status: match.inquiryId ? "matched" : "pending", association_method: match.method, delivery_status: "received" }, { onConflict: "connection_id,external_message_id", ignoreDuplicates: true });
+        const record = { ...message, connection_id: connectionId, direction: "inbound", inquiry_id: match.inquiryId, association_status: match.inquiryId ? "matched" : "pending", association_method: match.method, delivery_status: "received" };
+        const result = message.external_message_id
+          ? await admin.from("whatsapp_messages").upsert(record, { onConflict: "connection_id,external_message_id", ignoreDuplicates: true })
+          : await admin.from("whatsapp_messages").insert(record);
         if (!result.error) stored += 1;
       }
       if (messages.length) await admin.from("whatsapp_connections").update({ last_received_at: new Date().toISOString(), updated_at: new Date().toISOString(), last_error: null }).eq("id", connectionId);

@@ -36,6 +36,8 @@ test("WhatsApp webhook requires Meta verification and HMAC signature", () => {
   assert.match(webhook, /async function matchInquiry/);
   assert.match(webhook, /association_method: match\.method/);
   assert.match(webhook, /association_status: match\.inquiryId \? "matched" : "pending"/);
+  assert.match(webhook, /message\.external_message_id\s*\?/);
+  assert.match(webhook, /\.from\("whatsapp_messages"\)\.insert\(record\)/);
   assert.doesNotMatch(webhook, /const normalized = text\(/);
   assert.match(webhook, /const normalized = textValue\(phone, 80\)/);
 });

@@ -2192,7 +2192,28 @@
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
-      import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+      // Some corporate DNS/proxy networks intermittently stall esm.sh. Keep the
+      // boot screen from spinning forever by timing out the primary CDN and
+      // falling back to jsDelivr (the Supabase client is otherwise identical).
+      const importWithTimeout = (url, timeoutMs = 8000) => Promise.race([
+        import(url),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("客户端依赖加载超时")), timeoutMs)),
+      ]);
+      let supabaseModule;
+      try {
+        supabaseModule = await importWithTimeout("https://esm.sh/@supabase/supabase-js@2.57.4");
+      } catch (primaryError) {
+        try {
+          supabaseModule = await importWithTimeout("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm");
+        } catch (fallbackError) {
+          const boot = document.querySelector("#boot");
+          if (boot) {
+            boot.innerHTML = `<div class="boot-card"><strong>系统依赖加载失败</strong><span>请检查网络或代理后刷新页面。</span><button class="primary" onclick="location.reload()">重新加载</button></div>`;
+          }
+          throw new Error(`Supabase 客户端加载失败：${fallbackError?.message || primaryError?.message || "未知错误"}`);
+        }
+      }
+      const { createClient } = supabaseModule;
       async function resilientFetch(input, init = {}) {
         const method = String(init.method || (input instanceof Request ? input.method : "GET") || "GET").toUpperCase();
         const retryable = method === "GET" || method === "HEAD";
@@ -6664,7 +6685,7 @@
         const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,in_reply_to:$("#mail-compose-reply-id").value||null,attachments,material_asset_ids:selectedMaterialAttachments.map(item=>item.id)}});
         button.disabled=false;button.textContent="发送";
         if(error||data?.error)return toast("邮件发送失败："+(data?.error||error?.message));
-        const quotationId=$("#mail-compose-quotation").value;if(quotationId){const tracked=await supabase.rpc("mark_quotation_sent",{target_quotation_id:quotationId,target_message_id:data?.email_message_id||null});if(tracked.error)toast("邮件已发送，但报价状态记录失败："+tracked.error.message)}
+        const quotationId=$("#mail-compose-quotation").value;if(quotationId){const tracked=await supabase.rpc("mark_quotation_sent",{target_quotation_id:quotationId,target_message_id:data?.message_id||data?.email_message_id||null});if(tracked.error)toast("邮件已发送，但报价状态记录失败："+tracked.error.message)}
         $("#mail-compose-modal").classList.add("hidden");toast("邮件已发送，正在同步到已发送和客户沟通记录");setTimeout(()=>loadModule(activeModuleView==="quotes"?"quotes":"mailbox"),5000);
       });
       $("#connect-shared-inquiry").addEventListener("click", () => openMailboxBinding(profile.id, true, true));

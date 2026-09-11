@@ -12,7 +12,17 @@ CRM 只支持 WhatsApp Business Cloud API 或官方 BSP，不支持用个人 Wha
    - `WHATSAPP_WEBHOOK_VERIFY_TOKEN`
 4. 将 Webhook URL 设置为：
    `https://plhverjihjilnuhlhlxi.supabase.co/functions/v1/whatsapp-webhook`
-5. 订阅 `messages` 事件，并在 CRM 中创建对应的 `whatsapp_connections` 记录，状态先设为 `pending`，验证成功后改为 `connected`。
+5. 在 Supabase SQL Editor 按顺序执行以下迁移：
+   - `supabase/migrations/20260911065443_whatsapp_business_channel.sql`
+   - `supabase/migrations/20260911080227_whatsapp_message_owner_visibility.sql`
+6. 订阅 `messages` 事件，在 CRM 的“WhatsApp Business”页面填写企业通道信息。系统会先调用 Meta Graph API 验证号码，验证成功后才写入 `connected`。
+
+可用以下只读 SQL 验证迁移是否已落地：
+
+```sql
+select to_regclass('public.whatsapp_connections') as connections_table,
+       to_regclass('public.whatsapp_messages') as messages_table;
+```
 
 ## 验收标准
 
@@ -20,6 +30,7 @@ CRM 只支持 WhatsApp Business Cloud API 或官方 BSP，不支持用个人 Wha
 - 没有有效 `X-Hub-Signature-256` 的 POST 返回 401。
 - 重复 webhook 不产生重复消息。
 - 收到的消息进入 `whatsapp_messages`，随后按电话号码和询盘关联。
+- 负责询盘的业务员可以读取该询盘的 WhatsApp 消息，未关联消息仍受通道权限保护。
 - 发送、送达、已读和失败状态可追踪；token 永不出现在浏览器、审计日志或消息正文中。
 
 未完成上述配置前，CRM 不应显示“已连接”，也不应提供可点击的发送按钮。

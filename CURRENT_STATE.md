@@ -179,5 +179,6 @@
 - 官网表单直连 CRM 的代码已在本地完成类型检查并保存在提交 `6212b32`；官网远端主线与本地历史存在分叉，尚未未经审核推送主分支，避免覆盖官网现有未提交改动。
 - `website-inquiry-intake` 已再次部署到 Supabase 生产（部署输出确认 `website-inquiry-intake`），现在同时兼容 `SUPABASE_PUBLISHABLE_KEY` 与旧版 `SUPABASE_ANON_KEY`；本地回归仍为 61/61 通过。
 - 2026-09-11 页面可用性探针：`http://crm.foreverdoodle.com/` 返回 HTTP 200，`https://www.wonlyglobal.com/` 返回 HTTP 200，官网实际引用的 JS/CSS 资源均返回 HTTP 200；内置浏览器当时的安全检查未通过，不能据此判定线上页面宕机。
+- 同日追加 HTTPS 诊断：权威 DNS 已正确返回 `crm.foreverdoodle.com CNAME wonlyglobal.github.io` 及 GitHub Pages 四个地址；HTTP 页面正常，但自定义域名 TLS 证书当前仅包含 `*.github.io`，不包含 `crm.foreverdoodle.com`。因此浏览器强制 HTTPS 或证书校验严格时会打不开；需要在 GitHub Pages 的 Custom domain 设置中重新校验并启用 HTTPS 后再复测。
 - 生产 Edge Function 实测（官网 Origin + publishable key）：返回 HTTP 400 `submission_id is required`，说明浏览器鉴权已通过并进入业务校验；未提交有效客户字段，因此未产生生产数据。
 - Supabase 安全顾问发现旧邮件分拣/维护 `SECURITY DEFINER` RPC 继承了 `PUBLIC` 的执行权限；已新增 `supabase/migrations/20260911021806_revoke_anon_email_triage_mutations.sql`。生产权限复核为五个业务函数 `anon_exec=false`、`auth_exec=true`，无应用调用的 `rls_auto_enable()` 为 `anon_exec=false`、`auth_exec=false`，未影响已登录业务员的操作。

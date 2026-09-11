@@ -11,10 +11,11 @@ test("anonymous users cannot invoke email triage or maintenance mutations", () =
     "restore_email_intakes(uuid[])",
     "trash_email_intakes(uuid[])",
     "triage_email_intakes(uuid[], text)",
-    "rls_auto_enable()",
   ]) {
     const escaped = signature.replace(/[()[\]]/g, "\\$&");
     assert.match(sql, new RegExp(`revoke all on function public\\.${escaped} from public, anon;`));
     assert.match(sql, new RegExp(`grant execute on function public\\.${escaped} to authenticated;`));
   }
+  assert.match(sql, /revoke all on function public\.rls_auto_enable\(\) from public, anon, authenticated;/);
+  assert.doesNotMatch(sql, /grant execute on function public\.rls_auto_enable\(\) to authenticated;/);
 });

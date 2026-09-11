@@ -6,11 +6,12 @@ revoke all on function public.delete_trashed_email_intakes(uuid[]) from public, 
 revoke all on function public.restore_email_intakes(uuid[]) from public, anon;
 revoke all on function public.trash_email_intakes(uuid[]) from public, anon;
 revoke all on function public.triage_email_intakes(uuid[], text) from public, anon;
-revoke all on function public.rls_auto_enable() from public, anon;
+-- This legacy maintenance helper has no application caller and must not be
+-- exposed to any browser session, including signed-in users.
+revoke all on function public.rls_auto_enable() from public, anon, authenticated;
 
 grant execute on function public.convert_email_intakes_to_inquiries(uuid[]) to authenticated;
 grant execute on function public.delete_trashed_email_intakes(uuid[]) to authenticated;
 grant execute on function public.restore_email_intakes(uuid[]) to authenticated;
 grant execute on function public.trash_email_intakes(uuid[]) to authenticated;
 grant execute on function public.triage_email_intakes(uuid[], text) to authenticated;
-grant execute on function public.rls_auto_enable() to authenticated;

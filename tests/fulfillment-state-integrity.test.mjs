@@ -29,6 +29,16 @@ test('fulfillment view shows complete order event history',()=>{
   assert.match(html,/进展说明/);
 });
 
+test('fulfillment list paginates inquiries, samples and orders',()=>{
+  const start=html.indexOf('} else if(view==="fulfillment")');
+  const branch=html.slice(start,html.indexOf('} else if(view==="customers")',start));
+  assert.match(branch,/loadModuleRowsPaged\(inquiryQuery\)/);
+  assert.match(branch,/from\("sample_shipments"\).*\.range\(from,to\)/);
+  assert.match(branch,/from\("sales_orders"\).*\.range\(from,to\)/);
+  assert.doesNotMatch(branch,/\.limit\(500\)/);
+  assert.doesNotMatch(branch,/\.limit\(1000\)/);
+});
+
 test('fulfillment controls only expose valid next actions',()=>{
   assert.match(html,/const orderNextStatuses=/);
   assert.match(html,/selectable=\[order\.status,\.\.\.\(orderNextStatuses\[order\.status\]/);

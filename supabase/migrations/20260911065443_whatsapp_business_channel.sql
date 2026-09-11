@@ -38,6 +38,8 @@ create table if not exists public.whatsapp_messages (
   media_mime_type text,
   media_sha256 text,
   inquiry_id uuid references public.inquiries(id) on delete set null,
+  association_status text not null default 'pending' check (association_status in ('matched','pending','ignored')),
+  association_method text,
   delivery_status text not null default 'received' check (delivery_status in ('received','queued','sent','delivered','read','failed')),
   occurred_at timestamptz not null default clock_timestamp(),
   raw_payload jsonb not null default '{}'::jsonb,

@@ -13,6 +13,7 @@ test("WhatsApp channel stores only business-account identifiers and protects row
   assert.match(migration, /unique\(provider, phone_number_id\)/);
   assert.match(migration, /alter table public\.whatsapp_connections enable row level security/);
   assert.match(migration, /alter table public\.whatsapp_messages enable row level security/);
+  assert.match(migration, /association_status text not null default 'pending'/);
   assert.match(migration, /grant all on public\.whatsapp_connections, public\.whatsapp_messages to service_role/);
   assert.doesNotMatch(migration, /(?:access[_ -]?token|app_secret|client_secret)\s+text/i);
 });
@@ -24,6 +25,9 @@ test("WhatsApp webhook requires Meta verification and HMAC signature", () => {
   assert.match(webhook, /Invalid webhook signature/);
   assert.match(webhook, /upsert\(/);
   assert.match(webhook, /whatsapp_messages/);
+  assert.match(webhook, /async function matchInquiry/);
+  assert.match(webhook, /association_method: match\.method/);
+  assert.match(webhook, /association_status: match\.inquiryId \? "matched" : "pending"/);
 });
 
 test("CRM exposes WhatsApp setup without claiming a personal account is connected", () => {

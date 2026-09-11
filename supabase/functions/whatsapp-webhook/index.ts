@@ -56,6 +56,21 @@ function messageFromValue(value: Record<string, any>) {
   };
 }
 
+async function matchInquiry(admin: any, phone: string) {
+  const normalized = text(phone, 80);
+  if (!normalized) return { inquiryId: null, method: null };
+  const contactResults = await Promise.all([
+    admin.from("contacts").select("id,company_id").eq("whatsapp", normalized).limit(5),
+    admin.from("contacts").select("id,company_id").eq("phone", normalized).limit(5),
+  ]);
+  const companyIds = [...new Set(contactResults.flatMap((result: any) => result.data || []).map((contact: any) => contact.company_id).filter(Boolean))];
+  for (const companyId of companyIds) {
+    const inquiry = await admin.from("inquiries").select("id").eq("company_id", companyId).eq("validity", "valid").not("status", "in", "(won,lost)").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    if (inquiry.data?.id) return { inquiryId: inquiry.data.id, method: "contact_phone" };
+  }
+  return { inquiryId: null, method: null };
+}
+
 async function handleWebhook(req: Request) {
   const url = new URL(req.url);
   if (req.method === "GET") {
@@ -89,7 +104,8 @@ async function handleWebhook(req: Request) {
       const messages = Array.isArray(value.messages) ? value.messages : [];
       for (const raw of messages) {
         const message = messageFromValue(raw);
-        const result = await admin.from("whatsapp_messages").upsert({ ...message, connection_id: connectionId, direction: "inbound", delivery_status: "received" }, { onConflict: "connection_id,external_message_id", ignoreDuplicates: true });
+        const match = await matchInquiry(admin, message.sender_phone || "");
+        const result = await admin.from("whatsapp_messages").upsert({ ...message, connection_id: connectionId, direction: "inbound", inquiry_id: match.inquiryId, association_status: match.inquiryId ? "matched" : "pending", association_method: match.method, delivery_status: "received" }, { onConflict: "connection_id,external_message_id", ignoreDuplicates: true });
         if (!result.error) stored += 1;
       }
       if (messages.length) await admin.from("whatsapp_connections").update({ last_received_at: new Date().toISOString(), updated_at: new Date().toISOString(), last_error: null }).eq("id", connectionId);

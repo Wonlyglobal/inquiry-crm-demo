@@ -16,3 +16,12 @@ test("frontend uses the atomic order progress RPC",()=>{
   assert.match(html,/supabase\.rpc\("update_sales_order_progress"/);
   assert.match(html,/progress_event_type:eventType/);
 });
+
+test("order progress handler is not executed during CRM startup",()=>{
+  const matches=html.match(/\$\("#order-progress-form"\)\.onsubmit/g)||[];
+  assert.equal(matches.length,2,"both handlers must be lazily bound inside the order progress flow");
+  const functionStart=html.indexOf("async function openOrderProgress(order,inquiry)");
+  const functionEnd=html.indexOf("async function openOrderPayment(order,inquiry)",functionStart);
+  assert.ok(functionStart>=0&&functionEnd>functionStart);
+  assert.equal((html.slice(functionStart,functionEnd).match(/\$\("#order-progress-form"\)\.onsubmit/g)||[]).length,2);
+});

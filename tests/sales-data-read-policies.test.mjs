@@ -10,6 +10,7 @@ test("sales communication policies follow inquiry ownership and manager visibili
     "email_messages_read_visible",
     "follow_ups_read",
     "quotation_versions_read",
+    "outreach_drafts_read",
   ]) {
     assert.match(sql, new RegExp(`drop policy if exists ${policy} on public\\.`));
     assert.match(sql, new RegExp(`create policy ${policy}`));
@@ -17,5 +18,6 @@ test("sales communication policies follow inquiry ownership and manager visibili
   assert.match(sql, /i\.owner_id = \(select auth\.uid\(\)\)/);
   assert.match(sql, /private\.current_crm_role\(\) = any \(array\['owner'::crm_role,'sales_manager'::crm_role,'marketing'::crm_role\]\)/);
   assert.match(sql, /email_messages\.inquiry_id is null/);
+  assert.match(sql, /outreach_drafts\.inquiry_id/);
   assert.doesNotMatch(sql, /using \(\s*exists \(\s*select 1 from public\.inquiries i\s*where i\.id = (?:communication_summaries\.inquiry_id|email_messages\.inquiry_id|follow_ups\.inquiry_id|quotation_versions\.inquiry_id)\s*\)\s*\)/s);
 });

@@ -80,3 +80,33 @@ using (
       )
   )
 );
+
+drop policy if exists outreach_drafts_read on public.outreach_drafts;
+create policy outreach_drafts_read
+on public.outreach_drafts for select to authenticated
+using (
+  created_by = (select auth.uid())
+  or exists (
+    select 1 from public.inquiries i
+    where i.id = outreach_drafts.inquiry_id
+      and (
+        i.owner_id = (select auth.uid())
+        or private.current_crm_role() = any (array['owner'::crm_role,'sales_manager'::crm_role,'marketing'::crm_role])
+      )
+  )
+);
+
+drop policy if exists outreach_drafts_insert on public.outreach_drafts;
+create policy outreach_drafts_insert
+on public.outreach_drafts for insert to authenticated
+with check (
+  created_by = (select auth.uid())
+  and exists (
+    select 1 from public.inquiries i
+    where i.id = outreach_drafts.inquiry_id
+      and (
+        i.owner_id = (select auth.uid())
+        or private.current_crm_role() = any (array['owner'::crm_role,'sales_manager'::crm_role,'marketing'::crm_role])
+      )
+  )
+);

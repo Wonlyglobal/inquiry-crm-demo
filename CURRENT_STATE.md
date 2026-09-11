@@ -182,3 +182,5 @@
 - 同日追加 HTTPS 诊断：权威 DNS 已正确返回 `crm.foreverdoodle.com CNAME wonlyglobal.github.io` 及 GitHub Pages 四个地址；HTTP 页面正常，但自定义域名 TLS 证书当前仅包含 `*.github.io`，不包含 `crm.foreverdoodle.com`。因此浏览器强制 HTTPS 或证书校验严格时会打不开；需要在 GitHub Pages 的 Custom domain 设置中重新校验并启用 HTTPS 后再复测。
 - 生产 Edge Function 实测（官网 Origin + publishable key）：返回 HTTP 400 `submission_id is required`，说明浏览器鉴权已通过并进入业务校验；未提交有效客户字段，因此未产生生产数据。
 - Supabase 安全顾问发现旧邮件分拣/维护 `SECURITY DEFINER` RPC 继承了 `PUBLIC` 的执行权限；已新增 `supabase/migrations/20260911021806_revoke_anon_email_triage_mutations.sql`。生产权限复核为五个业务函数 `anon_exec=false`、`auth_exec=true`，无应用调用的 `rls_auto_enable()` 为 `anon_exec=false`、`auth_exec=false`，未影响已登录业务员的操作。
+- 进一步复核发现邮件、跟进总结、跟进记录和报价的旧读取策略只检查“询盘存在”，存在跨业务员读取风险；已新增 `supabase/migrations/20260911033612_tighten_sales_data_read_policies.sql` 并应用生产。现在这些记录统一按询盘负责人可见，主管/老板/市场角色可见未分配邮件；生产 `pg_policies` 已确认新策略生效。
+- 本次权限修复后完整回归测试为 63/63 通过；安全顾问未新增 RLS 告警，剩余项仅为预期的已登录 `SECURITY DEFINER` 业务 RPC 提示和 Supabase Auth 的泄露密码保护开关提示。

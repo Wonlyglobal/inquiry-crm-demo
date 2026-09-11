@@ -4,6 +4,7 @@ import fs from "node:fs";
 
 const migration = fs.readFileSync(new URL("../supabase/migrations/20260911065443_whatsapp_business_channel.sql", import.meta.url), "utf8");
 const webhook = fs.readFileSync(new URL("../supabase/functions/whatsapp-webhook/index.ts", import.meta.url), "utf8");
+const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("WhatsApp channel stores only business-account identifiers and protects rows with RLS", () => {
   assert.match(migration, /create table if not exists public\.whatsapp_connections/);
@@ -22,4 +23,11 @@ test("WhatsApp webhook requires Meta verification and HMAC signature", () => {
   assert.match(webhook, /Invalid webhook signature/);
   assert.match(webhook, /upsert\(/);
   assert.match(webhook, /whatsapp_messages/);
+});
+
+test("CRM exposes WhatsApp setup without claiming a personal account is connected", () => {
+  assert.match(html, /data-view="whatsapp"/);
+  assert.match(html, /当前状态：待配置/);
+  assert.match(html, /个人 WhatsApp 不支持直接接入/);
+  assert.match(html, /activeModuleView==="whatsapp"/);
 });

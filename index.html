@@ -1498,6 +1498,9 @@
               <button id="add-member" class="ghost hidden">+ 新增成员</button>
               <button id="connect-shared-inquiry" class="ghost hidden">连接公共询盘邮箱</button>
               <button id="calendar-generate-daily" class="ghost hidden">一键生成日报</button>
+              <button id="legacy-project-template" class="ghost hidden" type="button">下载导入模板</button>
+              <button id="legacy-project-import" class="primary hidden" type="button">导入 Excel</button>
+              <input id="legacy-project-import-file" class="hidden" type="file" accept=".xlsx,.xls,.csv" />
               <button id="module-primary" class="primary hidden"></button>
             </div>
           </div>
@@ -3024,6 +3027,8 @@
         $("#module-search").value = "";
         $("#module-search").placeholder = `搜索${config[2]}`;
         $("#module-toolbar").classList.add("hidden");
+        $("#legacy-project-template").classList.toggle("hidden", view !== "legacy-projects");
+        $("#legacy-project-import").classList.toggle("hidden", view !== "legacy-projects" || !["owner","sales_manager","marketing"].includes(profile?.role));
         $("#module-filter-summary").classList.add("hidden");
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
@@ -3370,6 +3375,19 @@
       $("#module-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       $("#module-refresh").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       $("#module-stale-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
+      async function downloadLegacyProjectTemplate(){
+        const XLSX=await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm");
+        const headers=["旧 ID","国家/地区","合作方","省份","城市","客户类型","项目名称","产品","分类","工厂价","合同号","合同数量","合同金额（万元）","官网","项目状态","下一节点日期","项目总数量","线索来源","跟进状态","联系人","联系方式","联系人职务","丢单原因","丢单说明","负责人","创建人","创建时间","修改人","更新时间","部门"];
+        const sheet=XLSX.utils.aoa_to_sheet([headers,["","墨西哥","示例客户","","","终端客户","示例项目","防火门","碗里","","","","","https://example.com","跟进中","2026-12-31","","官网","待跟进","张三","sales@example.com","采购负责人"]]);
+        const book=XLSX.utils.book_new();XLSX.utils.book_append_sheet(book,sheet,"历史工程项目");const output=XLSX.write(book,{bookType:"xlsx",type:"array"});const href=URL.createObjectURL(new Blob([output],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));const link=document.createElement("a");link.href=href;link.download="WONLY-历史工程项目导入模板.xlsx";link.click();setTimeout(()=>URL.revokeObjectURL(href),1000);toast("导入模板已下载");
+      }
+      async function importLegacyProjectsFromFile(file){
+        if(!file)return;const button=$("#legacy-project-import");button.disabled=true;button.textContent="解析中…";
+        try{const XLSX=await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm"),buffer=await file.arrayBuffer(),book=XLSX.read(buffer,{type:"array",cellDates:true}),sheet=book.Sheets[book.SheetNames[0]],rows=XLSX.utils.sheet_to_json(sheet,{defval:"",raw:false});if(!rows.length)return toast("Excel 中没有可导入的数据");const usable=rows.filter(row=>Object.values(row).some(value=>String(value).trim()));if(!usable.length)return toast("Excel 中没有有效行");if(!await appConfirm(`将导入 ${usable.length} 条历史工程项目；相同旧 ID 会更新，未填写旧 ID 的行会自动编号。确认继续？`,{title:"导入历史工程项目",confirmText:"确认导入"}))return;button.textContent="保存中…";const {data,error}=await supabase.rpc("import_legacy_engineering_projects",{p_rows:usable,p_source_file:file.name});if(error)throw error;toast(`已导入 ${Number(data)||0} 条历史工程项目`);await loadModule("legacy-projects");}catch(error){toast("导入失败："+(error?.message||error));}finally{button.disabled=false;button.textContent="导入 Excel";$("#legacy-project-import-file").value=""}
+      }
+      $("#legacy-project-template").addEventListener("click",downloadLegacyProjectTemplate);
+      $("#legacy-project-import").addEventListener("click",()=>$("#legacy-project-import-file").click());
+      $("#legacy-project-import-file").addEventListener("change",event=>importLegacyProjectsFromFile(event.target.files?.[0]));
       $$("#mailbox-folder-tabs button").forEach(button=>button.addEventListener("click",()=>{mailboxFolder=button.dataset.mailboxFolder;$$("#mailbox-folder-tabs button").forEach(item=>item.classList.toggle("active",item===button));loadModule("mailbox")}));
       $$("#follow-calendar-tabs button").forEach(button=>button.addEventListener("click",()=>{followCalendarRange=button.dataset.calendarRange;$$("#follow-calendar-tabs button").forEach(item=>item.classList.toggle("active",item===button));loadModule("follow-calendar")}));
       $("#email-select-all").addEventListener("click",()=>{const ids=moduleRows.map(x=>x.selectionId).filter(Boolean),all=ids.length&&ids.every(id=>selectedEmailIntakeIds.has(id));ids.forEach(id=>all?selectedEmailIntakeIds.delete(id):selectedEmailIntakeIds.add(id));$("#email-selected-count").textContent="已选 "+selectedEmailIntakeIds.size+" 条";renderModuleTable(moduleColumns,moduleRows,moduleRowClick,true)});

@@ -4374,8 +4374,8 @@
             .select("id,processing_status,research_completed_at,registered_at,forwarded_at,received_at,sender_email,sender_name,subject,parsed_data")
             .eq("inquiry_id", id)
             .maybeSingle(),
-          supabase.from("outreach_drafts").select("id,recipient_email,subject_a,subject_b,selected_subject,body,language,tone,objective,status,sent_at,created_at")
-            .eq("inquiry_id", id).order("created_at", { ascending: false }).limit(30),
+          loadModuleRowsPaged((from,to)=>supabase.from("outreach_drafts").select("id,recipient_email,subject_a,subject_b,selected_subject,body,language,tone,objective,status,sent_at,created_at")
+            .eq("inquiry_id", id).order("created_at", { ascending: false }).range(from,to)),
           supabase.from("inquiry_retention_requests").select("id,requested_by,requested_until,reason,status,reviewed_by,review_reason,reviewed_at,created_at")
             .eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
           supabase.from("inquiry_marketing_touches").select("id,touch_at,channel,program_name,campaign_name,tactic_name,offer_name,landing_page,evidence_note,is_primary,utm_source,utm_medium,utm_campaign,utm_content,utm_term,referrer_url,session_ref,created_at,created_by,profiles!inquiry_marketing_touches_created_by_fkey(full_name)").eq("inquiry_id",id).order("touch_at",{ascending:false}),

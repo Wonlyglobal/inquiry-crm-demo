@@ -42,3 +42,9 @@ test("AI reply generation reads the complete inquiry thread", async () => {
   assert.match(source, /loadAllInquiryMessages\(db,inquiry\.id\)/);
   assert.doesNotMatch(source, /\.eq\("inquiry_id",inquiry\.id\).*\.limit\(30\)/s);
 });
+
+test("inquiry outreach history is paginated instead of capped at the newest 30 drafts", () => {
+  assert.match(html, /loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("outreach_drafts"/);
+  assert.match(html, /outreach_drafts[\s\S]{0,500}\.range\(from,to\)/);
+  assert.doesNotMatch(html, /outreach_drafts[\s\S]{0,500}\.limit\(30\)/);
+});

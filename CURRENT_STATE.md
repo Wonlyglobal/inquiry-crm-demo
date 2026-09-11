@@ -167,4 +167,5 @@
 - 接入保存 UTM source / medium / campaign / content / term、落地页、来源页、会话标识和隐私安全的访问事件。
 - `website_intake_attempts` 持久记录成功、失败、重试次数、错误和端到端延迟；市场端“官网实时接入监控”可查看并重试失败记录。
 - 官网直连接口返回 `503` 时，上游应按相同 `submission_id` 重试；原公共询盘邮箱解析仍作为降级兜底，并同步保存 UTM 归因。
+- 2026-09-11：迁移已通过 Supabase Management API 应用到生产；`website-inquiry-intake` Edge Function 已部署；生产回滚验收 SQL 为 `tests/production-website-intake-rollback.sql`，已验证首次接入、Google Ads UTM 归因和重复提交幂等，事务最终回滚。
 - 新增渠道已去除“飞书”，增加“SEO 自然搜索”；历史数据中的旧渠道值仍可只读展示。

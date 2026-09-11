@@ -2592,6 +2592,15 @@
         }
         return { data:null, error:lastError || new Error("网络请求失败") };
       }
+      async function loadModuleRowsPaged(queryFactory,pageSize=500){
+        const all=[];
+        for(let from=0;;from+=pageSize){
+          const result=await runModuleQuery(queryFactory(from,from+pageSize-1),2);
+          if(result.error)return result;
+          all.push(...(result.data||[]));
+          if((result.data||[]).length<pageSize)return {data:all,error:null};
+        }
+      }
       function filterModuleRows() {
         const query = $("#module-search").value.trim().toLocaleLowerCase();
         const validity = activeModuleView === "inquiries" ? $("#inquiry-validity-filter").value : "";
@@ -3131,12 +3140,12 @@
           const qualityRefresh=await runModuleQuery(supabase.rpc("refresh_my_data_quality_alerts"),2);
           if(qualityRefresh.error)console.warn("数据质量提醒刷新失败",qualityRefresh.error);
           const [inquiriesResult,followupsResult,messagesResult,replyRemindersResult,quotesResult,qualityResult]=await Promise.all([
-            runModuleQuery(supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,assigned_at,first_contact_due_at,first_valid_contact_at,retained_until,created_at,updated_at").eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)").eq("excluded_from_dashboard",false).limit(300)),
-            runModuleQuery(supabase.from("follow_ups").select("id,inquiry_id,content,next_follow_up_at,completed_at,created_at,priority,remind_at,rollover_count").eq("author_id",profile.id).is("completed_at",null).not("next_follow_up_at","is",null).limit(500)),
-            runModuleQuery(supabase.from("email_messages").select("id,inquiry_id,direction,subject,received_at,sent_at,created_at").order("created_at",{ascending:false}).limit(1000)),
-            runModuleQuery(supabase.from("email_reply_reminders").select("inquiry_id,inbound_message_id,received_at,status").eq("owner_id",profile.id).eq("status","open").order("received_at",{ascending:false}).limit(500)),
-            runModuleQuery(supabase.from("quotation_versions").select("inquiry_id,status,created_at").order("created_at",{ascending:false}).limit(500)),
-            runModuleQuery(supabase.from("data_quality_alerts").select("inquiry_id,alert_key,severity,message,detected_at").eq("owner_id",profile.id).is("resolved_at",null).order("severity",{ascending:true}).order("detected_at",{ascending:true}).limit(1000)),
+            loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,assigned_at,first_contact_due_at,first_valid_contact_at,retained_until,created_at,updated_at").eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)").eq("excluded_from_dashboard",false).range(from,to)),
+            loadModuleRowsPaged((from,to)=>supabase.from("follow_ups").select("id,inquiry_id,content,next_follow_up_at,completed_at,created_at,priority,remind_at,rollover_count").eq("author_id",profile.id).is("completed_at",null).not("next_follow_up_at","is",null).range(from,to)),
+            loadModuleRowsPaged((from,to)=>supabase.from("email_messages").select("id,inquiry_id,direction,subject,received_at,sent_at,created_at").order("created_at",{ascending:false}).range(from,to)),
+            loadModuleRowsPaged((from,to)=>supabase.from("email_reply_reminders").select("inquiry_id,inbound_message_id,received_at,status").eq("owner_id",profile.id).eq("status","open").order("received_at",{ascending:false}).range(from,to)),
+            loadModuleRowsPaged((from,to)=>supabase.from("quotation_versions").select("inquiry_id,status,created_at").order("created_at",{ascending:false}).range(from,to)),
+            loadModuleRowsPaged((from,to)=>supabase.from("data_quality_alerts").select("inquiry_id,alert_key,severity,message,detected_at").eq("owner_id",profile.id).is("resolved_at",null).order("severity",{ascending:true}).order("detected_at",{ascending:true}).range(from,to)),
           ]);
           const firstError=[inquiriesResult,followupsResult,messagesResult,replyRemindersResult,quotesResult,qualityResult].find(x=>x.error)?.error;
           if(firstError)query=Promise.resolve({data:null,error:firstError});else{

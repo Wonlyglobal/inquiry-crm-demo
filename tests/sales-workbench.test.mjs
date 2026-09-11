@@ -25,6 +25,13 @@ test('today workbench paginates follow-ups, mail and reply reminders',()=>{
   assert.match(html,/loadAllDashboardEmailMessages\(\)/);
   assert.match(html,/loadAllDashboardReplyReminders\(\)/);
 });
+test('today workbench loads every queue dataset with shared pagination',()=>{
+  assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("inquiries"\)/);
+  assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("follow_ups"\)/);
+  assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("email_messages"\)/);
+  assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("quotation_versions"\)/);
+  assert.match(html,/async function loadModuleRowsPaged/);
+});
 
 test('pending quotation queue is actionable',()=>{
   assert.match(html,/pendingQuote=open\.filter/);

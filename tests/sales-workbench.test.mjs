@@ -70,6 +70,13 @@ test('follow-up calendar and daily plans paginate within the selected date range
   assert.doesNotMatch(branch,/\.limit\(500\)/);
 });
 
+test('public-pool approval queue reads every pending request',()=>{
+  const start=html.indexOf('if(view==="public-pool")');
+  const branch=html.slice(start,html.indexOf('query =',start));
+  assert.match(branch,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("inquiry_public_pool_requests"/);
+  assert.match(branch,/\.range\(from,to\)/);
+});
+
 test('pending quotation queue is actionable',()=>{
   assert.match(html,/pendingQuote=open\.filter/);
   assert.match(html,/label:"创建报价"/);

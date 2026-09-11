@@ -2218,13 +2218,19 @@
         const method = String(init.method || (input instanceof Request ? input.method : "GET") || "GET").toUpperCase();
         const retryable = method === "GET" || method === "HEAD";
         const attempts = retryable ? 3 : 1;
+        const timeoutMs = retryable ? 12000 : 20000;
         let lastError;
         for (let attempt = 1; attempt <= attempts; attempt += 1) {
-          try { return await fetch(input, init); }
+          const controller = new AbortController();
+          const signal = init.signal && typeof AbortSignal !== "undefined" && typeof AbortSignal.any === "function"
+            ? AbortSignal.any([init.signal, controller.signal])
+            : controller.signal;
+          const timeout = setTimeout(() => controller.abort(new Error("请求超时")), timeoutMs);
+          try { return await fetch(input, { ...init, signal }); }
           catch (error) {
             lastError = error;
             if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, attempt * 450));
-          }
+          } finally { clearTimeout(timeout); }
         }
         throw lastError;
       }
@@ -6887,9 +6893,15 @@
           openRecoveryPassword();
         }
       });
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      let session = null;
+      let sessionError = null;
+      try {
+        const sessionResult = await supabase.auth.getSession();
+        session = sessionResult.data?.session || null;
+        sessionError = sessionResult.error || null;
+      } catch (error) {
+        sessionError = error;
+      }
       let sessionReady = false;
       if (session && recoveryActive) {
         openRecoveryPassword();
@@ -6902,6 +6914,7 @@
         }
       }
       $("#boot").classList.add("hidden");
+      if (sessionError) $("#login-error").textContent = "数据服务暂时无法连接，请检查网络后重试";
       if (!sessionReady && !recoveryActive) $("#login").classList.remove("hidden");
       const initialInquiry = location.hash.match(/^#inquiry\/(.+)$/);
       if (sessionReady && initialInquiry)

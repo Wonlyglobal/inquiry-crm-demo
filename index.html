@@ -3261,9 +3261,18 @@
           mapper=(x)=>{const recipients=(x.recipient_emails||[]).join(", "),inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;return{id:x.id,message:x,cells:[fmtDate(x.received_at||x.sent_at||x.created_at),x.direction==="inbound"?"客户来信":"业务员发信",x.sender_email||"—",recipients||"—",x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"待关联",x.inquiry_id?"已关联":({pending:"待关联",ignored:"已忽略"}[x.association_status]||x.association_status||"待关联"),x.attachment_count?`${x.attachment_count} 个`:"—"]}};
           clickable=true;
         } else if (view === "whatsapp") {
-          query = Promise.resolve({data: [{ provider: "官方 Cloud API / BSP", status: "待配置", phone: "—", messages: "配置 Webhook 后启用", note: "个人 WhatsApp 不支持直接接入" }], error: null});
+          const whatsappResult = await loadModuleRowsPaged((from,to)=>supabase.from("whatsapp_connections").select("id,provider,status,display_phone_number,phone_number_id,last_received_at,last_sent_at,last_error,updated_at").order("updated_at", { ascending: false }).range(from,to));
+          const whatsappTableMissing = whatsappResult.error && /relation .* does not exist|schema cache|whatsapp_connections/i.test(String(whatsappResult.error.message || whatsappResult.error));
+          if (whatsappTableMissing) {
+            query = Promise.resolve({data: [{ id:"whatsapp-migration", provider: "官方 Cloud API / BSP", status: "等待数据库迁移", display_phone_number: "—", messages: "迁移后可读取真实状态", note: "请先应用 WhatsApp Business 数据库迁移" }], error: null});
+          } else if (whatsappResult.error) {
+            query = Promise.resolve(whatsappResult);
+          } else {
+            const connections = whatsappResult.data || [];
+            query = Promise.resolve({data: connections.length ? connections : [{ id:"whatsapp-config", provider: "官方 Cloud API / BSP", status: "pending", display_phone_number: "—", messages: "配置 Webhook 后启用", note: "个人 WhatsApp 不支持直接接入" }], error: null});
+          }
           columns = ["通道", "状态", "企业号码", "消息能力", "说明"];
-          mapper = (x) => ({ id: "whatsapp-setup", cells: [x.provider, x.status, x.phone, x.messages, x.note], actions: [{ label: "查看配置清单", onClick: () => openDashboardModal("WhatsApp Business 接入清单", `<p class="hint">CRM 只接受官方 WhatsApp Business Cloud API 或官方 BSP。请由管理员配置 Meta Business 账号、企业号码、phone_number_id、Webhook Verify Token、App Secret 和 Access Token。</p><ol><li>在 Supabase Edge Function Secrets 中配置密钥，不要写入前端或数据库。</li><li>Webhook URL：<code>https://plhverjihjilnuhlhlxi.supabase.co/functions/v1/whatsapp-webhook</code></li><li>订阅 Meta 的 <code>messages</code> 事件并完成 GET challenge 验证。</li><li>验证成功且数据库连接状态为“已连接”后，系统才会开放消息收发和客户沟通记录。</li></ol><p class="hint">当前状态：待配置。未配置前不会显示发送按钮，也不会把个人 WhatsApp 伪装成已连接。</p>`)}] });
+          mapper = (x) => { const statusNames={connected:"已连接",pending:"待验证",error:"连接异常",disabled:"已停用"}, status=statusNames[x.status]||x.status||"待配置", capability=x.status==="connected"?"可收发并自动记录":x.status==="error"?"请检查 Secrets 与 Webhook":"配置 Webhook 后启用"; return { id:x.id||"whatsapp-setup", cells: [x.provider||"官方 Cloud API / BSP", status, x.display_phone_number||x.phone||"—", x.messages||capability, x.last_error||x.note||"个人 WhatsApp 不支持直接接入"], actions: [{ label: "查看配置清单", onClick: () => openDashboardModal("WhatsApp Business 接入清单", `<p class="hint">CRM 只接受官方 WhatsApp Business Cloud API 或官方 BSP。请由管理员配置 Meta Business 账号、企业号码、phone_number_id、Webhook Verify Token、App Secret 和 Access Token。</p><ol><li>在 Supabase Edge Function Secrets 中配置密钥，不要写入前端或数据库。</li><li>Webhook URL：<code>https://plhverjihjilnuhlhlxi.supabase.co/functions/v1/whatsapp-webhook</code></li><li>订阅 Meta 的 <code>messages</code> 事件并完成 GET challenge 验证。</li><li>验证成功且数据库连接状态为“已连接”后，系统才会开放消息收发和客户沟通记录。</li></ol><p class="hint">页面状态来自 whatsapp_connections 实时数据；未配置前不会显示发送按钮，也不会把个人 WhatsApp 伪装成已连接。</p>`)}] }; };
           clickable = false;
         } else if (view === "templates") {
           mailboxTemplateView=true;

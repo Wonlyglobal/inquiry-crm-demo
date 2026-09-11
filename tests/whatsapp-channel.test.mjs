@@ -32,7 +32,9 @@ test("WhatsApp webhook requires Meta verification and HMAC signature", () => {
 
 test("CRM exposes WhatsApp setup without claiming a personal account is connected", () => {
   assert.match(html, /data-view="whatsapp"/);
-  assert.match(html, /当前状态：待配置/);
+  assert.match(html, /whatsapp_connections/);
+  assert.match(html, /等待数据库迁移/);
+  assert.match(html, /已连接/);
   assert.match(html, /个人 WhatsApp 不支持直接接入/);
   assert.match(html, /activeModuleView==="whatsapp"/);
 });

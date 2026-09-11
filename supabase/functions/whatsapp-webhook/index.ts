@@ -57,7 +57,7 @@ function messageFromValue(value: Record<string, any>) {
 }
 
 async function matchInquiry(admin: any, phone: string) {
-  const normalized = text(phone, 80);
+  const normalized = textValue(phone, 80);
   if (!normalized) return { inquiryId: null, method: null };
   const contactResults = await Promise.all([
     admin.from("contacts").select("id,company_id").eq("whatsapp", normalized).limit(5),

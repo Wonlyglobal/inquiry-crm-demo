@@ -29,6 +29,8 @@ test("WhatsApp webhook requires Meta verification and HMAC signature", () => {
   assert.match(webhook, /async function matchInquiry/);
   assert.match(webhook, /association_method: match\.method/);
   assert.match(webhook, /association_status: match\.inquiryId \? "matched" : "pending"/);
+  assert.doesNotMatch(webhook, /const normalized = text\(/);
+  assert.match(webhook, /const normalized = textValue\(phone, 80\)/);
 });
 
 test("CRM exposes WhatsApp setup without claiming a personal account is connected", () => {

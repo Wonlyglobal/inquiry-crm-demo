@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 const migration = fs.readFileSync(new URL("../supabase/migrations/20260911065443_whatsapp_business_channel.sql", import.meta.url), "utf8");
+const visibilityMigration = fs.readFileSync(new URL("../supabase/migrations/20260911080227_whatsapp_message_owner_visibility.sql", import.meta.url), "utf8");
 const webhook = fs.readFileSync(new URL("../supabase/functions/whatsapp-webhook/index.ts", import.meta.url), "utf8");
 const sender = fs.readFileSync(new URL("../supabase/functions/whatsapp-send/index.ts", import.meta.url), "utf8");
 const connectionAdmin = fs.readFileSync(new URL("../supabase/functions/whatsapp-connection-admin/index.ts", import.meta.url), "utf8");
@@ -17,6 +18,12 @@ test("WhatsApp channel stores only business-account identifiers and protects row
   assert.match(migration, /association_status text not null default 'pending'/);
   assert.match(migration, /grant all on public\.whatsapp_connections, public\.whatsapp_messages to service_role/);
   assert.doesNotMatch(migration, /(?:access[_ -]?token|app_secret|client_secret)\s+text/i);
+});
+
+test("WhatsApp message RLS lets the inquiry owner read manager-created channel messages", () => {
+  assert.match(visibilityMigration, /drop policy if exists whatsapp_messages_read_visible/);
+  assert.match(visibilityMigration, /i\.owner_id = \(select auth\.uid\(\)\)/);
+  assert.match(visibilityMigration, /private\.current_crm_role\(\) in \('owner','sales_manager'\)/);
 });
 
 test("WhatsApp webhook requires Meta verification and HMAC signature", () => {

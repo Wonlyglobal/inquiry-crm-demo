@@ -9,6 +9,7 @@ test("历史工程提供 Excel 模板和导入入口", () => {
   assert.match(html, /id="legacy-project-template"/);
   assert.match(html, /id="legacy-project-import-file"[^>]+accept="\.xlsx,\.xls,\.csv"/);
   assert.match(html, /import_legacy_engineering_projects/);
+  assert.match(html, /capability-check/);
 });
 
 test("历史工程导入服务端校验角色并按旧 ID 幂等更新", () => {

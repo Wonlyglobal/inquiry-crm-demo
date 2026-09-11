@@ -3032,6 +3032,11 @@
         $("#module-toolbar").classList.add("hidden");
         $("#legacy-project-template").classList.toggle("hidden", view !== "legacy-projects");
         $("#legacy-project-import").classList.toggle("hidden", view !== "legacy-projects" || !["owner","sales_manager","marketing"].includes(profile?.role));
+        if(view === "legacy-projects" && ["owner","sales_manager","marketing"].includes(profile?.role)){
+          supabase.rpc("import_legacy_engineering_projects",{p_rows:[],p_source_file:"capability-check"}).then(({error})=>{
+            if(error)$("#legacy-project-import").classList.add("hidden");
+          }).catch(()=>$("#legacy-project-import").classList.add("hidden"));
+        }
         $("#module-filter-summary").classList.add("hidden");
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");

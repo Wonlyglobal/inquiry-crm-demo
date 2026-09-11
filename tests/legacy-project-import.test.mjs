@@ -19,3 +19,11 @@ test("历史工程导入服务端校验角色并按旧 ID 幂等更新", () => {
   assert.match(sql, /on conflict \(legacy_project_id\) do update/);
   assert.match(sql, /jsonb_array_length\(p_rows\) > 10000/);
 });
+
+test("历史工程列表分页读取，避免默认 API 页大小截断", () => {
+  const start = html.indexOf('} else if (view === "legacy-projects")');
+  const branch = html.slice(start, html.indexOf('} else {', start));
+  assert.match(branch, /pageSize=500/);
+  assert.match(branch, /\.range\(from,from\+pageSize-1\)/);
+  assert.doesNotMatch(branch, /\.limit\(1000\)/);
+});

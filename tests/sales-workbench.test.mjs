@@ -60,6 +60,16 @@ test('dashboard ancillary datasets paginate before ranking and attribution rende
     assert.match(branch,new RegExp(`loadModuleRowsPaged\\(\\(from,to\\)=>supabase\\.from\\("${table}"`));
 });
 
+test('follow-up calendar and daily plans paginate within the selected date range',()=>{
+  const start=html.indexOf('} else if(view==="follow-calendar")');
+  const branch=html.slice(start,html.indexOf('} else if (["inquiries"',start));
+  assert.match(branch,/calendarQueryFactory=\(from,to\)/);
+  assert.match(branch,/dailyPlanQueryFactory=\(from,to\)/);
+  assert.match(branch,/loadModuleRowsPaged\(calendarQueryFactory\)/);
+  assert.match(branch,/loadModuleRowsPaged\(dailyPlanQueryFactory\)/);
+  assert.doesNotMatch(branch,/\.limit\(500\)/);
+});
+
 test('pending quotation queue is actionable',()=>{
   assert.match(html,/pendingQuote=open\.filter/);
   assert.match(html,/label:"创建报价"/);

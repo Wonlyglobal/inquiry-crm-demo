@@ -49,6 +49,14 @@ test("customer record checks related query errors only after results are declare
   assert.doesNotMatch(source.slice(0,declaration),/documentsResult\.error/);
 });
 
+test("customer record paginates all related history and documents",()=>{
+  assert.match(html,/async function loadAllCustomerRows\(queryFactory, pageSize = 500\)/);
+  assert.match(html,/loadAllCustomerRows\(\(\)=>supabase\.from\("email_messages"\)/);
+  assert.match(html,/loadAllCustomerRows\(\(\)=>supabase\.from\("quotation_versions"\)/);
+  assert.match(html,/loadAllCustomerRows\(\(\)=>supabase\.from\("customer_documents"\)/);
+  assert.match(html,/loadAllCustomerRows\(\(\)=>supabase\.from\("email_attachments"\)/);
+});
+
 test("customer documents are private, owner-scoped and auditable",()=>{
   assert.match(documentSql,/create table if not exists public\.customer_documents/);
   assert.match(documentSql,/alter table public\.customer_documents enable row level security/);

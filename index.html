@@ -2892,26 +2892,36 @@
         $("#sample-create-form")?.addEventListener("submit",async event=>{event.preventDefault();const result=await supabase.from("sample_shipments").insert({inquiry_id:inquiry.id,contents:$("#sample-create-contents").value.trim(),quantity:Number($("#sample-create-quantity").value)||null,created_by:profile.id});if(result.error)return toast("样品记录保存失败："+result.error.message);toast("样品记录已新增");await openFulfillmentManager(inquiry)});
         $("#order-create-form")?.addEventListener("submit",async event=>{event.preventDefault();const result=await supabase.from("sales_orders").insert({inquiry_id:inquiry.id,order_no:$("#order-create-no").value.trim(),total_amount:Number($("#order-create-amount").value),currency:$("#order-create-currency").value.trim().toUpperCase(),expected_delivery_at:$("#order-create-expected").value?new Date($("#order-create-expected").value).toISOString():null,notes:$("#order-create-notes").value.trim()||null,created_by:profile.id});if(result.error)return toast("订单保存失败："+result.error.message);toast("订单已新增并留痕");await openFulfillmentManager(inquiry)});
       }
+      async function loadAllCustomerRows(queryFactory, pageSize = 500){
+        const all = [];
+        for(let from = 0; ; from += pageSize){
+          const result = await queryFactory().range(from, from + pageSize - 1);
+          if(result.error) return {data:null,error:result.error};
+          all.push(...(result.data || []));
+          if((result.data || []).length < pageSize) break;
+        }
+        return {data:all,error:null};
+      }
       async function openCustomerRecord(companyId){
         const [companyResult,contactsResult,inquiriesResult]=await Promise.all([
           supabase.from("companies").select("id,name,domain,country,city,company_type,main_business,website,risk_level,value_score,value_grade,purchase_likelihood,recommended_strategy,research_sales_brief,updated_at").eq("id",companyId).single(),
-          supabase.from("contacts").select("id,full_name,email,phone,whatsapp,job_title,linkedin_url,created_at").eq("company_id",companyId).order("created_at",{ascending:true}),
-          supabase.from("inquiries").select("id,inquiry_no,title,status,validity,product_category,quantity,target_country,source,created_at,won_amount,won_currency,won_at,owner_id").eq("company_id",companyId).order("created_at",{ascending:false}),
+          loadAllCustomerRows(()=>supabase.from("contacts").select("id,full_name,email,phone,whatsapp,job_title,linkedin_url,created_at").eq("company_id",companyId).order("created_at",{ascending:true})),
+          loadAllCustomerRows(()=>supabase.from("inquiries").select("id,inquiry_no,title,status,validity,product_category,quantity,target_country,source,created_at,won_amount,won_currency,won_at,owner_id").eq("company_id",companyId).order("created_at",{ascending:false})),
         ]);
         const firstError=[companyResult,contactsResult,inquiriesResult].find(result=>result.error)?.error;if(firstError)return toast("客户资料加载失败："+firstError.message);
         const company=companyResult.data,contacts=contactsResult.data||[],inquiries=inquiriesResult.data||[],inquiryIds=inquiries.map(item=>item.id);
-        const [messagesResult,quotesResult,wonEvidenceResult,documentsResult]=inquiryIds.length?await Promise.all([
-          supabase.from("email_messages").select("id,inquiry_id,direction,sender_email,recipient_emails,subject,received_at,sent_at,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false}).limit(100),
-          supabase.from("quotation_versions").select("id,inquiry_id,quote_no,total_amount,currency,status,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false}).limit(100),
-          supabase.from("inquiry_won_requests").select("id,inquiry_id,evidence_bucket,evidence_path,evidence_name,status,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false}).limit(100),
-          supabase.from("customer_documents").select("id,company_id,document_type,file_name,storage_bucket,storage_path,content_type,size_bytes,notes,uploaded_by,created_at").eq("company_id",companyId).order("created_at",{ascending:false}).limit(200),
-        ]):[{data:[],error:null},{data:[],error:null},{data:[],error:null},{data:[],error:null}];
+        const [messagesResult,quotesResult,wonEvidenceResult,documentsResult]=await Promise.all([
+          inquiryIds.length?loadAllCustomerRows(()=>supabase.from("email_messages").select("id,inquiry_id,direction,sender_email,recipient_emails,subject,received_at,sent_at,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
+          inquiryIds.length?loadAllCustomerRows(()=>supabase.from("quotation_versions").select("id,inquiry_id,quote_no,total_amount,currency,status,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
+          inquiryIds.length?loadAllCustomerRows(()=>supabase.from("inquiry_won_requests").select("id,inquiry_id,evidence_bucket,evidence_path,evidence_name,status,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
+          loadAllCustomerRows(()=>supabase.from("customer_documents").select("id,company_id,document_type,file_name,storage_bucket,storage_path,content_type,size_bytes,notes,uploaded_by,created_at").eq("company_id",companyId).order("created_at",{ascending:false})),
+        ]);
         const relatedError=[messagesResult,quotesResult,wonEvidenceResult,documentsResult].find(result=>result.error)?.error;
         if(relatedError)return toast("客户沟通或文件加载失败："+relatedError.message);
         const messages=messagesResult.data||[],quotes=quotesResult.data||[],products=[...new Set(inquiries.map(item=>item.product_category).filter(Boolean))],won=inquiries.filter(item=>item.status==="won"),brief=company.research_sales_brief||{},messageIds=messages.map(item=>item.id);
         // Attachments are keyed by message id, not inquiry id. Fetch the exact
         // customer thread attachments after loading the messages.
-        const threadAttachments=messageIds.length?(await supabase.from("email_attachments").select("id,email_message_id,file_name,content_type,size_bytes,storage_path,created_at").in("email_message_id",messageIds).order("created_at",{ascending:false}).limit(300)).data||[]:[];
+        const threadAttachments=messageIds.length?(await loadAllCustomerRows(()=>supabase.from("email_attachments").select("id,email_message_id,file_name,content_type,size_bytes,storage_path,created_at").in("email_message_id",messageIds).order("created_at",{ascending:false}))).data||[]:[];
         const wonEvidence=wonEvidenceResult.data||[],customerDocuments=documentsResult.data||[];
         const contactRows=contacts.map(item=>{const linkedin=safeExternalUrl(item.linkedin_url||"");return `<tr><td>${esc(item.full_name||"—")}</td><td>${esc(item.job_title||"—")}</td><td>${esc(item.email||"—")}</td><td>${esc(item.phone||"—")}</td><td>${esc(item.whatsapp||"—")}</td><td>${linkedin?`<a class="table-action" href="${esc(linkedin)}" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>`:"—"}</td></tr>`}).join("")||'<tr><td colspan="6">暂无联系人，可在下方新增</td></tr>';
         const inquiryRows=inquiries.map(item=>`<tr data-customer-inquiry="${item.id}"><td>#${String(item.inquiry_no||"").padStart(6,"0")}</td><td>${esc(item.title||"—")}</td><td>${esc(displayInquiryStage(item))}</td><td>${esc(item.product_category||"—")}</td><td>${esc(item.quantity||"—")}</td><td>${fmtDate(item.created_at)}</td></tr>`).join("")||'<tr><td colspan="6">暂无询盘记录</td></tr>';

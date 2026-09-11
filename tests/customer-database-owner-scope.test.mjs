@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const sql=await readFile(new URL("../supabase/migrations/20260910200000_scope_customer_database_to_current_owner.sql",import.meta.url),"utf8");
+const documentSql=await readFile(new URL("../supabase/migrations/20260911043447_customer_documents.sql",import.meta.url),"utf8");
 const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
 
 test("sales inquiry visibility follows current ownership rather than original creator",()=>{
@@ -35,4 +36,13 @@ test("customer record exposes communications, quotations and audited contact cre
   assert.match(html,/客户文件（合同 \/ PI \/ 成交凭证 \/ 邮件附件）/);
   assert.match(html,/data-customer-document-bucket/);
   assert.match(html,/createSignedUrl\(button\.dataset\.customerDocument/);
+});
+
+test("customer documents are private, owner-scoped and auditable",()=>{
+  assert.match(documentSql,/create table if not exists public\.customer_documents/);
+  assert.match(documentSql,/alter table public\.customer_documents enable row level security/);
+  assert.match(documentSql,/customer_documents_select[\s\S]*i\.owner_id=\(select auth\.uid\(\)\)/);
+  assert.match(documentSql,/customer-documents/);
+  assert.match(html,/from\("customer_documents"\)\.select/);
+  assert.match(html,/customer_document_uploaded/);
 });

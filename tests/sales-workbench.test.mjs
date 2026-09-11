@@ -77,6 +77,11 @@ test('public-pool approval queue reads every pending request',()=>{
   assert.match(branch,/\.range\(from,to\)/);
 });
 
+test('dashboard task center does not cap pending research tasks',()=>{
+  assert.doesNotMatch(html,/researchPending\.slice\(0,20\)/);
+  assert.match(html,/researchPending\.forEach\(x=>tasks\.push/);
+});
+
 test('pending quotation queue is actionable',()=>{
   assert.match(html,/pendingQuote=open\.filter/);
   assert.match(html,/label:"创建报价"/);

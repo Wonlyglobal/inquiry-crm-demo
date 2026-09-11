@@ -2210,7 +2210,7 @@
             // A third independent CDN keeps startup usable on networks that
             // block either esm.sh or jsDelivr. All three sources expose the
             // same official Supabase ESM package.
-            supabaseModule = await importWithTimeout("https://unpkg.com/@supabase/supabase-js@2.57.4/+esm");
+            supabaseModule = await importWithTimeout("https://unpkg.com/@supabase/supabase-js@2.57.4/dist/module/index.js");
           } catch (lastError) {
             const boot = document.querySelector("#boot");
             if (boot) {
@@ -6972,7 +6972,10 @@
       let session = null;
       let sessionError = null;
       try {
-        const sessionResult = await supabase.auth.getSession();
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("认证服务连接超时")), 15000)),
+        ]);
         session = sessionResult.data?.session || null;
         sessionError = sessionResult.error || null;
       } catch (error) {

@@ -20,8 +20,8 @@ Deno.serve(async (req) => {
     const input = await req.json();
     const provider = text(input.provider, 30), businessAccountId = text(input.business_account_id, 120), phoneNumberId = text(input.phone_number_id, 120), displayPhone = text(input.display_phone_number, 40), displayName = text(input.display_name, 120) || null;
     if (!["meta_cloud", "official_bsp"].includes(provider) || !businessAccountId || !phoneNumberId || !/^\+[1-9]\d{7,14}$/.test(displayPhone)) return json({ error: "接入方式、Business Account ID、Phone Number ID 和 E.164 企业号码均为必填" }, 400);
-    const graphToken = text(Deno.env.get("WHATSAPP_ACCESS_TOKEN"), 4000), graphVersion = text(Deno.env.get("WHATSAPP_GRAPH_VERSION"), 20);
-    if (!graphToken || !graphVersion) return json({ error: "请先配置 WHATSAPP_ACCESS_TOKEN 和 WHATSAPP_GRAPH_VERSION" }, 400);
+    const graphToken = text(Deno.env.get("WHATSAPP_ACCESS_TOKEN"), 4000), graphVersion = text(Deno.env.get("WHATSAPP_GRAPH_VERSION"), 20), webhookToken = text(Deno.env.get("WHATSAPP_WEBHOOK_VERIFY_TOKEN"), 300), appSecret = text(Deno.env.get("WHATSAPP_APP_SECRET"), 4000);
+    if (!graphToken || !graphVersion || !webhookToken || !appSecret) return json({ error: "请先完整配置 WHATSAPP_ACCESS_TOKEN、WHATSAPP_GRAPH_VERSION、WHATSAPP_WEBHOOK_VERIFY_TOKEN 和 WHATSAPP_APP_SECRET" }, 400);
     const verifyResponse = await fetch(`https://graph.facebook.com/${encodeURIComponent(graphVersion)}/${encodeURIComponent(phoneNumberId)}?fields=id,display_phone_number,verified_name`, { headers: { Authorization: `Bearer ${graphToken}` }, signal: AbortSignal.timeout(15000) });
     const graphPayload = await verifyResponse.json().catch(() => ({}));
     if (!verifyResponse.ok || graphPayload?.id !== phoneNumberId) return json({ error: text(graphPayload?.error?.message || "Meta 企业号码验证失败", 500) }, 502);

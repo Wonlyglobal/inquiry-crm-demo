@@ -61,6 +61,8 @@ test("WhatsApp sender is server-side, owner-scoped and records the API result", 
 
 test("WhatsApp connection setup verifies Meta before enabling a business channel", () => {
   assert.match(connectionAdmin, /WHATSAPP_ACCESS_TOKEN/);
+  assert.match(connectionAdmin, /WHATSAPP_WEBHOOK_VERIFY_TOKEN/);
+  assert.match(connectionAdmin, /WHATSAPP_APP_SECRET/);
   assert.match(connectionAdmin, /graph.facebook.com/);
   assert.match(connectionAdmin, /status: "connected"/);
   assert.match(connectionAdmin, /upsert\(/);

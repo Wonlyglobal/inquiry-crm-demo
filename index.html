@@ -4560,8 +4560,18 @@
         try { return await loadTimelineUnsafe(id); }
         catch (error) { console.warn("询盘流水线加载失败", error); toast("流水线部分数据暂时未加载，请稍后重试"); return null; }
       }
+      async function loadAllInquiryMessages(id) {
+        const pageSize = 500, all = [];
+        for (let from = 0; ; from += pageSize) {
+          const result = await supabase.from("email_messages").select("id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,attachment_count,association_method,created_at").eq("inquiry_id", id).order("created_at", { ascending: true }).range(from, from + pageSize - 1);
+          if (result.error) return { data: null, error: result.error };
+          all.push(...(result.data || []));
+          if ((result.data || []).length < pageSize) break;
+        }
+        return { data: all, error: null };
+      }
       async function loadTimelineUnsafe(id) {
-        const [{ data: stages }, { data: follows }, { data: messages }, { data: summaries }, { data: audits }] = await Promise.all([
+        const [{ data: stages }, { data: follows }, messagesResult, { data: summaries }, { data: audits }] = await Promise.all([
           supabase
             .from("inquiry_stage_history")
             .select("to_status,entered_at")
@@ -4574,10 +4584,12 @@
             )
             .eq("inquiry_id", id)
             .order("created_at", { ascending: false }),
-          supabase.from("email_messages").select("id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,attachment_count,association_method").eq("inquiry_id",id).order("created_at",{ascending:true}),
+          loadAllInquiryMessages(id),
           supabase.from("communication_summaries").select("id,source_message_id,summary_zh,latest_customer_request,confirmed_items,pending_items,objections,commitments,risks,recommended_next_step,recommended_follow_up_at,summary_scope,message_count,provider,generation_trigger,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}),
           supabase.from("audit_logs").select("id,actor_id,action,reason,before_data,after_data,created_at").eq("entity_type","inquiry").eq("entity_id",id).order("created_at",{ascending:false}).limit(200),
         ]);
+        const messages = messagesResult.data;
+        if (messagesResult.error) throw messagesResult.error;
         renderAuditTrail(audits||[]);
         renderWonApproval(audits||[]);
         renderLostApproval();

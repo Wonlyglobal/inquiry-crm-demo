@@ -33,3 +33,9 @@ test('legacy inquiries fall back to their original email intake',()=>{
   assert.match(edge,/source_message_id:sourceMessageId\|\|null/);
   assert.match(html,/error\.context\.json/);
 });
+
+test('follow-up timeline reads every linked message beyond the API default page',()=>{
+  assert.match(html,/async function loadAllInquiryMessages\(id\)/);
+  assert.match(html,/\.range\(from, from \+ pageSize - 1\)/);
+  assert.match(html,/if \(\(result\.data \|\| \[\]\)\.length < pageSize\) break/);
+});

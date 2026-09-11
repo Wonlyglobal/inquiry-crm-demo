@@ -46,6 +46,8 @@ test("CRM exposes WhatsApp setup without claiming a personal account is connecte
   assert.match(html, /functions\.invoke\("whatsapp-send"/);
   assert.match(html, /关联询盘（可选）/);
   assert.match(html, /inquiryOptions/);
+  assert.match(html, /whatsappMessagesResult/);
+  assert.match(html, /\[WhatsApp\]/);
   assert.match(html, /个人 WhatsApp 不支持直接接入/);
   assert.match(html, /activeModuleView==="whatsapp"/);
 });

@@ -8,7 +8,7 @@ const edge=await readFile(new URL("../supabase/functions/website-inquiry-intake/
 const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
 const sync=await readFile(new URL("../mail-sync/src/index.mjs",import.meta.url),"utf8");
 
-test("website intake is idempotent, monitored and service-role only",()=>{
+test("website intake is idempotent, monitored and keeps service credentials server-side",()=>{
   assert.match(sql,/event_key text not null unique/);
   assert.match(sql,/on conflict\(event_key\) do nothing/);
   assert.match(sql,/for update/);
@@ -28,6 +28,8 @@ test("website intake persists precise attribution and journey evidence",()=>{
 test("edge endpoint requires a private shared secret and bounded payload",()=>{
   assert.match(edge,/x-wonly-intake-secret/);
   assert.match(edge,/WEBSITE_INTAKE_SECRET/);
+  assert.match(edge,/SUPABASE_ANON_KEY/);
+  assert.match(edge,/access-control-allow-origin/);
   assert.match(edge,/128\s*\*\s*1024/);
   assert.match(edge,/crypto\.subtle\.digest/);
 });

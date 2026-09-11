@@ -4713,6 +4713,10 @@
           all.push(...(result.data || []));
           if ((result.data || []).length < pageSize) break;
         }
+        const whatsapp = await supabase.from("whatsapp_messages").select("id,direction,sender_phone,recipient_phone,body_text,message_type,media_id,occurred_at,delivery_status").eq("inquiry_id", id).order("occurred_at", { ascending: true }).range(0, pageSize - 1);
+        if (whatsapp.error && !/relation .* does not exist|schema cache|whatsapp_messages/i.test(String(whatsapp.error.message || whatsapp.error))) return { data: null, error: whatsapp.error };
+        (whatsapp.data || []).forEach(item => all.push({ id:`whatsapp:${item.id}`, direction:item.direction, sender_email:item.sender_phone || "WhatsApp", recipient_emails:item.recipient_phone ? [item.recipient_phone] : [], subject:`[WhatsApp] ${item.message_type || "消息"}`, body_text:item.body_text || "", sent_at:item.direction === "outbound" ? item.occurred_at : null, received_at:item.direction === "inbound" ? item.occurred_at : null, attachment_count:item.media_id ? 1 : 0, association_method:"whatsapp_inquiry", created_at:item.occurred_at, delivery_status:item.delivery_status }));
+        all.sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
         return { data: all, error: null };
       }
       async function loadAllMailboxMessages(connectionId) {

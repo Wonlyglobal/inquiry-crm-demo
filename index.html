@@ -2899,7 +2899,6 @@
           supabase.from("inquiries").select("id,inquiry_no,title,status,validity,product_category,quantity,target_country,source,created_at,won_amount,won_currency,won_at,owner_id").eq("company_id",companyId).order("created_at",{ascending:false}),
         ]);
         const firstError=[companyResult,contactsResult,inquiriesResult].find(result=>result.error)?.error;if(firstError)return toast("客户资料加载失败："+firstError.message);
-        if(documentsResult.error)return toast("客户文件加载失败："+documentsResult.error.message);
         const company=companyResult.data,contacts=contactsResult.data||[],inquiries=inquiriesResult.data||[],inquiryIds=inquiries.map(item=>item.id);
         const [messagesResult,quotesResult,wonEvidenceResult,documentsResult]=inquiryIds.length?await Promise.all([
           supabase.from("email_messages").select("id,inquiry_id,direction,sender_email,recipient_emails,subject,received_at,sent_at,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false}).limit(100),
@@ -2907,6 +2906,8 @@
           supabase.from("inquiry_won_requests").select("id,inquiry_id,evidence_bucket,evidence_path,evidence_name,status,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false}).limit(100),
           supabase.from("customer_documents").select("id,company_id,document_type,file_name,storage_bucket,storage_path,content_type,size_bytes,notes,uploaded_by,created_at").eq("company_id",companyId).order("created_at",{ascending:false}).limit(200),
         ]):[{data:[],error:null},{data:[],error:null},{data:[],error:null},{data:[],error:null}];
+        const relatedError=[messagesResult,quotesResult,wonEvidenceResult,documentsResult].find(result=>result.error)?.error;
+        if(relatedError)return toast("客户沟通或文件加载失败："+relatedError.message);
         const messages=messagesResult.data||[],quotes=quotesResult.data||[],products=[...new Set(inquiries.map(item=>item.product_category).filter(Boolean))],won=inquiries.filter(item=>item.status==="won"),brief=company.research_sales_brief||{},messageIds=messages.map(item=>item.id);
         // Attachments are keyed by message id, not inquiry id. Fetch the exact
         // customer thread attachments after loading the messages.

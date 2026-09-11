@@ -38,6 +38,17 @@ test("customer record exposes communications, quotations and audited contact cre
   assert.match(html,/createSignedUrl\(button\.dataset\.customerDocument/);
 });
 
+test("customer record checks related query errors only after results are declared",()=>{
+  const openStart=html.indexOf("async function openCustomerRecord(companyId)");
+  const openEnd=html.indexOf("      const knowledgeCategoryNames",openStart);
+  const source=html.slice(openStart,openEnd);
+  const declaration=source.indexOf("documentsResult]");
+  const errorCheck=source.indexOf("relatedError");
+  assert.ok(declaration>=0,"customer document query should declare its result");
+  assert.ok(errorCheck>declaration,"related errors must be checked after query results are declared");
+  assert.doesNotMatch(source.slice(0,declaration),/documentsResult\.error/);
+});
+
 test("customer documents are private, owner-scoped and auditable",()=>{
   assert.match(documentSql,/create table if not exists public\.customer_documents/);
   assert.match(documentSql,/alter table public\.customer_documents enable row level security/);

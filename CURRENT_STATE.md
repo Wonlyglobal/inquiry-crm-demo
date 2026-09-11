@@ -179,3 +179,4 @@
 - 官网表单直连 CRM 的代码已在本地完成类型检查并保存在提交 `6212b32`；官网远端主线与本地历史存在分叉，尚未未经审核推送主分支，避免覆盖官网现有未提交改动。
 - `website-inquiry-intake` 已再次部署到 Supabase 生产（部署输出确认 `website-inquiry-intake`），现在同时兼容 `SUPABASE_PUBLISHABLE_KEY` 与旧版 `SUPABASE_ANON_KEY`；本地回归仍为 61/61 通过。
 - 2026-09-11 页面可用性探针：`http://crm.foreverdoodle.com/` 返回 HTTP 200，`https://www.wonlyglobal.com/` 返回 HTTP 200，官网实际引用的 JS/CSS 资源均返回 HTTP 200；内置浏览器当时的安全检查未通过，不能据此判定线上页面宕机。
+- 生产 Edge Function 实测（官网 Origin + publishable key）：返回 HTTP 400 `submission_id is required`，说明浏览器鉴权已通过并进入业务校验；未提交有效客户字段，因此未产生生产数据。

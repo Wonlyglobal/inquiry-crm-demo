@@ -34,3 +34,11 @@ test("personal mailbox reads all messages with bounded pagination", () => {
   assert.match(html, /loadAllMailboxReads\(profile\.id\)/);
   assert.match(html, /loadAllOpenReplyReminders\(profile\.id\)/);
 });
+
+test("AI reply generation reads the complete inquiry thread", async () => {
+  const source = await readFile(new URL("../supabase/functions/mailbox-ai-draft/index.ts", import.meta.url), "utf8");
+  assert.match(source, /async function loadAllInquiryMessages/);
+  assert.match(source, /\.eq\("inquiry_id",inquiryId\).*\.range\(from,from\+pageSize-1\)/s);
+  assert.match(source, /loadAllInquiryMessages\(db,inquiry\.id\)/);
+  assert.doesNotMatch(source, /\.eq\("inquiry_id",inquiry\.id\).*\.limit\(30\)/s);
+});

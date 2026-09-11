@@ -6,6 +6,15 @@ function envKey(grouped:string,standard:string){const value=Deno.env.get(grouped
 function clean(value:unknown,max=12000){return String(value||"").trim().slice(0,max)}
 function jsonObject(text:string){return JSON.parse(text.replace(/^```json\s*|\s*```$/g,"").trim())}
 function response(body:unknown,status=200){return new Response(JSON.stringify(body),{status,headers:cors})}
+async function loadAllInquiryMessages(db:any,inquiryId:string){
+  const pageSize=500,all:any[]=[];
+  for(let from=0;;from+=pageSize){
+    const result=await db.from("email_messages").select("direction,sender_email,recipient_emails,subject,body_text,received_at,sent_at,created_at").eq("inquiry_id",inquiryId).order("created_at",{ascending:true}).range(from,from+pageSize-1);
+    if(result.error)return result;
+    all.push(...(result.data||[]));
+    if((result.data||[]).length<pageSize)return {data:all,error:null};
+  }
+}
 
 Deno.serve(async req=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
@@ -37,7 +46,7 @@ Deno.serve(async req=>{
       if(!inquiry||inquiryError)throw new Error("该邮件尚未关联客户询盘，请先完成关联后再生成智能回复");
       const allowed=connection?.user_id===user.id||inquiry.owner_id===user.id||["owner","sales_manager"].includes(profile.role);if(!allowed)return response({error:"只能回复本人邮箱或本人负责的客户"},403);
       const [{data:thread,error:threadError},{data:company},{data:summary}]=await Promise.all([
-        db.from("email_messages").select("direction,sender_email,recipient_emails,subject,body_text,received_at,sent_at,created_at").eq("inquiry_id",inquiry.id).order("created_at",{ascending:true}).limit(30),
+        loadAllInquiryMessages(db,inquiry.id),
         inquiry.company_id?db.from("companies").select("name,domain,country,company_type,main_business,ai_summary,research_sales_brief,confirmed_facts,demand_signals").eq("id",inquiry.company_id).maybeSingle():Promise.resolve({data:null}),
         db.from("communication_summaries").select("summary_zh,latest_customer_request,confirmed_items,pending_items,objections,commitments,risks,recommended_next_step").eq("inquiry_id",inquiry.id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
       ]);if(threadError)throw threadError;

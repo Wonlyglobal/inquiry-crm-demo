@@ -3500,7 +3500,7 @@
         clearTimeout(dashboardLayoutSaveTimer);dashboardLayoutSaveTimer=setTimeout(async()=>{const {error}=await supabase.auth.updateUser({data:{dashboard_layout:order}});if(error)console.warn("看板布局云端保存失败，已保留本机布局",error)},500);
       }
       function dashboardCollapseStorageKey(){return `wonly_dashboard_collapsed_${profile?.id||"anonymous"}`}
-      function storedDashboardCollapsed(){try{const value=JSON.parse(localStorage.getItem(dashboardCollapseStorageKey())||"null");return value&&typeof value==="object"?value:{}}catch{return {}}}
+      function storedDashboardCollapsed(){try{const raw=localStorage.getItem(dashboardCollapseStorageKey());if(raw){const value=JSON.parse(raw);return value&&typeof value==="object"?value:{}}const keepOpen=new Set(["sales-tasks","manager-tasks","core-kpis"]);return Object.fromEntries(dashboardInitialOrder.filter(key=>!keepOpen.has(key)).map(key=>[key,true]))}catch{return {}}}
       function persistDashboardCollapsed(){const state={};$$("#dashboard-widgets > [data-dashboard-widget]").forEach(widget=>{if(widget.classList.contains("dashboard-widget-collapsed"))state[widget.dataset.dashboardWidget]=true});try{localStorage.setItem(dashboardCollapseStorageKey(),JSON.stringify(state))}catch{} }
       function setDashboardWidgetCollapsed(widget,collapsed){widget.classList.toggle("dashboard-widget-collapsed",collapsed);const button=widget.querySelector(":scope > .dashboard-collapse-toggle");if(button){button.textContent=collapsed?"⌄":"⌃";button.setAttribute("aria-expanded",String(!collapsed));button.title=collapsed?"展开模块":"收起模块"}persistDashboardCollapsed()}
       function moveDashboardWidget(widget,direction){

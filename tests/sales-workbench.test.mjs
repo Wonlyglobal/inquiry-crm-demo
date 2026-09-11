@@ -41,6 +41,7 @@ test('dashboard widgets support per-user collapse state and remain expandable',(
   assert.match(html,/wonly_dashboard_collapsed_/);
   assert.match(html,/setDashboardWidgetCollapsed\(widget/);
   assert.match(html,/aria-expanded/);
+  assert.match(html,/const keepOpen=new Set\(\["sales-tasks","manager-tasks","core-kpis"\]\)/);
 });
 
 test('customer reply queue only shows durable open reply reminders',()=>{

@@ -44,6 +44,15 @@ test('customer and research modules paginate complete company datasets',()=>{
   assert.doesNotMatch(research,/\.limit\(200\)/);
 });
 
+test('inquiry, assignment, nurture, public-pool and quote lists paginate',()=>{
+  const start=html.indexOf('} else if (["inquiries", "assignment", "nurture", "public-pool", "quotes"].includes(view))');
+  const branch=html.slice(start,html.indexOf('} else if (view === "email")',start));
+  assert.match(branch,/const inquiryQueryFactory=\(from,to\)/);
+  assert.match(branch,/query = .*loadModuleRowsPaged\(inquiryQueryFactory\)/);
+  assert.match(branch,/\.range\(from,to\)/);
+  assert.doesNotMatch(branch,/\.limit\(200\)/);
+});
+
 test('pending quotation queue is actionable',()=>{
   assert.match(html,/pendingQuote=open\.filter/);
   assert.match(html,/label:"创建报价"/);

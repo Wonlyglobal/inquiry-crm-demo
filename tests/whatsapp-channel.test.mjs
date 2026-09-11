@@ -5,6 +5,7 @@ import fs from "node:fs";
 const migration = fs.readFileSync(new URL("../supabase/migrations/20260911065443_whatsapp_business_channel.sql", import.meta.url), "utf8");
 const webhook = fs.readFileSync(new URL("../supabase/functions/whatsapp-webhook/index.ts", import.meta.url), "utf8");
 const sender = fs.readFileSync(new URL("../supabase/functions/whatsapp-send/index.ts", import.meta.url), "utf8");
+const connectionAdmin = fs.readFileSync(new URL("../supabase/functions/whatsapp-connection-admin/index.ts", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("WhatsApp channel stores only business-account identifiers and protects rows with RLS", () => {
@@ -48,4 +49,13 @@ test("WhatsApp sender is server-side, owner-scoped and records the API result", 
   assert.match(sender, /whatsapp_messages/);
   assert.match(sender, /delivery_status: "queued"/);
   assert.doesNotMatch(sender, /localStorage|sessionStorage|document\.cookie/);
+});
+
+test("WhatsApp connection setup verifies Meta before enabling a business channel", () => {
+  assert.match(connectionAdmin, /WHATSAPP_ACCESS_TOKEN/);
+  assert.match(connectionAdmin, /graph.facebook.com/);
+  assert.match(connectionAdmin, /status: "connected"/);
+  assert.match(connectionAdmin, /upsert\(/);
+  assert.match(connectionAdmin, /whatsapp_connection_verified/);
+  assert.doesNotMatch(connectionAdmin, /localStorage|sessionStorage|document\.cookie/);
 });

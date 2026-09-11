@@ -32,4 +32,7 @@ test("customer record exposes communications, quotations and audited contact cre
   assert.match(html,/id="customer-contact-form"/);
   assert.match(html,/supabase\.rpc\("add_customer_contact"/);
   assert.match(html,/联系人已保存并完成审计留痕/);
+  assert.match(html,/客户文件（合同 \/ PI \/ 成交凭证 \/ 邮件附件）/);
+  assert.match(html,/data-customer-document-bucket/);
+  assert.match(html,/createSignedUrl\(button\.dataset\.customerDocument/);
 });

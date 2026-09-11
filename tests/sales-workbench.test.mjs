@@ -26,3 +26,10 @@ test('unanswered assignments become overdue after their first-response deadline'
   assert.match(html,/x\.assigned_at&&!x\.first_valid_contact_at/);
   assert.match(html,/dueAt<now\)add\("overdue",1,x,`首次响应已逾期/);
 });
+
+test('manager reassignment keeps the UI role-gated and avoids legacy Feishu copy',()=>{
+  assert.match(html,/const canAssign = \["owner", "sales_manager"\]\.includes\(profile\.role\)/);
+  assert.match(html,/assign_inquiry_to_sales/);
+  assert.match(html,/转移询盘负责人/);
+  assert.doesNotMatch(html,/已配置的飞书\/钉钉群/);
+});

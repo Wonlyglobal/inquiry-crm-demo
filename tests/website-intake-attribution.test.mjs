@@ -28,6 +28,7 @@ test("website intake persists precise attribution and journey evidence",()=>{
 test("edge endpoint requires a private shared secret and bounded payload",()=>{
   assert.match(edge,/x-wonly-intake-secret/);
   assert.match(edge,/WEBSITE_INTAKE_SECRET/);
+  assert.match(edge,/SUPABASE_PUBLISHABLE_KEY/);
   assert.match(edge,/SUPABASE_ANON_KEY/);
   assert.match(edge,/access-control-allow-origin/);
   assert.match(edge,/128\s*\*\s*1024/);

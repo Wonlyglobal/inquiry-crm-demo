@@ -34,7 +34,10 @@ Deno.serve(async request=>{
   const suppliedSecret=request.headers.get("x-wonly-intake-secret")||"";
   const authorization=(request.headers.get("authorization")||"").replace(/^Bearer\s+/i,"");
   const suppliedPublicKey=request.headers.get("apikey")||authorization;
-  const configuredPublicKey=Deno.env.get("SUPABASE_ANON_KEY")||"";
+  // Supabase now exposes publishable keys as SUPABASE_PUBLISHABLE_KEY while
+  // older projects still provide SUPABASE_ANON_KEY. Accept either server
+  // variable, but never accept a client-supplied value as configuration.
+  const configuredPublicKey=Deno.env.get("SUPABASE_PUBLISHABLE_KEY")||Deno.env.get("SUPABASE_ANON_KEY")||"";
   const hasServerCredential=Boolean(configuredSecret&&suppliedSecret&&await safeEqual(configuredSecret,suppliedSecret));
   const hasBrowserCredential=Boolean(origin&&configuredPublicKey&&suppliedPublicKey&&await safeEqual(configuredPublicKey,suppliedPublicKey));
   if(!hasServerCredential&&!hasBrowserCredential)return json({error:"Unauthorized"},401,request);

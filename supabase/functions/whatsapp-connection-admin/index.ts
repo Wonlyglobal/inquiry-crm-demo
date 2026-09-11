@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     const graphPayload = await verifyResponse.json().catch(() => ({}));
     if (!verifyResponse.ok || graphPayload?.id !== phoneNumberId) return json({ error: text(graphPayload?.error?.message || "Meta 企业号码验证失败", 500) }, 502);
     const now = new Date().toISOString();
-    const { data: connection, error } = await admin.from("whatsapp_connections").upsert({ provider, business_account_id: businessAccountId, phone_number_id: phoneNumberId, display_phone_number: displayPhone, display_name: displayName || graphPayload.verified_name || null, status: "connected", last_error: null, created_by: user.id, updated_at: now }, { onConflict: "provider,phone_number_id" }).select("id,provider,status,display_phone_number,phone_number_id,display_name").single();
+    const { data: connection, error } = await admin.from("whatsapp_connections").upsert({ provider, business_account_id: businessAccountId, phone_number_id: phoneNumberId, display_phone_number: displayPhone, display_name: displayName || graphPayload.verified_name || null, status: "connected", last_error: null, created_by: user.id, updated_by: user.id, updated_at: now }, { onConflict: "provider,phone_number_id" }).select("id,provider,status,display_phone_number,phone_number_id,display_name").single();
     if (error) return json({ error: "通道已验证，但保存连接失败：" + error.message }, 500);
     await admin.from("audit_logs").insert({ actor_id: user.id, entity_type: "whatsapp_connection", entity_id: connection.id, action: "whatsapp_connection_verified", after_data: { provider, business_account_id: businessAccountId, phone_number_id: phoneNumberId }, reason: "管理员验证并启用 WhatsApp Business 企业通道" });
     return json({ connection });

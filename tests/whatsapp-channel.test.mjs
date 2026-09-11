@@ -65,5 +65,6 @@ test("WhatsApp connection setup verifies Meta before enabling a business channel
   assert.match(connectionAdmin, /status: "connected"/);
   assert.match(connectionAdmin, /upsert\(/);
   assert.match(connectionAdmin, /whatsapp_connection_verified/);
+  assert.match(connectionAdmin, /updated_by: user\.id/);
   assert.doesNotMatch(connectionAdmin, /localStorage|sessionStorage|document\.cookie/);
 });

@@ -1072,6 +1072,17 @@
         color: var(--muted);
       }
       .mail-thread{display:grid;gap:10px;margin-bottom:22px}.mail-message{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--white)}.mail-message.inbound{border-left:4px solid #c97424}.mail-message.outbound{border-left:4px solid var(--green)}.mail-message-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px}.mail-message p{margin:8px 0 0;white-space:pre-wrap;line-height:1.6;color:#33443c}.mail-summary{margin-top:10px;padding:10px;border-radius:10px;background:var(--soft);color:var(--muted)}
+      .wa-workspace{height:clamp(620px,calc(100vh - 190px),860px);display:grid;grid-template-columns:minmax(290px,350px) minmax(0,1fr);overflow:hidden;border:1px solid #d6dfda;border-radius:22px;background:#f7faf8;box-shadow:0 18px 50px rgba(30,57,45,.09)}
+      .wa-sidebar{min-width:0;display:flex;flex-direction:column;border-right:1px solid #d6dfda;background:#fff}.wa-sidebar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px;border-bottom:1px solid #e1e7e3}.wa-sidebar-title{display:flex;align-items:center;gap:10px;min-width:0}.wa-sidebar-title i{display:grid;place-items:center;width:40px;height:40px;border-radius:13px;background:#1f8d5b;color:#fff;font-style:normal;font-weight:900}.wa-sidebar-title b{display:block;font-size:15px}.wa-sidebar-title small{display:block;margin-top:3px;color:var(--muted);font-size:10px}.wa-icon-button{display:grid;place-items:center;width:36px;height:36px;min-height:0;padding:0;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--brand);cursor:pointer}.wa-icon-button:hover{background:#edf5f0}.wa-icon-button svg{width:17px;height:17px}
+      .wa-search{position:relative;padding:12px 14px;border-bottom:1px solid #edf1ee}.wa-search svg{position:absolute;left:27px;top:50%;width:15px;height:15px;color:#819087;transform:translateY(-50%);pointer-events:none}.wa-search input{width:100%;height:40px;padding:0 34px;border:0;border-radius:10px;background:#f0f4f2;color:var(--ink);outline:none}.wa-search input:focus{box-shadow:0 0 0 2px rgba(33,130,85,.2)}
+      .wa-conversation-list{flex:1;overflow:auto}.wa-conversation{width:100%;display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:11px;align-items:center;padding:13px 14px;border:0;border-bottom:1px solid #eff2f0;background:#fff;color:inherit;text-align:left;cursor:pointer}.wa-conversation:hover{background:#f5f8f6}.wa-conversation.active{background:#e8f1ec}.wa-avatar{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:linear-gradient(145deg,#d9e9df,#bcd8c8);color:#285943;font-size:15px;font-weight:900}.wa-conversation-main{min-width:0}.wa-conversation-line{display:flex;justify-content:space-between;gap:8px;align-items:center}.wa-conversation-line b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.wa-conversation-line time{flex:0 0 auto;color:#849189;font-size:9px}.wa-conversation p{margin:5px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#748078;font-size:11px}.wa-direction{color:#299363;font-weight:900}.wa-conversation-meta{align-self:start;margin-top:4px;color:#809087;font-size:9px}.wa-list-empty{padding:32px 20px;color:var(--muted);font-size:12px;line-height:1.65;text-align:center}
+      .wa-chat{min-width:0;display:flex;flex-direction:column;background-color:#e9efeb;background-image:radial-gradient(circle at 20% 20%,rgba(72,128,98,.07) 0 2px,transparent 2.5px),radial-gradient(circle at 75% 45%,rgba(72,128,98,.055) 0 1.5px,transparent 2px);background-size:38px 38px,52px 52px}.wa-chat-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:73px;padding:12px 18px;border-bottom:1px solid #d5ddd8;background:rgba(248,251,249,.96)}.wa-chat-person{display:flex;align-items:center;gap:11px;min-width:0}.wa-chat-person .wa-avatar{width:42px;height:42px}.wa-chat-person-text{min-width:0}.wa-chat-person b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}.wa-chat-person small{display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:10px}.wa-chat-actions{display:flex;gap:7px}.wa-mobile-back{display:none}
+      .wa-messages{flex:1;overflow:auto;padding:22px clamp(18px,5vw,72px);scroll-behavior:smooth}.wa-day{width:max-content;margin:8px auto 16px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.82);box-shadow:0 2px 7px rgba(30,54,43,.08);color:#6f7d75;font-size:9px}.wa-bubble-row{display:flex;margin:5px 0}.wa-bubble-row.outbound{justify-content:flex-end}.wa-bubble{position:relative;max-width:min(72%,620px);padding:9px 11px 7px;border-radius:11px;background:#fff;box-shadow:0 1px 2px rgba(29,49,40,.13);font-size:12px;line-height:1.52;white-space:pre-wrap;overflow-wrap:anywhere}.wa-bubble-row.outbound .wa-bubble{background:#d8f4df}.wa-bubble-row.inbound .wa-bubble{border-top-left-radius:3px}.wa-bubble-row.outbound .wa-bubble{border-top-right-radius:3px}.wa-bubble-meta{display:flex;justify-content:flex-end;align-items:center;gap:5px;margin:4px 0 0 14px;color:#78867e;font-size:8px}.wa-bubble-status{color:#2f8cc5;font-weight:900}.wa-message-type{margin-bottom:5px;color:#678076;font-size:9px;font-weight:800;text-transform:uppercase}
+      .wa-chat-empty{flex:1;display:grid;place-items:center;padding:30px;text-align:center}.wa-chat-empty-inner{max-width:420px}.wa-chat-empty-mark{display:grid;place-items:center;width:76px;height:76px;margin:0 auto 18px;border-radius:24px;background:#d9eee2;color:#218b59}.wa-chat-empty-mark svg{width:34px;height:34px}.wa-chat-empty h3{margin:0 0 8px}.wa-chat-empty p{margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+      .wa-compose{padding:11px 14px;border-top:1px solid #d4ddd7;background:rgba(247,250,248,.97)}.wa-compose form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:end}.wa-compose textarea{width:100%;min-height:44px;max-height:120px;padding:12px 14px;border:1px solid #d7dfda;border-radius:14px;background:#fff;resize:none;font:inherit;line-height:1.45;outline:none}.wa-compose textarea:focus{border-color:#74a38a;box-shadow:0 0 0 3px rgba(48,139,91,.1)}.wa-send{display:grid;place-items:center;width:44px;height:44px;min-height:0;padding:0;border:0;border-radius:50%;background:#218b59;color:#fff;cursor:pointer}.wa-send:disabled{opacity:.5}.wa-send svg{width:18px;height:18px}.wa-compose-hint{margin:7px 4px 0;color:#7e8b83;font-size:9px}
+      .wa-new-chat{flex:1;overflow:auto;padding:28px clamp(20px,5vw,62px);background:#f8faf9}.wa-new-chat-card{max-width:650px;margin:0 auto;padding:24px;border:1px solid var(--line);border-radius:18px;background:#fff}.wa-new-chat-card h3{margin:0 0 6px}.wa-new-chat-card>p{margin:0 0 20px;color:var(--muted);font-size:11px}.wa-contact-results{display:grid;gap:7px;margin-top:14px}.wa-contact-option{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:11px;border:1px solid var(--line);border-radius:11px;background:#fff;text-align:left;cursor:pointer}.wa-contact-option:hover{background:#f2f7f4}.wa-contact-option b,.wa-contact-option small{display:block}.wa-contact-option small{margin-top:3px;color:var(--muted)}.wa-online-dot{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;background:#27a568}
+      @media(max-width:900px){.wa-workspace{grid-template-columns:280px minmax(0,1fr)}.wa-bubble{max-width:84%}}
+      @media(max-width:700px){.wa-workspace{height:calc(100vh - 155px);grid-template-columns:1fr}.wa-workspace:not(.chat-open) .wa-chat{display:none}.wa-workspace.chat-open .wa-sidebar{display:none}.wa-mobile-back{display:grid}.wa-messages{padding:16px 12px}.wa-bubble{max-width:88%}.wa-chat-head{padding:10px 12px}.wa-new-chat{padding:16px}.wa-new-chat-card{padding:18px}}
       .toast {
         position: fixed;
         right: 24px;
@@ -1533,11 +1544,12 @@
             </div>
           </div>
           <div id="module-insights" class="module-insights hidden"></div>
+          <section id="whatsapp-workspace" class="wa-workspace hidden" aria-label="WhatsApp Business 聊天工作台"></section>
           <section id="inquiry-command" class="inquiry-command hidden">
             <div class="inquiry-command-head"><div><h2>询盘状态总览</h2><p>先定位待处理环节，再进入具体询盘；数字随当前数据权限实时更新。</p></div><span class="tag">点击状态可快速筛选</span></div>
             <div id="inquiry-stage-tabs" class="inquiry-stage-tabs"></div>
           </section>
-          <div class="table-wrap">
+          <div id="module-table-wrap" class="table-wrap">
             <div class="table-head"><div class="module-table-heading"><strong id="module-table-title">数据列表</strong><small id="module-table-context">按最新创建时间排列</small></div><span id="module-count" class="tag">0 条</span></div>
             <div id="module-toolbar" class="module-table-toolbar hidden">
               <div class="module-search-wrap"><i data-lucide="search"></i><input id="module-search" class="module-search" type="search" autocomplete="off" placeholder="搜索当前列表"><button id="module-search-clear" class="module-search-clear hidden" type="button" aria-label="清除搜索">×</button></div>
@@ -2580,6 +2592,8 @@
         button.setAttribute("aria-disabled",connected?"true":"false");
       }
       let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [];
+      let whatsappRealtimeChannel = null, whatsappRealtimeTimer = null;
+      const whatsappWorkspaceState = { connection:null, messages:[], inquiries:[], contacts:[], selectedPhone:"", selectedInquiryId:null, search:"", newChat:false, sending:false };
       const builtinMailTemplates = [
         {id:"first-reply",name:"首次回复询盘",subject:"Re: Your inquiry",body:"Dear Customer,\n\nThank you for contacting WONLY. We have received your inquiry and are reviewing the requirements now.\n\nTo prepare an accurate proposal, could you please confirm the required quantity, dimensions, application, destination country and expected delivery time?\n\nBest regards,\nWONLY International Sales Team"},
         {id:"specification",name:"补充规格确认",subject:"Re: Product specifications",body:"Dear Customer,\n\nThank you for the information. To confirm the correct configuration, could you please share the detailed dimensions, material, finish, hardware or locking requirements, and applicable certification standard?\n\nOnce confirmed, we will prepare the matching solution and quotation.\n\nBest regards,\nWONLY International Sales Team"},
@@ -3061,7 +3075,7 @@
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
           communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
           mailbox: ["我的邮箱", "与个人阿里邮箱双向同步；可直接收件、写信、查看已发送并回复客户", "邮件列表"],
-          whatsapp: ["WhatsApp Business", "仅支持官方 Cloud API 或 BSP；个人 WhatsApp 不通过密码、二维码或 cookie 接入", "接入状态"],
+          whatsapp: ["WhatsApp Business", "在 CRM 内实时接收客户消息、查看会话并通过官方 Cloud API 直接回复", "客户会话"],
           templates: ["我的模板", "整理本人常用邮件模板；可新增、编辑、删除，并在写邮件时直接套用", "我的邮件模板"],
           knowledge: ["销售知识库", "检索产品参数、认证、常见问题、报价规范和成功案例，并一键插入邮件", "知识条目"],
           sop: ["角色操作指南", "覆盖市场、销售、销售主管和老板的标准操作流程、交付证据与异常处理", "角色 SOP"],
@@ -3076,6 +3090,7 @@
         }[view];
         if (!config) return;
         activeModuleView = view;
+        if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         const loadVersion = ++moduleLoadVersion;
         const refreshButton = $("#module-refresh");
         refreshButton.classList.add("loading");
@@ -3097,6 +3112,8 @@
         $("#module-filter-summary").classList.add("hidden");
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
+        $("#whatsapp-workspace").classList.toggle("hidden",view!=="whatsapp");
+        $("#module-table-wrap").classList.toggle("hidden",view==="whatsapp");
         $("#inquiry-command").classList.toggle("hidden", view !== "inquiries");
         $("#email-triage-actions").classList.toggle("hidden",view!=="email");
         $("#email-class-tabs").classList.toggle("hidden",view!=="email");
@@ -3150,6 +3167,12 @@
           refreshButton.classList.remove("loading");
           refreshButton.disabled = false;
           icons();
+          return;
+        }
+        if(view==="whatsapp"){
+          await loadWhatsAppWorkspace(loadVersion);
+          refreshButton.classList.remove("loading");
+          refreshButton.disabled=false;
           return;
         }
         let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null, mailboxScheduledView = false, mailboxTemplateView = false, publicPoolRequests = [], publicPoolRequestError = null;
@@ -3642,6 +3665,7 @@
         openDashboardModal(`历史工程 #${project.legacy_project_id} · ${project.partner_name || project.project_name || "项目详情"}`, `<div class="legacy-detail-grid">${fields.map(([label,value]) => `<div class="legacy-detail-item"><span>${esc(label)}</span><div>${value === null || value === undefined || value === "" ? "—" : esc(value)}</div></div>`).join("")}${website ? `<div class="legacy-detail-item"><span>网站</span><div>${website}</div></div>` : ""}</div><p class="hint" style="margin-top:16px">该记录来自旧 CRM 文件，仅用于历史工程管理，不计入新询盘响应率、成交率和渠道 ROI。</p>`);
       }
       async function switchView(view, options = {}) {
+        if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         $("#sales-profile-page").classList.add("hidden");
         setActiveNavigation(view);
         if (view === "daily") {
@@ -4171,6 +4195,88 @@
         openDashboardModal("配置 WhatsApp Business 企业通道",`<form id="whatsapp-connection-form"><div class="detail-grid"><div class="field"><label>接入方式 *</label><select id="whatsapp-provider" class="input"><option value="meta_cloud">Meta Cloud API</option><option value="official_bsp">官方 BSP</option></select></div><div class="field"><label>Business Account ID *</label><input id="whatsapp-business-id" class="input" required maxlength="120" /></div><div class="field"><label>Phone Number ID *</label><input id="whatsapp-phone-id" class="input" required maxlength="120" /></div><div class="field"><label>企业展示号码 *</label><input id="whatsapp-display-phone" class="input" required placeholder="例如 +8613800138000" maxlength="40" /></div></div><div class="field"><label>展示名称</label><input id="whatsapp-display-name" class="input" maxlength="120" placeholder="WONLY 国际销售" /></div><p class="hint">保存后通道会进入“待验证”。Access Token、App Secret 和 Verify Token 只能配置在 Supabase Secrets，不会写入浏览器或数据库。</p><div class="form-actions"><button class="ghost" type="button" id="whatsapp-connection-cancel">取消</button><button class="primary" type="submit">保存并验证通道</button></div></form>`);
         $("#whatsapp-connection-cancel").onclick=()=>$("#dashboard-modal").classList.add("hidden");
         $("#whatsapp-connection-form").onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;button.textContent="正在验证…";const body={action:"verify",provider:$("#whatsapp-provider").value,business_account_id:$("#whatsapp-business-id").value.trim(),phone_number_id:$("#whatsapp-phone-id").value.trim(),display_phone_number:$("#whatsapp-display-phone").value.trim(),display_name:$("#whatsapp-display-name").value.trim()||null};let result=await supabase.functions.invoke("whatsapp-connection-admin",{body});if(result.error&&/failed to send a request/i.test(result.error.message||"")){await new Promise(resolve=>setTimeout(resolve,900));result=await supabase.functions.invoke("whatsapp-connection-admin",{body})}button.disabled=false;button.textContent="保存并验证通道";if(result.error||result.data?.error)return toast("WhatsApp 通道配置失败："+await edgeFunctionErrorMessage(result));$("#dashboard-modal").classList.add("hidden");toast("通道验证成功，已连接并可接收 Webhook 消息");await loadModule("whatsapp");};
+      }
+      function waCanonicalPhone(value){const raw=String(value||"").trim(),digits=raw.replace(/\D/g,"");return digits?`+${digits}`:""}
+      function waInitial(value){const text=String(value||"W").trim();return (text.match(/[\p{L}\p{N}]/u)?.[0]||"W").toUpperCase()}
+      function waShortTime(value){if(!value)return "";const date=new Date(value),today=new Date();return date.toDateString()===today.toDateString()?date.toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit",hour12:false}):date.toLocaleDateString("zh-CN",{month:"numeric",day:"numeric"})}
+      function waMessageInquiry(message){const inquiry=Array.isArray(message?.inquiries)?message.inquiries[0]:message?.inquiries;return inquiry||null}
+      function waRemotePhone(message){return waCanonicalPhone(message?.direction==="inbound"?message.sender_phone:message.recipient_phone)}
+      function waContactForPhone(phone){const normalized=waCanonicalPhone(phone);return whatsappWorkspaceState.contacts.find(item=>waCanonicalPhone(item.whatsapp||item.phone)===normalized)||null}
+      function waConversationIdentity(phone,messages=[]){
+        const linked=messages.map(waMessageInquiry).find(Boolean),contact=waContactForPhone(phone),inquiry=linked||contact?.inquiry||null;
+        return {name:contact?.full_name||inquiry?.contact_name||inquiry?.title||phone,phone,inquiry,inquiryId:messages.find(item=>item.inquiry_id)?.inquiry_id||contact?.inquiry?.id||null};
+      }
+      function whatsappConversations(){
+        const groups=new Map();
+        whatsappWorkspaceState.messages.slice().sort((a,b)=>new Date(a.occurred_at)-new Date(b.occurred_at)).forEach(message=>{const phone=waRemotePhone(message);if(!phone)return;const list=groups.get(phone)||[];list.push(message);groups.set(phone,list)});
+        return [...groups.entries()].map(([phone,messages])=>{const latest=messages[messages.length-1],identity=waConversationIdentity(phone,messages);return {...identity,messages,latest,preview:latest.body_text||`[${latest.message_type||"消息"}]`}}).sort((a,b)=>new Date(b.latest?.occurred_at||0)-new Date(a.latest?.occurred_at||0));
+      }
+      function waStatusText(status){return {queued:"已提交",sent:"已发送",delivered:"已送达",read:"已读",failed:"发送失败",received:"已接收"}[status]||status||""}
+      function waMessageStream(conversation){
+        let currentDay="";
+        return conversation.messages.slice().sort((a,b)=>new Date(a.occurred_at)-new Date(b.occurred_at)).map(message=>{const stamp=new Date(message.occurred_at),day=stamp.toLocaleDateString("zh-CN",{year:"numeric",month:"long",day:"numeric"}),separator=day!==currentDay?`<div class="wa-day">${esc(day)}</div>`:"";currentDay=day;const type=message.message_type&&message.message_type!=="text"?`<div class="wa-message-type">${esc(message.message_type)}</div>`:"",body=message.body_text||`[${message.message_type||"消息"}]`,status=message.direction==="outbound"?`<span class="wa-bubble-status">${["delivered","read"].includes(message.delivery_status)?"✓✓":"✓"}</span> ${esc(waStatusText(message.delivery_status))}`:"";return `${separator}<div class="wa-bubble-row ${message.direction}"><div class="wa-bubble">${type}${esc(body)}<div class="wa-bubble-meta"><time>${esc(stamp.toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit",hour12:false}))}</time>${status}</div></div></div>`}).join("");
+      }
+      function waNewChatMarkup(){
+        const options=whatsappWorkspaceState.inquiries.map(item=>{const contact=whatsappWorkspaceState.contacts.find(c=>c.company_id===item.company_id),phone=waCanonicalPhone(contact?.whatsapp||contact?.phone);return `<option value="${esc(item.id)}" data-phone="${esc(phone)}">#${String(item.inquiry_no||"").padStart(6,"0")} · ${esc(item.contact_name||item.title||"未命名询盘")}${phone?` · ${esc(phone)}`:""}</option>`}).join("");
+        const contacts=whatsappWorkspaceState.contacts.filter(item=>item.whatsapp||item.phone).slice(0,12).map(item=>{const phone=waCanonicalPhone(item.whatsapp||item.phone);return `<button class="wa-contact-option" type="button" data-wa-contact-phone="${esc(phone)}" data-wa-contact-inquiry="${esc(item.inquiry?.id||"")}"><span><b>${esc(item.full_name||item.inquiry?.contact_name||"CRM 联系人")}</b><small>${esc(item.inquiry?.title||"未关联询盘")}</small></span><strong>${esc(phone)}</strong></button>`}).join("");
+        return `<div class="wa-new-chat"><div class="wa-new-chat-card"><h3>发起 WhatsApp 会话</h3><p>选择 CRM 客户或输入国际号码。新客户及超过 24 小时的会话，Meta 可能要求先发送已批准的消息模板。</p><form id="wa-new-chat-form"><div class="field"><label>关联询盘（可选）</label><select id="wa-new-inquiry" class="input"><option value="">不关联询盘</option>${options}</select></div><div class="field"><label>客户 WhatsApp 号码 *</label><input id="wa-new-phone" class="input" required placeholder="+8613800138000" autocomplete="tel" /></div><div class="form-actions"><button class="primary" type="submit">打开会话</button></div></form>${contacts?`<div class="wa-contact-results"><small>CRM 联系人</small>${contacts}</div>`:""}</div></div>`;
+      }
+      function waChatMarkup(conversations){
+        if(whatsappWorkspaceState.newChat)return waNewChatMarkup();
+        let conversation=conversations.find(item=>item.phone===whatsappWorkspaceState.selectedPhone);
+        if(!conversation&&whatsappWorkspaceState.selectedPhone){const contact=waContactForPhone(whatsappWorkspaceState.selectedPhone),inquiry=whatsappWorkspaceState.inquiries.find(item=>item.id===whatsappWorkspaceState.selectedInquiryId)||contact?.inquiry||null;conversation={name:contact?.full_name||inquiry?.contact_name||inquiry?.title||whatsappWorkspaceState.selectedPhone,phone:whatsappWorkspaceState.selectedPhone,inquiry,inquiryId:whatsappWorkspaceState.selectedInquiryId||inquiry?.id||null,messages:[]}}
+        if(!conversation)return `<div class="wa-chat-empty"><div class="wa-chat-empty-inner"><div class="wa-chat-empty-mark"><i data-lucide="message-circle"></i></div><h3>WONLY WhatsApp 工作台</h3><p>从左侧选择客户会话，或点击新建聊天直接联系 CRM 中的客户。</p></div></div>`;
+        const lastInbound=[...conversation.messages].reverse().find(item=>item.direction==="inbound"),withinWindow=lastInbound&&Date.now()-new Date(lastInbound.occurred_at).getTime()<24*3600000,inquiry=conversation.inquiry;
+        return `<header class="wa-chat-head"><div class="wa-chat-person"><button class="wa-icon-button wa-mobile-back" type="button" aria-label="返回会话列表"><i data-lucide="arrow-left"></i></button><span class="wa-avatar">${esc(waInitial(conversation.name))}</span><div class="wa-chat-person-text"><b>${esc(conversation.name)}</b><small>${esc(conversation.phone)}${inquiry?` · #${String(inquiry.inquiry_no||"").padStart(6,"0")} ${esc(inquiry.title||"")}`:""}</small></div></div><div class="wa-chat-actions">${conversation.inquiryId?'<button id="wa-open-inquiry" class="wa-icon-button" type="button" title="打开关联询盘"><i data-lucide="external-link"></i></button>':""}<button id="wa-refresh-chat" class="wa-icon-button" type="button" title="刷新消息"><i data-lucide="refresh-cw"></i></button></div></header><div id="wa-message-stream" class="wa-messages">${waMessageStream(conversation)}</div><footer class="wa-compose"><form id="wa-compose-form"><textarea id="wa-compose-text" maxlength="4096" rows="1" required placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea><button class="wa-send" type="submit" aria-label="发送" ${whatsappWorkspaceState.sending?"disabled":""}><i data-lucide="send"></i></button></form><div class="wa-compose-hint">${withinWindow?'<span class="wa-online-dot"></span>客户服务窗口内，可直接回复':"当前没有 24 小时内的客户来信；普通文本可能被 Meta 拒绝，请使用已批准模板发起会话"}</div></footer>`;
+      }
+      function renderWhatsAppWorkspace(){
+        const box=$("#whatsapp-workspace"),connection=whatsappWorkspaceState.connection,all=whatsappConversations(),query=whatsappWorkspaceState.search.trim().toLocaleLowerCase(),conversations=all.filter(item=>!query||[item.name,item.phone,item.preview,item.inquiry?.title].some(value=>String(value||"").toLocaleLowerCase().includes(query)));
+        if(!connection){box.classList.remove("chat-open");box.innerHTML=`<div class="wa-chat-empty" style="grid-column:1/-1"><div class="wa-chat-empty-inner"><div class="wa-chat-empty-mark"><i data-lucide="unplug"></i></div><h3>尚未连接 WhatsApp Business</h3><p>请先配置并验证官方 Cloud API 企业通道。</p><button id="wa-empty-configure" class="primary" type="button" style="margin-top:18px">配置 WhatsApp 通道</button></div></div>`;$("#wa-empty-configure").onclick=openWhatsAppConnectionForm;icons();return}
+        const list=conversations.map(item=>`<button class="wa-conversation ${item.phone===whatsappWorkspaceState.selectedPhone&&!whatsappWorkspaceState.newChat?"active":""}" type="button" data-wa-phone="${esc(item.phone)}"><span class="wa-avatar">${esc(waInitial(item.name))}</span><span class="wa-conversation-main"><span class="wa-conversation-line"><b>${esc(item.name)}</b><time>${esc(waShortTime(item.latest?.occurred_at))}</time></span><p><span class="wa-direction">${item.latest?.direction==="outbound"?"✓ ":""}</span>${esc(item.preview)}</p></span><span class="wa-conversation-meta">${item.messages.length}</span></button>`).join("")||`<div class="wa-list-empty">${query?"没有匹配的会话":"暂无消息。点击右上角按钮发起第一条客户会话。"}</div>`;
+        box.classList.toggle("chat-open",Boolean(whatsappWorkspaceState.selectedPhone||whatsappWorkspaceState.newChat));box.innerHTML=`<aside class="wa-sidebar"><div class="wa-sidebar-head"><div class="wa-sidebar-title"><i>W</i><span><b>${esc(connection.display_name||"WhatsApp Business")}</b><small><span class="wa-online-dot"></span>${esc(connection.display_phone_number||"")} · 已连接</small></span></div><button id="wa-new-chat" class="wa-icon-button" type="button" title="新建聊天"><i data-lucide="message-square-plus"></i></button></div><label class="wa-search"><i data-lucide="search"></i><input id="wa-search" type="search" value="${esc(whatsappWorkspaceState.search)}" placeholder="搜索客户或号码" autocomplete="off" /></label><div class="wa-conversation-list">${list}</div></aside><section class="wa-chat">${waChatMarkup(all)}</section>`;
+        $("#module-count").textContent=`${all.length} 个会话`;
+        $("#wa-new-chat").onclick=()=>{whatsappWorkspaceState.newChat=true;renderWhatsAppWorkspace()};
+        $("#wa-search").oninput=event=>{whatsappWorkspaceState.search=event.target.value;renderWhatsAppWorkspace();const input=$("#wa-search");input.focus();input.setSelectionRange(input.value.length,input.value.length)};
+        $$('[data-wa-phone]').forEach(button=>button.onclick=()=>{const conversation=all.find(item=>item.phone===button.dataset.waPhone);whatsappWorkspaceState.selectedPhone=button.dataset.waPhone;whatsappWorkspaceState.selectedInquiryId=conversation?.inquiryId||null;whatsappWorkspaceState.newChat=false;renderWhatsAppWorkspace();requestAnimationFrame(()=>{const stream=$("#wa-message-stream");if(stream)stream.scrollTop=stream.scrollHeight})});
+        $(".wa-mobile-back")?.addEventListener("click",()=>{whatsappWorkspaceState.selectedPhone="";whatsappWorkspaceState.newChat=false;renderWhatsAppWorkspace()});
+        $("#wa-refresh-chat")?.addEventListener("click",refreshWhatsAppWorkspaceMessages);
+        $("#wa-open-inquiry")?.addEventListener("click",()=>{const conversation=all.find(item=>item.phone===whatsappWorkspaceState.selectedPhone);if(conversation?.inquiryId)openInquiryDetail(conversation.inquiryId)});
+        $("#wa-new-inquiry")?.addEventListener("change",event=>{const option=event.target.selectedOptions[0],phone=option?.dataset.phone;if(phone)$("#wa-new-phone").value=phone});
+        $("#wa-new-chat-form")?.addEventListener("submit",event=>{event.preventDefault();const phone=waCanonicalPhone($("#wa-new-phone").value),inquiryId=$("#wa-new-inquiry").value||null;if(!/^\+[1-9]\d{7,14}$/.test(phone))return toast("请输入包含国家区号的 WhatsApp 号码，例如 +12025550123");whatsappWorkspaceState.selectedPhone=phone;whatsappWorkspaceState.selectedInquiryId=inquiryId;whatsappWorkspaceState.newChat=false;renderWhatsAppWorkspace();$("#wa-compose-text")?.focus()});
+        $$('[data-wa-contact-phone]').forEach(button=>button.onclick=()=>{whatsappWorkspaceState.selectedPhone=button.dataset.waContactPhone;whatsappWorkspaceState.selectedInquiryId=button.dataset.waContactInquiry||null;whatsappWorkspaceState.newChat=false;renderWhatsAppWorkspace();$("#wa-compose-text")?.focus()});
+        const compose=$("#wa-compose-form"),textarea=$("#wa-compose-text");
+        if(textarea){textarea.oninput=()=>{textarea.style.height="auto";textarea.style.height=`${Math.min(textarea.scrollHeight,120)}px`};textarea.onkeydown=event=>{if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing){event.preventDefault();compose?.requestSubmit()}}}
+        if(compose)compose.onsubmit=sendWhatsAppWorkspaceMessage;
+        icons();
+      }
+      async function refreshWhatsAppWorkspaceMessages(){
+        const connection=whatsappWorkspaceState.connection;if(!connection)return;
+        const result=await loadModuleRowsPaged((from,to)=>supabase.from("whatsapp_messages").select("id,connection_id,inquiry_id,direction,sender_phone,recipient_phone,body_text,message_type,delivery_status,association_status,occurred_at,inquiries(id,inquiry_no,title,contact_name)").eq("connection_id",connection.id).order("occurred_at",{ascending:true}).range(from,to));
+        if(result.error)return toast("WhatsApp 消息刷新失败："+(result.error.message||"无法读取消息"));
+        whatsappWorkspaceState.messages=result.data||[];renderWhatsAppWorkspace();requestAnimationFrame(()=>{const stream=$("#wa-message-stream");if(stream)stream.scrollTop=stream.scrollHeight});
+      }
+      async function sendWhatsAppWorkspaceMessage(event){
+        event.preventDefault();if(whatsappWorkspaceState.sending)return;const body=$("#wa-compose-text")?.value.trim(),connection=whatsappWorkspaceState.connection;if(!body||!connection||!whatsappWorkspaceState.selectedPhone)return;
+        whatsappWorkspaceState.sending=true;renderWhatsAppWorkspace();
+        const result=await supabase.functions.invoke("whatsapp-send",{body:{connection_id:connection.id,to:whatsappWorkspaceState.selectedPhone,body,inquiry_id:whatsappWorkspaceState.selectedInquiryId}});
+        whatsappWorkspaceState.sending=false;
+        if(result.error||result.data?.error){renderWhatsAppWorkspace();return toast("WhatsApp 发送失败："+await edgeFunctionErrorMessage(result))}
+        toast("WhatsApp 消息已发送");await refreshWhatsAppWorkspaceMessages();
+      }
+      function subscribeWhatsAppWorkspace(){
+        if(whatsappRealtimeChannel)supabase.removeChannel(whatsappRealtimeChannel);const connection=whatsappWorkspaceState.connection;if(!connection)return;
+        whatsappRealtimeChannel=supabase.channel(`whatsapp-workspace-${connection.id}`).on("postgres_changes",{event:"*",schema:"public",table:"whatsapp_messages",filter:`connection_id=eq.${connection.id}`},()=>{clearTimeout(whatsappRealtimeTimer);whatsappRealtimeTimer=setTimeout(()=>{if(activeModuleView==="whatsapp")refreshWhatsAppWorkspaceMessages()},250)}).subscribe();
+      }
+      async function loadWhatsAppWorkspace(loadVersion=moduleLoadVersion){
+        const box=$("#whatsapp-workspace");box.innerHTML='<div class="wa-chat-empty" style="grid-column:1/-1"><div class="wa-chat-empty-inner"><div class="boot-spinner" style="margin:0 auto 14px"></div><p>正在加载 WhatsApp 会话…</p></div></div>';
+        const [connectionResult,inquiriesResult]=await Promise.all([runModuleQuery(supabase.from("whatsapp_connections").select("id,provider,status,display_phone_number,display_name,phone_number_id,updated_at").eq("status","connected").order("updated_at",{ascending:false}).limit(1).maybeSingle(),2),loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,contact_name,company_id").eq("validity","valid").not("status","in","(won,lost)").order("updated_at",{ascending:false}).range(from,to))]);
+        if(loadVersion!==moduleLoadVersion||activeModuleView!=="whatsapp")return;if(connectionResult.error)return box.innerHTML=`<div class="wa-list-empty" style="grid-column:1/-1">通道加载失败：${esc(connectionResult.error.message||"未知错误")}</div>`;
+        const connection=connectionResult.data||null,inquiries=inquiriesResult.data||[],companyIds=[...new Set(inquiries.map(item=>item.company_id).filter(Boolean))];
+        const [messagesResult,contactsResult]=await Promise.all([connection?loadModuleRowsPaged((from,to)=>supabase.from("whatsapp_messages").select("id,connection_id,inquiry_id,direction,sender_phone,recipient_phone,body_text,message_type,delivery_status,association_status,occurred_at,inquiries(id,inquiry_no,title,contact_name)").eq("connection_id",connection.id).order("occurred_at",{ascending:true}).range(from,to)):Promise.resolve({data:[],error:null}),companyIds.length?loadModuleRowsPaged((from,to)=>supabase.from("contacts").select("id,company_id,full_name,phone,whatsapp").in("company_id",companyIds).range(from,to)):Promise.resolve({data:[],error:null})]);
+        if(messagesResult.error)return box.innerHTML=`<div class="wa-list-empty" style="grid-column:1/-1">消息加载失败：${esc(messagesResult.error.message||"未知错误")}</div>`;
+        const inquiryByCompany=new Map(inquiries.map(item=>[item.company_id,item]));whatsappWorkspaceState.connection=connection;whatsappWorkspaceState.messages=messagesResult.data||[];whatsappWorkspaceState.inquiries=inquiries;whatsappWorkspaceState.contacts=(contactsResult.data||[]).map(item=>({...item,inquiry:inquiryByCompany.get(item.company_id)||null}));
+        const conversations=whatsappConversations();if(!whatsappWorkspaceState.selectedPhone&&conversations.length){whatsappWorkspaceState.selectedPhone=conversations[0].phone;whatsappWorkspaceState.selectedInquiryId=conversations[0].inquiryId||null}const selectedConversation=conversations.find(item=>item.phone===whatsappWorkspaceState.selectedPhone);if(selectedConversation&&!whatsappWorkspaceState.selectedInquiryId)whatsappWorkspaceState.selectedInquiryId=selectedConversation.inquiryId||null;
+        renderWhatsAppWorkspace();subscribeWhatsAppWorkspace();requestAnimationFrame(()=>{const stream=$("#wa-message-stream");if(stream)stream.scrollTop=stream.scrollHeight});
       }
       async function openWhatsAppMessages(connectionId){
         openDashboardModal("WhatsApp 消息记录",`<p class="hint">正在加载该企业通道的收发消息与询盘关联…</p>`);

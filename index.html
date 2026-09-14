@@ -389,8 +389,9 @@
       #dashboard-data-scope { min-width:122px; }
       .input.compact { width:auto; min-width:110px; padding:9px 10px; }
       .dashboard-kpis { grid-template-columns:repeat(4,1fr); }
-      .sales-hero { display:grid; grid-template-columns:minmax(280px,.72fr) minmax(0,1.55fr); gap:14px; margin-bottom:14px; }
+      .sales-hero { display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:14px; }
       .sales-hero > * { min-width:0; }
+      #hero-sales-ranking,.dashboard-kpis .sales-duplicate-kpi { display:none !important; }
       .sales-total-card { position:relative; overflow:hidden; color:#fff; background:linear-gradient(135deg,#1c382d 0%,#315f49 100%); border:0; min-height:300px; padding:25px; }
       .sales-total-card::after { content:""; position:absolute; width:190px; height:190px; border-radius:50%; right:-55px; bottom:-85px; background:rgba(255,255,255,.07); }
       .sales-total-card .kpi-label { color:#d4e1d8; font-size:14px; }
@@ -1453,7 +1454,7 @@
             <div class="card"><div class="kpi-label">平均首次响应 <button class="metric-help" data-metric="avg_response">?</button></div><div class="kpi-value" id="kpi-avg-response">—</div></div>
             <div class="card"><div class="kpi-label">成交率 <button class="metric-help" data-metric="conversion_rate">?</button></div><div class="kpi-value" id="kpi-conversion">—</div></div>
             <div class="card"><div class="kpi-label">报价率 <button class="metric-help" data-metric="quote_rate">?</button></div><div class="kpi-value" id="kpi-quote-rate">—</div></div>
-            <div class="card"><div class="kpi-label">成交额 <button class="metric-help" data-metric="won_amount">?</button></div><div class="money-pair"><b id="kpi-won-cny">¥0</b><span id="kpi-won-usd">$0</span></div></div>
+            <div class="card sales-duplicate-kpi" aria-hidden="true"><div class="kpi-label">成交额 <button class="metric-help" data-metric="won_amount">?</button></div><div class="money-pair"><b id="kpi-won-cny">¥0</b><span id="kpi-won-usd">$0</span></div></div>
           </div>
           <section class="dashboard-panel trend-panel current-dashboard-block" data-dashboard-widget="trends">
             <div class="trend-toolbar"><div><b>经营趋势</b><div class="dashboard-scope-note">随当前筛选条件同步更新</div></div><div class="trend-tabs"><button class="trend-tab active" data-trend-grain="day">每日</button><button class="trend-tab" data-trend-grain="month">每月</button><button class="trend-tab" data-trend-grain="year">每年</button></div></div>

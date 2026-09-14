@@ -11,6 +11,8 @@ const legacyCompatibility = fs.readFileSync(new URL("../supabase/migrations/2026
 const realtimeWorkspace = fs.readFileSync(new URL("../supabase/migrations/20260914133000_whatsapp_realtime_workspace.sql", import.meta.url), "utf8");
 const webhookSubscriptionStatus = fs.readFileSync(new URL("../supabase/migrations/20260914143500_whatsapp_webhook_subscription_status.sql", import.meta.url), "utf8");
 const contactAvatars = fs.readFileSync(new URL("../supabase/migrations/20260914150000_contact_avatars.sql", import.meta.url), "utf8");
+const bilingualTranslation = fs.readFileSync(new URL("../supabase/migrations/20260914154500_whatsapp_bilingual_translation.sql", import.meta.url), "utf8");
+const translator = fs.readFileSync(new URL("../supabase/functions/whatsapp-translate/index.ts", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("WhatsApp channel stores only business-account identifiers and protects rows with RLS", () => {
@@ -90,6 +92,19 @@ test("WhatsApp sender is server-side, owner-scoped and records the API result", 
   assert.match(sender, /whatsapp_messages/);
   assert.match(sender, /delivery_status: "queued"/);
   assert.doesNotMatch(sender, /localStorage|sessionStorage|document\.cookie/);
+});
+
+test("WhatsApp workspace automatically translates and caches bilingual messages", () => {
+  assert.match(bilingualTranslation, /add column if not exists translation_zh text/);
+  assert.match(bilingualTranslation, /add column if not exists translation_en text/);
+  assert.match(translator, /action!=="translate_messages"/);
+  assert.match(translator, /action==="translate_text"/);
+  assert.match(translator, /DEEPSEEK_API_KEY/);
+  assert.match(translator, /userDb\.from\("whatsapp_messages"\)/);
+  assert.match(html, /id="wa-translate-toggle"/);
+  assert.match(html, /function translateWhatsAppWorkspaceMessages/);
+  assert.match(html, /输入中文自动译成英文发送/);
+  assert.match(sender, /translation_zh: translationZh/);
 });
 
 test("WhatsApp connection setup verifies Meta before enabling a business channel", () => {

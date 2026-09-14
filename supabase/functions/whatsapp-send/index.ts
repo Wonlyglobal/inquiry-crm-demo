@@ -35,6 +35,9 @@ Deno.serve(async (req) => {
     const recipient = text(input.to, 40);
     const body = text(input.body, 4096);
     const inquiryId = text(input.inquiry_id, 100) || null;
+    const translationZh = text(input.translation_zh, 4096) || null;
+    const translationEn = text(input.translation_en, 4096) || null;
+    const detectedLanguage = text(input.detected_language, 80) || null;
     if (!connectionId || !validPhone(recipient) || !body) return json({ error: "通道、E.164 格式收件号码和消息正文均为必填" }, 400);
     const { data: connection, error: connectionError } = await admin.from("whatsapp_connections").select("id,phone_number_id,status,created_by").eq("id", connectionId).single();
     if (connectionError || !connection || connection.status !== "connected") return json({ error: "WhatsApp Business 通道尚未连接" }, 400);
@@ -57,7 +60,7 @@ Deno.serve(async (req) => {
     }
     const externalId = text(graphPayload?.messages?.[0]?.id, 200) || null;
     const sentAt = new Date().toISOString();
-    const { data: saved, error: saveError } = await admin.from("whatsapp_messages").insert({ connection_id: connection.id, external_message_id: externalId, direction: "outbound", recipient_phone: recipient, message_type: "text", body_text: body, inquiry_id: inquiryId, delivery_status: "queued", occurred_at: sentAt, raw_payload: graphPayload }).select("id,external_message_id,delivery_status,occurred_at").single();
+    const { data: saved, error: saveError } = await admin.from("whatsapp_messages").insert({ connection_id: connection.id, external_message_id: externalId, direction: "outbound", recipient_phone: recipient, message_type: "text", body_text: body, inquiry_id: inquiryId, delivery_status: "queued", occurred_at: sentAt, raw_payload: graphPayload, translation_zh: translationZh, translation_en: translationEn, detected_language: detectedLanguage, translated_at: translationZh&&translationEn?sentAt:null }).select("id,external_message_id,delivery_status,occurred_at").single();
     if (saveError) throw new Error("消息已提交 WhatsApp，但 CRM 记录失败：" + saveError.message);
     await admin.from("whatsapp_connections").update({ last_sent_at: sentAt, last_error: null, updated_at: sentAt }).eq("id", connection.id);
     return json({ sent: true, message: saved });

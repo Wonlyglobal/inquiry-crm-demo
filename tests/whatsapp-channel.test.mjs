@@ -7,6 +7,7 @@ const visibilityMigration = fs.readFileSync(new URL("../supabase/migrations/2026
 const webhook = fs.readFileSync(new URL("../supabase/functions/whatsapp-webhook/index.ts", import.meta.url), "utf8");
 const sender = fs.readFileSync(new URL("../supabase/functions/whatsapp-send/index.ts", import.meta.url), "utf8");
 const connectionAdmin = fs.readFileSync(new URL("../supabase/functions/whatsapp-connection-admin/index.ts", import.meta.url), "utf8");
+const legacyCompatibility = fs.readFileSync(new URL("../supabase/migrations/20260914124500_whatsapp_legacy_message_compat.sql", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("WhatsApp channel stores only business-account identifiers and protects rows with RLS", () => {
@@ -81,5 +82,16 @@ test("WhatsApp connection setup verifies Meta before enabling a business channel
   assert.match(connectionAdmin, /upsert\(/);
   assert.match(connectionAdmin, /whatsapp_connection_verified/);
   assert.match(connectionAdmin, /updated_by: user\.id/);
+  assert.match(connectionAdmin, /owner_id: user\.id/);
+  assert.match(connectionAdmin, /display_phone: displayPhone/);
+  assert.match(connectionAdmin, /connected_at: now/);
   assert.doesNotMatch(connectionAdmin, /localStorage|sessionStorage|document\.cookie/);
+});
+
+test("legacy WhatsApp tables are compatible with Cloud API workers", () => {
+  assert.match(legacyCompatibility, /add column if not exists external_message_id text/);
+  assert.match(legacyCompatibility, /add column if not exists association_status text not null default 'pending'/);
+  assert.match(legacyCompatibility, /add column if not exists occurred_at timestamptz not null/);
+  assert.match(legacyCompatibility, /whatsapp_messages_external_id_idx/);
+  assert.match(legacyCompatibility, /grant select, insert, update on table public\.whatsapp_messages to service_role/);
 });

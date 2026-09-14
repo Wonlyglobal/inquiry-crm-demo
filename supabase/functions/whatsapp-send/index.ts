@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       const graphCode = Number(graphPayload?.error?.code || 0);
       const graphMessage = text(graphPayload?.error?.message || "WhatsApp API 发送失败", 1200);
       await admin.from("whatsapp_connections").update({ last_error: graphMessage, updated_at: new Date().toISOString() }).eq("id", connection.id);
-      if (graphCode === 133010) return json({ error: "正式号码尚未在 WhatsApp Cloud API 注册。请先完成6位两步验证 PIN 注册，再重试发送。", code: graphCode }, 502);
+      if (graphCode === 133010) return json({ error: "该号码尚未启用 Cloud API。若号码仍在 WhatsApp Business App 中，请通过 Meta/BSP 的 Embedded Signup 共存模式接入；否则请改用未绑定 Business App 的 Cloud API 专用号码。", code: graphCode }, 502);
       return json({ error: graphMessage, code: graphCode || null }, 502);
     }
     const externalId = text(graphPayload?.messages?.[0]?.id, 200) || null;

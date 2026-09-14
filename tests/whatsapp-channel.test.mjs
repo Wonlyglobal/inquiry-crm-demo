@@ -91,6 +91,8 @@ test("WhatsApp sender is server-side, owner-scoped and records the API result", 
   assert.match(sender, /只能使用本人负责的 WhatsApp 通道/);
   assert.match(sender, /whatsapp_messages/);
   assert.match(sender, /delivery_status: "queued"/);
+  assert.match(sender, /Embedded Signup 共存模式/);
+  assert.doesNotMatch(sender, /完成6位两步验证 PIN 注册/);
   assert.doesNotMatch(sender, /localStorage|sessionStorage|document\.cookie/);
 });
 

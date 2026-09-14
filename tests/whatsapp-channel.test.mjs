@@ -10,6 +10,7 @@ const connectionAdmin = fs.readFileSync(new URL("../supabase/functions/whatsapp-
 const legacyCompatibility = fs.readFileSync(new URL("../supabase/migrations/20260914124500_whatsapp_legacy_message_compat.sql", import.meta.url), "utf8");
 const realtimeWorkspace = fs.readFileSync(new URL("../supabase/migrations/20260914133000_whatsapp_realtime_workspace.sql", import.meta.url), "utf8");
 const webhookSubscriptionStatus = fs.readFileSync(new URL("../supabase/migrations/20260914143500_whatsapp_webhook_subscription_status.sql", import.meta.url), "utf8");
+const contactAvatars = fs.readFileSync(new URL("../supabase/migrations/20260914150000_contact_avatars.sql", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("WhatsApp channel stores only business-account identifiers and protects rows with RLS", () => {
@@ -74,6 +75,10 @@ test("CRM provides a realtime WhatsApp-style conversation workspace", () => {
   assert.match(html, /table:"whatsapp_messages"/);
   assert.match(realtimeWorkspace, /replica identity full/);
   assert.match(realtimeWorkspace, /alter publication supabase_realtime add table public\.whatsapp_messages/);
+  assert.match(html, /function waAvatarMarkup/);
+  assert.match(html, /function uploadWhatsAppContactAvatar/);
+  assert.match(html, /from\("contacts"\)\.update\(\{avatar_url:avatarUrl/);
+  assert.match(contactAvatars, /add column if not exists avatar_url text/);
 });
 
 test("WhatsApp sender is server-side, owner-scoped and records the API result", () => {

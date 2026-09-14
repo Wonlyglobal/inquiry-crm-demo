@@ -422,6 +422,12 @@
       .rank-pill.top { background:#d6e4d9; color:#315c40; }
       .trend-up { color:#317a4b; } .trend-down { color:#b34f48; }
       .dashboard-grid { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(300px,.8fr); gap:14px; align-items:start; margin-bottom:14px; }
+      .dashboard-core-tabs { display:flex; gap:6px; margin:0 0 14px; padding:6px; border:1px solid var(--line); border-radius:15px; background:#fff; overflow-x:auto; scrollbar-width:none; }
+      .dashboard-core-tabs::-webkit-scrollbar { display:none; }
+      .dashboard-core-tab { flex:1 0 max-content; min-height:42px; padding:10px 18px; border:0; border-radius:10px; background:transparent; color:var(--muted); cursor:pointer; font-weight:800; white-space:nowrap; }
+      .dashboard-core-tab:hover { background:var(--soft); color:var(--brand); }
+      .dashboard-core-tab.active { background:var(--brand); color:#fff; box-shadow:0 5px 12px rgba(32,61,49,.16); }
+      .dashboard-core-tab-panel-hidden { display:none !important; }
       #dashboard-widgets > [data-dashboard-widget] { position:relative; transition:opacity .16s ease,outline-color .16s ease,transform .16s ease; }
       #dashboard-widgets > [data-dashboard-widget].dashboard-widget-collapsed { display:block; padding:0; min-height:0; }
       #dashboard-widgets > .dashboard-widget-collapsed > :not(.dashboard-collapse-toggle):not(.dashboard-widget-handle) { display:none !important; }
@@ -523,6 +529,7 @@
       #dashboard-page.sales-role-view .sales-hero { grid-template-columns:1fr; }
       #dashboard-page.sales-role-view #hero-sales-ranking,
       #dashboard-page.sales-role-view #dashboard-leaderboards,
+      #dashboard-page.sales-role-view [data-dashboard-core-tab="leaderboards"],
       #dashboard-page.sales-role-view #dashboard-channel-panel { display:none !important; }
       .mini-metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:14px; }
       .mini-metric { border:1px solid var(--line); border-radius:12px; padding:13px; }
@@ -1176,6 +1183,8 @@
         .sales-profile-pipeline { grid-template-columns:repeat(3,1fr); }
       }
       @media (max-width: 850px) {
+        .dashboard-core-tabs { margin-inline:-2px; }
+        .dashboard-core-tab { flex:0 0 auto; padding-inline:15px; }
         .target-plan-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.target-progress-wall{grid-template-columns:1fr}
         .app {grid-template-columns:64px 1fr;gap:8px;padding:8px}
         .rail {
@@ -1405,6 +1414,12 @@
               <section class="dashboard-panel"><div class="panel-title"><b>国家与产品分布</b><button class="metric-help" data-metric="legacy_distribution">?</button></div><div id="legacy-distribution" class="dashboard-table-scroll"></div></section>
             </div>
           </section>
+          <nav class="dashboard-core-tabs current-dashboard-block" role="tablist" aria-label="核心经营看板">
+            <button type="button" class="dashboard-core-tab active" role="tab" data-dashboard-core-tab="core-kpis" aria-selected="true">核心指标</button>
+            <button type="button" class="dashboard-core-tab" role="tab" data-dashboard-core-tab="sales-overview" aria-selected="false">销售概览</button>
+            <button type="button" class="dashboard-core-tab" role="tab" data-dashboard-core-tab="leaderboards" aria-selected="false">排行榜</button>
+            <button type="button" class="dashboard-core-tab" role="tab" data-dashboard-core-tab="pipeline-risk" aria-selected="false">漏斗与风险</button>
+          </nav>
           <div class="sales-hero current-dashboard-block" data-dashboard-widget="sales-overview">
             <section class="card sales-total-card">
               <div class="kpi-label"><span id="hero-sales-label">团队总销售额</span> <button class="metric-help" data-metric="won_amount">?</button></div>
@@ -3527,6 +3542,18 @@
       }
       const dashboardInitialOrder=$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
       const dashboardCurrentOrder=()=>$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
+      const dashboardCoreTabKeys=["core-kpis","sales-overview","leaderboards","pipeline-risk"];
+      function selectDashboardCoreTab(key){
+        if(!dashboardCoreTabKeys.includes(key)||(profile?.role==="sales"&&key==="leaderboards"))key="core-kpis";
+        $$("[data-dashboard-core-tab]").forEach(tab=>{const active=tab.dataset.dashboardCoreTab===key;tab.classList.toggle("active",active);tab.setAttribute("aria-selected",String(active))});
+        dashboardCoreTabKeys.forEach(widgetKey=>$("#dashboard-widgets")?.querySelector(`[data-dashboard-widget="${widgetKey}"]`)?.classList.toggle("dashboard-core-tab-panel-hidden",widgetKey!==key));
+        try{localStorage.setItem(`wonly_dashboard_core_tab_${profile?.id||"anonymous"}`,key)}catch{}
+      }
+      function initializeDashboardCoreTabs(){
+        let saved="core-kpis";try{saved=localStorage.getItem(`wonly_dashboard_core_tab_${profile?.id||"anonymous"}`)||saved}catch{}
+        const container=$("#dashboard-widgets"),tabs=container?.querySelector(".dashboard-core-tabs"),panels=dashboardCoreTabKeys.map(key=>container?.querySelector(`[data-dashboard-widget="${key}"]`)).filter(Boolean);if(tabs&&panels.length){container.insertBefore(tabs,panels[0]);tabs.after(...panels)}
+        $$("[data-dashboard-core-tab]").forEach(tab=>tab.onclick=()=>selectDashboardCoreTab(tab.dataset.dashboardCoreTab));selectDashboardCoreTab(saved);
+      }
       function dashboardLayoutStorageKey(){return `wonly_dashboard_layout_${profile?.id||"anonymous"}`}
       function applyDashboardLayout(order){
         const container=$("#dashboard-widgets"),widgets=new Map(dashboardInitialOrder.map(key=>[key,container.querySelector(`[data-dashboard-widget="${key}"]`)]));
@@ -3560,7 +3587,7 @@
         dashboardLayoutEditing=editing;const container=$("#dashboard-widgets");container.classList.toggle("layout-editing",editing);$$("#dashboard-widgets > [data-dashboard-widget]").forEach(widget=>widget.draggable=editing&&!widget.classList.contains("hidden"));$("#dashboard-layout-toggle").textContent=editing?"完成布局":"调整布局";$("#dashboard-layout-reset").classList.toggle("hidden",!editing);ensureDashboardWidgetHandles();
       }
       function initializeDashboardLayout(){
-        applyDashboardLayout(storedDashboardLayout());ensureDashboardWidgetHandles();const container=$("#dashboard-widgets");if(container.dataset.layoutBound)return;container.dataset.layoutBound="true";
+        applyDashboardLayout(storedDashboardLayout());ensureDashboardWidgetHandles();initializeDashboardCoreTabs();const container=$("#dashboard-widgets");if(container.dataset.layoutBound)return;container.dataset.layoutBound="true";
         container.addEventListener("dragstart",event=>{const widget=event.target.closest("[data-dashboard-widget]");if(!dashboardLayoutEditing||!widget||event.target.closest("button,input,select,textarea,a")){event.preventDefault();return}container.dataset.dragging=widget.dataset.dashboardWidget;widget.classList.add("dashboard-widget-dragging");event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",widget.dataset.dashboardWidget)});
         container.addEventListener("dragover",event=>{if(!dashboardLayoutEditing||!container.dataset.dragging)return;event.preventDefault();const dragging=container.querySelector(`[data-dashboard-widget="${container.dataset.dragging}"]`),target=event.target.closest("#dashboard-widgets > [data-dashboard-widget]");if(!dragging||!target||dragging===target)return;const rect=target.getBoundingClientRect();container.insertBefore(dragging,event.clientY<rect.top+rect.height/2?target:target.nextSibling)});
         container.addEventListener("drop",event=>{if(!container.dataset.dragging)return;event.preventDefault();persistDashboardLayout()});

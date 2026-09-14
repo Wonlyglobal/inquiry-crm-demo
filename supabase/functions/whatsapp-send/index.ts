@@ -55,8 +55,11 @@ Deno.serve(async (req) => {
     });
     const graphPayload = await graphResponse.json().catch(() => ({}));
     if (!graphResponse.ok) {
-      await admin.from("whatsapp_connections").update({ status: "error", last_error: text(graphPayload?.error?.message || "WhatsApp API 发送失败", 1200), updated_at: new Date().toISOString() }).eq("id", connection.id);
-      return json({ error: text(graphPayload?.error?.message || "WhatsApp API 发送失败", 500) }, 502);
+      const graphCode = Number(graphPayload?.error?.code || 0);
+      const graphMessage = text(graphPayload?.error?.message || "WhatsApp API 发送失败", 1200);
+      await admin.from("whatsapp_connections").update({ last_error: graphMessage, updated_at: new Date().toISOString() }).eq("id", connection.id);
+      if (graphCode === 133010) return json({ error: "正式号码尚未在 WhatsApp Cloud API 注册。请先完成6位两步验证 PIN 注册，再重试发送。", code: graphCode }, 502);
+      return json({ error: graphMessage, code: graphCode || null }, 502);
     }
     const externalId = text(graphPayload?.messages?.[0]?.id, 200) || null;
     const sentAt = new Date().toISOString();

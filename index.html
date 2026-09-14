@@ -390,6 +390,7 @@
       .input.compact { width:auto; min-width:110px; padding:9px 10px; }
       .dashboard-kpis { grid-template-columns:repeat(4,1fr); }
       .sales-hero { display:grid; grid-template-columns:minmax(280px,.72fr) minmax(0,1.55fr); gap:14px; margin-bottom:14px; }
+      .sales-hero > * { min-width:0; }
       .sales-total-card { position:relative; overflow:hidden; color:#fff; background:linear-gradient(135deg,#1c382d 0%,#315f49 100%); border:0; min-height:300px; padding:25px; }
       .sales-total-card::after { content:""; position:absolute; width:190px; height:190px; border-radius:50%; right:-55px; bottom:-85px; background:rgba(255,255,255,.07); }
       .sales-total-card .kpi-label { color:#d4e1d8; font-size:14px; }
@@ -1418,8 +1419,8 @@
             </div>
           </section>
           <nav class="dashboard-core-tabs current-dashboard-block" role="tablist" aria-label="核心经营看板">
-            <button type="button" class="dashboard-core-tab active" role="tab" data-dashboard-core-tab="core-kpis" aria-selected="true">核心指标</button>
-            <button type="button" class="dashboard-core-tab" role="tab" data-dashboard-core-tab="sales-overview" aria-selected="false">销售概览</button>
+            <button type="button" class="dashboard-core-tab active" role="tab" data-dashboard-core-tab="sales-overview" aria-selected="true">销售指标</button>
+            <button type="button" class="dashboard-core-tab" role="tab" data-dashboard-core-tab="core-kpis" aria-selected="false">核心指标</button>
             <button type="button" class="dashboard-core-tab" role="tab" data-dashboard-core-tab="leaderboards" aria-selected="false">排行榜</button>
             <button type="button" class="dashboard-core-tab" role="tab" data-dashboard-core-tab="pipeline-risk" aria-selected="false">漏斗与风险</button>
           </nav>
@@ -3545,15 +3546,15 @@
       }
       const dashboardInitialOrder=$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
       const dashboardCurrentOrder=()=>$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
-      const dashboardCoreTabKeys=["core-kpis","sales-overview","leaderboards","pipeline-risk"];
+      const dashboardCoreTabKeys=["sales-overview","core-kpis","leaderboards","pipeline-risk"];
       function selectDashboardCoreTab(key){
-        if(!dashboardCoreTabKeys.includes(key)||(profile?.role==="sales"&&key==="leaderboards"))key="core-kpis";
+        if(!dashboardCoreTabKeys.includes(key)||(profile?.role==="sales"&&key==="leaderboards"))key="sales-overview";
         $$("[data-dashboard-core-tab]").forEach(tab=>{const active=tab.dataset.dashboardCoreTab===key;tab.classList.toggle("active",active);tab.setAttribute("aria-selected",String(active))});
         dashboardCoreTabKeys.forEach(widgetKey=>$("#dashboard-widgets")?.querySelector(`[data-dashboard-widget="${widgetKey}"]`)?.classList.toggle("dashboard-core-tab-panel-hidden",widgetKey!==key));
-        try{localStorage.setItem(`wonly_dashboard_core_tab_${profile?.id||"anonymous"}`,key)}catch{}
+        try{localStorage.setItem(`wonly_dashboard_core_tab_v2_${profile?.id||"anonymous"}`,key)}catch{}
       }
       function initializeDashboardCoreTabs(){
-        let saved="core-kpis";try{saved=localStorage.getItem(`wonly_dashboard_core_tab_${profile?.id||"anonymous"}`)||saved}catch{}
+        let saved="sales-overview";try{saved=localStorage.getItem(`wonly_dashboard_core_tab_v2_${profile?.id||"anonymous"}`)||saved}catch{}
         const container=$("#dashboard-widgets"),tabs=container?.querySelector(".dashboard-core-tabs"),panels=dashboardCoreTabKeys.map(key=>container?.querySelector(`[data-dashboard-widget="${key}"]`)).filter(Boolean);if(tabs&&panels.length){container.insertBefore(tabs,panels[0]);tabs.after(...panels)}
         $$("[data-dashboard-core-tab]").forEach(tab=>tab.onclick=()=>selectDashboardCoreTab(tab.dataset.dashboardCoreTab));selectDashboardCoreTab(saved);
       }
@@ -4015,7 +4016,7 @@
         renderAnnualTargetPlan();
         $("#hero-sales-ranking").innerHTML=renderLeaderboard("业务员销售额排名","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>`${money(v,"CNY")}<br><small>${usdCny?money(v/usdCny,"USD"):"汇率待更新"}</small>`);
         $("#hero-sales-ranking").firstElementChild?.classList.add("featured-sales-ranking");
-        $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:x.changes.processing})),v=>`${v} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:x.changes.response})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:x.changes.conversion,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`);
+        $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:x.changes.processing})),v=>`${Number.isInteger(v)?v:v.toFixed(1)} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:x.changes.response})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:x.changes.conversion,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`);
         $$("[data-stage]").forEach(el=>el.textContent=commercialScoped.filter(x=>x.status===el.dataset.stage).length);
         $$("[data-stage]").forEach(el=>{const stageRows=commercialScoped.filter(x=>x.status===el.dataset.stage),values=stageRows.map(x=>amountCny(x,x.status==="won")),known=values.filter(v=>v!==null),total=known.reduce((s,v)=>s+v,0),usdRate=fxToCny("USD");let moneyLine=el.parentElement.querySelector("[data-stage-money]");if(!moneyLine){moneyLine=document.createElement("small");moneyLine.dataset.stageMoney="";el.parentElement.append(moneyLine);}moneyLine.textContent=known.length?`${money(total,"CNY")} / ${usdRate?money(total/usdRate,"USD"):"汇率待更新"}`:"暂无金额";moneyLine.title=known.length<stageRows.length?`${stageRows.length-known.length} 条商机缺少金额或汇率`:"全部金额已折算";});
         const latest=new Map(); history.filter(h=>commercialScoped.some(x=>x.id===h.inquiry_id)).forEach(h=>{if(!latest.has(h.to_status))latest.set(h.to_status,h.entered_at)}); $$("[data-stage-time]").forEach(el=>el.textContent=latest.has(el.dataset.stageTime)?fmtDate(latest.get(el.dataset.stageTime)):"暂无记录");

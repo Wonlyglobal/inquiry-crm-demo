@@ -5,6 +5,17 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const text = (value: unknown, max = 200) => String(value || "").trim().slice(0, max);
 function envKey(grouped: string, standard: string) { const value = Deno.env.get(grouped); if (value) { try { const parsed = JSON.parse(value); if (parsed.default) return parsed.default; } catch {} } return Deno.env.get(standard) || ""; }
 
+async function ensureWabaSubscription(businessAccountId: string, graphVersion: string, graphToken: string) {
+  const response = await fetch(`https://graph.facebook.com/${encodeURIComponent(graphVersion)}/${encodeURIComponent(businessAccountId)}/subscribed_apps`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${graphToken}` },
+    signal: AbortSignal.timeout(15000),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.success !== true) throw new Error(`Meta Webhook 订阅失败：${text(payload?.error?.message || "无法订阅该 WhatsApp Business Account", 500)}`);
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -18,10 +29,19 @@ Deno.serve(async (req) => {
     const { data: caller, error: callerError } = await userClient.from("profiles").select("id,role,active").eq("id", user.id).single();
     if (callerError || !caller?.active || !["owner", "sales_manager"].includes(caller.role)) return json({ error: "只有主管或管理员可以配置 WhatsApp Business" }, 403);
     const input = await req.json();
-    const provider = text(input.provider, 30), businessAccountId = text(input.business_account_id, 120); let phoneNumberId = text(input.phone_number_id, 120); const displayPhone = text(input.display_phone_number, 40), displayName = text(input.display_name, 120) || null;
-    if (!["meta_cloud", "official_bsp"].includes(provider) || !businessAccountId || !phoneNumberId || !/^\+[1-9]\d{7,14}$/.test(displayPhone)) return json({ error: "接入方式、Business Account ID、Phone Number ID 和 E.164 企业号码均为必填" }, 400);
+    const action = text(input.action, 40) || "verify";
     const graphToken = text(Deno.env.get("WHATSAPP_ACCESS_TOKEN"), 4000), graphVersion = text(Deno.env.get("WHATSAPP_GRAPH_VERSION"), 20), webhookToken = text(Deno.env.get("WHATSAPP_WEBHOOK_VERIFY_TOKEN"), 300), appSecret = text(Deno.env.get("WHATSAPP_APP_SECRET"), 4000);
     if (!graphToken || !graphVersion || !webhookToken || !appSecret) return json({ error: "请先完整配置 WHATSAPP_ACCESS_TOKEN、WHATSAPP_GRAPH_VERSION、WHATSAPP_WEBHOOK_VERIFY_TOKEN 和 WHATSAPP_APP_SECRET" }, 400);
+    if (action === "ensure_subscription") {
+      const connectionId = text(input.connection_id, 120);
+      const { data: existing, error: existingError } = await admin.from("whatsapp_connections").select("id,business_account_id,status").eq("id", connectionId).eq("status", "connected").maybeSingle();
+      if (existingError || !existing?.business_account_id) return json({ error: "未找到已连接的 WhatsApp Business 通道" }, 404);
+      await ensureWabaSubscription(existing.business_account_id, graphVersion, graphToken);
+      await admin.from("whatsapp_connections").update({ last_error: null, updated_at: new Date().toISOString() }).eq("id", existing.id);
+      return json({ subscribed: true, connection_id: existing.id });
+    }
+    const provider = text(input.provider, 30), businessAccountId = text(input.business_account_id, 120); let phoneNumberId = text(input.phone_number_id, 120); const displayPhone = text(input.display_phone_number, 40), displayName = text(input.display_name, 120) || null;
+    if (!["meta_cloud", "official_bsp"].includes(provider) || !businessAccountId || !phoneNumberId || !/^\+[1-9]\d{7,14}$/.test(displayPhone)) return json({ error: "接入方式、Business Account ID、Phone Number ID 和 E.164 企业号码均为必填" }, 400);
     const verifyResponse = await fetch(`https://graph.facebook.com/${encodeURIComponent(graphVersion)}/${encodeURIComponent(phoneNumberId)}?fields=id,display_phone_number,verified_name`, { headers: { Authorization: `Bearer ${graphToken}` }, signal: AbortSignal.timeout(15000) });
     let graphPayload = await verifyResponse.json().catch(() => ({}));
     if (!verifyResponse.ok || graphPayload?.id !== phoneNumberId) {
@@ -35,6 +55,7 @@ Deno.serve(async (req) => {
       phoneNumberId = text(matched.id, 120);
       graphPayload = matched;
     }
+    await ensureWabaSubscription(businessAccountId, graphVersion, graphToken);
     const now = new Date().toISOString();
     const { data: connection, error } = await admin.from("whatsapp_connections").upsert({
       owner_id: user.id,

@@ -98,6 +98,10 @@ test("WhatsApp connection setup verifies Meta before enabling a business channel
   assert.match(connectionAdmin, /owner_id: user\.id/);
   assert.match(connectionAdmin, /display_phone: displayPhone/);
   assert.match(connectionAdmin, /connected_at: now/);
+  assert.match(connectionAdmin, /function ensureWabaSubscription/);
+  assert.match(connectionAdmin, /subscribed_apps/);
+  assert.match(connectionAdmin, /action === "ensure_subscription"/);
+  assert.match(html, /action:"ensure_subscription"/);
   assert.doesNotMatch(connectionAdmin, /localStorage|sessionStorage|document\.cookie/);
 });
 

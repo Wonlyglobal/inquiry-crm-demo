@@ -4274,7 +4274,15 @@
       }
       async function sendWhatsAppWorkspaceMessage(event){
         event.preventDefault();if(whatsappWorkspaceState.sending)return;const body=$("#wa-compose-text")?.value.trim(),connection=whatsappWorkspaceState.connection;if(!body||!connection||!whatsappWorkspaceState.selectedPhone)return;
-        let sendBody=body,translation=null;if(whatsappWorkspaceState.translationEnabled){const translateButton=event.submitter;translateButton.disabled=true;const translated=await supabase.functions.invoke("whatsapp-translate",{body:{action:"translate_text",text:body}});translateButton.disabled=false;if(translated.error||translated.data?.error)return toast("发送前翻译失败："+await edgeFunctionErrorMessage(translated));translation=translated.data?.translation||null;const sourceLanguage=String(translation?.detected_language||"");if(translation?.en&&!/(english|^en\b)/i.test(sourceLanguage))sendBody=translation.en}
+        let sendBody=body,translation=null;
+        const needsEnglishTranslation=whatsappWorkspaceState.translationEnabled&&/[\u3400-\u9fff\uf900-\ufaff]/u.test(body);
+        if(needsEnglishTranslation){
+          const translateButton=event.submitter;if(translateButton)translateButton.disabled=true;
+          const translated=await supabase.functions.invoke("whatsapp-translate",{body:{action:"translate_text",text:body}});
+          if(translateButton)translateButton.disabled=false;
+          if(translated.error||translated.data?.error){toast("翻译服务暂时不可用，已按原文发送");}
+          else{translation=translated.data?.translation||null;if(translation?.en)sendBody=translation.en}
+        }
         whatsappWorkspaceState.sending=true;renderWhatsAppWorkspace();
         const result=await supabase.functions.invoke("whatsapp-send",{body:{connection_id:connection.id,to:whatsappWorkspaceState.selectedPhone,body:sendBody,inquiry_id:whatsappWorkspaceState.selectedInquiryId,translation_zh:translation?.zh||null,translation_en:translation?.en||null,detected_language:translation?.detected_language||null}});
         whatsappWorkspaceState.sending=false;

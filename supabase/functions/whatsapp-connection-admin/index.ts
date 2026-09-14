@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     if (callerError || !caller?.active || !["owner", "sales_manager"].includes(caller.role)) return json({ error: "只有主管或管理员可以配置 WhatsApp Business" }, 403);
     const input = await req.json();
     const action = text(input.action, 40) || "verify";
-    const graphToken = text(Deno.env.get("WHATSAPP_ACCESS_TOKEN"), 4000), graphVersion = text(Deno.env.get("WHATSAPP_GRAPH_VERSION"), 20), webhookToken = text(Deno.env.get("WHATSAPP_WEBHOOK_VERIFY_TOKEN"), 300), appSecret = text(Deno.env.get("WHATSAPP_APP_SECRET"), 4000);
+    const graphToken = text(Deno.env.get("WHATSAPP_ACCESS_TOKEN"), 4000), graphVersion = text(Deno.env.get("WHATSAPP_GRAPH_VERSION"), 20), webhookToken = text(Deno.env.get("WHATSAPP_WEBHOOK_VERIFY_TOKEN"), 300), appSecret = text(Deno.env.get("WHATSAPP_APP_SECRET"), 4000), registrationPin = text(Deno.env.get("WHATSAPP_REGISTRATION_PIN"), 20);
     if (!graphToken || !graphVersion || !webhookToken || !appSecret) return json({ error: "请先完整配置 WHATSAPP_ACCESS_TOKEN、WHATSAPP_GRAPH_VERSION、WHATSAPP_WEBHOOK_VERIFY_TOKEN 和 WHATSAPP_APP_SECRET" }, 400);
     if (action === "ensure_subscription") {
       const connectionId = text(input.connection_id, 120);
@@ -55,6 +55,17 @@ Deno.serve(async (req) => {
       if (!matched?.id) return json({ error: `该 WABA 中没有找到企业号码 ${displayPhone}。请确认 Business Account ID 和企业展示号码属于同一个 WhatsApp Business Account。` }, 502);
       phoneNumberId = text(matched.id, 120);
       graphPayload = matched;
+    }
+    if (input.register_phone === true) {
+      if (!/^\d{6}$/.test(registrationPin)) return json({ error: "请先在 Supabase Secrets 中配置 6 位 WHATSAPP_REGISTRATION_PIN" }, 400);
+      const registerResponse = await fetch(`https://graph.facebook.com/${encodeURIComponent(graphVersion)}/${encodeURIComponent(phoneNumberId)}/register`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${graphToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ messaging_product: "whatsapp", pin: registrationPin }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const registerPayload = await registerResponse.json().catch(() => ({}));
+      if (!registerResponse.ok || registerPayload?.success !== true) return json({ error: `Meta 正式号码注册失败：${text(registerPayload?.error?.message || "无法注册该 WhatsApp 号码", 500)}` }, 502);
     }
     await ensureWabaSubscription(businessAccountId, graphVersion, graphToken);
     const now = new Date().toISOString();

@@ -111,6 +111,10 @@ test("WhatsApp connection setup verifies Meta before enabling a business channel
   assert.match(connectionAdmin, /WHATSAPP_ACCESS_TOKEN/);
   assert.match(connectionAdmin, /WHATSAPP_WEBHOOK_VERIFY_TOKEN/);
   assert.match(connectionAdmin, /WHATSAPP_APP_SECRET/);
+  assert.match(connectionAdmin, /WHATSAPP_REGISTRATION_PIN/);
+  assert.match(connectionAdmin, /\/register/);
+  assert.match(connectionAdmin, /messaging_product: "whatsapp", pin: registrationPin/);
+  assert.match(html, /register_phone:true/);
   assert.match(connectionAdmin, /graph.facebook.com/);
   assert.match(connectionAdmin, /status: "connected"/);
   assert.match(connectionAdmin, /upsert\(/);

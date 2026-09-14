@@ -94,16 +94,17 @@ test("WhatsApp sender is server-side, owner-scoped and records the API result", 
   assert.doesNotMatch(sender, /localStorage|sessionStorage|document\.cookie/);
 });
 
-test("WhatsApp workspace automatically translates and caches bilingual messages", () => {
+test("WhatsApp workspace sends the original text without automatic translation", () => {
   assert.match(bilingualTranslation, /add column if not exists translation_zh text/);
   assert.match(bilingualTranslation, /add column if not exists translation_en text/);
   assert.match(translator, /action!=="translate_messages"/);
   assert.match(translator, /action==="translate_text"/);
   assert.match(translator, /DEEPSEEK_API_KEY/);
   assert.match(translator, /userDb\.from\("whatsapp_messages"\)/);
-  assert.match(html, /id="wa-translate-toggle"/);
-  assert.match(html, /function translateWhatsAppWorkspaceMessages/);
-  assert.match(html, /输入中文自动译成英文发送/);
+  assert.doesNotMatch(html, /id="wa-translate-toggle"/);
+  assert.doesNotMatch(html, /function translateWhatsAppWorkspaceMessages/);
+  assert.doesNotMatch(html, /functions\.invoke\("whatsapp-translate"/);
+  assert.match(html, /body,inquiry_id:whatsappWorkspaceState\.selectedInquiryId/);
   assert.match(sender, /translation_zh: translationZh/);
 });
 
@@ -111,10 +112,9 @@ test("WhatsApp connection setup verifies Meta before enabling a business channel
   assert.match(connectionAdmin, /WHATSAPP_ACCESS_TOKEN/);
   assert.match(connectionAdmin, /WHATSAPP_WEBHOOK_VERIFY_TOKEN/);
   assert.match(connectionAdmin, /WHATSAPP_APP_SECRET/);
-  assert.match(connectionAdmin, /WHATSAPP_REGISTRATION_PIN/);
-  assert.match(connectionAdmin, /\/register/);
-  assert.match(connectionAdmin, /messaging_product: "whatsapp", pin: registrationPin/);
-  assert.match(html, /register_phone:true/);
+  assert.doesNotMatch(connectionAdmin, /WHATSAPP_REGISTRATION_PIN/);
+  assert.doesNotMatch(connectionAdmin, /\/register/);
+  assert.doesNotMatch(html, /register_phone:true/);
   assert.match(connectionAdmin, /graph.facebook.com/);
   assert.match(connectionAdmin, /status: "connected"/);
   assert.match(connectionAdmin, /upsert\(/);

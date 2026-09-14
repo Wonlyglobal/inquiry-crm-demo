@@ -384,6 +384,14 @@ deno_version = 2
 [functions.website-inquiry-intake]
 verify_jwt = false
 
+# These functions validate the caller with auth.getUser() internally. Keeping
+# gateway JWT verification off also supports projects using the new signing keys.
+[functions.whatsapp-connection-admin]
+verify_jwt = false
+
+[functions.whatsapp-send]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

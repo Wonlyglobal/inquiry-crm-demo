@@ -3075,6 +3075,8 @@
         $("#module-table-context").textContent = "按最新创建时间排列";
         setModuleState("loading");
         const modulePrimary = $("#module-primary");
+        modulePrimary.disabled = false;
+        modulePrimary.onclick = view === "whatsapp" ? () => openWhatsAppConnectionForm() : null;
         modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","whatsapp","templates","knowledge","follow-calendar"].includes(view) || (view==="knowledge"&&!['owner','sales_manager','marketing'].includes(profile.role)));
         $("#calendar-generate-daily").classList.toggle("hidden",view!=="follow-calendar"||profile.role!=="sales");
         const canManageSharedInquiry = ["owner", "sales_manager", "marketing"].includes(profile.role);
@@ -3101,7 +3103,7 @@
         if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";
         if (view === "communications") modulePrimary.textContent = "测试我的邮箱收发";
         if (view === "mailbox") modulePrimary.textContent = "+ 写邮件";
-        if (view === "whatsapp") modulePrimary.textContent = "查看接入清单";
+        if (view === "whatsapp") modulePrimary.textContent = "配置 WhatsApp 通道";
         if (view === "templates") modulePrimary.textContent = "+ 新建模板";
         if (view === "knowledge") modulePrimary.textContent = "+ 新建知识";
         if (view === "follow-calendar") modulePrimary.textContent = "+ 新增每日计划";
@@ -4118,7 +4120,7 @@
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
       function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
       function openWhatsAppConnectionForm(){
-        if(!["owner","sales_manager"].includes(profile?.role)) return toast("只有主管或管理员可以配置 WhatsApp Business");
+        if(!["owner","sales_manager"].includes(profile?.role)) return openDashboardModal("WhatsApp 通道配置权限", `<p>当前账号没有配置企业通道的权限。请使用系统管理员或销售主管账号登录后，点击“配置 WhatsApp 通道”。</p><p class="hint">职位名称不等于系统权限；当前系统角色：${esc(roleNames[profile?.role] || profile?.role || "未加载")}。</p>`);
         openDashboardModal("配置 WhatsApp Business 企业通道",`<form id="whatsapp-connection-form"><div class="detail-grid"><div class="field"><label>接入方式 *</label><select id="whatsapp-provider" class="input"><option value="meta_cloud">Meta Cloud API</option><option value="official_bsp">官方 BSP</option></select></div><div class="field"><label>Business Account ID *</label><input id="whatsapp-business-id" class="input" required maxlength="120" /></div><div class="field"><label>Phone Number ID *</label><input id="whatsapp-phone-id" class="input" required maxlength="120" /></div><div class="field"><label>企业展示号码 *</label><input id="whatsapp-display-phone" class="input" required placeholder="例如 +8613800138000" maxlength="40" /></div></div><div class="field"><label>展示名称</label><input id="whatsapp-display-name" class="input" maxlength="120" placeholder="WONLY 国际销售" /></div><p class="hint">保存后通道会进入“待验证”。Access Token、App Secret 和 Verify Token 只能配置在 Supabase Secrets，不会写入浏览器或数据库。</p><div class="form-actions"><button class="ghost" type="button" id="whatsapp-connection-cancel">取消</button><button class="primary" type="submit">保存并验证通道</button></div></form>`);
         $("#whatsapp-connection-cancel").onclick=()=>$("#dashboard-modal").classList.add("hidden");
         $("#whatsapp-connection-form").onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const body={action:"verify",provider:$("#whatsapp-provider").value,business_account_id:$("#whatsapp-business-id").value.trim(),phone_number_id:$("#whatsapp-phone-id").value.trim(),display_phone_number:$("#whatsapp-display-phone").value.trim(),display_name:$("#whatsapp-display-name").value.trim()||null};const result=await supabase.functions.invoke("whatsapp-connection-admin",{body});button.disabled=false;if(result.error||result.data?.error)return toast("WhatsApp 通道配置失败："+(result.data?.error||result.error.message));$("#dashboard-modal").classList.add("hidden");toast("通道验证成功，已连接并可接收 Webhook 消息");await loadModule("whatsapp");};
@@ -6844,7 +6846,7 @@
           const {data:connection}=await supabase.from("mailbox_connections").select("id,status").eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle();
           return connection?.status==="connected"?openMailComposer():openMailboxBinding(profile.id,true);
         }
-        if(activeModuleView==="whatsapp") return openWhatsAppConnectionForm();
+        if(activeModuleView==="whatsapp") return; // Handled by the module's direct onclick binding.
         if(activeModuleView!=="communications")return openMailboxBinding();
         if(!await appConfirm("确认从当前登录业务员的已连接邮箱发送内部测试邮件到 inquiry@wonlyglobal.com？该邮件只用于验证收发和同步。",{title:"测试邮箱收发",confirmText:"确认发送"}))return;
         const button=$("#module-primary");button.disabled=true;button.textContent="正在发送测试邮件…";

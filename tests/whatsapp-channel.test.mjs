@@ -9,6 +9,7 @@ const sender = fs.readFileSync(new URL("../supabase/functions/whatsapp-send/inde
 const connectionAdmin = fs.readFileSync(new URL("../supabase/functions/whatsapp-connection-admin/index.ts", import.meta.url), "utf8");
 const legacyCompatibility = fs.readFileSync(new URL("../supabase/migrations/20260914124500_whatsapp_legacy_message_compat.sql", import.meta.url), "utf8");
 const realtimeWorkspace = fs.readFileSync(new URL("../supabase/migrations/20260914133000_whatsapp_realtime_workspace.sql", import.meta.url), "utf8");
+const webhookSubscriptionStatus = fs.readFileSync(new URL("../supabase/migrations/20260914143500_whatsapp_webhook_subscription_status.sql", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 test("WhatsApp channel stores only business-account identifiers and protects rows with RLS", () => {
@@ -104,6 +105,7 @@ test("WhatsApp connection setup verifies Meta before enabling a business channel
   assert.match(html, /action:"ensure_subscription"/);
   assert.match(connectionAdmin, /webhook_verified_at: subscribedAt/);
   assert.match(html, /实时同步已开启/);
+  assert.match(webhookSubscriptionStatus, /add column if not exists webhook_verified_at timestamptz/);
   assert.doesNotMatch(connectionAdmin, /localStorage|sessionStorage|document\.cookie/);
 });
 

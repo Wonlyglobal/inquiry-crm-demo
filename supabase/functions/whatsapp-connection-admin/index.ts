@@ -37,7 +37,8 @@ Deno.serve(async (req) => {
       const { data: existing, error: existingError } = await admin.from("whatsapp_connections").select("id,business_account_id,status").eq("id", connectionId).eq("status", "connected").maybeSingle();
       if (existingError || !existing?.business_account_id) return json({ error: "未找到已连接的 WhatsApp Business 通道" }, 404);
       await ensureWabaSubscription(existing.business_account_id, graphVersion, graphToken);
-      await admin.from("whatsapp_connections").update({ last_error: null, updated_at: new Date().toISOString() }).eq("id", existing.id);
+      const subscribedAt = new Date().toISOString();
+      await admin.from("whatsapp_connections").update({ webhook_verified_at: subscribedAt, last_error: null, updated_at: subscribedAt }).eq("id", existing.id);
       return json({ subscribed: true, connection_id: existing.id });
     }
     const provider = text(input.provider, 30), businessAccountId = text(input.business_account_id, 120); let phoneNumberId = text(input.phone_number_id, 120); const displayPhone = text(input.display_phone_number, 40), displayName = text(input.display_name, 120) || null;
@@ -66,6 +67,7 @@ Deno.serve(async (req) => {
       display_phone_number: displayPhone,
       display_name: displayName || graphPayload.verified_name || null,
       status: "connected",
+      webhook_verified_at: now,
       connected_at: now,
       last_error: null,
       created_by: user.id,

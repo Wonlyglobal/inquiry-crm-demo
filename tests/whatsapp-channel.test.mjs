@@ -102,6 +102,8 @@ test("WhatsApp connection setup verifies Meta before enabling a business channel
   assert.match(connectionAdmin, /subscribed_apps/);
   assert.match(connectionAdmin, /action === "ensure_subscription"/);
   assert.match(html, /action:"ensure_subscription"/);
+  assert.match(connectionAdmin, /webhook_verified_at: subscribedAt/);
+  assert.match(html, /实时同步已开启/);
   assert.doesNotMatch(connectionAdmin, /localStorage|sessionStorage|document\.cookie/);
 });
 

@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
-const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Content-Type": "application/json" };
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Content-Type": "application/json" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: cors });
 
 function envKey(grouped: string, standard: string) {

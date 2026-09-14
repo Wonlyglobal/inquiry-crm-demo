@@ -978,7 +978,8 @@
       .email-detail-meta div { min-width:0; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#f8faf8; }
       .email-detail-meta span { display:block; margin-bottom:4px; color:var(--muted); font-size:11px; }
       .email-detail-meta b { display:block; overflow-wrap:anywhere; font-size:13px; }
-      .email-detail-body { max-height:46vh; overflow:auto; margin:0; padding:16px; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); font:13px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
+      .email-detail-body { max-height:46vh; overflow:auto; margin:0; padding:16px; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); font:13px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-wrap; overflow-wrap:anywhere; unicode-bidi:plaintext; text-align:start; }
+      .mail-message strong,.mail-message p,.mail-directional{unicode-bidi:plaintext;text-align:start}
       .email-detail-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:9px; margin-top:16px; }
       .email-detail-actions button { width:auto; margin:0; }
       @media (max-width: 700px) {
@@ -1859,8 +1860,8 @@
           <div id="mail-ai-status" class="notice hidden"></div>
           <div class="field"><label>收件人</label><input id="mail-compose-to" class="input" type="email" required placeholder="name@company.com" /></div>
           <div class="field"><label>抄送（多个邮箱用逗号分隔）</label><input id="mail-compose-cc" class="input" placeholder="cc@company.com" /></div>
-          <div class="field"><label>主题</label><input id="mail-compose-subject" class="input" required /></div>
-          <div class="field"><label>正文</label><textarea id="mail-compose-body" class="input" rows="12" required></textarea></div>
+          <div class="field"><label>主题</label><input id="mail-compose-subject" class="input mail-directional" dir="auto" required /></div>
+          <div class="field"><label>正文</label><textarea id="mail-compose-body" class="input mail-directional" dir="auto" rows="12" required></textarea></div>
           <div class="field"><label>附件（最多 100 个，总计不超过 50MB）</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="mail-compose-files" class="input" style="flex:1;min-width:260px" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.webp,.zip,.gz" /><button id="mail-compress-files" class="secondary" type="button">一键压缩附件</button><button id="mail-select-material" class="secondary" type="button">从物料库选择</button></div><small id="mail-compose-files-summary" class="hint">未选择附件</small><div id="mail-material-attachments" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div><small class="hint">与阿里邮箱普通附件默认规则一致。压缩后仍超过 50MB 时，请改用超大附件或安全下载链接。</small></div>
           <div class="field"><label>定时发送（可选）</label><input id="mail-compose-scheduled-at" class="input" type="datetime-local" /><small class="hint">留空立即发送；可安排 2 分钟后至 30 天内。定时邮件暂不支持附件。</small></div>
           <p class="hint">邮件将从当前登录业务员已连接的阿里邮箱发出，并同步到“已发送”和客户沟通记录。</p>
@@ -2783,7 +2784,7 @@
         if(message.inquiry_id)return openInquiryDetail(message.inquiry_id);
         const recipients=(message.recipient_emails||[]).join(", ")||"—";
         const attachments=await emailAttachmentMarkup(message.id);
-        openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>方向</span><div>${message.direction==="inbound"?"客户来信":"业务员发信"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div><div class="legacy-detail-item"><span>关联状态</span><div>${message.inquiry_id?"已关联询盘":"待关联客户"}</div></div><div class="legacy-detail-item"><span>关联方式</span><div>${esc(message.association_method||"—")}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>${attachments}`);bindEmailAttachmentDownloads();
+        openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>方向</span><div>${message.direction==="inbound"?"客户来信":"业务员发信"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div><div class="legacy-detail-item"><span>关联状态</span><div>${message.inquiry_id?"已关联询盘":"待关联客户"}</div></div><div class="legacy-detail-item"><span>关联方式</span><div>${esc(message.association_method||"—")}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre class="mail-directional" dir="auto" style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>${attachments}`);bindEmailAttachmentDownloads();
       }
       async function loadMailTemplates(){
         const select=$("#mail-template-select");if(!select)return;
@@ -2823,6 +2824,7 @@
         return `------------------ 原始邮件 ------------------\n发件人：${message.sender_email||""}\n时间：${fmtDate(message.received_at||message.sent_at||message.created_at)}\n主题：${message.subject||""}\n\n${message.body_text||""}`;
       }
       function editableMailBody(){return $("#mail-compose-body").value.split(/\n\s*-{10,}\s*原始邮件\s*-{10,}\s*\n/)[0].trim()}
+      function syncMailComposerDirection(){const rtl=$("#mail-compose-language")?.value==="Arabic";["#mail-compose-subject","#mail-compose-body"].forEach(selector=>{const field=$(selector);if(!field)return;field.dir=rtl?"rtl":"auto";field.style.textAlign=rtl?"right":"start"})}
       function mailboxSignature(){
         const local=String(profile?.email||"").toLowerCase().split("@")[0].replace(/[^a-z]/g,""),known={sander:"Sander",chloelee:"Chloe Lee",lyle:"Lyle",jackson:"Jackson",kevinli:"Kevin Li",yuna:"Yuna",megan:"Megan",lawrencewang:"Lawrence Wang",alice:"Alice",haiyangliu:"Haiyang Liu",lily:"Lily",renee:"Renee"};
         return unifiedEnglishSignature(known[local]||local.replace(/^[a-z]/,letter=>letter.toUpperCase())||profile?.full_name||"WONLY Sales");
@@ -2846,6 +2848,7 @@
       }
       async function openMailComposer(message=null){
         const replying=Boolean(message);
+        const replyingInArabic=/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u.test(`${message?.subject||""}\n${message?.body_text||""}`);
         mailComposerMessage=message;
         $("#mail-compose-title").textContent=replying?"回复邮件":"写邮件";
         $("#mail-compose-inquiry").value=message?.inquiry_id||"";
@@ -2855,7 +2858,7 @@
         $("#mail-compose-cc").value="";
         $("#mail-compose-subject").value=replying&&message.subject&&!/^re:/i.test(message.subject)?`Re: ${message.subject}`:(message?.subject||"");
         $("#mail-compose-body").value=replying?`\n\n${quotedOriginalMail(message)}`:"";
-        $("#mail-compose-files").value="";selectedMaterialAttachments=[];renderSelectedMaterialAttachments();updateMailAttachmentSummary();$("#mail-compose-scheduled-at").value="";$("#mail-template-name").value="";$("#mail-compose-language").value="English";$("#mail-ai-instruction").value="";$("#mail-ai-status").classList.add("hidden");
+        $("#mail-compose-files").value="";selectedMaterialAttachments=[];renderSelectedMaterialAttachments();updateMailAttachmentSummary();$("#mail-compose-scheduled-at").value="";$("#mail-template-name").value="";$("#mail-compose-language").value=replyingInArabic?"Arabic":"English";syncMailComposerDirection();$("#mail-ai-instruction").value="";$("#mail-ai-status").classList.add("hidden");
         $("#mail-ai-reply").disabled=!(message?.direction==="inbound"&&message?.inquiry_id);$("#mail-ai-reply").title=$("#mail-ai-reply").disabled?"只有已关联客户询盘的来信才能生成上下文回复":"";
         const minimum=new Date(Date.now()+2*60000);minimum.setSeconds(0,0);$("#mail-compose-scheduled-at").min=localDateTimeInputValue(minimum.toISOString());
         await loadMailTemplates();$("#mail-template-select").value="";
@@ -2869,7 +2872,7 @@
         }
         const recipients=(message.recipient_emails||[]).join(", ")||"—";
         const attachments=await emailAttachmentMarkup(message.id);
-        openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>文件夹</span><div>${message.direction==="inbound"?"收件箱":"已发送"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>${attachments}<div class="form-actions"><button id="mail-detail-reply" class="primary" type="button">回复</button></div>`);
+        openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>文件夹</span><div>${message.direction==="inbound"?"收件箱":"已发送"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre class="mail-directional" dir="auto" style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>${attachments}<div class="form-actions"><button id="mail-detail-reply" class="primary" type="button">回复</button></div>`);
         bindEmailAttachmentDownloads();
         setTimeout(()=>$("#mail-detail-reply")?.addEventListener("click",()=>{$("#dashboard-modal").classList.add("hidden");openMailComposer(message)}),0);
       }
@@ -3517,7 +3520,7 @@
           : email.inquiry_id
             ? '<button id="email-detail-open-inquiry" class="primary" type="button">打开关联询盘</button>'
             : '<button id="email-detail-trash" class="ghost" type="button">移入垃圾箱</button><button id="email-detail-warmup" class="ghost" type="button">标记养号邮件</button><button id="email-detail-convert" class="primary" type="button">转为询盘商机</button>';
-        openDashboardModal("邮件详情 · "+(email.subject||"无主题"),`<div class="email-detail-meta"><div><span>发件人</span><b>${esc([email.sender_name,email.sender_email].filter(Boolean).join(" · ")||"—")}</b></div><div><span>收件人</span><b>${esc(email.recipient_email||"—")}</b></div><div><span>收件时间</span><b>${esc(fmtDate(email.received_at||email.created_at))}</b></div><div><span>当前判断</span><b>${esc(triageName+" · "+processingName)}</b></div></div><p class="hint">请阅读完整正文后再判断是否属于商机邮件。</p><pre class="email-detail-body">${esc(email.body_text||"（邮件没有可读取的纯文本正文）")}</pre><div class="email-detail-actions">${actions}</div>`);
+        openDashboardModal("邮件详情 · "+(email.subject||"无主题"),`<div class="email-detail-meta"><div><span>发件人</span><b>${esc([email.sender_name,email.sender_email].filter(Boolean).join(" · ")||"—")}</b></div><div><span>收件人</span><b>${esc(email.recipient_email||"—")}</b></div><div><span>收件时间</span><b>${esc(fmtDate(email.received_at||email.created_at))}</b></div><div><span>当前判断</span><b>${esc(triageName+" · "+processingName)}</b></div></div><p class="hint">请阅读完整正文后再判断是否属于商机邮件。</p><pre class="email-detail-body" dir="auto">${esc(email.body_text||"（邮件没有可读取的纯文本正文）")}</pre><div class="email-detail-actions">${actions}</div>`);
         const close=()=>$("#dashboard-modal").classList.add("hidden");
         $("#email-detail-open-inquiry")?.addEventListener("click",()=>{close();openInquiryDetail(email.inquiry_id)});
         $("#email-detail-convert")?.addEventListener("click",async()=>{if(!await appConfirm("确认将这封邮件转为询盘商机？",{title:"转为询盘商机",confirmText:"确认转换"}))return;close();await convertEmailIntakes([email.id],true)});
@@ -4978,8 +4981,8 @@
           const head=document.createElement("div");head.className="mail-message-head";
           const who=document.createElement("b");who.textContent=message.direction==="inbound"?`客户来信 · ${message.sender_email||"未知发件人"}`:`业务员发信 · 至 ${(message.recipient_emails||[]).join(", ")}`;
           const time=document.createElement("small");time.textContent=fmtDate(message.received_at||message.sent_at);
-          head.append(who,time);const subject=document.createElement("strong");subject.textContent=message.subject||"无主题";
-          const body=document.createElement("p");body.textContent=(message.body_text||"").slice(0,4000)||"（无纯文本正文）";
+          head.append(who,time);const subject=document.createElement("strong");subject.dir="auto";subject.textContent=message.subject||"无主题";
+          const body=document.createElement("p");body.dir="auto";body.textContent=(message.body_text||"").slice(0,4000)||"（无纯文本正文）";
           item.append(head,subject,body);
           if(message.attachment_count){const attachment=document.createElement("button");attachment.className="table-action";attachment.type="button";attachment.textContent=`查看附件（${message.attachment_count}）`;attachment.addEventListener("click",()=>openMessageAttachments(message));item.append(attachment)}
           if(summaryByMessage.has(message.id)){const summary=document.createElement("div");summary.className="mail-summary";summary.textContent=`智能总结：${summaryByMessage.get(message.id)}`;item.append(summary)}
@@ -7039,6 +7042,7 @@
       });
       $("#calendar-generate-daily").addEventListener("click",generateDailyReportFromCalendar);
       ["#close-mail-compose","#cancel-mail-compose"].forEach(selector=>$(selector).addEventListener("click",()=>$("#mail-compose-modal").classList.add("hidden")));
+      $("#mail-compose-language").addEventListener("change",syncMailComposerDirection);
       $("#mail-template-select").addEventListener("change",applySelectedMailTemplate);
       $("#save-mail-template").addEventListener("click",saveCurrentMailTemplate);
       $("#mail-ai-reply").addEventListener("click",()=>runMailboxAi("reply"));

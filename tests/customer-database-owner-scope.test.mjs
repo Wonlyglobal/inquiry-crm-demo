@@ -29,6 +29,8 @@ test("contact writes cannot use original creator access after an inquiry exists"
 test("customer record exposes communications, quotations and audited contact creation",()=>{
   assert.match(html,/async function openCustomerRecord\(companyId\)/);
   assert.match(html,/from\("email_messages"\)\.select\("id,inquiry_id,direction/);
+  assert.match(html,/from\("whatsapp_messages"\)\.select\("id,inquiry_id,direction/);
+  assert.match(html,/全部沟通记录（邮件 \/ WhatsApp）/);
   assert.match(html,/from\("quotation_versions"\)\.select\("id,inquiry_id,quote_no/);
   assert.match(html,/id="customer-contact-form"/);
   assert.match(html,/supabase\.rpc\("add_customer_contact"/);
@@ -52,9 +54,12 @@ test("customer record checks related query errors only after results are declare
 test("customer record paginates all related history and documents",()=>{
   assert.match(html,/async function loadAllCustomerRows\(queryFactory, pageSize = 500\)/);
   assert.match(html,/loadAllCustomerRows\(\(\)=>supabase\.from\("email_messages"\)/);
+  assert.match(html,/loadAllCustomerRows\(\(\)=>supabase\.from\("whatsapp_messages"\)/);
   assert.match(html,/loadAllCustomerRows\(\(\)=>supabase\.from\("quotation_versions"\)/);
   assert.match(html,/loadAllCustomerRows\(\(\)=>supabase\.from\("customer_documents"\)/);
   assert.match(html,/loadAllCustomerRows\(\(\)=>supabase\.from\("email_attachments"\)/);
+  const recordSource=html.slice(html.indexOf("async function openCustomerRecord(companyId)"),html.indexOf("const knowledgeCategoryNames"));
+  assert.doesNotMatch(recordSource,/messages\.slice\(0,20\)/);
 });
 
 test("customer documents are private, owner-scoped and auditable",()=>{

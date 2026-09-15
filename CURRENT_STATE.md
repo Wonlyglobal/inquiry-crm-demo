@@ -216,3 +216,4 @@
 - 生产库复核：`private` schema 的 `SECURITY DEFINER` 函数匿名可执行数已从 4 降为 0；登录用户仅保留业务策略所需的 `can_read_fulfillment(uuid)`、`can_write_fulfillment(uuid)` 和 `current_crm_role()` 三个辅助函数。完整自动化回归更新为 120/120 通过。
 - Supabase 官方安全顾问与自定义 ACL 查询交叉复核：`public` schema 匿名可执行的 `SECURITY DEFINER` 函数为 0，登录用户可写但未启用 RLS 的业务表为 0，具备表写权限且策略无条件放行的生产表为 0。
 - 关闭已被 V2 取代的 `record_inquiry_followup(uuid,text,text,text,timestamptz,boolean)`，防止绕过跟进优先级、提醒时间和自动顺延元数据；当前页面继续只调用 `record_inquiry_followup_v2`。迁移为 `20260915104500_disable_legacy_followup_writer.sql`，提交 `743f316`；生产 ACL 实测 `legacy_followup=false`、`v2_followup=true`，完整回归更新为 121/121 通过。
+- 恢复询盘详情中的“触达规则”操作页：可查看和维护客户同意依据、退订/禁联、最小联系间隔和下次允许触达时间，保存继续调用生产已有的 `save_inquiry_contact_policy` 审计 RPC。未配置、待核实、已退订和频控中状态都会明确提示；销售仅能维护自己负责的询盘。本次未修改任何真实客户授权数据，完整自动化回归更新为 122/122 通过。

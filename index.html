@@ -1894,6 +1894,7 @@
         <nav class="detail-tabs" aria-label="询盘详情分区">
           <button class="detail-tab active" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
+          <button class="detail-tab" type="button" data-detail-tab="contact-policy">触达规则</button>
           <button class="detail-tab" type="button" data-detail-tab="pipeline">流水线</button>
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
@@ -2055,6 +2056,22 @@
             <div id="outreach-quality-panel" class="quality-panel"><div class="quality-panel-head"><b>发送前质检</b><span id="outreach-quality-badge" class="tag">待质检</span></div><div id="outreach-quality-checks" class="quality-checks"></div></div>
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button></div>
           </div>
+        </div>
+        <div class="form-body detail-section hidden" data-detail-section="contact-policy">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div><h4 style="margin:0">客户触达规则</h4><p class="hint" style="margin:8px 0 0">用于判断是否可以发送首次开发信或新一轮主动邮件；客户已来信后的正常回复不受此页的主动触达限制。</p></div>
+            <span id="contact-policy-badge" class="tag">尚未配置</span>
+          </div>
+          <div id="contact-policy-status" class="notice" style="margin-top:16px">尚未配置：主动开发信会被安全策略阻止，直到联系依据已核实。</div>
+          <div class="detail-grid" style="margin-top:18px">
+            <div class="field"><label>联系依据 *</label><select id="contact-policy-consent" class="input"><option value="unknown">待核实</option><option value="legitimate_interest">合法利益 / 已有业务关系</option><option value="opted_in">客户明确同意</option><option value="opted_out">客户已退订</option></select></div>
+            <div class="field"><label>最小联系间隔（天）*</label><input id="contact-policy-interval" class="input" type="number" min="1" max="90" step="1" value="7" /></div>
+            <div class="field"><label>下次最早可联系时间</label><input id="contact-policy-next-at" class="input" type="datetime-local" /></div>
+            <div class="field"><label style="display:flex;align-items:center;gap:9px"><input id="contact-policy-do-not-contact" type="checkbox" /> 禁止主动联系</label><small class="hint">客户退订、投诉或明确要求停止联系时勾选。</small></div>
+          </div>
+          <div class="field"><label>政策备注</label><textarea id="contact-policy-note" class="input" rows="3" placeholder="例如：客户在展会留下名片，同意接收产品资料"></textarea></div>
+          <div class="field"><label>本次修改原因 *</label><input id="contact-policy-reason" class="input" maxlength="500" placeholder="说明同意、退订或频率调整的来源，系统将完整留痕" /></div>
+          <div class="form-actions"><button id="save-contact-policy" class="primary" type="button">保存触达规则</button></div>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="validity">
           <div class="validity-quick">
@@ -3645,7 +3662,7 @@
       function detailTabsStorageKey(){return `wonly_detail_tabs_order_${profile?.id||"anonymous"}`}
       function applyDetailTabsOrder(order){
         const container=$(".detail-tabs"),tabs=new Map(detailTabsInitialOrder.map(key=>[key,container.querySelector(`[data-detail-tab="${key}"]`)]));
-        const priority=["research","outreach"];
+        const priority=["research","outreach","contact-policy"];
         [...new Set([...priority,...(Array.isArray(order)?order:[]),...detailTabsInitialOrder])].filter(key=>tabs.has(key)).forEach(key=>container.append(tabs.get(key)));
       }
       function storedDetailTabsOrder(){
@@ -4553,7 +4570,7 @@
         detailOriginView = $("#sales-profile-page").classList.contains("hidden")
           ? ($(".nav[data-view].active")?.dataset.view || "dashboard")
           : "sales-profile";
-        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: draftHistory }, { data: retentionRequest }, { data: marketingTouches }, { data: journeyEvents }, { data: lostRequest }, { data: wonRequest }] = await Promise.all([
+        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: draftHistory }, { data: retentionRequest }, { data: marketingTouches }, { data: journeyEvents }, { data: lostRequest }, { data: wonRequest }, { data: contactPolicy }] = await Promise.all([
           supabase
             .from("inquiries")
             .select(
@@ -4579,6 +4596,7 @@
           supabase.from("inquiry_user_journey_events").select("id,session_ref,event_name,event_at,sequence_no,page_path,page_title,cta_name,section_name,language,product_context,error_type,created_at").eq("inquiry_id",id).order("sequence_no",{ascending:true}),
           supabase.from("inquiry_lost_requests").select("id,inquiry_id,requested_by,loss_reason,status,reviewed_by,review_note,reviewed_at,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
           supabase.from("inquiry_won_requests").select("id,inquiry_id,requested_by,won_amount,won_currency,evidence_bucket,evidence_path,evidence_name,request_reason,status,reviewed_by,review_note,reviewed_at,locked_exchange_rate,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
+          supabase.from("inquiry_contact_policies").select("inquiry_id,consent_status,do_not_contact,min_interval_days,next_allowed_at,last_contact_at,policy_note,updated_by,updated_at").eq("inquiry_id",id).maybeSingle(),
         ]);
         if (error) {
           toast("详情加载失败：" + error.message);
@@ -4594,6 +4612,7 @@
         currentInquiry.journeyEvents = journeyEvents || [];
         currentInquiry.lostRequest = lostRequest || null;
         currentInquiry.wonRequest = wonRequest || null;
+        currentInquiry.contactPolicy = contactPolicy || null;
         $("#detail-title").textContent =
           `询盘 #${String(inquiry.inquiry_no).padStart(6, "0")} · ${inquiry.title}`;
         $("#detail-status").value = inquiry.status;
@@ -4637,6 +4656,7 @@
         $("#marketing-touch-at").value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
         const canAttribute=["owner","sales_manager","marketing"].includes(profile.role);
         $("#marketing-touch-form").classList.toggle("hidden",!canAttribute);
+        populateContactPolicyForm(currentInquiry.contactPolicy);
         renderUserJourney(currentInquiry.journeyEvents);
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
@@ -5751,6 +5771,32 @@
         $("#marketing-touch-list").innerHTML=touches.length?touches.map(x=>{const utm=[x.utm_source&&`来源 ${x.utm_source}`,x.utm_medium&&`媒介 ${x.utm_medium}`,x.utm_campaign&&`活动 ${x.utm_campaign}`,x.utm_content&&`素材 ${x.utm_content}`,x.utm_term&&`关键词 ${x.utm_term}`].filter(Boolean);return `<div class="evidence-item"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><b>${x.is_primary?"★ 主触点 · ":""}${esc(channelLabels[x.channel]||x.channel)}</b><span class="hint">${fmtDate(x.touch_at)}</span></div><p style="margin:8px 0 4px">${esc([x.program_name,x.campaign_name,x.tactic_name,x.offer_name].filter(Boolean).join(" → ")||"未填写活动层级")}</p>${utm.length?`<p class="hint">${esc(utm.join(" · "))}</p>`:""}${x.evidence_note?`<small>${esc(x.evidence_note)}</small>`:""}${x.landing_page?`<div><a href="${esc(x.landing_page)}" target="_blank" rel="noopener noreferrer">查看落地页/证据</a></div>`:""}${x.referrer_url?`<small class="hint">来源页：${esc(x.referrer_url)}</small>`:""}<small class="hint">记录人：${esc(x.profiles?.full_name||"系统自动接入")}</small></div>`}).join(""):'<div class="evidence-item">暂无营销触点</div>';
       }
       function localDateTimeInputValue(value){if(!value)return "";const d=new Date(value);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
+      const contactConsentNames={unknown:"联系依据待核实",legitimate_interest:"已核实合法利益 / 业务关系",opted_in:"客户已明确同意",opted_out:"客户已退订"};
+      function canEditContactPolicy(){return ["owner","sales_manager","marketing","sales"].includes(profile?.role)&&(profile?.role!=="sales"||currentInquiry?.owner_id===profile.id)}
+      function renderContactPolicyStatus(policy){
+        const badge=$("#contact-policy-badge"),status=$("#contact-policy-status"),now=Date.now(),nextAt=policy?.next_allowed_at?new Date(policy.next_allowed_at):null;
+        let label="尚未配置",message="尚未配置：主动开发信会被安全策略阻止，直到联系依据已核实。",blocked=true;
+        if(policy){
+          if(policy.do_not_contact||policy.consent_status==="opted_out"){label="禁止主动联系";message=`${contactConsentNames[policy.consent_status]||"已设置禁联"}；新一轮主动邮件会被阻止。`;}
+          else if(policy.consent_status==="unknown"){label="待核实";message="联系依据尚未核实，主动开发信会被阻止。";}
+          else if(nextAt&&nextAt.getTime()>now){label="频控中";message=`${contactConsentNames[policy.consent_status]}；最早可在 ${fmtDate(nextAt.toISOString())} 再次主动联系。`;}
+          else{label="允许主动联系";message=`${contactConsentNames[policy.consent_status]}；已满足当前触达条件，发送时仍会由服务端再次校验。`;blocked=false;}
+        }
+        badge.textContent=label;badge.classList.toggle("danger-text",blocked);status.textContent=message;
+      }
+      function populateContactPolicyForm(policy){
+        $("#contact-policy-consent").value=policy?.consent_status||"unknown";$("#contact-policy-do-not-contact").checked=Boolean(policy?.do_not_contact);$("#contact-policy-interval").value=policy?.min_interval_days||7;$("#contact-policy-next-at").value=localDateTimeInputValue(policy?.next_allowed_at);$("#contact-policy-note").value=policy?.policy_note||"";$("#contact-policy-reason").value="";
+        const editable=canEditContactPolicy();["contact-policy-consent","contact-policy-do-not-contact","contact-policy-interval","contact-policy-next-at","contact-policy-note","contact-policy-reason","save-contact-policy"].forEach(id=>{$("#"+id).disabled=!editable});renderContactPolicyStatus(policy);
+      }
+      $("#contact-policy-consent").addEventListener("change",()=>{if($("#contact-policy-consent").value==="opted_out")$("#contact-policy-do-not-contact").checked=true});
+      $("#save-contact-policy").addEventListener("click",async()=>{
+        if(!currentInquiry)return;const reason=$("#contact-policy-reason").value.trim(),interval=Number($("#contact-policy-interval").value),nextValue=$("#contact-policy-next-at").value;if(!reason)return toast("请填写本次触达规则的修改原因");if(!Number.isInteger(interval)||interval<1||interval>90)return toast("最小联系间隔必须是 1–90 天的整数");
+        const button=$("#save-contact-policy");button.disabled=true;
+        try{
+          const {error}=await supabase.rpc("save_inquiry_contact_policy",{target_inquiry_id:currentInquiry.id,consent:$("#contact-policy-consent").value,suppress_contact:$("#contact-policy-do-not-contact").checked,interval_days:interval,next_contact_at:nextValue?new Date(nextValue).toISOString():null,note:$("#contact-policy-note").value.trim()||null,change_reason:reason});if(error)throw error;
+          const {data:policy,error:reloadError}=await supabase.from("inquiry_contact_policies").select("inquiry_id,consent_status,do_not_contact,min_interval_days,next_allowed_at,last_contact_at,policy_note,updated_by,updated_at").eq("inquiry_id",currentInquiry.id).maybeSingle();if(reloadError)throw reloadError;currentInquiry.contactPolicy=policy||null;populateContactPolicyForm(currentInquiry.contactPolicy);toast("触达规则已保存并留痕");await loadTimeline(currentInquiry.id);
+        }catch(error){toast("触达规则保存失败："+error.message)}finally{button.disabled=!canEditContactPolicy()}
+      });
       qualificationFieldIds.forEach(key=>$("#qualification-"+key).addEventListener("input",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value})));
       $("#qualification-priority").addEventListener("change",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value}));
       $("#qualification-auto-prefill").addEventListener("click",()=>{if(!currentInquiry)return;const company=currentInquiry.companies||{},setEmpty=(id,value)=>{const input=$(id);if(input&&!input.value.trim()&&value)input.value=value};setEmpty("#qualification-identity",[company.name,company.domain,displayCountry(company.country||currentInquiry.target_country)].filter(Boolean).join(" · "));setEmpty("#qualification-need",[currentInquiry.demand_summary,currentInquiry.project_name&&(`项目：${currentInquiry.project_name}`),currentInquiry.title].filter(Boolean).join("\n"));const needs=Array.isArray(company.likely_needs)?company.likely_needs.map(item=>item?.need||item?.display||item).filter(Boolean).slice(0,3):[];setEmpty("#qualification-fit",[company.main_business&&(`主营业务：${company.main_business}`),needs.length&&(`可能匹配：${needs.join("；")}`)].filter(Boolean).join("\n"));$("#qualification-reason").value=$("#qualification-reason").value.trim()||"根据询盘原文与已生成背调自动整理市场预审，保存前已人工复核";renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value});toast("已整理市场预审空白项，请核对后保存")});

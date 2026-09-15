@@ -24,3 +24,14 @@ test('successful outreach advances frequency control and records the outcome',()
   assert.match(sender,/contact_policy_recorded: policyRecorded/);
   assert.match(sender,/messageKind === "reply" \? "inquiry_reply_email_sent" : "outreach_email_sent"/);
 });
+
+test('inquiry detail lets authorized users persist consent and frequency control',()=>{
+  assert.match(html,/data-detail-tab="contact-policy"/);
+  assert.match(html,/from\("inquiry_contact_policies"\)/);
+  assert.match(html,/rpc\("save_inquiry_contact_policy"/);
+  assert.match(html,/id="contact-policy-consent"/);
+  assert.match(html,/id="contact-policy-do-not-contact"/);
+  assert.match(html,/id="contact-policy-interval"/);
+  assert.match(html,/id="contact-policy-next-at"/);
+  assert.match(html,/id="contact-policy-reason"/);
+});

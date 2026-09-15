@@ -243,3 +243,5 @@
 - 迁移 `20260915133000_complete_notification_inbox.sql` 已在生产 SQL Editor 完成事务编译回滚及正式应用，并为未读通知建立接收人/时间索引。生产回滚验收脚本 `tests/production-notification-inbox-rollback.sql` 用两个不同成员验证仅当前登录人的通知被更新，全部测试写入已回滚；生产证据为 `index_live=true`、接收人和启用账号保护均生效、匿名不可执行、登录用户可执行。完整自动化回归更新为 139/139 通过。
 - 收款与退款改为受控状态流程：待收款必须填写银行流水号后才能确认到账；到账后付款类型、金额、币种、到账时间和原始流水号不可改写。退款只允许老板/销售主管登记，单独保存退款时间、退款流水和原因；业务员仅能处理自己负责的询盘。浏览器对 `order_payments` 的直接修改权限已撤销，统一调用 `update_order_payment_status` 审计 RPC。
 - 迁移 `20260915150000_secure_payment_status_workflow.sql` 已正式应用生产。回滚验收脚本 `tests/production-payment-workflow-rollback.sql` 实测到账、核心凭证不可改写及主管退款全部通过，所有测试写入已回滚；生产证据为 `columns=4`、`trigger=true`、`anon_exec=false`、`auth_exec=true`、`auth_update=false`、`rollback_payments=0`。完整自动化回归更新为 145/145 通过。
+- 订单与回款一致性改为数据库强校验：回款币种必须与订单币种一致，同一订单的待收及已收回款合计不能超过订单总额，并通过锁定订单行防止并发重复登记；没有真实已到账定金时，订单不能标记为“已收定金”。
+- 迁移 `20260915153000_enforce_payment_order_totals.sql` 已正式应用生产。回滚验收脚本 `tests/production-payment-order-integrity-rollback.sql` 实测币种不一致、超订单总额及无到账凭证的“已收定金”均被拦截，真实定金到账后可正常流转，所有测试写入已回滚。生产证据为两个保护触发器均启用、两个私有函数对匿名和登录用户均不可直接执行、`rollback_orders=0`、`rollback_payments=0`。完整自动化回归更新为 148/148 通过。

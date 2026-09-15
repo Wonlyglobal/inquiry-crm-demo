@@ -210,3 +210,5 @@
 - 经营看板次要模块支持点击整个标题栏收起；折叠后整条标题可点击展开，键盘 Enter/Space 同样可操作，标题内帮助按钮保持独立。生产页面已实际完成“无效与丢单原因分析”收起、展开双向回归。
 - 撤销浏览器角色直接调用 `mark_quotation_sent(uuid,uuid)` 的权限，避免在没有完成真实 SMTP 投递时伪造“已发送”状态；权限迁移为 `20260915093000_restrict_quotation_sent_finalization.sql`，代码提交 `7074c62`。
 - 生产数据库只读 ACL 核验：`anon_can_finalize=false`、`authenticated_can_finalize=false`、`service_can_finalize=true`；完整回归更新为 118/118 通过。
+- 关闭旧版仅总额报价函数 `create_quotation_version(uuid,text,text,numeric,text,date,text)` 的浏览器执行权，并撤销登录用户对 `quotation_versions` 的直接新增、修改和删除权限，防止绕过明细校验、审批和投递状态机；受控的新版创建、提交审批和审核 RPC 保持可用。权限迁移为 `20260915094500_lock_quotation_writes_to_workflow.sql`，代码提交 `202c8e3`。
+- 生产数据库 ACL 实测结果：`legacy=false`、`can_read=true`、`can_insert=false`、`can_update=false`、`can_create_v2=true`、`can_submit=true`、`can_review=true`；完整自动化回归更新为 119/119 通过。

@@ -2,6 +2,12 @@
 
 更新时间：2026-09-15（Asia/Shanghai）
 
+## 2026-09-15 每日计划写入权限闭环
+
+- 日历中的每日计划不再允许登录用户直接新增、修改或删除底层表；创建计划与填写关键成果只能经过 `create_sales_daily_plan`、`save_sales_daily_plan_result` 两个受控事务函数，避免绕过角色、内容和日期校验或漏写审计。
+- 两个函数都会重新核验当前账号仍为活跃的老板、主管或业务员；创建和完成动作继续生成 `daily_plan_created`、`daily_plan_completed` 审计证据，现有 CRM 日历操作路径不变。
+- 生产迁移 `20260915234500_lock_daily_plans_to_workflow.sql` 已应用。事务回滚验收结果：`table=t; anon_execute=f; authenticated_execute=t; authenticated_insert=f; authenticated_update=f; rollback_plans=0`。完整自动化回归 199/199 通过。
+
 ## 2026-09-15 个人经营看板偏好安全持久化
 
 - 经营看板的组件顺序、可折叠区块状态和核心指标页签已统一保存到独立的 `dashboard_preferences` 表，不再把业务偏好写入 Supabase Auth 用户元数据；更换浏览器或设备后仍按当前登录账号恢复。

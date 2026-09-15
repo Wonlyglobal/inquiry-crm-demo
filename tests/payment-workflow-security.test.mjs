@@ -34,7 +34,8 @@ test('fulfillment UI can confirm a pending payment and restrict refunds to manag
   assert.match(html,/确认到账/);
   assert.match(html,/登记退款/);
   assert.match(html,/canRefund=\["owner","sales_manager"\]\.includes\(profile\.role\)/);
-  assert.match(html,/已到账必须填写银行流水号或凭证编号/);
+  assert.match(html,/到账流水号 \/ 凭证编号/);
+  assert.match(html,/到账确认说明/);
 });
 
 test('production payment acceptance check is rollback-only',()=>{

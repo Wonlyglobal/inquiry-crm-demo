@@ -2,6 +2,14 @@
 
 更新时间：2026-09-15（Asia/Shanghai）
 
+## 2026-09-15 分角色资格核验与主管定级
+
+- “市场预审 / 销售确认 / 主管定级”不再依赖前端只读状态：新增 `save_inquiry_qualification` 原子 RPC，市场部只能维护企业身份、客户需求和业务匹配，业务员只能维护本人负责询盘的联系人角色、项目价值、采购时间和下一步，主管与老板可复核全部字段并确认优先级。
+- 资格成熟度由服务端根据 7 项持久化证据重新计算；只有主管或老板在全部字段完整时保存，才会写入真实的 `qualification_manager_confirmed_at/by`。任何后续非主管修改都会清除旧确认，避免默认 `P2` 被误显示为主管已定级。
+- 资格字段、成熟度、优先级和主管确认均禁止浏览器直接改表；每次授权保存都会生成 `qualification_updated` 审计记录。
+- 生产迁移 `20260915220000_secure_qualification_workflow.sql` 已应用。事务回滚验收结果：`function=t; trigger=t; anon_execute=f; authenticated_execute=t; rollback_audits=0`；直接绕过被拦截，主管完整定级与审计写入成功后全部回滚。
+- 完整自动化回归 182/182 通过。
+
 ## 2026-09-15 WhatsApp 客户回复提醒闭环
 
 - WhatsApp Webhook 收到已匹配询盘的客户消息后，会为当前负责人生成持久化的 `whatsapp_reply_reminders` 待回复任务，并发送一次去重的“WhatsApp 客户新回复”站内通知；同一客户的新消息会更新任务，不会堆积重复待办。

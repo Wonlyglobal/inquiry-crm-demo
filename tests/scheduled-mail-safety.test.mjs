@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const worker=fs.readFileSync(new URL('../mail-sync/src/index.mjs',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const migration=fs.readFileSync(new URL('../supabase/migrations/20260915090000_scheduled_quotation_delivery.sql',import.meta.url),'utf8');
 
 test('scheduled mail revalidates the sender and inquiry assignment at execution time',()=>{
   assert.match(worker,/function validateOutboxSend/);
@@ -40,4 +42,14 @@ test('ambiguous deliveries are surfaced for review instead of retried',()=>{
   assert.match(worker,/mailbox_scheduled_message_delivery_uncertain/);
   assert.match(worker,/automatic_retry:false/);
   assert.match(worker,/await recoverStaleOutboxJobs\(\)/);
+});
+
+test('scheduled quotation delivery persists and finalizes the approved quotation workflow',()=>{
+  assert.match(html,/target_quotation_id:\$\("#mail-compose-quotation"\)\.value\|\|null/);
+  assert.match(migration,/add column if not exists quotation_id uuid references public\.quotation_versions/);
+  assert.match(migration,/quote\.status<>'approved'/);
+  assert.match(migration,/function public\.finalize_scheduled_quotation/);
+  assert.match(migration,/grant execute on function public\.finalize_scheduled_quotation\(uuid,timestamptz\) to service_role/);
+  assert.match(worker,/quote\.status!=='approved'/);
+  assert.match(worker,/db\.rpc\('finalize_scheduled_quotation'/);
 });

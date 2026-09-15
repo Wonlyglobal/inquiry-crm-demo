@@ -7065,7 +7065,7 @@
         const button=$("#send-mail-compose");button.disabled=true;button.textContent="发送中…";
         if(scheduledAt){
           const ccList=$("#mail-compose-cc").value.split(/[,;，；]/).map(value=>value.trim().toLowerCase()).filter(Boolean);
-          const {error}=await supabase.rpc("schedule_mailbox_message",{target_inquiry_id:$("#mail-compose-inquiry").value||null,recipient_email:to,cc_list:ccList,mail_subject:subject,mail_body:body,reply_message_id:$("#mail-compose-reply-id").value||null,scheduled_for:scheduledAt.toISOString()});
+          const {error}=await supabase.rpc("schedule_mailbox_message",{target_inquiry_id:$("#mail-compose-inquiry").value||null,recipient_email:to,cc_list:ccList,mail_subject:subject,mail_body:body,reply_message_id:$("#mail-compose-reply-id").value||null,scheduled_for:scheduledAt.toISOString(),target_quotation_id:$("#mail-compose-quotation").value||null});
           button.disabled=false;button.textContent="发送";if(error)return toast("定时发送失败："+error.message);
           $("#mail-compose-modal").classList.add("hidden");mailboxFolder="scheduled";$$('#mailbox-folder-tabs [data-mailbox-folder]').forEach(item=>item.classList.toggle("active",item.dataset.mailboxFolder==="scheduled"));toast("定时邮件已保存，发送前可在“定时发送”中取消");return loadModule("mailbox");
         }

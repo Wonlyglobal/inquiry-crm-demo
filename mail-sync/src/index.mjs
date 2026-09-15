@@ -107,6 +107,12 @@ async function validateOutboxSend(job){
   if(inquiry.owner_id!==job.sender_user_id&&!['owner','sales_manager'].includes(sender.role)){
     throw permanentError('定时邮件已取消：发送人已不再负责该询盘');
   }
+  if(job.quotation_id){
+    const {data:quote,error:quoteError}=await db.from('quotation_versions').select('id,inquiry_id,status,created_by').eq('id',job.quotation_id).maybeSingle();
+    if(quoteError)throw quoteError;
+    if(!quote||quote.inquiry_id!==job.inquiry_id)throw permanentError('定时报价已取消：报价与询盘不匹配');
+    if(quote.status!=='approved')throw permanentError('定时报价已取消：报价已不再处于主管批准状态');
+  }
 
   // The current thread state is authoritative at execution time. An initial
   // inquiry or the latest customer message is a reply; sending after our most
@@ -175,6 +181,10 @@ async function processOutbox(){
       const sent=await transport.sendMail({from:`"${sender.full_name||connection.email}" <${connection.email}>`,to:job.recipient_email,...(job.cc_emails?.length?{cc:job.cc_emails}:{}),subject:job.subject,text:job.body_text,html:emailHtml(job.body_text),...(threadId?{inReplyTo:threadId,references:[threadId]}:{})});
       const sentAt=new Date().toISOString();
       await db.from('mail_outbox').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null}).eq('id',job.id);
+      if(job.quotation_id){
+        const {error:quoteError}=await db.rpc('finalize_scheduled_quotation',{target_outbox_id:job.id,target_sent_at:sentAt});
+        if(quoteError)console.error(`outbox quotation ${job.id}:`,quoteError.message);
+      }
       if(job.draft_id)await db.from('outreach_drafts').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null,updated_at:sentAt}).eq('id',job.draft_id);
       let contactPolicyRecorded=messageKind!=='outreach';
       if(messageKind==='outreach'){

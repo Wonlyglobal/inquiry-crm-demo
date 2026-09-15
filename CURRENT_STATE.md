@@ -245,3 +245,5 @@
 - 迁移 `20260915150000_secure_payment_status_workflow.sql` 已正式应用生产。回滚验收脚本 `tests/production-payment-workflow-rollback.sql` 实测到账、核心凭证不可改写及主管退款全部通过，所有测试写入已回滚；生产证据为 `columns=4`、`trigger=true`、`anon_exec=false`、`auth_exec=true`、`auth_update=false`、`rollback_payments=0`。完整自动化回归更新为 145/145 通过。
 - 订单与回款一致性改为数据库强校验：回款币种必须与订单币种一致，同一订单的待收及已收回款合计不能超过订单总额，并通过锁定订单行防止并发重复登记；没有真实已到账定金时，订单不能标记为“已收定金”。
 - 迁移 `20260915153000_enforce_payment_order_totals.sql` 已正式应用生产。回滚验收脚本 `tests/production-payment-order-integrity-rollback.sql` 实测币种不一致、超订单总额及无到账凭证的“已收定金”均被拦截，真实定金到账后可正常流转，所有测试写入已回滚。生产证据为两个保护触发器均启用、两个私有函数对匿名和登录用户均不可直接执行、`rollback_orders=0`、`rollback_payments=0`。完整自动化回归更新为 148/148 通过。
+- 订单交付履约补齐承运商、运单号和发货时间；进入已发货及后续状态必须保留全部发货凭证，进入已交付、售后或完成状态必须保留实际交付时间。前端订单进展表单可录入并回显这些凭证，订单列表直接展示承运商与运单号。
+- 订单直接 UPDATE 权限已从登录用户撤销，状态和履约凭证统一由服务端 `update_sales_order_progress` 在锁定订单后同时更新状态并写入进展事件；业务员仅可处理自己当前负责的询盘。迁移 `20260915160000_secure_order_delivery_evidence.sql` 已应用生产，回滚验收 `tests/production-order-delivery-evidence-rollback.sql` 通过；生产证据为 `columns=3`、`trigger=true`、旧 RPC 已移除、`anon_rpc=false`、`auth_rpc=true`、`auth_update=false`、`rollback_orders=0`、`rollback_events=0`。完整自动化回归更新为 152/152 通过。

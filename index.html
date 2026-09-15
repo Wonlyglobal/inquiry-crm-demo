@@ -6811,7 +6811,7 @@
         const button = $("#send-outreach"); button.disabled = true; button.textContent = "发送中…";
         try {
           const draft = await saveOutreachDraft();
-          const { data, error } = await supabase.functions.invoke("mailbox-send", { body: { inquiry_id: currentInquiry.id, draft_id: draft.id, subject: draft.subject, body: draft.body } });
+          const { data, error } = await supabase.functions.invoke("mailbox-send", { body: { inquiry_id: currentInquiry.id, draft_id: draft.id, subject: draft.subject, body: draft.body, message_kind: isReply?"reply":"outreach" } });
           if (error) throw error;
           if (data?.sent) {
             $("#outreach-status").textContent = `已发送 · ${fmtDate(data.sent_at || data.queued_at)}`;

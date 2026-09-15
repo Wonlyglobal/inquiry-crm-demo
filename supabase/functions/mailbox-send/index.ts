@@ -50,7 +50,8 @@ Deno.serve(async (req) => {
     const draftId = clean(body.draft_id, 100);
     const subject = clean(body.subject, 300);
     const messageBody = clean(body.body, 50000);
-    if (!inquiryId || !draftId || !subject || !messageBody) {
+    const requestedMessageKind = clean(body.message_kind, 30);
+    if (!inquiryId || !draftId || !subject || !messageBody || !["reply", "outreach"].includes(requestedMessageKind)) {
       return new Response(JSON.stringify({ error: "邮件信息不完整" }), { status: 400, headers: cors });
     }
 
@@ -68,7 +69,20 @@ Deno.serve(async (req) => {
     if (!recipient) return new Response(JSON.stringify({ error: "询盘没有可用的客户邮箱" }), { status: 400, headers: cors });
     const { data: draft, error: draftError } = await admin.from("outreach_drafts").select("id,inquiry_id,status,created_by").eq("id", draftId).eq("inquiry_id", inquiryId).single();
     if (draftError || !draft) throw draftError || new Error("开发信草稿不存在");
+    if (draft.created_by !== user.id && !["owner", "sales_manager"].includes(caller.role)) return new Response(JSON.stringify({ error: "只能发送本人创建的邮件草稿" }), { status: 403, headers: cors });
     if (draft.status === "sent") return new Response(JSON.stringify({ error: "该开发信已经发送，请勿重复发送" }), { status: 409, headers: cors });
+    const { data: latestThreadMessage, error: threadError } = await admin.from("email_messages").select("direction").eq("inquiry_id", inquiryId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (threadError) throw threadError;
+    // Do not trust the browser to exempt a message from suppression. A reply
+    // is determined from the authoritative thread: an initial inquiry or a
+    // latest inbound customer message. Anything after our latest outbound
+    // message is proactive follow-up and must pass contact policy.
+    const messageKind = !latestThreadMessage || latestThreadMessage.direction === "inbound" ? "reply" : "outreach";
+    if (messageKind === "outreach") {
+      const { data: contactPolicy, error: contactPolicyError } = await userClient.rpc("check_inquiry_contact_allowed", { target_inquiry_id: inquiryId });
+      if (contactPolicyError) throw contactPolicyError;
+      if (!contactPolicy?.allowed) return new Response(JSON.stringify({ error: `触达规则拦截：${clean(contactPolicy?.reason, 500) || "当前不允许主动联系客户"}` }), { status: 409, headers: cors });
+    }
 
     const { data: connection, error: connectionError } = await admin.from("mailbox_connections")
       .select("id,email,smtp_host,smtp_port,status").eq("user_id", user.id).eq("status", "connected").single();
@@ -89,8 +103,13 @@ Deno.serve(async (req) => {
       });
       const sentAt = new Date().toISOString();
       await admin.from("outreach_drafts").update({ status: "sent", selected_subject: subject, body: messageBody, sent_at: sentAt, message_id: sent.messageId || null, last_error: null, updated_at: sentAt }).eq("id", draftId);
-      await admin.from("audit_logs").insert({ actor_id: user.id, entity_type: "inquiry", entity_id: inquiryId, action: "outreach_email_sent", after_data: { draft_id: draftId, recipient, message_id: sent.messageId || null }, reason: "业务员从 CRM 发送开发信" });
-      return new Response(JSON.stringify({ sent: true, recipient, message_id: sent.messageId || null, sent_at: sentAt }), { headers: cors });
+      let policyRecorded = messageKind !== "outreach";
+      if (messageKind === "outreach") {
+        const recorded = await userClient.rpc("record_inquiry_marketing_contact", { target_inquiry_id: inquiryId, contact_reason: "CRM 开发信已发送" });
+        policyRecorded = !recorded.error;
+      }
+      await admin.from("audit_logs").insert({ actor_id: user.id, entity_type: "inquiry", entity_id: inquiryId, action: messageKind === "reply" ? "inquiry_reply_email_sent" : "outreach_email_sent", after_data: { draft_id: draftId, recipient, message_id: sent.messageId || null, message_kind: messageKind, contact_policy_recorded: policyRecorded }, reason: messageKind === "reply" ? "业务员从 CRM 回复客户询盘" : "业务员从 CRM 发送开发信" });
+      return new Response(JSON.stringify({ sent: true, recipient, message_id: sent.messageId || null, sent_at: sentAt, contact_policy_recorded: policyRecorded }), { headers: cors });
     } catch (error) {
       await admin.from("outreach_drafts").update({ status: "failed", last_error: errorText(error), updated_at: new Date().toISOString() }).eq("id", draftId);
       throw error;

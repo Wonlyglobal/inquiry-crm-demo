@@ -32,3 +32,12 @@ test('successful proactive scheduled mail advances contact frequency and is audi
   assert.match(worker,/mailbox_scheduled_message_sent/);
   assert.match(worker,/contact_policy_recorded:contactPolicyRecorded/);
 });
+
+test('ambiguous deliveries are surfaced for review instead of retried',()=>{
+  assert.match(worker,/function recoverStaleOutboxJobs/);
+  assert.match(worker,/eq\('status','sending'\)\.lte\('started_at',cutoff\)/);
+  assert.match(worker,/为避免重复邮件不会自动重试/);
+  assert.match(worker,/mailbox_scheduled_message_delivery_uncertain/);
+  assert.match(worker,/automatic_retry:false/);
+  assert.match(worker,/await recoverStaleOutboxJobs\(\)/);
+});

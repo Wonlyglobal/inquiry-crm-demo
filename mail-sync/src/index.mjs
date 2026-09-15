@@ -134,7 +134,26 @@ async function recordScheduledMarketingContact(job,sentAt){
   });
 }
 
+async function recoverStaleOutboxJobs(){
+  const cutoff=new Date(Date.now()-10*60000).toISOString();
+  const {data:stale,error}=await db.from('mail_outbox').select('*').eq('status','sending').lte('started_at',cutoff).order('started_at').limit(50);
+  if(error)throw error;
+  for(const job of stale||[]){
+    // SMTP delivery may already have succeeded before the worker stopped. Do
+    // not retry an ambiguous delivery automatically, because that can send a
+    // duplicate customer email. Surface it for a human to verify instead.
+    const errorMessage='发送结果待人工确认：服务在 SMTP 提交后未完成状态回写，系统为避免重复邮件不会自动重试';
+    const failedAt=new Date().toISOString();
+    const {data:recovered,error:recoverError}=await db.from('mail_outbox').update({status:'failed',last_error:errorMessage,updated_at:failedAt}).eq('id',job.id).eq('status','sending').lte('started_at',cutoff).select('id').maybeSingle();
+    if(recoverError)throw recoverError;
+    if(!recovered)continue;
+    if(job.draft_id)await db.from('outreach_drafts').update({status:'failed',last_error:errorMessage,updated_at:failedAt}).eq('id',job.draft_id);
+    await writeOutboxAudit(job,'mailbox_scheduled_message_delivery_uncertain',errorMessage,{started_at:job.started_at,detected_at:failedAt,automatic_retry:false});
+  }
+}
+
 async function processOutbox(){
+  await recoverStaleOutboxJobs();
   const {data:jobs,error}=await db.from('mail_outbox').select('*').eq('status','pending').lte('next_attempt_at',new Date().toISOString()).order('created_at').limit(20);
   if(error)throw error;
   for(const job of jobs||[]){

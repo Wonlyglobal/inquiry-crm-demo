@@ -13,6 +13,8 @@
 - CRM“定时发送”列表会直接展示失败原因。提交 `ebec5ca` 已发布，GitHub Pages 构建 `34913772198` 成功；生产容器为 `healthy`，回滚文件位于 `/home/linux/wonly-mail-sync/deploy-audit/20260915-ebec5ca-interrupted-delivery/`。
 - 定时报价邮件现在持久化 `quotation_id`；预约和实际发送时都会确认报价仍处于主管批准状态，成功后自动将报价设为已发送并推进询盘的已报价阶段、金额、币种和报价时间。迁移 `20260915090000_scheduled_quotation_delivery.sql` 已通过生产 SQL Editor 执行并验证：列与两个 RPC 均存在，普通登录用户不能调用完成函数，`service_role` 可以调用。
 - 前端与 worker 提交为 `b612e70`，115 项测试通过，GitHub Pages 构建 `34914101580` 成功；生产容器恢复 `healthy`，回滚文件位于 `/home/linux/wonly-mail-sync/deploy-audit/20260915-b612e70-scheduled-quotation/`。本次未创建报价或发送邮件。
+- 立即发送报价不再把 SMTP Message-ID 字符串误传给 UUID 参数；报价 ID 由前端提交给 `mailbox-compose-send`，服务端重新校验询盘权限、报价批准状态和主动触达规则，发送后以空消息 UUID 推进报价状态，待 IMAP 同步后再绑定真实 `email_messages.id`。状态回写异常会返回“邮件已发送”的明确警告，避免重复发送。
+- 修复提交 `e09e158`，117 项测试通过；`mailbox-compose-send` 生产版本 16 为 `ACTIVE`，GitHub Pages 构建 `34914635407` 成功，匿名空请求返回 401。本次未发送真实邮件。
 
 ## 线上环境
 

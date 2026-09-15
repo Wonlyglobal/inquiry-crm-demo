@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync(new URL('../supabase/migrations/20260910172000_fulfillment_state_integrity.sql',import.meta.url),'utf8');
+const afterSalesSql=fs.readFileSync(new URL('../supabase/migrations/20260915143000_harden_after_sales_resolution.sql',import.meta.url),'utf8');
+const productionAfterSalesSql=fs.readFileSync(new URL('./production-after-sales-resolution-rollback.sql',import.meta.url),'utf8');
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 
 test('sample lifecycle is sequential and shipment evidence is mandatory',()=>{
@@ -45,4 +47,20 @@ test('fulfillment controls only expose valid next actions',()=>{
   assert.match(html,/sample\.status==="feedback_received"/);
   assert.match(html,/完成跟踪/);
   assert.doesNotMatch(html,/id="order-payment-status"[^`]*option value="refunded"/);
+});
+
+test('after-sales cases must be resolved before their orders can complete',()=>{
+  assert.match(afterSalesSql,/old\.status='after_sales' and new\.status='completed'/);
+  assert.match(afterSalesSql,/new\.after_sales_status<>'resolved'/);
+  assert.match(afterSalesSql,/售后问题必须标记为已解决后才能完成订单/);
+  assert.match(afterSalesSql,/old\.status='delivered' and new\.status='completed'/);
+  assert.match(afterSalesSql,/未进入售后流程的订单不能伪造售后已解决状态/);
+  assert.match(afterSalesSql,/revoke all on function private\.enforce_after_sales_resolution\(\) from public,anon,authenticated/);
+});
+
+test('production after-sales acceptance check is rollback-only',()=>{
+  assert.match(productionAfterSalesSql,/^begin;/m);
+  assert.match(productionAfterSalesSql,/UNRESOLVED_AFTER_SALES_NOT_BLOCKED/);
+  assert.match(productionAfterSalesSql,/after_sales_status='resolved'/);
+  assert.match(productionAfterSalesSql,/rollback;/);
 });

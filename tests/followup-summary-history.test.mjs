@@ -39,3 +39,13 @@ test('follow-up timeline reads every linked message beyond the API default page'
   assert.match(html,/\.range\(from, from \+ pageSize - 1\)/);
   assert.match(html,/if \(\(result\.data \|\| \[\]\)\.length < pageSize\) break/);
 });
+
+test('follow-up assistant analyzes complete email and WhatsApp history without stale refresh loops',()=>{
+  assert.match(edge,/from\("whatsapp_messages"\)/);
+  assert.match(edge,/channel:"whatsapp"/);
+  assert.match(edge,/latestCommunicationKey/);
+  assert.match(edge,/whatsapp:\$\{latest\.id\}/);
+  assert.match(html,/for \(let from = 0; ; from \+= pageSize\) \{\s*const whatsapp/s);
+  assert.match(html,/newestIsWhatsApp/);
+  assert.match(html,/!newestIsWhatsApp&&latestSummary\.source_message_id!==newestMessage\.id/);
+});

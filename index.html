@@ -2886,8 +2886,9 @@
       }
       async function openMailboxMessage(message){
         if(message.direction==="inbound"){
-          const {error}=await supabase.from("email_message_reads").upsert({email_message_id:message.id,user_id:profile.id,read_at:new Date().toISOString()},{onConflict:"email_message_id,user_id"});
+          const {error}=await supabase.rpc("mark_email_message_read",{target_message_id:message.id});
           if(!error){message.mailRead=true;const row=moduleRows.find(item=>item.message?.id===message.id);if(row){row.cells[2]=mailboxMessageState(message);renderModuleTable(moduleColumns,moduleRows,moduleRowClick)}}
+          else toast("标记邮件已读失败："+error.message);
         }
         const recipients=(message.recipient_emails||[]).join(", ")||"—";
         const attachments=await emailAttachmentMarkup(message.id);

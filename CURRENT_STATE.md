@@ -7,7 +7,7 @@
 - 邮件同步不再直接改写 `first_valid_contact_at`；新增仅 `service_role` 可调用的 `record_synced_email_followup`，在同一事务内锁定询盘、写入邮件跟进证据、确认首次有效联系并生成审计日志。
 - 只有已匹配询盘、负责人本人邮箱、分配后发出且询盘已确认有效的真实已发送箱邮件才会关闭首次响应超时；同一邮件重复同步不会重复记录。
 - 迁移 `20260915200000_record_synced_email_contact_evidence.sql` 已应用生产。生产事务回滚验收结果：`function=t; anon_execute=f; authenticated_execute=f; service_execute=t; rollback_messages=0; rollback_followups=0`，未改动真实邮件、询盘或跟进数据。
-- 邮件 worker 代码已改为调用该事务函数，完整自动化回归 172/172 通过。当前生产服务器拒绝已有 `wonly_deploy` SSH 密钥，容器重建待恢复部署访问后执行；数据库保护已生效。
+- 邮件 worker 已改为调用该事务函数并在生产重建，启动后已完整同步 8 个企业邮箱且无错误日志；回滚文件保存在 `/home/linux/wonly-mail-sync/deploy-audit/20260915-a4684a7-email-first-response/`。完整自动化回归 173/173 通过，本次未向真实客户发送邮件。
 
 ## 2026-09-15 结构化售后工单闭环
 

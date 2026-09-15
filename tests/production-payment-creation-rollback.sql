@@ -14,6 +14,9 @@ begin
   select id into target_inquiry from public.inquiries order by created_at desc limit 1;
   if actor_id is null or target_inquiry is null then raise exception 'NO_PAYMENT_CREATION_FIXTURE'; end if;
   perform set_config('request.jwt.claim.sub',actor_id::text,true);
+  perform set_config('app.inquiry_workflow_rpc','on',true);
+  update public.inquiries set status='won',won_amount=1000000,won_currency='USD',won_exchange_rate=1,won_at=clock_timestamp() where id=target_inquiry;
+  perform set_config('app.inquiry_workflow_rpc','off',true);
 
   insert into public.sales_orders(id,inquiry_id,order_no,currency,total_amount,created_by)
   values(target_order,target_inquiry,'ROLLBACK-'||left(target_order::text,8),'USD',100,actor_id);

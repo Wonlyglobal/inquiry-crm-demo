@@ -251,3 +251,5 @@
 - 样品进入签收及后续状态必须永久保留签收时间；进入已反馈必须同时保留客户反馈与反馈时间，关闭时不能清除既有反馈。履约窗口新增“样品进展历史”，并对样品、订单、回款和进展明细统一分页读取，避免超过 API 默认页大小后丢失旧记录。
 - 迁移 `20260915170000_atomic_sample_progress.sql` 已正式应用生产。回滚验收 `tests/production-sample-progress-rollback.sql` 实测缺少发货凭证和缺少客户反馈都会被拒绝，合法五步时间线完整生成，随后全部回滚；生产证据为 `table=true`、`index=true`、两个触发器均启用、`anon_rpc=false`、`auth_rpc=true`、`auth_update=false`、`rollback_samples=0`、`rollback_events=0`。完整自动化回归更新为 156/156 通过。
 - 关闭新建回款时直接选择“已到账”的绕过入口：浏览器只能先登记待回款，实际到账必须再通过受控确认流程填写到账时间、流水号和确认说明；数据库同时拒绝在新增待回款时预埋到账或退款凭证。迁移 `20260915173000_require_pending_payment_creation.sql` 已应用生产，回滚验收 `tests/production-payment-creation-rollback.sql` 通过；生产证据为新增状态和到账证据保护均启用、私有保护函数匿名/登录用户均不可直接执行、`rollback_orders=0`、`rollback_payments=0`。完整自动化回归更新为 159/159 通过。
+- 销售订单现在必须关联已由主管审批的正式成交：未成交询盘不能建单，订单币种必须等于锁定的成交币种，同一成交下全部未取消订单合计不能超过审批成交额，并通过锁定询盘行避免并发超额。前端在未成交阶段不再显示建单表单，而是提示先完成成交审批。
+- 迁移 `20260915180000_require_approved_win_for_orders.sql` 已应用生产。回滚验收 `tests/production-order-creation-rollback.sql` 实测未成交、币种错误和累计超额均被拦截，审批成交后的合法订单可创建，随后全部回滚；生产证据为资格/币种/金额保护均启用、私有函数匿名和登录用户均不可直接执行、`orders=0`、`rollback_orders=0`、`won_inquiries=0`。既有订单/回款/交付/售后回滚脚本同步补充成交前置夹具，保持可重复执行；完整自动化回归更新为 162/162 通过。

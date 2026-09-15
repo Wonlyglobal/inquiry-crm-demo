@@ -16,13 +16,16 @@ begin
   limit 1;
   if target_inquiry is null then raise exception 'NO_OWNED_INQUIRY_FIXTURE'; end if;
   perform set_config('request.jwt.claim.sub',actor_id::text,true);
+  perform set_config('app.inquiry_workflow_rpc','on',true);
+  update public.inquiries set status='won',won_amount=1000000,won_currency='USD',won_exchange_rate=1,won_at=clock_timestamp() where id=target_inquiry;
+  perform set_config('app.inquiry_workflow_rpc','off',true);
 
   insert into public.sales_orders(id,inquiry_id,order_no,currency,total_amount,status,created_by)
   values(target_order,target_inquiry,'ROLLBACK-AFTER-SALES-'||substr(target_order::text,1,8),'USD',1,'draft',actor_id);
   update public.sales_orders set status='confirmed' where id=target_order;
   update public.sales_orders set status='production' where id=target_order;
   update public.sales_orders set status='ready_to_ship' where id=target_order;
-  update public.sales_orders set status='shipped' where id=target_order;
+  update public.sales_orders set status='shipped',shipping_carrier='DHL',shipping_tracking_no='ROLLBACK-AFTER-SALES',shipped_at=clock_timestamp() where id=target_order;
   update public.sales_orders set status='delivered',delivered_at=clock_timestamp() where id=target_order;
   update public.sales_orders set status='after_sales',after_sales_status='open' where id=target_order;
 

@@ -2,6 +2,13 @@
 
 更新时间：2026-09-15（Asia/Shanghai）
 
+## 2026-09-15 邮件 AI 草稿持久化
+
+- 邮件智能助手每次生成客户回复或翻译草稿后，必须先通过仅 `service_role` 可调用的 `record_email_ai_draft` 原子函数持久化草稿并写入审计，保存失败时不会向浏览器伪装成生成成功。
+- 草稿完整保留作者、关联询盘、来源来信、生成类型、语言、主题、正文、中文生成说明及业务员补充要求；登录用户只能读取自己的草稿，没有直接新增或修改权限。
+- 写信窗口新增“最近 AI 草稿”，可恢复当前账号最近 20 条生成结果继续编辑；恢复客户回复时会重新附上当前原始来信引用，不会丢失线程上下文。
+- 迁移 `20260915230000_persist_mail_ai_drafts.sql` 已应用生产，`mailbox-ai-draft` Worker 已重新部署。生产回滚验收结果：`table=true`、`function=true`、`anon/authenticated_execute=false`、`service_execute=true`、`authenticated_insert=false`、`rollback_drafts=0`；未登录 Worker 探针返回 HTTP 403。完整自动化回归 189/189 通过。
+
 ## 2026-09-15 客户档案全渠道沟通历史
 
 - 客户资料库的沟通记录从仅展示最近 20 封邮件，升级为完整分页加载并统一按时间排列全部邮件与 WhatsApp 消息；每条记录明确显示渠道、收发方向、联系人、主题或消息正文及 WhatsApp 投递状态。

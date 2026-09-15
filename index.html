@@ -1856,7 +1856,7 @@
           </div>
           <div class="detail-grid">
             <div class="field"><label>邮件语言</label><select id="mail-compose-language" class="input"><option value="English">英文</option><option value="Spanish">西班牙文</option><option value="Portuguese">葡萄牙文</option><option value="French">法文</option><option value="Arabic">阿拉伯文</option><option value="Russian">俄文</option><option value="Chinese">中文</option></select></div>
-            <div class="field"><label>AI 邮件助手</label><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mail-ai-reply" class="secondary" type="button">根据客户来信生成回复</button><button id="mail-ai-translate" class="secondary" type="button">翻译当前草稿</button></div></div>
+            <div class="field"><label>AI 邮件助手</label><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="mail-ai-reply" class="secondary" type="button">根据客户来信生成回复</button><button id="mail-ai-translate" class="secondary" type="button">翻译当前草稿</button><button id="mail-ai-history" class="secondary" type="button">最近 AI 草稿</button></div></div>
           </div>
           <div class="field"><label>本次回复补充说明（可选）</label><textarea id="mail-ai-instruction" class="input" rows="2" maxlength="2000" placeholder="例如：告知客户样品可在 7 天内准备；不要承诺最终交期"></textarea><small class="hint">AI 只使用邮件、CRM 已确认事实和这里的补充说明；缺少的信息会转为待确认问题，不会编造。</small></div>
           <div id="mail-ai-status" class="notice hidden"></div>
@@ -2860,10 +2860,16 @@
           $("#mail-compose-subject").value=draft.subject;
           const responseBody=`${stripExistingSignature(draft.body)}\n\n${mailboxSignature()}`.trim(),quoted=mailComposerMessage?quotedOriginalMail(mailComposerMessage):"";
           $("#mail-compose-body").value=quoted?`${responseBody}\n\n${quoted}`:responseBody;
-          $("#mail-ai-status").textContent=draft.rationale_zh?`生成说明：${draft.rationale_zh}`:"草稿已生成，请人工核对后再发送";
+          $("#mail-ai-status").textContent=draft.rationale_zh?`草稿已保存 · 生成说明：${draft.rationale_zh}`:"AI 草稿已保存，请人工核对后再发送";
           toast(translating?"已完成翻译，请检查后发送":"已根据完整客户上下文生成回复，请检查后发送");
         }catch(error){$("#mail-ai-status").textContent="生成失败："+(error.message||error);toast("邮件助手失败："+(error.message||error))}
         finally{button.disabled=false;button.textContent=originalText}
+      }
+      async function openRecentMailAiDrafts(){
+        const {data,error}=await supabase.from("email_ai_drafts").select("id,action,language,subject,body_text,rationale_zh,created_at").eq("author_id",profile.id).order("created_at",{ascending:false}).limit(20);
+        if(error)return toast("AI 草稿加载失败："+error.message);
+        const drafts=data||[];openDashboardModal("最近 AI 邮件草稿",drafts.length?`<div class="dashboard-table-scroll"><table><thead><tr><th>生成时间</th><th>类型</th><th>语言</th><th>主题</th><th>操作</th></tr></thead><tbody>${drafts.map(item=>`<tr><td>${fmtDate(item.created_at)}</td><td>${item.action==="reply"?"智能回复":"草稿翻译"}</td><td>${esc(item.language)}</td><td>${esc(item.subject)}</td><td><button class="table-action" type="button" data-restore-ai-draft="${item.id}">恢复草稿</button></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">尚未生成 AI 邮件草稿</div>');
+        $$('[data-restore-ai-draft]').forEach(button=>button.onclick=()=>{const item=drafts.find(row=>row.id===button.dataset.restoreAiDraft);if(!item)return;const responseBody=`${stripExistingSignature(item.body_text)}\n\n${mailboxSignature()}`.trim(),quoted=mailComposerMessage?quotedOriginalMail(mailComposerMessage):"";$("#mail-compose-subject").value=item.subject;$("#mail-compose-body").value=quoted?`${responseBody}\n\n${quoted}`:responseBody;$("#mail-compose-language").value=item.language;syncMailComposerDirection();$("#mail-ai-status").textContent=item.rationale_zh?`已恢复草稿 · 生成说明：${item.rationale_zh}`:"已恢复持久化 AI 草稿";$("#mail-ai-status").classList.remove("hidden");$("#dashboard-modal").classList.add("hidden");toast("AI 草稿已恢复，可继续编辑")});
       }
       async function openMailComposer(message=null){
         const replying=Boolean(message);
@@ -7123,6 +7129,7 @@
       $("#save-mail-template").addEventListener("click",saveCurrentMailTemplate);
       $("#mail-ai-reply").addEventListener("click",()=>runMailboxAi("reply"));
       $("#mail-ai-translate").addEventListener("click",()=>runMailboxAi("translate"));
+      $("#mail-ai-history").addEventListener("click",openRecentMailAiDrafts);
       $("#mail-select-material").addEventListener("click",chooseMaterialForMail);
       $("#mail-compose-files").addEventListener("change",event=>{const files=[...(event.target.files||[])],bytes=files.reduce((sum,file)=>sum+file.size,0)+selectedMaterialAttachments.reduce((sum,item)=>sum+Number(item.sizeBytes||0),0);if(files.length+selectedMaterialAttachments.length>MAIL_ATTACHMENT_COUNT_LIMIT){toast("阿里邮箱普通附件最多 100 个");event.target.value=""}else if(bytes>MAIL_ATTACHMENT_LIMIT_BYTES)toast("附件超过 50MB，可点击“一键压缩附件”后重试");updateMailAttachmentSummary()});
       $("#mail-compress-files").addEventListener("click",async()=>{

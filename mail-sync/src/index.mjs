@@ -304,11 +304,9 @@ function ruleSummary(message){
 async function applyMatchedMessage(row, connection){
   const {data:inq}=await db.from('inquiries').select('id,owner_id,title').eq('id',row.inquiry_id).single();
   if(!inq)return;
-  const author=inq.owner_id||connection.user_id||connection.created_by;
-  await db.from('follow_ups').upsert({inquiry_id:inq.id,author_id:author,method:'email',content:row.body_text||row.subject||'邮件沟通',customer_feedback:row.direction==='inbound'?(row.body_text||null):null,source:'email_sync',direction:row.direction,email_message_id:row.id},{onConflict:'email_message_id',ignoreDuplicates:true});
-  if(row.direction==='outbound'){
-    await db.from('inquiries').update({first_valid_contact_at:new Date(row.sent_at||row.created_at).toISOString(),updated_by:author,last_change_reason:'从已发送邮件同步首次有效联系'}).eq('id',inq.id).is('first_valid_contact_at',null);
-  }else{
+  const {error:followupError}=await db.rpc('record_synced_email_followup',{target_email_message_id:row.id});
+  if(followupError)throw followupError;
+  if(row.direction==='inbound'){
     const {data:managers}=await db.from('profiles').select('id').eq('role','sales_manager').eq('active',true);
     const recipients=[inq.owner_id,...(managers||[]).map(x=>x.id)].filter(Boolean);
     if(recipients.length)await db.from('notifications').insert([...new Set(recipients)].map(id=>({recipient_id:id,inquiry_id:inq.id,type:'customer_email_reply',title:'客户有新邮件回复',body:`${row.sender_email||''} · ${row.subject||inq.title}`})));

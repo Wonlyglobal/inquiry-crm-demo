@@ -2,6 +2,13 @@
 
 更新时间：2026-09-15（Asia/Shanghai）
 
+## 2026-09-15 真实已发送邮件联动首次响应
+
+- 邮件同步不再直接改写 `first_valid_contact_at`；新增仅 `service_role` 可调用的 `record_synced_email_followup`，在同一事务内锁定询盘、写入邮件跟进证据、确认首次有效联系并生成审计日志。
+- 只有已匹配询盘、负责人本人邮箱、分配后发出且询盘已确认有效的真实已发送箱邮件才会关闭首次响应超时；同一邮件重复同步不会重复记录。
+- 迁移 `20260915200000_record_synced_email_contact_evidence.sql` 已应用生产。生产事务回滚验收结果：`function=t; anon_execute=f; authenticated_execute=f; service_execute=t; rollback_messages=0; rollback_followups=0`，未改动真实邮件、询盘或跟进数据。
+- 邮件 worker 代码已改为调用该事务函数，完整自动化回归 172/172 通过。当前生产服务器拒绝已有 `wonly_deploy` SSH 密钥，容器重建待恢复部署访问后执行；数据库保护已生效。
+
 ## 2026-09-15 结构化售后工单闭环
 
 - 履约跟踪新增独立 `after_sales_cases` 售后工单：按质量、物流、数量、付款和其他问题分类，完整保存问题描述、处理状态、解决方案、创建/更新人员及各阶段时间。

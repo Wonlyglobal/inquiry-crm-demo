@@ -247,3 +247,6 @@
 - 迁移 `20260915153000_enforce_payment_order_totals.sql` 已正式应用生产。回滚验收脚本 `tests/production-payment-order-integrity-rollback.sql` 实测币种不一致、超订单总额及无到账凭证的“已收定金”均被拦截，真实定金到账后可正常流转，所有测试写入已回滚。生产证据为两个保护触发器均启用、两个私有函数对匿名和登录用户均不可直接执行、`rollback_orders=0`、`rollback_payments=0`。完整自动化回归更新为 148/148 通过。
 - 订单交付履约补齐承运商、运单号和发货时间；进入已发货及后续状态必须保留全部发货凭证，进入已交付、售后或完成状态必须保留实际交付时间。前端订单进展表单可录入并回显这些凭证，订单列表直接展示承运商与运单号。
 - 订单直接 UPDATE 权限已从登录用户撤销，状态和履约凭证统一由服务端 `update_sales_order_progress` 在锁定订单后同时更新状态并写入进展事件；业务员仅可处理自己当前负责的询盘。迁移 `20260915160000_secure_order_delivery_evidence.sql` 已应用生产，回滚验收 `tests/production-order-delivery-evidence-rollback.sql` 通过；生产证据为 `columns=3`、`trigger=true`、旧 RPC 已移除、`anon_rpc=false`、`auth_rpc=true`、`auth_update=false`、`rollback_orders=0`、`rollback_events=0`。完整自动化回归更新为 152/152 通过。
+- 样品履约改为受控原子流程：新增样品会自动写入首条历史；寄出、签收、收到反馈和关闭均由 `update_sample_shipment_progress` 在锁定样品记录后同时保存证据与进展事件。业务员仅可处理自己当前负责的询盘，匿名用户不可调用，登录用户不能再直接修改 `sample_shipments`。
+- 样品进入签收及后续状态必须永久保留签收时间；进入已反馈必须同时保留客户反馈与反馈时间，关闭时不能清除既有反馈。履约窗口新增“样品进展历史”，并对样品、订单、回款和进展明细统一分页读取，避免超过 API 默认页大小后丢失旧记录。
+- 迁移 `20260915170000_atomic_sample_progress.sql` 已正式应用生产。回滚验收 `tests/production-sample-progress-rollback.sql` 实测缺少发货凭证和缺少客户反馈都会被拒绝，合法五步时间线完整生成，随后全部回滚；生产证据为 `table=true`、`index=true`、两个触发器均启用、`anon_rpc=false`、`auth_rpc=true`、`auth_update=false`、`rollback_samples=0`、`rollback_events=0`。完整自动化回归更新为 156/156 通过。

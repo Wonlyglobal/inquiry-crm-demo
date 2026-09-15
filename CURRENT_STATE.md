@@ -214,3 +214,5 @@
 - 生产数据库 ACL 实测结果：`legacy=false`、`can_read=true`、`can_insert=false`、`can_update=false`、`can_create_v2=true`、`can_submit=true`、`can_review=true`；完整自动化回归更新为 119/119 通过。
 - 继续收紧 4 个 `private` 高权限内部函数：询盘更新约束触发器、邮件回复提醒同步触发器、负责人同步触发器及超时提醒定时函数均禁止 `PUBLIC`、匿名和登录用户直接调用；后台定时提醒仅保留 `service_role` 执行权。迁移为 `20260915103000_restrict_private_maintenance_functions.sql`，代码提交 `afe701f`。
 - 生产库复核：`private` schema 的 `SECURITY DEFINER` 函数匿名可执行数已从 4 降为 0；登录用户仅保留业务策略所需的 `can_read_fulfillment(uuid)`、`can_write_fulfillment(uuid)` 和 `current_crm_role()` 三个辅助函数。完整自动化回归更新为 120/120 通过。
+- Supabase 官方安全顾问与自定义 ACL 查询交叉复核：`public` schema 匿名可执行的 `SECURITY DEFINER` 函数为 0，登录用户可写但未启用 RLS 的业务表为 0，具备表写权限且策略无条件放行的生产表为 0。
+- 关闭已被 V2 取代的 `record_inquiry_followup(uuid,text,text,text,timestamptz,boolean)`，防止绕过跟进优先级、提醒时间和自动顺延元数据；当前页面继续只调用 `record_inquiry_followup_v2`。迁移为 `20260915104500_disable_legacy_followup_writer.sql`，提交 `743f316`；生产 ACL 实测 `legacy_followup=false`、`v2_followup=true`，完整回归更新为 121/121 通过。

@@ -207,3 +207,6 @@
 - 发送权限按当前询盘负责人或主管角色判断，不再错误要求业务员必须是报价记录的创建人，因此主管创建并批准的报价可由负责该询盘的业务员发送。
 - 完整自动化回归为 117/117 通过；代码提交 `87c1198` 已推送 `main`。
 - Supabase 生产函数 `mailbox-compose-send` 已部署为版本 17，状态 `ACTIVE`，`verify_jwt=true`。本次验证未向真实客户发送邮件。
+- 经营看板次要模块支持点击整个标题栏收起；折叠后整条标题可点击展开，键盘 Enter/Space 同样可操作，标题内帮助按钮保持独立。生产页面已实际完成“无效与丢单原因分析”收起、展开双向回归。
+- 撤销浏览器角色直接调用 `mark_quotation_sent(uuid,uuid)` 的权限，避免在没有完成真实 SMTP 投递时伪造“已发送”状态；权限迁移为 `20260915093000_restrict_quotation_sent_finalization.sql`，代码提交 `7074c62`。
+- 生产数据库只读 ACL 核验：`anon_can_finalize=false`、`authenticated_can_finalize=false`、`service_can_finalize=true`；完整回归更新为 118/118 通过。

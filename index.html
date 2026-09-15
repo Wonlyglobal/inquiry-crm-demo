@@ -7070,11 +7070,10 @@
           $("#mail-compose-modal").classList.add("hidden");mailboxFolder="scheduled";$$('#mailbox-folder-tabs [data-mailbox-folder]').forEach(item=>item.classList.toggle("active",item.dataset.mailboxFolder==="scheduled"));toast("定时邮件已保存，发送前可在“定时发送”中取消");return loadModule("mailbox");
         }
         let attachments=[];try{attachments=await Promise.all(files.map(async file=>({name:file.name,type:file.type,base64:await attachmentBase64(file)})))}catch(readError){button.disabled=false;button.textContent="发送";return toast("附件准备失败："+(readError.message||readError))}
-        const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,in_reply_to:$("#mail-compose-reply-id").value||null,attachments,material_asset_ids:selectedMaterialAttachments.map(item=>item.id)}});
+        const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,quotation_id:$("#mail-compose-quotation").value||null,in_reply_to:$("#mail-compose-reply-id").value||null,attachments,material_asset_ids:selectedMaterialAttachments.map(item=>item.id)}});
         button.disabled=false;button.textContent="发送";
         if(error||data?.error)return toast("邮件发送失败："+(data?.error||error?.message));
-        const quotationId=$("#mail-compose-quotation").value;if(quotationId){const tracked=await supabase.rpc("mark_quotation_sent",{target_quotation_id:quotationId,target_message_id:data?.message_id||data?.email_message_id||null});if(tracked.error)toast("邮件已发送，但报价状态记录失败："+tracked.error.message)}
-        $("#mail-compose-modal").classList.add("hidden");toast("邮件已发送，正在同步到已发送和客户沟通记录");setTimeout(()=>loadModule(activeModuleView==="quotes"?"quotes":"mailbox"),5000);
+        $("#mail-compose-modal").classList.add("hidden");toast(data?.warnings?.length?`邮件已发送；${data.warnings.join("；")}`:"邮件已发送，正在同步到已发送和客户沟通记录");setTimeout(()=>loadModule(activeModuleView==="quotes"?"quotes":"mailbox"),5000);
       });
       $("#connect-shared-inquiry").addEventListener("click", () => openMailboxBinding(profile.id, true, true));
       $("#sales-connect-mailbox").addEventListener("click", () => openMailboxBinding(profile.id, true));

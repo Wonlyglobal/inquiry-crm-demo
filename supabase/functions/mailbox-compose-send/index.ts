@@ -38,7 +38,7 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   const {data:{user},error:userError}=await userClient.auth.getUser();if(userError||!user)throw new Error("未登录");
   const {data:caller,error:callerError}=await userClient.from("profiles").select("id,email,full_name,role,active").eq("id",user.id).single();
   if(callerError||!caller?.active||!["sales","sales_manager","marketing","owner"].includes(caller.role))throw new Error("当前账号无权使用个人邮箱发信");
-  const input=await req.json(),to=clean(input.to,320).toLowerCase(),subject=clean(input.subject,300),body=clean(input.body),inquiryId=clean(input.inquiry_id,100)||null,inReplyTo=clean(input.in_reply_to,500)||null;
+  const input=await req.json(),to=clean(input.to,320).toLowerCase(),subject=clean(input.subject,300),body=clean(input.body),inquiryId=clean(input.inquiry_id,100)||null,quotationId=clean(input.quotation_id,100)||null,inReplyTo=clean(input.in_reply_to,500)||null;
   const cc=clean(input.cc,2000).split(/[,;\s]+/).map((item:string)=>item.toLowerCase()).filter(Boolean);
   const rawAttachments=Array.isArray(input.attachments)?input.attachments.slice(0,100):[];
   const materialAssetIds=Array.isArray(input.material_asset_ids)?[...new Set(input.material_asset_ids.map((item:unknown)=>clean(item,100)).filter(Boolean))].slice(0,100):[];
@@ -46,12 +46,22 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   const attachments=[...rawAttachments.map(decodeAttachment),...await Promise.all(materialAssetIds.map((assetId:string)=>loadMaterialAttachment(assetId,user.id)))];
   if(attachments.reduce((sum,item)=>sum+item.content.length,0)>50*1024*1024)throw new Error("普通附件总大小不能超过 50MB");
   if(!validEmail(to)||cc.some((item:string)=>!validEmail(item))||!subject||!body)throw new Error("收件人、主题或正文格式不正确");
-  if(inquiryId){const {data:inquiry,error}=await userClient.from("inquiries").select("id,owner_id").eq("id",inquiryId).single();if(error||!inquiry)throw new Error("无权访问关联询盘");if(inquiry.owner_id!==user.id&&!["owner","sales_manager"].includes(caller.role))throw new Error("只能发送本人负责询盘的邮件")}
+  let messageKind="standalone";
+  if(inquiryId){
+    const {data:inquiry,error}=await userClient.from("inquiries").select("id,owner_id").eq("id",inquiryId).single();if(error||!inquiry)throw new Error("无权访问关联询盘");if(inquiry.owner_id!==user.id&&!["owner","sales_manager"].includes(caller.role))throw new Error("只能发送本人负责询盘的邮件");
+    const {data:latest,error:latestError}=await admin.from("email_messages").select("direction").eq("inquiry_id",inquiryId).order("created_at",{ascending:false}).limit(1).maybeSingle();if(latestError)throw latestError;
+    messageKind=!latest||latest.direction==="inbound"?"reply":"outreach";
+    if(messageKind==="outreach"){const {data:policy,error:policyError}=await userClient.rpc("check_inquiry_contact_allowed",{target_inquiry_id:inquiryId});if(policyError)throw policyError;if(!policy?.allowed)throw new Error(`触达规则拦截：${clean(policy?.reason,500)||"当前不允许主动联系客户"}`)}
+  }
+  if(quotationId){const {data:quote,error}=await admin.from("quotation_versions").select("id,inquiry_id,status,created_by").eq("id",quotationId).maybeSingle();if(error)throw error;if(!quote||quote.inquiry_id!==inquiryId)throw new Error("报价与当前询盘不匹配");if(quote.status!=="approved")throw new Error("只有主管批准后的报价才能发送");if(quote.created_by!==user.id&&!["owner","sales_manager"].includes(caller.role))throw new Error("无权发送该报价")}
   const {data:connection,error:connectionError}=await admin.from("mailbox_connections").select("id,email,smtp_host,smtp_port,status").eq("user_id",user.id).eq("mailbox_kind","personal").eq("status","connected").single();
   if(connectionError||!connection)throw new Error("请先连接当前业务员自己的企业邮箱");
   const {data:password,error:secretError}=await admin.rpc("read_mailbox_secret",{target_connection_id:connection.id});if(secretError||!password)throw new Error("邮箱凭据不可用，请重新连接");
   const transport=nodemailer.createTransport({host:connection.smtp_host,port:connection.smtp_port,secure:Number(connection.smtp_port)===465,auth:{user:connection.email,pass:password},connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000});
   const sent=await transport.sendMail({from:`"${caller.full_name||connection.email}" <${connection.email}>`,to,cc:cc.length?cc:undefined,subject,text:body,html:emailHtml(body),attachments,...(inReplyTo?{inReplyTo,references:[inReplyTo]}:{})});
-  const sentAt=new Date().toISOString();await admin.from("audit_logs").insert({actor_id:user.id,entity_type:inquiryId?"inquiry":"profile",entity_id:inquiryId||user.id,action:"mailbox_message_sent",after_data:{recipient:to,cc,subject,message_id:sent.messageId||null,inquiry_id:inquiryId,attachment_count:attachments.length,material_asset_ids:materialAssetIds},reason:"业务员从 CRM 邮箱页面发送邮件"});
-  return new Response(JSON.stringify({sent:true,recipient:to,message_id:sent.messageId||null,sent_at:sentAt}),{headers:cors});
+  const sentAt=new Date().toISOString();let contactPolicyRecorded=messageKind!=="outreach",quotationRecorded=!quotationId;const warnings:string[]=[];
+  if(messageKind==="outreach"){const result=await userClient.rpc("record_inquiry_marketing_contact",{target_inquiry_id:inquiryId,contact_reason:"CRM 邮箱主动邮件已发送"});contactPolicyRecorded=!result.error;if(result.error)warnings.push(`触达记录更新失败：${result.error.message}`)}
+  if(quotationId){const result=await userClient.rpc("mark_quotation_sent",{target_quotation_id:quotationId,target_message_id:null});quotationRecorded=!result.error;if(result.error)warnings.push(`报价状态更新失败：${result.error.message}`)}
+  await admin.from("audit_logs").insert({actor_id:user.id,entity_type:quotationId?"quotation":inquiryId?"inquiry":"profile",entity_id:quotationId||inquiryId||user.id,action:quotationId?"quotation_email_sent":"mailbox_message_sent",after_data:{recipient:to,cc,subject,message_id:sent.messageId||null,inquiry_id:inquiryId,quotation_id:quotationId,message_kind:messageKind,contact_policy_recorded:contactPolicyRecorded,quotation_recorded:quotationRecorded,attachment_count:attachments.length,material_asset_ids:materialAssetIds,warnings},reason:quotationId?"报价已通过 CRM 邮箱发送":"业务员从 CRM 邮箱页面发送邮件"});
+  return new Response(JSON.stringify({sent:true,recipient:to,message_id:sent.messageId||null,sent_at:sentAt,contact_policy_recorded:contactPolicyRecorded,quotation_recorded:quotationRecorded,warnings}),{headers:cors});
 }catch(error){return new Response(JSON.stringify({error:errorText(error)}),{status:400,headers:cors})}});

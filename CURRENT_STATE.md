@@ -2,6 +2,15 @@
 
 更新时间：2026-09-15（Asia/Shanghai）
 
+## 2026-09-15 WhatsApp 客户回复提醒闭环
+
+- WhatsApp Webhook 收到已匹配询盘的客户消息后，会为当前负责人生成持久化的 `whatsapp_reply_reminders` 待回复任务，并发送一次去重的“WhatsApp 客户新回复”站内通知；同一客户的新消息会更新任务，不会堆积重复待办。
+- 当前负责人通过 Cloud API 回复同一号码后，对应待办自动关闭并保留回复消息与时间证据；询盘转交、关闭或失效时，未完成待办会同步转交或失效，避免遗留给旧负责人。
+- 超过 24 小时仍未回复的 WhatsApp 客户消息由每小时后台任务生成一次逾期提醒，不依赖用户打开 CRM。
+- “今日工作台 → 客户新回复”现在统一展示邮件与 WhatsApp 的持久化待办；报价回复判断也同时读取两种渠道的真实入站消息。
+- 生产迁移 `20260915213000_whatsapp_reply_reminders.sql` 已应用。事务回滚验收结果：`table=t; trigger=t; anon_select=f; authenticated_select=t; rollback_messages=0; rollback_reminders=0`；未发送真实 WhatsApp 消息，也未留下测试消息或提醒。
+- 完整自动化回归 179/179 通过。
+
 ## 2026-09-15 销售订单原子创建
 
 - 销售订单不再由浏览器直接写表；新增 `create_sales_order` 事务 RPC，在同一锁定流程中校验登录人角色、当前负责人、主管已审批成交、币种、金额与交付时间。

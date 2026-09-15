@@ -24,6 +24,8 @@ test('today workbench paginates follow-ups, mail and reply reminders',()=>{
   assert.match(html,/loadAllDashboardFollowups\(\)/);
   assert.match(html,/loadAllDashboardEmailMessages\(\)/);
   assert.match(html,/loadAllDashboardReplyReminders\(\)/);
+  assert.match(html,/from\("whatsapp_reply_reminders"\)/);
+  assert.match(html,/async function loadAllDashboardWhatsAppMessages\(\)/);
 });
 test('today workbench loads every queue dataset with shared pagination',()=>{
   assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("inquiries"\)/);
@@ -89,7 +91,7 @@ test('pending quotation queue is actionable',()=>{
 });
 
 test('sales workbench queue cards open the matching operational module',()=>{
-  assert.match(html,/workbenchDestinations=\{"客户新回复":"mailbox","今日待跟进":"follow-calendar","逾期任务":"follow-calendar","待报价":"quotes"\}/);
+  assert.match(html,/workbenchDestinations=\{"客户新回复":"sales-today","今日待跟进":"follow-calendar","逾期任务":"follow-calendar","待报价":"quotes"\}/);
 });
 
 test('dashboard widgets support per-user collapse state and remain expandable',()=>{
@@ -110,6 +112,7 @@ test('dashboard widgets support per-user collapse state and remain expandable',(
 
 test('customer reply queue only shows durable open reply reminders',()=>{
   assert.match(html,/from\("email_reply_reminders"\).*eq\("owner_id",profile\.id\)\.eq\("status","open"\)/);
+  assert.match(html,/from\("whatsapp_reply_reminders"\).*eq\("owner_id",profile\.id\)\.eq\("status","open"\)/);
   assert.match(html,/replyRemindersResult\.data/);
   assert.doesNotMatch(html,/inquiries\.filter\(x=>latestMail\.get\(x\.id\)\?\.direction==="inbound"\)/);
 });

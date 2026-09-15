@@ -10,6 +10,13 @@
 - 生产迁移 `20260915190000_structured_after_sales_cases.sql` 已执行。生产事务回滚验收通过：临时订单完成交付、登记工单、验证未解决时绕过失败、处理、解决和结案，共形成 9 条事件后全部回滚。
 - 生产权限证据：`table=t; index=t; case_guard=t; order_guard=t; anon_create=f; auth_create=t; anon_update=f; auth_update=t; auth_select=t; auth_insert=f; auth_update_table=f; rollback_cases=0; rollback_orders=0`。完整自动化回归 167/167 通过，未改写真实客户、订单或售后数据。
 
+## 2026-09-15 首次有效联系证据防伪
+
+- `first_valid_contact_at` 现在是不可直接改写的 KPI 事实：只能由 `record_inquiry_followup_v2` 在同一事务先创建“首次有效联系”跟进证据后写入，写入时间必须不早于分配时间，并与证据创建时间匹配。
+- 首次联系时间一旦写入便不能清空或改成其他时间；私有触发器不授予浏览器角色执行权限，避免伪造 30 分钟首次响应率。
+- 生产事务回滚验收已证明：直接更新被拒绝、授权跟进流程成功、二次清空被拒绝；结果为 `trigger=t; function_private=t; rollback_followups=0; eligible_unchanged=2`，没有改变两条真实询盘。
+- 迁移为 `20260915193000_protect_first_valid_contact_evidence.sql`，完整自动化回归 170/170 通过。
+
 ## 2026-09-15 个人看板折叠状态持久化
 
 - 经营看板的拖动顺序原已按登录账号保存到 Supabase Auth 用户元数据；本次将“经营趋势”、“无效与丢单原因分析”、“2026 海外事业部目标”和“最新询盘”的收起/展开状态也保存到当前账号。

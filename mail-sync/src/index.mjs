@@ -73,6 +73,67 @@ async function sendDailyLeadReport(){
 
 async function secretFor(id){const {data,error}=await db.rpc('read_mailbox_secret',{target_connection_id:id});if(error||!data)throw error||new Error('邮箱凭据不存在');return data}
 
+function permanentError(message){
+  const error=new Error(message);
+  error.permanent=true;
+  return error;
+}
+
+async function writeOutboxAudit(job,action,reason,afterData={}){
+  const {error}=await db.from('audit_logs').insert({
+    actor_id:job.sender_user_id,
+    entity_type:job.inquiry_id?'inquiry':'profile',
+    entity_id:job.inquiry_id||job.sender_user_id,
+    action,
+    reason,
+    after_data:{outbox_id:job.id,recipient:job.recipient_email,subject:job.subject,...afterData},
+  });
+  if(error)console.error(`outbox audit ${job.id}:`,error.message);
+}
+
+async function validateOutboxSend(job){
+  const {data:sender,error:senderError}=await db.from('profiles').select('id,full_name,role,active').eq('id',job.sender_user_id).maybeSingle();
+  if(senderError)throw senderError;
+  if(!sender?.active)throw permanentError('定时邮件已取消：发送账号不存在或已停用');
+  if(!job.inquiry_id)return {sender,messageKind:'standalone'};
+
+  const [{data:inquiry,error:inquiryError},{data:latest,error:latestError}]=await Promise.all([
+    db.from('inquiries').select('id,owner_id').eq('id',job.inquiry_id).maybeSingle(),
+    db.from('email_messages').select('direction').eq('inquiry_id',job.inquiry_id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+  ]);
+  if(inquiryError)throw inquiryError;
+  if(latestError)throw latestError;
+  if(!inquiry)throw permanentError('定时邮件已取消：关联询盘不存在');
+  if(inquiry.owner_id!==job.sender_user_id&&!['owner','sales_manager'].includes(sender.role)){
+    throw permanentError('定时邮件已取消：发送人已不再负责该询盘');
+  }
+
+  // The current thread state is authoritative at execution time. An initial
+  // inquiry or the latest customer message is a reply; sending after our most
+  // recent outbound message is proactive and must obey suppression/frequency.
+  const messageKind=!latest||latest.direction==='inbound'?'reply':'outreach';
+  if(messageKind==='outreach'){
+    const {data:policy,error:policyError}=await db.rpc('check_inquiry_contact_allowed',{target_inquiry_id:job.inquiry_id});
+    if(policyError)throw policyError;
+    if(!policy?.allowed)throw permanentError(`触达规则拦截：${String(policy?.reason||'当前不允许主动联系客户')}`);
+  }
+  return {sender,messageKind};
+}
+
+async function recordScheduledMarketingContact(job,sentAt){
+  const {data:policy,error:policyError}=await db.from('inquiry_contact_policies').select('last_contact_at,next_allowed_at,min_interval_days').eq('inquiry_id',job.inquiry_id).maybeSingle();
+  if(policyError||!policy)throw policyError||new Error('尚未设置触达规则');
+  const nextAllowedAt=new Date(new Date(sentAt).getTime()+Number(policy.min_interval_days)*86400000).toISOString();
+  const {error:updateError}=await db.from('inquiry_contact_policies').update({last_contact_at:sentAt,next_allowed_at:nextAllowedAt,updated_by:job.sender_user_id,updated_at:sentAt}).eq('inquiry_id',job.inquiry_id);
+  if(updateError)throw updateError;
+  await writeOutboxAudit(job,'marketing_contact_recorded','CRM 定时开发信已发送',{
+    last_contact_at:sentAt,
+    next_allowed_at:nextAllowedAt,
+    previous_last_contact_at:policy.last_contact_at,
+    previous_next_allowed_at:policy.next_allowed_at,
+  });
+}
+
 async function processOutbox(){
   const {data:jobs,error}=await db.from('mail_outbox').select('*').eq('status','pending').lte('next_attempt_at',new Date().toISOString()).order('created_at').limit(20);
   if(error)throw error;
@@ -81,24 +142,31 @@ async function processOutbox(){
     const {data:claimed}=await db.from('mail_outbox').update({status:'sending',started_at:claimedAt,attempts:Number(job.attempts||0)+1}).eq('id',job.id).eq('status','pending').select('*').maybeSingle();
     if(!claimed)continue;
     try{
+      const {sender,messageKind}=await validateOutboxSend(job);
       const intakePromise=job.inquiry_id?db.from('email_intake').select('message_id').eq('inquiry_id',job.inquiry_id).order('created_at',{ascending:false}).limit(1).maybeSingle():Promise.resolve({data:null,error:null});
-      const [{data:connection,error:connectionError},{data:caller},{data:intake}]=await Promise.all([
+      const [{data:connection,error:connectionError},{data:intake,error:intakeError}]=await Promise.all([
         db.from('mailbox_connections').select('*').eq('user_id',job.sender_user_id).eq('status','connected').single(),
-        db.from('profiles').select('full_name').eq('id',job.sender_user_id).single(),
         intakePromise,
       ]);
       if(connectionError||!connection)throw connectionError||new Error('业务员邮箱未连接');
+      if(intakeError)throw intakeError;
       const password=await secretFor(connection.id);
       const transport=nodemailer.createTransport({host:connection.smtp_host,port:connection.smtp_port,secure:Number(connection.smtp_port)===465,auth:{user:connection.email,pass:password},connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000});
       const threadId=headerId(job.in_reply_to||intake?.message_id);
-      const sent=await transport.sendMail({from:`"${caller?.full_name||connection.email}" <${connection.email}>`,to:job.recipient_email,...(job.cc_emails?.length?{cc:job.cc_emails}:{}),subject:job.subject,text:job.body_text,html:emailHtml(job.body_text),...(threadId?{inReplyTo:threadId,references:[threadId]}:{})});
+      const sent=await transport.sendMail({from:`"${sender.full_name||connection.email}" <${connection.email}>`,to:job.recipient_email,...(job.cc_emails?.length?{cc:job.cc_emails}:{}),subject:job.subject,text:job.body_text,html:emailHtml(job.body_text),...(threadId?{inReplyTo:threadId,references:[threadId]}:{})});
       const sentAt=new Date().toISOString();
       await db.from('mail_outbox').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null}).eq('id',job.id);
       if(job.draft_id)await db.from('outreach_drafts').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null,updated_at:sentAt}).eq('id',job.draft_id);
+      let contactPolicyRecorded=messageKind!=='outreach';
+      if(messageKind==='outreach'){
+        try{await recordScheduledMarketingContact(job,sentAt);contactPolicyRecorded=true}catch(error){console.error(`outbox contact policy ${job.id}:`,error?.message||error)}
+      }
+      await writeOutboxAudit(job,'mailbox_scheduled_message_sent','CRM 定时邮件已发送',{message_id:sent.messageId||null,message_kind:messageKind,contact_policy_recorded:contactPolicyRecorded});
     }catch(error){
-      const attempts=Number(claimed.attempts||1),terminal=attempts>=3;
-      await db.from('mail_outbox').update({status:terminal?'failed':'pending',last_error:String(error?.message||error).slice(0,1000),next_attempt_at:new Date(Date.now()+Math.min(15,attempts*5)*60000).toISOString()}).eq('id',job.id);
-      if(terminal&&job.draft_id)await db.from('outreach_drafts').update({status:'failed',last_error:String(error?.message||error).slice(0,1000),updated_at:new Date().toISOString()}).eq('id',job.draft_id);
+      const attempts=Number(claimed.attempts||1),terminal=Boolean(error?.permanent)||attempts>=3,errorMessage=String(error?.message||error).slice(0,1000);
+      await db.from('mail_outbox').update({status:terminal?'failed':'pending',last_error:errorMessage,next_attempt_at:new Date(Date.now()+Math.min(15,attempts*5)*60000).toISOString()}).eq('id',job.id);
+      if(terminal&&job.draft_id)await db.from('outreach_drafts').update({status:'failed',last_error:errorMessage,updated_at:new Date().toISOString()}).eq('id',job.draft_id);
+      if(terminal)await writeOutboxAudit(job,'mailbox_scheduled_message_failed',errorMessage,{attempts,permanent:Boolean(error?.permanent)});
     }
   }
 }

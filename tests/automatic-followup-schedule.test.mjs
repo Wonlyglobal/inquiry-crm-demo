@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sql=fs.readFileSync(new URL('../supabase/migrations/20260910180000_automatic_followup_rollover.sql',import.meta.url),'utf8');
+const v2Sql=fs.readFileSync(new URL('../supabase/migrations/20260910050000_followup_priority_reminders_rollover.sql',import.meta.url),'utf8');
+const legacyLockSql=fs.readFileSync(new URL('../supabase/migrations/20260915104500_disable_legacy_followup_writer.sql',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 
 test('unfinished follow-ups roll over without requiring a page visit',()=>{
   assert.match(sql,/create or replace function private\.process_follow_up_schedule/);
@@ -10,6 +13,13 @@ test('unfinished follow-ups roll over without requiring a page visit',()=>{
   assert.match(sql,/i\.status not in \('won','lost'\)/);
   assert.match(sql,/rollover_count=f\.rollover_count\+1/);
   assert.match(sql,/task_rolled_over/);
+});
+
+test('all interactive follow-ups use the priority and reminder aware V2 workflow',()=>{
+  assert.match(v2Sql,/create or replace function public\.record_inquiry_followup_v2/);
+  assert.match(legacyLockSql,/revoke all on function public\.record_inquiry_followup\(uuid,text,text,text,timestamptz,boolean\)\s+from public, anon, authenticated;/);
+  assert.match(html,/\.rpc\("record_inquiry_followup_v2"/);
+  assert.doesNotMatch(html,/\.rpc\("record_inquiry_followup"/);
 });
 
 test('due reminders are durable, idempotent and scheduled every five minutes',()=>{

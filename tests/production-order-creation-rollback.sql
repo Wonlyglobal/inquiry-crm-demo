@@ -27,8 +27,12 @@ begin
   perform set_config('app.inquiry_workflow_rpc','on',true);
   update public.inquiries set status='won',won_amount=100,won_currency='USD',won_exchange_rate=1,won_at=clock_timestamp() where id=target_inquiry;
   perform set_config('app.inquiry_workflow_rpc','off',true);
-  insert into public.sales_orders(id,inquiry_id,order_no,currency,total_amount,created_by)
-  values(first_order,target_inquiry,'ROLLBACK-VALID-'||left(first_order::text,8),'USD',60,actor_id);
+  select id into first_order from public.create_sales_order(
+    target_inquiry,'ROLLBACK-VALID-'||left(first_order::text,8),60,'USD',clock_timestamp()+interval '30 days','rollback-only atomic order'
+  );
+  if (select count(*) from public.order_events where order_id=first_order and event_type='status_change' and status='draft')<>1 then
+    raise exception 'ORDER_OPENING_EVENT_NOT_ATOMIC';
+  end if;
 
   begin
     insert into public.sales_orders(inquiry_id,order_no,currency,total_amount,created_by)
@@ -48,5 +52,13 @@ begin
   end;
 end;
 $$;
-select 'PASS — non-won, currency mismatch and excess order value blocked; approved order accepted; all writes will be rolled back' as production_regression;
 rollback;
+
+select concat(
+  'function=',to_regprocedure('public.create_sales_order(uuid,text,numeric,text,timestamptz,text)') is not null,
+  '; anon_execute=',has_function_privilege('anon','public.create_sales_order(uuid,text,numeric,text,timestamptz,text)','execute'),
+  '; authenticated_execute=',has_function_privilege('authenticated','public.create_sales_order(uuid,text,numeric,text,timestamptz,text)','execute'),
+  '; authenticated_insert=',has_table_privilege('authenticated','public.sales_orders','insert'),
+  '; rollback_orders=',(select count(*) from public.sales_orders where notes='rollback-only atomic order'),
+  '; rollback_events=',(select count(*) from public.order_events where detail like '创建销售订单：ROLLBACK-VALID-%')
+) as production_atomic_order_creation;

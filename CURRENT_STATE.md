@@ -2,6 +2,13 @@
 
 更新时间：2026-09-15（Asia/Shanghai）
 
+## 2026-09-15 销售订单原子创建
+
+- 销售订单不再由浏览器直接写表；新增 `create_sales_order` 事务 RPC，在同一锁定流程中校验登录人角色、当前负责人、主管已审批成交、币种、金额与交付时间。
+- 订单与“创建销售订单”首条订单事件保证同时成功或同时失败；普通登录用户的 `sales_orders` 直接 `insert` 权限已撤销，仍只能通过受控 RPC 创建。
+- 生产迁移 `20260915210000_atomic_sales_order_creation.sql` 已应用。事务回滚验收结果：`function=t; anon_execute=f; authenticated_execute=t; authenticated_insert=f; rollback_orders=0; rollback_events=0`；未改写真实订单或事件。
+- 完整自动化回归 175/175 通过。
+
 ## 2026-09-15 WhatsApp 主动触达与首次响应证据
 
 - WhatsApp Cloud API 主动发送现在会在调用 Meta 前执行询盘触达规则；已退订、禁止联系、频控期内或缺失合法联系依据时会服务端拦截，不会向客户发消息。

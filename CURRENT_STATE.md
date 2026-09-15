@@ -212,3 +212,5 @@
 - 生产数据库只读 ACL 核验：`anon_can_finalize=false`、`authenticated_can_finalize=false`、`service_can_finalize=true`；完整回归更新为 118/118 通过。
 - 关闭旧版仅总额报价函数 `create_quotation_version(uuid,text,text,numeric,text,date,text)` 的浏览器执行权，并撤销登录用户对 `quotation_versions` 的直接新增、修改和删除权限，防止绕过明细校验、审批和投递状态机；受控的新版创建、提交审批和审核 RPC 保持可用。权限迁移为 `20260915094500_lock_quotation_writes_to_workflow.sql`，代码提交 `202c8e3`。
 - 生产数据库 ACL 实测结果：`legacy=false`、`can_read=true`、`can_insert=false`、`can_update=false`、`can_create_v2=true`、`can_submit=true`、`can_review=true`；完整自动化回归更新为 119/119 通过。
+- 继续收紧 4 个 `private` 高权限内部函数：询盘更新约束触发器、邮件回复提醒同步触发器、负责人同步触发器及超时提醒定时函数均禁止 `PUBLIC`、匿名和登录用户直接调用；后台定时提醒仅保留 `service_role` 执行权。迁移为 `20260915103000_restrict_private_maintenance_functions.sql`，代码提交 `afe701f`。
+- 生产库复核：`private` schema 的 `SECURITY DEFINER` 函数匿名可执行数已从 4 降为 0；登录用户仅保留业务策略所需的 `can_read_fulfillment(uuid)`、`can_write_fulfillment(uuid)` 和 `current_crm_role()` 三个辅助函数。完整自动化回归更新为 120/120 通过。

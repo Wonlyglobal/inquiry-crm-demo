@@ -218,3 +218,4 @@
 - 关闭已被 V2 取代的 `record_inquiry_followup(uuid,text,text,text,timestamptz,boolean)`，防止绕过跟进优先级、提醒时间和自动顺延元数据；当前页面继续只调用 `record_inquiry_followup_v2`。迁移为 `20260915104500_disable_legacy_followup_writer.sql`，提交 `743f316`；生产 ACL 实测 `legacy_followup=false`、`v2_followup=true`，完整回归更新为 121/121 通过。
 - 恢复询盘详情中的“触达规则”操作页：可查看和维护客户同意依据、退订/禁联、最小联系间隔和下次允许触达时间，保存继续调用生产已有的 `save_inquiry_contact_policy` 审计 RPC。未配置、待核实、已退订和频控中状态都会明确提示；销售仅能维护自己负责的询盘。本次未修改任何真实客户授权数据，完整自动化回归更新为 122/122 通过。
 - 修复跨渠道客户跟进助手：后端现在会分页读取当前询盘的全部邮件与 WhatsApp 收发记录，按时间统一分析，并用最新跨渠道消息作为自动生成去重键。前端同步分页加载 WhatsApp 历史，不再因最新消息来自 WhatsApp 而每次打开询盘都误判为总结过期。完整自动化回归更新为 123/123 通过。
+- 完成数据质量提醒的生产回滚回归：使用现有 `[功能测试]` 询盘在事务内清空并补齐目标国家，实测 `missing_country` 会自动生成并自动解决，所有测试写入均已回滚；同时确认匿名与普通登录用户都不能执行私有全量刷新函数。可复用脚本为 `tests/production-data-quality-rollback.sql`，每日刷新任务保持启用，完整自动化回归更新为 124/124 通过。

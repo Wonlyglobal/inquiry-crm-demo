@@ -3,6 +3,7 @@ import {readFile} from "node:fs/promises";
 import test from "node:test";
 
 const sql=await readFile(new URL("../supabase/migrations/20260910144000_automatic_data_quality_refresh.sql",import.meta.url),"utf8");
+const productionRollback=await readFile(new URL("./production-data-quality-rollback.sql",import.meta.url),"utf8");
 
 test("all required quality checks are generated from authoritative fields",()=>{
   for(const key of ["missing_email","missing_country","missing_product","missing_quantity","missing_budget","missing_decision_maker","missing_next_followup","stagnant"])assert.match(sql,new RegExp(`'${key}'`));
@@ -26,4 +27,13 @@ test("browser refresh remains scoped to the authenticated active user",()=>{
   assert.match(sql,/actor_id uuid := auth\.uid\(\)/);
   assert.match(sql,/i\.owner_id=actor_id/);
   assert.match(sql,/revoke all on function private\.refresh_all_data_quality_alerts\(\) from public,anon,authenticated/);
+});
+
+test("production acceptance check proves alert creation and resolution without persisting test writes",()=>{
+  assert.match(productionRollback,/^begin;/m);
+  assert.match(productionRollback,/title like '\[功能测试\]%'/);
+  assert.match(productionRollback,/alert_key = 'missing_country'[\s\S]*resolved_at is null/);
+  assert.match(productionRollback,/alert_key = 'missing_country'[\s\S]*resolved_at is not null/);
+  assert.match(productionRollback,/refresh-crm-data-quality-daily/);
+  assert.match(productionRollback,/^rollback;/m);
 });

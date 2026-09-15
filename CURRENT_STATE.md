@@ -2,6 +2,18 @@
 
 更新时间：2026-09-15（Asia/Shanghai）
 
+## 2026-09-15 个人经营看板偏好安全持久化
+
+- 经营看板的组件顺序、可折叠区块状态和核心指标页签已统一保存到独立的 `dashboard_preferences` 表，不再把业务偏好写入 Supabase Auth 用户元数据；更换浏览器或设备后仍按当前登录账号恢复。
+- 浏览器只有本人只读权限，新增和更新必须通过 `save_dashboard_preferences` 原子函数；服务端校验账号启用状态、角色、组件白名单、重复项和页签值，并写入 `dashboard_preferences_updated` 审计。
+- 旧版用户元数据与本机缓存只在首次加载时兼容迁移一次；保存请求串行化，避免快速拖动、折叠或切换页签时旧请求覆盖新状态。
+- 生产迁移 `20260915233000_personal_dashboard_preferences.sql` 已应用。事务回滚验收结果：`table=t; function=t; anon_execute=f; authenticated_execute=t; authenticated_insert=f; authenticated_update=f`；无测试偏好遗留。完整自动化回归 197/197 通过。
+
+## 2026-09-15 销售知识库生产权限验收
+
+- 为现有销售知识库补充独立安全回归与生产事务回滚验收，覆盖表级 RLS、登录用户读取、授权角色新增、普通销售越权新增拦截和审计证据。
+- 生产验收结果：`table=t; authenticated_select=t; authenticated_insert=t; anon_select=f; rollback_articles=0`；临时文章已完整回滚，没有改写真实知识库内容。
+
 ## 2026-09-15 邮件 AI 草稿持久化
 
 - 邮件智能助手每次生成客户回复或翻译草稿后，必须先通过仅 `service_role` 可调用的 `record_email_ai_draft` 原子函数持久化草稿并写入审计，保存失败时不会向浏览器伪装成生成成功。

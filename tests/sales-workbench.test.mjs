@@ -104,10 +104,10 @@ test('dashboard widgets support per-user collapse state and remain expandable',(
   assert.match(html,/dashboard-collapse-header/);
   assert.match(html,/aria-expanded/);
   assert.match(html,/dashboardSecondaryTitles=\{"trends":"经营趋势","outcomes":"无效与丢单原因分析","annual-plan":"2026 海外事业部目标","latest-inquiries":"最新询盘"\}/);
-  assert.match(html,/user_metadata\?\.dashboard_collapsed/);
-  assert.match(html,/dashboard_collapsed:state/);
-  assert.match(html,/supabase\.auth\.updateUser\(\{data:\{dashboard_collapsed:state\}\}\)/);
-  assert.match(html,/看板折叠状态云端保存失败，已保留本机状态/);
+  assert.match(html,/dashboardPreferenceState\.collapsed_widgets/);
+  assert.match(html,/requested_collapsed_widgets:collapsedWidgets/);
+  assert.match(html,/supabase\.rpc\("save_dashboard_preferences"/);
+  assert.match(html,/个人看板配置云端保存失败，已保留本机配置/);
 });
 
 test('customer reply queue only shows durable open reply reminders',()=>{

@@ -2334,7 +2334,7 @@
         ),
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
-      let profile = null, currentAuthUser = null, dashboardLayoutEditing = false, dashboardLayoutSaveTimer = null, dashboardCollapseSaveTimer = null, detailTabsEditing = false, detailTabsSaveTimer = null;
+      let profile = null, currentAuthUser = null, dashboardLayoutEditing = false, dashboardPreferenceState = null, dashboardPreferenceSaveTimer = null, dashboardPreferenceSaveQueue = Promise.resolve(), dashboardPreferencesApplying = false, detailTabsEditing = false, detailTabsSaveTimer = null;
       let returnToDailyAfterLeadCreate = false;
       let dailySection = "report";
       let passwordChangeMode = "initial";
@@ -2582,7 +2582,7 @@
         $("#dashboard-subtitle").textContent="询盘效率、销售转化、渠道 ROI 与风险预警";
         ["#dashboard-team","#dashboard-sales","#dashboard-data-scope","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
         ["#dashboard-team","#dashboard-sales","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
-        const startup = await Promise.allSettled([loadInquiries(), loadNotifications(), refreshPersonalMailboxEntry()]);
+        const startup = await Promise.allSettled([loadInquiries(), loadNotifications(), refreshPersonalMailboxEntry(), loadDashboardPreferences()]);
         initializeDashboardLayout();
         initializeDetailTabsOrder();
         if (startup.some((result) => result.status === "rejected")) toast("部分数据暂时未加载，系统已保留可用页面；可稍后重试");
@@ -3637,17 +3637,19 @@
       const dashboardInitialOrder=$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
       const dashboardCurrentOrder=()=>$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
       const dashboardCoreTabKeys=["sales-overview","core-kpis","leaderboards","pipeline-risk"];
-      function selectDashboardCoreTab(key){
+      function selectDashboardCoreTab(key,persist=true){
         if(!dashboardCoreTabKeys.includes(key)||(profile?.role==="sales"&&key==="leaderboards"))key="sales-overview";
         $$("[data-dashboard-core-tab]").forEach(tab=>{const active=tab.dataset.dashboardCoreTab===key;tab.classList.toggle("active",active);tab.setAttribute("aria-selected",String(active))});
         dashboardCoreTabKeys.forEach(widgetKey=>$("#dashboard-widgets")?.querySelector(`[data-dashboard-widget="${widgetKey}"]`)?.classList.toggle("dashboard-core-tab-panel-hidden",widgetKey!==key));
         try{localStorage.setItem(`wonly_dashboard_core_tab_v2_${profile?.id||"anonymous"}`,key)}catch{}
+        if(persist&&!dashboardPreferencesApplying)persistDashboardPreferences();
       }
       function initializeDashboardCoreTabs(){
-        let saved="sales-overview";try{saved=localStorage.getItem(`wonly_dashboard_core_tab_v2_${profile?.id||"anonymous"}`)||saved}catch{}
+        let saved=dashboardPreferenceState?.core_tab||"sales-overview";if(!dashboardPreferenceState)try{saved=localStorage.getItem(`wonly_dashboard_core_tab_v2_${profile?.id||"anonymous"}`)||saved}catch{}
         const container=$("#dashboard-widgets"),tabs=container?.querySelector(".dashboard-core-tabs"),panels=dashboardCoreTabKeys.map(key=>container?.querySelector(`[data-dashboard-widget="${key}"]`)).filter(Boolean);if(tabs&&panels.length){container.insertBefore(tabs,panels[0]);tabs.after(...panels)}
-        $$("[data-dashboard-core-tab]").forEach(tab=>tab.onclick=()=>selectDashboardCoreTab(tab.dataset.dashboardCoreTab));selectDashboardCoreTab(saved);
+        $$("[data-dashboard-core-tab]").forEach(tab=>tab.onclick=()=>selectDashboardCoreTab(tab.dataset.dashboardCoreTab));selectDashboardCoreTab(saved,false);
       }
+      async function loadDashboardPreferences(){const {data,error}=await supabase.from("dashboard_preferences").select("widget_order,collapsed_widgets,core_tab").eq("user_id",profile.id).maybeSingle();if(error){console.warn("个人看板配置加载失败，将使用本机配置",error);return}dashboardPreferenceState=data||null}
       function dashboardLayoutStorageKey(){return `wonly_dashboard_layout_${profile?.id||"anonymous"}`}
       function applyDashboardLayout(order){
         const container=$("#dashboard-widgets"),widgets=new Map(dashboardInitialOrder.map(key=>[key,container.querySelector(`[data-dashboard-widget="${key}"]`)]));
@@ -3655,19 +3657,18 @@
         normalized.forEach(key=>container.append(widgets.get(key)));
       }
       function storedDashboardLayout(){
+        if(dashboardPreferenceState)return dashboardPreferenceState.widget_order;
         const remote=currentAuthUser?.user_metadata?.dashboard_layout;if(Array.isArray(remote)&&remote.length)return remote;
         try{const local=JSON.parse(localStorage.getItem(dashboardLayoutStorageKey())||"null");return Array.isArray(local)?local:null}catch{return null}
       }
       function persistDashboardLayout(){
-        const order=dashboardCurrentOrder();
-        try{localStorage.setItem(dashboardLayoutStorageKey(),JSON.stringify(order))}catch{}
-        if(currentAuthUser)currentAuthUser.user_metadata={...(currentAuthUser.user_metadata||{}),dashboard_layout:order};
-        clearTimeout(dashboardLayoutSaveTimer);dashboardLayoutSaveTimer=setTimeout(async()=>{const {error}=await supabase.auth.updateUser({data:{dashboard_layout:order}});if(error)console.warn("看板布局云端保存失败，已保留本机布局",error)},500);
+        persistDashboardPreferences();
       }
       function dashboardCollapseStorageKey(){return `wonly_dashboard_collapsed_v2_${profile?.id||"anonymous"}`}
       const dashboardSecondaryTitles={"trends":"经营趋势","outcomes":"无效与丢单原因分析","annual-plan":"2026 海外事业部目标","latest-inquiries":"最新询盘"};
-      function storedDashboardCollapsed(){const remote=currentAuthUser?.user_metadata?.dashboard_collapsed;if(remote&&typeof remote==="object"&&!Array.isArray(remote))return remote;try{const raw=localStorage.getItem(dashboardCollapseStorageKey());if(raw){const value=JSON.parse(raw);return value&&typeof value==="object"&&!Array.isArray(value)?value:{}}return Object.fromEntries(Object.keys(dashboardSecondaryTitles).map(key=>[key,true]))}catch{return Object.fromEntries(Object.keys(dashboardSecondaryTitles).map(key=>[key,true]))}}
-      function persistDashboardCollapsed(){const state={};$$("#dashboard-widgets > [data-dashboard-widget]").forEach(widget=>{if(widget.classList.contains("dashboard-widget-collapsed"))state[widget.dataset.dashboardWidget]=true});try{localStorage.setItem(dashboardCollapseStorageKey(),JSON.stringify(state))}catch{}if(currentAuthUser)currentAuthUser.user_metadata={...(currentAuthUser.user_metadata||{}),dashboard_collapsed:state};clearTimeout(dashboardCollapseSaveTimer);dashboardCollapseSaveTimer=setTimeout(async()=>{const {error}=await supabase.auth.updateUser({data:{dashboard_collapsed:state}});if(error)console.warn("看板折叠状态云端保存失败，已保留本机状态",error)},500)}
+      function storedDashboardCollapsed(){if(dashboardPreferenceState)return Object.fromEntries((dashboardPreferenceState.collapsed_widgets||[]).map(key=>[key,true]));const remote=currentAuthUser?.user_metadata?.dashboard_collapsed;if(remote&&typeof remote==="object"&&!Array.isArray(remote))return remote;try{const raw=localStorage.getItem(dashboardCollapseStorageKey());if(raw){const value=JSON.parse(raw);return value&&typeof value==="object"&&!Array.isArray(value)?value:{}}return Object.fromEntries(Object.keys(dashboardSecondaryTitles).map(key=>[key,true]))}catch{return Object.fromEntries(Object.keys(dashboardSecondaryTitles).map(key=>[key,true]))}}
+      function persistDashboardCollapsed(){persistDashboardPreferences()}
+      function persistDashboardPreferences(){if(dashboardPreferencesApplying||!profile)return;const widgetOrder=dashboardCurrentOrder(),collapsedWidgets=$$("#dashboard-widgets > [data-dashboard-widget].dashboard-widget-collapsed").map(widget=>widget.dataset.dashboardWidget),coreTab=$("[data-dashboard-core-tab].active")?.dataset.dashboardCoreTab||"sales-overview";dashboardPreferenceState={widget_order:widgetOrder,collapsed_widgets:collapsedWidgets,core_tab:coreTab};try{localStorage.setItem(dashboardLayoutStorageKey(),JSON.stringify(widgetOrder));localStorage.setItem(dashboardCollapseStorageKey(),JSON.stringify(Object.fromEntries(collapsedWidgets.map(key=>[key,true]))));localStorage.setItem(`wonly_dashboard_core_tab_v2_${profile.id}`,coreTab)}catch{}clearTimeout(dashboardPreferenceSaveTimer);dashboardPreferenceSaveTimer=setTimeout(()=>{dashboardPreferenceSaveQueue=dashboardPreferenceSaveQueue.catch(()=>{}).then(async()=>{const {data,error}=await supabase.rpc("save_dashboard_preferences",{requested_widget_order:widgetOrder,requested_collapsed_widgets:collapsedWidgets,requested_core_tab:coreTab});if(error)return console.warn("个人看板配置云端保存失败，已保留本机配置",error);if(data)dashboardPreferenceState=data})},500)}
       function dashboardWidgetHeader(widget){return widget.querySelector(":scope > .panel-title, :scope > .trend-toolbar, :scope > .table-head")}
       function setDashboardWidgetCollapsed(widget,collapsed){const title=dashboardSecondaryTitles[widget.dataset.dashboardWidget];collapsed=Boolean(title&&collapsed);widget.classList.toggle("dashboard-widget-collapsed",collapsed);const label=collapsed?`展开${title}`:`收起${title}`,header=dashboardWidgetHeader(widget),button=widget.querySelector(":scope > .dashboard-collapse-toggle");if(header){header.setAttribute("aria-expanded",String(!collapsed));header.setAttribute("aria-label",label)}if(button){button.textContent=collapsed?`${title}　⌄`:"⌃";button.setAttribute("aria-expanded",String(!collapsed));button.title=label;button.setAttribute("aria-label",label)}persistDashboardCollapsed()}
       function bindDashboardCollapseHeader(widget){const header=dashboardWidgetHeader(widget);if(!header||header.dataset.collapseBound)return;header.dataset.collapseBound="true";header.classList.add("dashboard-collapse-header");header.setAttribute("role","button");header.tabIndex=0;const toggle=event=>{const interactive=event.target.closest("button,a,input,select,textarea,[role=button]");if(dashboardLayoutEditing||interactive&&interactive!==header)return;setDashboardWidgetCollapsed(widget,!widget.classList.contains("dashboard-widget-collapsed"))};header.addEventListener("click",toggle);header.addEventListener("keydown",event=>{if(event.key!=="Enter"&&event.key!==" ")return;event.preventDefault();toggle(event)})}
@@ -3676,14 +3677,15 @@
         if(direction<0)container.insertBefore(widget,target);else container.insertBefore(widget,target.nextSibling);persistDashboardLayout();
       }
       function ensureDashboardWidgetHandles(){
-        const collapsed=storedDashboardCollapsed();
+        const collapsed=storedDashboardCollapsed(),wasApplying=dashboardPreferencesApplying;dashboardPreferencesApplying=true;
         $$("#dashboard-widgets > [data-dashboard-widget]").forEach(widget=>{if(dashboardSecondaryTitles[widget.dataset.dashboardWidget]&&!widget.querySelector(":scope > .dashboard-collapse-toggle")){const collapse=document.createElement("button");collapse.type="button";collapse.className="dashboard-collapse-toggle";collapse.setAttribute("aria-label","收起模块");collapse.onclick=event=>{event.stopPropagation();setDashboardWidgetCollapsed(widget,!widget.classList.contains("dashboard-widget-collapsed"))};widget.append(collapse)}if(dashboardSecondaryTitles[widget.dataset.dashboardWidget])bindDashboardCollapseHeader(widget);setDashboardWidgetCollapsed(widget,Boolean(collapsed[widget.dataset.dashboardWidget]));if(widget.querySelector(":scope > .dashboard-widget-handle"))return;const handle=document.createElement("span");handle.className="dashboard-widget-handle";handle.innerHTML='<span class="dashboard-widget-grip" data-layout-grip>⠿ 拖动</span><button type="button" data-layout-move="up" aria-label="上移模块">↑</button><button type="button" data-layout-move="down" aria-label="下移模块">↓</button>';handle.querySelector('[data-layout-move="up"]').onclick=event=>{event.stopPropagation();moveDashboardWidget(widget,-1)};handle.querySelector('[data-layout-move="down"]').onclick=event=>{event.stopPropagation();moveDashboardWidget(widget,1)};const grip=handle.querySelector("[data-layout-grip]");grip.onpointerdown=event=>{if(!dashboardLayoutEditing)return;event.preventDefault();event.stopPropagation();grip.setPointerCapture?.(event.pointerId);widget.classList.add("dashboard-widget-dragging");const move=pointer=>{const target=document.elementFromPoint(pointer.clientX,pointer.clientY)?.closest("#dashboard-widgets > [data-dashboard-widget]");if(!target||target===widget||target.classList.contains("hidden"))return;const rect=target.getBoundingClientRect();$("#dashboard-widgets").insertBefore(widget,pointer.clientY<rect.top+rect.height/2?target:target.nextSibling)};const end=()=>{grip.onpointermove=null;grip.onpointerup=null;grip.onpointercancel=null;widget.classList.remove("dashboard-widget-dragging");persistDashboardLayout()};grip.onpointermove=move;grip.onpointerup=end;grip.onpointercancel=end};widget.append(handle)});
+        dashboardPreferencesApplying=wasApplying;
       }
       function setDashboardLayoutEditing(editing){
         dashboardLayoutEditing=editing;const container=$("#dashboard-widgets");container.classList.toggle("layout-editing",editing);$$("#dashboard-widgets > [data-dashboard-widget]").forEach(widget=>widget.draggable=editing&&!widget.classList.contains("hidden"));$("#dashboard-layout-toggle").textContent=editing?"完成布局":"调整布局";$("#dashboard-layout-reset").classList.toggle("hidden",!editing);ensureDashboardWidgetHandles();
       }
       function initializeDashboardLayout(){
-        applyDashboardLayout(storedDashboardLayout());ensureDashboardWidgetHandles();initializeDashboardCoreTabs();const container=$("#dashboard-widgets");if(container.dataset.layoutBound)return;container.dataset.layoutBound="true";
+        const shouldMigrate=!dashboardPreferenceState;dashboardPreferencesApplying=true;applyDashboardLayout(storedDashboardLayout());ensureDashboardWidgetHandles();initializeDashboardCoreTabs();dashboardPreferencesApplying=false;if(shouldMigrate)persistDashboardPreferences();const container=$("#dashboard-widgets");if(container.dataset.layoutBound)return;container.dataset.layoutBound="true";
         container.addEventListener("dragstart",event=>{const widget=event.target.closest("[data-dashboard-widget]");if(!dashboardLayoutEditing||!widget||event.target.closest("button,input,select,textarea,a")){event.preventDefault();return}container.dataset.dragging=widget.dataset.dashboardWidget;widget.classList.add("dashboard-widget-dragging");event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",widget.dataset.dashboardWidget)});
         container.addEventListener("dragover",event=>{if(!dashboardLayoutEditing||!container.dataset.dragging)return;event.preventDefault();const dragging=container.querySelector(`[data-dashboard-widget="${container.dataset.dragging}"]`),target=event.target.closest("#dashboard-widgets > [data-dashboard-widget]");if(!dragging||!target||dragging===target)return;const rect=target.getBoundingClientRect();container.insertBefore(dragging,event.clientY<rect.top+rect.height/2?target:target.nextSibling)});
         container.addEventListener("drop",event=>{if(!container.dataset.dragging)return;event.preventDefault();persistDashboardLayout()});
@@ -7289,7 +7291,7 @@
       $$(".marketing-period-tab").forEach(button=>button.addEventListener("click",()=>{$("#marketing-period").value=button.dataset.marketingPeriod;$$('.marketing-period-tab').forEach(item=>{const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active))});renderMarketingWorkbench(dashboardState.rows)}));
       $("#website-intake-refresh").addEventListener("click",loadWebsiteIntakeMonitor);
       $("#dashboard-layout-toggle").addEventListener("click",()=>setDashboardLayoutEditing(!dashboardLayoutEditing));
-      $("#dashboard-layout-reset").addEventListener("click",async()=>{if(!await appConfirm("确认恢复当前账号的默认看板顺序？",{title:"恢复默认布局",confirmText:"确认恢复"}))return;applyDashboardLayout(dashboardInitialOrder);try{localStorage.removeItem(dashboardLayoutStorageKey())}catch{}if(currentAuthUser)currentAuthUser.user_metadata={...(currentAuthUser.user_metadata||{}),dashboard_layout:null};const {error}=await supabase.auth.updateUser({data:{dashboard_layout:null}});if(error)return toast("云端布局恢复失败："+error.message);setDashboardLayoutEditing(false);toast("已恢复默认看板布局")});
+      $("#dashboard-layout-reset").addEventListener("click",async()=>{if(!await appConfirm("确认恢复当前账号的默认看板顺序？",{title:"恢复默认布局",confirmText:"确认恢复"}))return;applyDashboardLayout(dashboardInitialOrder);try{localStorage.removeItem(dashboardLayoutStorageKey())}catch{}persistDashboardPreferences();setDashboardLayoutEditing(false);toast("已恢复默认看板布局")});
       $("#detail-tabs-order-toggle").addEventListener("click",()=>setDetailTabsEditing(!detailTabsEditing));
       $("#detail-tabs-order-reset").addEventListener("click",async()=>{if(!await appConfirm("确认恢复当前账号的默认页签顺序？",{title:"恢复默认页签",confirmText:"确认恢复"}))return;applyDetailTabsOrder(detailTabsInitialOrder);try{localStorage.removeItem(detailTabsStorageKey())}catch{}if(currentAuthUser)currentAuthUser.user_metadata={...(currentAuthUser.user_metadata||{}),detail_tabs_order:null};const {error}=await supabase.auth.updateUser({data:{detail_tabs_order:null}});if(error)return toast("云端页签顺序恢复失败："+error.message);setDetailTabsEditing(false);toast("已恢复默认页签顺序")});
       $$(".trend-tab").forEach(button=>button.addEventListener("click",()=>{dashboardState.trendGrain=button.dataset.trendGrain;renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)}));

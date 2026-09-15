@@ -11,6 +11,8 @@
 - 生产旧版与新版 worker 分别保存在 `/home/linux/wonly-mail-sync/deploy-audit/20260915-e257be8-scheduled-mail-safety/`。本次部署未发送测试邮件或主动改写真实客户数据。
 - worker 中断后超过 10 分钟仍处于 `sending` 的任务现在会转为“发送结果待人工确认”，不会自动重发而造成客户收到重复邮件；对应审计动作是 `mailbox_scheduled_message_delivery_uncertain`。
 - CRM“定时发送”列表会直接展示失败原因。提交 `ebec5ca` 已发布，GitHub Pages 构建 `34913772198` 成功；生产容器为 `healthy`，回滚文件位于 `/home/linux/wonly-mail-sync/deploy-audit/20260915-ebec5ca-interrupted-delivery/`。
+- 定时报价邮件现在持久化 `quotation_id`；预约和实际发送时都会确认报价仍处于主管批准状态，成功后自动将报价设为已发送并推进询盘的已报价阶段、金额、币种和报价时间。迁移 `20260915090000_scheduled_quotation_delivery.sql` 已通过生产 SQL Editor 执行并验证：列与两个 RPC 均存在，普通登录用户不能调用完成函数，`service_role` 可以调用。
+- 前端与 worker 提交为 `b612e70`，115 项测试通过，GitHub Pages 构建 `34914101580` 成功；生产容器恢复 `healthy`，回滚文件位于 `/home/linux/wonly-mail-sync/deploy-audit/20260915-b612e70-scheduled-quotation/`。本次未创建报价或发送邮件。
 
 ## 线上环境
 

@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const sender = await readFile(new URL("../supabase/functions/mailbox-compose-send/index.ts", import.meta.url), "utf8");
+const finalizationPermissions = await readFile(new URL("../supabase/migrations/20260915093000_restrict_quotation_sent_finalization.sql", import.meta.url), "utf8");
 
 test("quotation email tracking is delegated to the server", () => {
   assert.match(html, /quotation_id:\$\("#mail-compose-quotation"\)\.value\|\|null/);
@@ -26,4 +27,10 @@ test("general inquiry composer cannot bypass proactive contact suppression", () 
   assert.match(sender, /messageKind=!latest\|\|latest\.direction==="inbound"\?"reply":"outreach"/);
   assert.match(sender, /check_inquiry_contact_allowed/);
   assert.match(sender, /record_inquiry_marketing_contact/);
+});
+
+test("browser clients cannot mark a quotation sent without verified delivery", () => {
+  assert.match(finalizationPermissions, /revoke all on function public\.mark_quotation_sent\(uuid,uuid\)[\s\S]*from public,anon,authenticated/i);
+  assert.match(finalizationPermissions, /grant execute on function public\.mark_quotation_sent\(uuid,uuid\)[\s\S]*to service_role/i);
+  assert.doesNotMatch(finalizationPermissions, /to authenticated/i);
 });

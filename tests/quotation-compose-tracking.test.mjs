@@ -16,6 +16,9 @@ test("immediate quotation send is validated and finalized server-side without tr
   assert.match(sender, /target_message_id:null/);
   assert.match(sender, /quotation_recorded:quotationRecorded/);
   assert.match(sender, /warnings/);
+  assert.match(sender, /email_intake"\)\.select\("sender_email"\)/);
+  assert.match(sender, /报价必须发送到该询盘登记的客户邮箱/);
+  assert.doesNotMatch(sender, /quote\.created_by!==user\.id/);
 });
 
 test("general inquiry composer cannot bypass proactive contact suppression", () => {

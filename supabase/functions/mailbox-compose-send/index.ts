@@ -53,7 +53,16 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
     messageKind=!latest||latest.direction==="inbound"?"reply":"outreach";
     if(messageKind==="outreach"){const {data:policy,error:policyError}=await userClient.rpc("check_inquiry_contact_allowed",{target_inquiry_id:inquiryId});if(policyError)throw policyError;if(!policy?.allowed)throw new Error(`触达规则拦截：${clean(policy?.reason,500)||"当前不允许主动联系客户"}`)}
   }
-  if(quotationId){const {data:quote,error}=await admin.from("quotation_versions").select("id,inquiry_id,status,created_by").eq("id",quotationId).maybeSingle();if(error)throw error;if(!quote||quote.inquiry_id!==inquiryId)throw new Error("报价与当前询盘不匹配");if(quote.status!=="approved")throw new Error("只有主管批准后的报价才能发送");if(quote.created_by!==user.id&&!["owner","sales_manager"].includes(caller.role))throw new Error("无权发送该报价")}
+  if(quotationId){
+    const [{data:quote,error:quoteError},{data:customer,error:customerError}]=await Promise.all([
+      admin.from("quotation_versions").select("id,inquiry_id,status").eq("id",quotationId).maybeSingle(),
+      admin.from("email_intake").select("sender_email").eq("inquiry_id",inquiryId).order("created_at",{ascending:false}).limit(1).maybeSingle(),
+    ]);
+    if(quoteError||customerError)throw quoteError||customerError;
+    if(!quote||quote.inquiry_id!==inquiryId)throw new Error("报价与当前询盘不匹配");
+    if(quote.status!=="approved")throw new Error("只有主管批准后的报价才能发送");
+    if(clean(customer?.sender_email,320).toLowerCase()!==to)throw new Error("报价必须发送到该询盘登记的客户邮箱");
+  }
   const {data:connection,error:connectionError}=await admin.from("mailbox_connections").select("id,email,smtp_host,smtp_port,status").eq("user_id",user.id).eq("mailbox_kind","personal").eq("status","connected").single();
   if(connectionError||!connection)throw new Error("请先连接当前业务员自己的企业邮箱");
   const {data:password,error:secretError}=await admin.rpc("read_mailbox_secret",{target_connection_id:connection.id});if(secretError||!password)throw new Error("邮箱凭据不可用，请重新连接");

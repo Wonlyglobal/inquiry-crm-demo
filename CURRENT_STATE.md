@@ -2,6 +2,14 @@
 
 更新时间：2026-09-15（Asia/Shanghai）
 
+## 2026-09-15 WhatsApp 主动触达与首次响应证据
+
+- WhatsApp Cloud API 主动发送现在会在调用 Meta 前执行询盘触达规则；已退订、禁止联系、频控期内或缺失合法联系依据时会服务端拦截，不会向客户发消息。
+- 成功提交 Meta 的消息保存真实发送人 `sent_by`，并通过仅 `service_role` 可执行的 `record_sent_whatsapp_followup` 写入去重的 WhatsApp 跟进证据；只有当前负责人在分配后发出的真实 Cloud API 消息才能记录首次有效联系。
+- 发送后跟进证据或触达状态回写失败会在 CRM 明确显示警告，避免用户因误以为“未发送”而重复联系客户。
+- 迁移 `20260915203000_record_whatsapp_contact_evidence.sql` 已应用生产；事务回滚验收结果为 `function=t; anon_execute=f; authenticated_execute=f; service_execute=t; rollback_messages=0; rollback_followups=0`，幂等调用只生成一条跟进且没有留下测试数据。
+- `whatsapp-send` 已部署生产，无凭据空请求返回 `401 / 未登录`。完整自动化回归 174/174 通过；验收全程未向真实客户发送 WhatsApp 消息。
+
 ## 2026-09-15 真实已发送邮件联动首次响应
 
 - 邮件同步不再直接改写 `first_valid_contact_at`；新增仅 `service_role` 可调用的 `record_synced_email_followup`，在同一事务内锁定询盘、写入邮件跟进证据、确认首次有效联系并生成审计日志。

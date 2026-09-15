@@ -12,6 +12,8 @@ const realtimeWorkspace = fs.readFileSync(new URL("../supabase/migrations/202609
 const webhookSubscriptionStatus = fs.readFileSync(new URL("../supabase/migrations/20260914143500_whatsapp_webhook_subscription_status.sql", import.meta.url), "utf8");
 const contactAvatars = fs.readFileSync(new URL("../supabase/migrations/20260914150000_contact_avatars.sql", import.meta.url), "utf8");
 const bilingualTranslation = fs.readFileSync(new URL("../supabase/migrations/20260914154500_whatsapp_bilingual_translation.sql", import.meta.url), "utf8");
+const contactEvidence = fs.readFileSync(new URL("../supabase/migrations/20260915203000_record_whatsapp_contact_evidence.sql", import.meta.url), "utf8");
+const contactEvidenceRollback = fs.readFileSync(new URL("./production-whatsapp-contact-evidence-rollback.sql", import.meta.url), "utf8");
 const translator = fs.readFileSync(new URL("../supabase/functions/whatsapp-translate/index.ts", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
@@ -94,6 +96,24 @@ test("WhatsApp sender is server-side, owner-scoped and records the API result", 
   assert.match(sender, /Embedded Signup 共存模式/);
   assert.doesNotMatch(sender, /完成6位两步验证 PIN 注册/);
   assert.doesNotMatch(sender, /localStorage|sessionStorage|document\.cookie/);
+});
+
+test("successful WhatsApp sends obey contact policy and create protected follow-up evidence", () => {
+  assert.match(sender, /check_inquiry_contact_allowed/);
+  assert.match(sender, /record_inquiry_marketing_contact/);
+  assert.match(sender, /sent_by: user\.id/);
+  assert.match(sender, /record_sent_whatsapp_followup/);
+  assert.match(html, /result\.data\?\.warnings\?\.length/);
+  assert.match(contactEvidence, /add column if not exists sent_by uuid/);
+  assert.match(contactEvidence, /add column if not exists whatsapp_message_id uuid/);
+  assert.match(contactEvidence, /message_row\.external_message_id is null/);
+  assert.match(contactEvidence, /inquiry_row\.owner_id=message_row\.sent_by/);
+  assert.match(contactEvidence, /set_config\('app\.inquiry_workflow_rpc','on',true\)/);
+  assert.match(contactEvidence, /revoke all on function public\.record_sent_whatsapp_followup\(uuid\) from public,anon,authenticated/);
+  assert.match(contactEvidence, /grant execute on function public\.record_sent_whatsapp_followup\(uuid\) to service_role/);
+  assert.match(contactEvidenceRollback, /^begin;/m);
+  assert.match(contactEvidenceRollback, /WHATSAPP_FOLLOWUP_NOT_IDEMPOTENT/);
+  assert.match(contactEvidenceRollback, /^rollback;/m);
 });
 
 test("WhatsApp workspace sends the original text without automatic translation", () => {

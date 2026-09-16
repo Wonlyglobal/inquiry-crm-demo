@@ -1,20 +1,24 @@
 # Production deployment audit
 
-## 2026-09-16 — publish audited contact avatar workflow; database pending confirmation
+## 2026-09-16 — deploy audited contact avatar workflow to production
 
 - Target source: GitHub repository `Wonlyglobal/inquiry-crm-demo`, branch `main`.
 - Source commit: `4175e89` (`Lock contact writes to audited workflows`). GitHub Pages workflow `35063465724` completed successfully.
 - Verification: the complete automated suite passed 206/206 tests before publication.
 - Change summary: replace the browser's direct `contacts` update with `set_customer_contact_avatar`; validate active role, current customer scope, caller-owned storage path and uploaded object; write `contact_avatar_updated` audit evidence; prepare revocation of direct authenticated contact mutations.
-- Safety state: migration `20260916100000_lock_contacts_to_workflows.sql` and rollback-only production acceptance are committed but have not been run against production. No production contact, avatar object or permission was modified in this step.
+- Production migration: after the user's explicit confirmation, `20260916100000_lock_contacts_to_workflows.sql` was executed in the authenticated Supabase SQL editor; Supabase returned `Success. No rows returned`.
+- Rollback acceptance: the first attempt exposed an ambiguity in the acceptance script's local `actor_id` variable and aborted without committing. The variable was renamed to `test_actor_id`, the transaction was explicitly rolled back, and the corrected acceptance passed with `function=t; anon_execute=f; authenticated_execute=t; authenticated_insert=f; authenticated_update=f; authenticated_delete=f; rollback_objects=0; rollback_audits=0`.
+- Safety state: direct authenticated contact mutations are revoked; audited avatar updates remain available; no rollback-test storage object or audit row remains.
 
-## 2026-09-16 — publish audited follow-up workflow source; database pending confirmation
+## 2026-09-16 — deploy audited follow-up workflow to production
 
 - Target source: GitHub repository `Wonlyglobal/inquiry-crm-demo`, branch `main`.
 - Source commit: `9cb639d` (`Lock follow-ups to audited workflows`). GitHub Pages workflow `35062638916` completed successfully.
 - Verification: the complete automated suite passed 203/203 tests before publication.
-- Production database evidence: read-only privilege query returned `anon_create=f; auth_insert=t; auth_update=f; auth_delete=f`, so migration `20260916000000_lock_followups_to_workflows.sql` is not yet applied.
-- Safety state: the reviewed SQL is prepared in the authenticated Supabase SQL editor but has not been executed. Applying the production permission change, accepting any Supabase warning, and running the rollback-only acceptance test remain gated on explicit user confirmation.
+- Production database before deployment: read-only privilege query returned `anon_create=f; auth_insert=t; auth_update=f; auth_delete=f`.
+- Production migration: after the user's explicit confirmation, `20260916000000_lock_followups_to_workflows.sql` was executed in the authenticated Supabase SQL editor; Supabase returned `Success. No rows returned`.
+- Rollback acceptance: `table=t; anon_create_execute=f; authenticated_create_execute=t; authenticated_insert=f; authenticated_update=f; rollback_followups=0`. The audited create/complete flow and both audit entries were proved inside the transaction; direct insert/update were rejected and no test follow-up remains.
+- Final combined permission check: `follow_create=t; follow_complete=t; follow_insert=f; follow_update=f; follow_delete=f; contact_avatar=t; contact_insert=f; contact_update=f; contact_delete=f`.
 
 ## 2026-09-03 09:35:41 +08:00 — redefine company events as sourced online milestones
 

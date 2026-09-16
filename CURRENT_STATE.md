@@ -2,17 +2,19 @@
 
 更新时间：2026-09-16（Asia/Shanghai）
 
-## 2026-09-16 跟进任务写入权限收紧（生产库待确认）
+## 2026-09-16 跟进任务写入权限收紧
 
 - 源码提交 `9cb639d` 已推送到 `main`，GitHub Pages 流水线 `35062638916` 已成功完成构建与部署；完整自动化回归 203/203 通过。
-- 待发布迁移 `20260916000000_lock_followups_to_workflows.sql` 将撤销登录用户对 `follow_ups` 的直接增删改权限，保留经 `record_inquiry_followup_v2` 和 `complete_follow_up_task` 的审计业务流程。
-- 生产只读核验结果为 `anon_create=f; auth_insert=t; auth_update=f; auth_delete=f`，证明数据库尚未应用本迁移。迁移 SQL 已在 Supabase 编辑器准备，尚未点击执行，等待生产权限变更和回滚验收的明确确认。
+- 生产迁移 `20260916000000_lock_followups_to_workflows.sql` 已应用：登录用户对 `follow_ups` 的直接增删改权限已撤销，保留经 `record_inquiry_followup_v2` 和 `complete_follow_up_task` 的审计业务流程。
+- 生产事务回滚验收结果：`table=t; anon_create_execute=f; authenticated_create_execute=t; authenticated_insert=f; authenticated_update=f; rollback_followups=0`；创建、完成和双条审计证据在事务内验证成功，没有遗留测试跟进。
 
-## 2026-09-16 联系人与客户头像写入权限收紧（生产库待确认）
+## 2026-09-16 联系人与客户头像写入权限收紧
 
 - 静态前端与迁移提交 `4175e89` 已推送到 `main`，GitHub Pages 流水线 `35063465724` 成功；完整自动化回归 206/206 通过。
 - WhatsApp 客户头像不再由浏览器直接更新 `contacts`，改用 `set_customer_contact_avatar` 审计 RPC；服务端核验活跃角色、当前客户归属、当前用户存储路径和已上传对象，并写入 `contact_avatar_updated` 审计。
-- 待发布迁移 `20260916100000_lock_contacts_to_workflows.sql` 将撤销登录用户对 `contacts` 的直接增删改；新增联系人继续经 `add_customer_contact` 执行，邮件同步的 `service_role` 写入不受影响。生产库尚未执行此迁移。
+- 生产迁移 `20260916100000_lock_contacts_to_workflows.sql` 已应用：登录用户对 `contacts` 的直接增删改已撤销；新增联系人继续经 `add_customer_contact` 执行，邮件同步的 `service_role` 写入不受影响。
+- 生产事务回滚验收结果：`function=t; anon_execute=f; authenticated_execute=t; authenticated_insert=f; authenticated_update=f; authenticated_delete=f; rollback_objects=0; rollback_audits=0`；有效路径、对象存在性、审计记录和非法路径拒绝均已验证，无测试对象或审计残留。
+- 最终联合权限核对：`follow_create=t; follow_complete=t; follow_insert=f; follow_update=f; follow_delete=f; contact_avatar=t; contact_insert=f; contact_update=f; contact_delete=f`。
 
 ## 2026-09-15 每日计划写入权限闭环
 

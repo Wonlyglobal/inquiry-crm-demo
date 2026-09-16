@@ -4,28 +4,28 @@ begin;
 
 do $$
 declare
-  actor_id uuid;
+  test_actor_id uuid;
   target_contact uuid;
   test_path text;
   saved public.contacts;
   invalid_rejected boolean:=false;
 begin
-  select p.id into actor_id
+  select p.id into test_actor_id
   from public.profiles p
   where p.active=true and p.role in ('owner','sales_manager','marketing')
   order by p.created_at limit 1;
-  if actor_id is null then raise exception 'NO_CONTACT_TEST_ACTOR'; end if;
+  if test_actor_id is null then raise exception 'NO_CONTACT_TEST_ACTOR'; end if;
 
   select c.id into target_contact
   from public.contacts c
   order by c.created_at limit 1;
   if target_contact is null then raise exception 'NO_CONTACT_TEST_RECORD'; end if;
 
-  test_path:=actor_id::text||'/contacts/'||target_contact::text||'/avatar-rollback-test.png';
+  test_path:=test_actor_id::text||'/contacts/'||target_contact::text||'/avatar-rollback-test.png';
   insert into storage.objects(bucket_id,name)
   values('profile-avatars',test_path);
 
-  perform set_config('request.jwt.claim.sub',actor_id::text,true);
+  perform set_config('request.jwt.claim.sub',test_actor_id::text,true);
   perform set_config('request.jwt.claim.role','authenticated',true);
   select * into saved from public.set_customer_contact_avatar(target_contact,test_path);
   if saved.avatar_url is distinct from test_path then
@@ -33,13 +33,13 @@ begin
   end if;
   if not exists (
     select 1 from public.audit_logs a
-    where a.actor_id=actor_id and a.entity_id=target_contact
+    where a.actor_id=test_actor_id and a.entity_id=target_contact
       and a.action='contact_avatar_updated'
   ) then raise exception 'CONTACT_AVATAR_AUDIT_MISSING'; end if;
 
   begin
     perform public.set_customer_contact_avatar(
-      target_contact,actor_id::text||'/contacts/'||target_contact::text||'/../invalid.png'
+      target_contact,test_actor_id::text||'/contacts/'||target_contact::text||'/../invalid.png'
     );
   exception when others then
     invalid_rejected:=sqlerrm like '%头像路径无效%';

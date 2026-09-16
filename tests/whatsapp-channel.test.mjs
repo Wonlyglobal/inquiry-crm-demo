@@ -81,7 +81,8 @@ test("CRM provides a realtime WhatsApp-style conversation workspace", () => {
   assert.match(realtimeWorkspace, /alter publication supabase_realtime add table public\.whatsapp_messages/);
   assert.match(html, /function waAvatarMarkup/);
   assert.match(html, /function uploadWhatsAppContactAvatar/);
-  assert.match(html, /from\("contacts"\)\.update\(\{avatar_url:avatarUrl/);
+  assert.match(html, /rpc\("set_customer_contact_avatar",\{target_contact_id:conversation\.contactId,avatar_path:path\}\)/);
+  assert.doesNotMatch(html, /from\("contacts"\)\.update\(\{avatar_url:/);
   assert.match(contactAvatars, /add column if not exists avatar_url text/);
 });
 

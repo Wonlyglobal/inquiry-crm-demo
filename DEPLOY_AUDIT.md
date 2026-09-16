@@ -1,5 +1,13 @@
 # Production deployment audit
 
+## 2026-09-16 — publish audited follow-up workflow source; database pending confirmation
+
+- Target source: GitHub repository `Wonlyglobal/inquiry-crm-demo`, branch `main`.
+- Source commit: `9cb639d` (`Lock follow-ups to audited workflows`). GitHub Pages workflow `35062638916` completed successfully.
+- Verification: the complete automated suite passed 203/203 tests before publication.
+- Production database evidence: read-only privilege query returned `anon_create=f; auth_insert=t; auth_update=f; auth_delete=f`, so migration `20260916000000_lock_followups_to_workflows.sql` is not yet applied.
+- Safety state: the reviewed SQL is prepared in the authenticated Supabase SQL editor but has not been executed. Applying the production permission change, accepting any Supabase warning, and running the rollback-only acceptance test remain gated on explicit user confirmation.
+
 ## 2026-09-03 09:35:41 +08:00 — redefine company events as sourced online milestones
 
 - Targets: GitHub Pages production site and Supabase company record linked to inquiry #000002.

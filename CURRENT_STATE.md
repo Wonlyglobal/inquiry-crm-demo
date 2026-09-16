@@ -1,6 +1,12 @@
 # 询盘 CRM 当前状态
 
-更新时间：2026-09-15（Asia/Shanghai）
+更新时间：2026-09-16（Asia/Shanghai）
+
+## 2026-09-16 跟进任务写入权限收紧（生产库待确认）
+
+- 源码提交 `9cb639d` 已推送到 `main`，GitHub Pages 流水线 `35062638916` 已成功完成构建与部署；完整自动化回归 203/203 通过。
+- 待发布迁移 `20260916000000_lock_followups_to_workflows.sql` 将撤销登录用户对 `follow_ups` 的直接增删改权限，保留经 `record_inquiry_followup_v2` 和 `complete_follow_up_task` 的审计业务流程。
+- 生产只读核验结果为 `anon_create=f; auth_insert=t; auth_update=f; auth_delete=f`，证明数据库尚未应用本迁移。迁移 SQL 已在 Supabase 编辑器准备，尚未点击执行，等待生产权限变更和回滚验收的明确确认。
 
 ## 2026-09-15 每日计划写入权限闭环
 

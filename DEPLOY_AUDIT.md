@@ -70,3 +70,11 @@
 - Before `index.html` SHA-256: `2accbd34c49f50ed1995375e9175aaaded46f30da646bff785b1c177780daf77`.
 - Before content retention: the complete prior `index.html` remains recoverable from the Git parent commit above.
 - Change summary: add `excluded_from_dashboard = false` to every list/statistics query that feeds the four affected UI surfaces; keep direct-detail and duplicate-detection queries unchanged because they are not dashboard/list output and historical duplicate evidence must remain discoverable.
+
+## 2026-09-16 — market read-only account
+
+- User explicitly approved publishing the read-only feature and creating Chen Xiaoyu's account. Initial broad pre-request-hook proposal was rejected and was not applied. Final implementation introduces an independent role with SELECT-only copies of existing RLS visibility; no existing member privileges or request hook were changed.
+- Prior frontend/source commit: `8dd18e9`. Database migration: `20260916090000_marketing_read_only_access.sql`. Edge functions keep their original JWT-gateway settings; the five pre-existing no-verify functions are crm-ai-assistant, email-communication-ai, mailbox-ai-draft, whatsapp-send and whatsapp-connection-admin.
+- Live source backup: `/private/tmp/crm-readonly-live-backup`. Local original function bodies were compared with deployed source before wrapping them; the company-website-images download contained multiple source variants, including an exact match to the checked-in body.
+- Validation uses `tests/production-marketing-read-only-rollback.sql`, which rolls back every test record and compares complete visible-row fingerprints internally without exporting customer/mail data. Business writes and RPCs are forbidden; initial password completion is the only scoped write exception.
+- Account creation is recorded in production `audit_logs`. No password, service key or user session token is retained in repository files.

@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import nodemailer from "npm:nodemailer@7.0.6";
 
@@ -31,7 +32,7 @@ async function loadMaterialAttachment(assetId:string,userId:string){
   return {filename,contentType:response.headers.get("content-type")||"application/octet-stream",content};
 }
 
-Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors});try{
+Deno.serve(withReadOnlyGuard(async req=>{if(req.method==="OPTIONS")return new Response("ok",{headers:cors});try{
   const authorization=req.headers.get("Authorization")||"",url=Deno.env.get("SUPABASE_URL")||"";
   const userClient=createClient(url,envKey("SUPABASE_PUBLISHABLE_KEYS","SUPABASE_ANON_KEY"),{global:{headers:{Authorization:authorization}}});
   const admin=createClient(url,envKey("SUPABASE_SECRET_KEYS","SUPABASE_SERVICE_ROLE_KEY"),{auth:{persistSession:false,autoRefreshToken:false}});
@@ -73,4 +74,4 @@ Deno.serve(async req=>{if(req.method==="OPTIONS")return new Response("ok",{heade
   if(quotationId){const result=await userClient.rpc("mark_quotation_sent",{target_quotation_id:quotationId,target_message_id:null});quotationRecorded=!result.error;if(result.error)warnings.push(`报价状态更新失败：${result.error.message}`)}
   await admin.from("audit_logs").insert({actor_id:user.id,entity_type:quotationId?"quotation":inquiryId?"inquiry":"profile",entity_id:quotationId||inquiryId||user.id,action:quotationId?"quotation_email_sent":"mailbox_message_sent",after_data:{recipient:to,cc,subject,message_id:sent.messageId||null,inquiry_id:inquiryId,quotation_id:quotationId,message_kind:messageKind,contact_policy_recorded:contactPolicyRecorded,quotation_recorded:quotationRecorded,attachment_count:attachments.length,material_asset_ids:materialAssetIds,warnings},reason:quotationId?"报价已通过 CRM 邮箱发送":"业务员从 CRM 邮箱页面发送邮件"});
   return new Response(JSON.stringify({sent:true,recipient:to,message_id:sent.messageId||null,sent_at:sentAt,contact_policy_recorded:contactPolicyRecorded,quotation_recorded:quotationRecorded,warnings}),{headers:cors});
-}catch(error){return new Response(JSON.stringify({error:errorText(error)}),{status:400,headers:cors})}});
+}catch(error){return new Response(JSON.stringify({error:errorText(error)}),{status:400,headers:cors})}}));

@@ -341,3 +341,10 @@
 - 迁移 `20260915180000_require_approved_win_for_orders.sql` 已应用生产。回滚验收 `tests/production-order-creation-rollback.sql` 实测未成交、币种错误和累计超额均被拦截，审批成交后的合法订单可创建，随后全部回滚；生产证据为资格/币种/金额保护均启用、私有函数匿名和登录用户均不可直接执行、`orders=0`、`rollback_orders=0`、`won_inquiries=0`。既有订单/回款/交付/售后回滚脚本同步补充成交前置夹具，保持可重复执行；完整自动化回归更新为 162/162 通过。
 - 订单进展历史只能由原子订单状态流程生成：撤销登录用户对 `order_events` 的新增、修改和删除权限，保留负责人范围内的只读权限；后台服务仍可维护。迁移 `20260915183000_lock_order_events_to_workflow.sql` 已应用生产，回滚验收 `tests/production-order-event-integrity-rollback.sql` 实测受控状态更新会生成事件、浏览器身份直接伪造事件会被拒绝，随后全部回滚。生产 ACL 为 `auth_select=true`、`auth_insert/update/delete=false`、`service_insert=true`、`rollback_orders=0`、`rollback_events=0`；完整自动化回归更新为 164/164 通过。
 - 邮箱已读状态改为服务端受控写入：登录用户不再拥有 `email_message_reads` 的直接新增或更新权限；打开来信统一调用 `mark_email_message_read`，后端按本人邮箱、本人负责询盘或主管/老板/市场的既有邮件可见范围重新鉴权，并仅在首次阅读时留审计记录。迁移 `20260915223000_secure_email_read_receipts.sql` 已应用生产，回滚验收 `tests/production-email-read-receipt-rollback.sql` 使用真实同步来信验证已读和审计均能生成且全部回滚；生产证据为 `function=true`、`anon_execute=false`、`authenticated_execute=true`、`authenticated_insert/update=false`、`rollback_audits=0`。完整自动化回归更新为 185/185 通过。
+
+## 2026-09-16 陈笑喻市场部只读账号
+
+- 根据用户明确要求，创建并启用 `chenxiaoyu@wonlyglobal.com`（陈笑喻 / 订单主管），初始密码使用用户指定值，保留首次登录强制改密；密码及管理凭据不写入仓库。
+- 成员业务角色为 `marketing`，认证角色为独立的 `crm_marketing_readonly`，并设置管理员控制的 `app_metadata.crm_read_only=true`。只读角色不继承 `authenticated`，仅获业务数据/附件读取权限；所有新增 RLS 策略仅作用于该新角色，现有角色及全局请求钩子保持原状。
+- 唯一写入例外为本人首次改密完成标记；专用 RPC 不允许修改其他成员或业务字段。发送、连接、AI 生成等 Edge 接口统一检查经过 Auth 验证的只读身份，前端显示“市场部只读”并禁用操作控件。
+- 验证：203 项自动化测试通过；生产回滚事务验证逐表可见数据与同一普通市场部身份完全一致、无业务写入权限；真实新账号验证登录/读取成功，直接修改、业务 RPC、邮件发送、WhatsApp 发送和邮件助手均返回 403，附件列表可读；验证会话已退出，首次改密要求未清除。

@@ -2296,8 +2296,51 @@
         }
       }
       const { createClient } = supabaseModule;
+      let crmReadOnly = false;
+      function readOnlyRequestAllowed(input, method) {
+        const url = new URL(typeof input === "string" ? input : input.url, location.href);
+        if (url.pathname.startsWith("/auth/v1/")) return true;
+        if (url.pathname.startsWith("/functions/v1/")) return false;
+        if (method === "POST" && /^\/storage\/v1\/object\/(sign|list)\//.test(url.pathname)) return true;
+        if (["GET", "HEAD", "OPTIONS"].includes(method)) return true;
+        return method === "POST" && ["/rest/v1/rpc/get_shared_inquiry_mailbox_status", "/rest/v1/rpc/finish_initial_password_change", "/rest/v1/rpc/finish_readonly_initial_password_change"].includes(url.pathname);
+      }
+      function readOnlyMutationControl(button) {
+        if (button.matches(".nav,[data-view],.detail-tab,[data-detail-tab],[data-close]")) return false;
+        if (button.closest("#login-form,#password-form,#forgot-password-form")) return false;
+        const label = (button.textContent || "").trim();
+        return /保存|提交|新增|新建|创建|删除|移除|导入|上传|连接|发送|转发|登记|标记|恢复|禁用|启用|生成|编辑|批准|驳回|作废|归档|重新背调|开始背调|加入时间轴|转为询盘|设置成本|布局/.test(label)
+          || /^(去分配|分配|更新|重新|退回|领取|释放|确认|完成|执行)/.test(label)
+          || ["avatar", "sales-profile-avatar", "run-business-research", "ai-assistant-open"].includes(button.id);
+      }
+      function applyReadOnlyControls() {
+        if (!crmReadOnly) {
+          document.querySelectorAll("button[data-crm-read-only-disabled]").forEach(button => {button.disabled=false;delete button.dataset.crmReadOnlyDisabled;button.title="";});
+          return;
+        }
+        document.querySelectorAll("button").forEach(button => {
+          if (!readOnlyMutationControl(button)) return;
+          if (!button.disabled) {button.dataset.crmReadOnlyDisabled="true";button.disabled=true;}
+          if (button.title !== "市场部只读账号") button.title = "市场部只读账号";
+        });
+      }
+      new MutationObserver(applyReadOnlyControls).observe(document.body, {childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:["disabled"]});
+      document.addEventListener("click", event => {
+        const button = event.target.closest?.("button");
+        if (crmReadOnly && button && readOnlyMutationControl(button)) {
+          event.preventDefault(); event.stopImmediatePropagation(); toast("当前账号为市场部只读权限");
+        }
+      }, true);
+      document.addEventListener("submit", event => {
+        if (crmReadOnly && !["login-form","password-form","forgot-password-form"].includes(event.target.id)) {
+          event.preventDefault(); event.stopImmediatePropagation(); toast("当前账号为市场部只读权限");
+        }
+      }, true);
       async function resilientFetch(input, init = {}) {
         const method = String(init.method || (input instanceof Request ? input.method : "GET") || "GET").toUpperCase();
+        if (crmReadOnly && !readOnlyRequestAllowed(input, method)) {
+          return new Response(JSON.stringify({code:"42501",message:"市场部只读账号不能执行此操作",error:"市场部只读账号不能执行此操作"}), {status:403,headers:{"Content-Type":"application/json"}});
+        }
         const retryable = method === "GET" || method === "HEAD";
         const attempts = retryable ? 3 : 1;
         const timeoutMs = retryable ? 12000 : 20000;
@@ -2514,6 +2557,7 @@
       }
       async function loadProfile(user) {
         currentAuthUser = user;
+        crmReadOnly = user.app_metadata?.crm_read_only === true;
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
@@ -2540,7 +2584,8 @@
         $("#app").classList.remove("hidden");
         $("#ai-assistant-open").classList.remove("hidden");
         $("#user-name").textContent = profile.full_name;
-        $("#user-role").textContent = profile.job_title || roleNames[profile.role] || profile.role;
+        $("#user-role").textContent = (profile.job_title || roleNames[profile.role] || profile.role) + (crmReadOnly ? " · 市场部只读" : "");
+        applyReadOnlyControls();
         setMemberAvatar($("#avatar"), profile, "王");
         const role = profile.role;
         const canConfigureMailboxes = ["owner", "sales_manager", "marketing"].includes(role);
@@ -2891,7 +2936,7 @@
         setTimeout(()=>$(replying?"#mail-compose-body":"#mail-compose-to").focus(),0);
       }
       async function openMailboxMessage(message){
-        if(message.direction==="inbound"){
+        if(message.direction==="inbound" && !crmReadOnly){
           const {error}=await supabase.rpc("mark_email_message_read",{target_message_id:message.id});
           if(!error){message.mailRead=true;const row=moduleRows.find(item=>item.message?.id===message.id);if(row){row.cells[2]=mailboxMessageState(message);renderModuleTable(moduleColumns,moduleRows,moduleRowClick)}}
           else toast("标记邮件已读失败："+error.message);
@@ -3752,7 +3797,7 @@
         catch (error) { console.warn("消息中心加载失败", error); return null; }
       }
       async function loadNotificationsUnsafe() {
-        const reminderSync=await supabase.rpc("sync_retention_notifications");
+        const reminderSync=crmReadOnly?{error:null}:await supabase.rpc("sync_retention_notifications");
         if(reminderSync.error&&!/schema cache|could not find the function/i.test(reminderSync.error.message||""))console.warn("客户保留期提醒同步失败",reminderSync.error);
         const { data, error } = await loadModuleRowsPaged((from,to)=>supabase
           .from("notifications")
@@ -5033,7 +5078,7 @@
         const newestMessage=messages?.[messages.length-1],newestIsWhatsApp=String(newestMessage?.id||"").startsWith("whatsapp:"),summaryStale=Boolean(newestMessage&&(!latestSummary||Number(latestSummary.message_count)!==messages.length||(!newestIsWhatsApp&&latestSummary.source_message_id!==newestMessage.id)));
         const summaryHistory=(summaries||[]).slice(1),triggerNames={mail_sync:"邮件同步自动生成",manual:"人工更新",automatic_refresh:"检测到新邮件自动更新"};
         $("#detail-follow-assistant").innerHTML=latestSummary?`<div style="width:100%"><span>客户跟进总览 · 已分析 ${latestSummary.message_count||messages?.length||0} 封邮件${summaryStale?" · 检测到新邮件，正在自动更新":""}</span><b>${esc(latestSummary.summary_zh)}</b><div class="detail-grid" style="margin-top:14px">${assistantFields.map(([label,value])=>`<div class="detail-kpi"><span>${esc(label)}</span><b style="font-size:13px;line-height:1.55;white-space:pre-wrap">${esc(value||"暂无明确证据")}</b></div>`).join("")}</div><small>总结更新于 ${fmtDate(latestSummary.created_at)} · ${esc(triggerNames[latestSummary.generation_trigger]||"历史数据")}；请在对客发送前人工核对。</small>${summaryHistory.length?`<details style="margin-top:14px"><summary style="cursor:pointer;font-weight:700">查看历史总结（${summaryHistory.length}）</summary><div style="display:grid;gap:10px;margin-top:10px">${summaryHistory.map(item=>`<article style="padding:12px;border:1px solid var(--line);border-radius:12px"><small>${fmtDate(item.created_at)} · ${esc(triggerNames[item.generation_trigger]||item.provider||"历史数据")} · ${item.message_count||0} 封邮件</small><p style="margin:6px 0 0;white-space:pre-wrap">${esc(item.summary_zh)}</p></article>`).join("")}</div></details>`:""}</div>`:`<div><span>自动汇总客户全部收发信</span><b>${esc(latestInbound?latestInbound.subject||"客户有新回复":"暂无可总结的邮件")}</b><p>${summaryStale?"正在首次自动分析完整邮件线程…":"当前没有可总结的邮件"}</p></div>`;
-        if(summaryStale&&!followAssistantRefreshing.has(id))void refreshFollowAssistant(id,{automatic:true});
+        if(!crmReadOnly&&summaryStale&&!followAssistantRefreshing.has(id))void refreshFollowAssistant(id,{automatic:true});
         const mailThread=$("#detail-mail-thread");mailThread.replaceChildren();
         if(!messages?.length)mailThread.textContent="暂无已关联邮件";
         else messages.forEach(message=>{
@@ -5206,7 +5251,7 @@
           return;
         }
         const { error: rpcError } = passwordChangeMode === "initial" ? await supabase.rpc(
-          "finish_initial_password_change",
+          crmReadOnly ? "finish_readonly_initial_password_change" : "finish_initial_password_change",
         ) : { error: null };
         btn.disabled = false;
         if (rpcError) {

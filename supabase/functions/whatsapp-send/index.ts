@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Content-Type": "application/json" };
@@ -13,7 +14,7 @@ function envKey(grouped: string, standard: string) {
 function text(value: unknown, max = 50000) { return String(value || "").trim().slice(0, max); }
 function validPhone(value: string) { return /^\+[1-9]\d{7,14}$/.test(value); }
 
-Deno.serve(async (req) => {
+Deno.serve(withReadOnlyGuard(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const url = Deno.env.get("SUPABASE_URL") || "";
@@ -88,4 +89,4 @@ Deno.serve(async (req) => {
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "WhatsApp 发送失败" }, 400);
   }
-});
+}));

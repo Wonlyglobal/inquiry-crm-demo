@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, apikey, content-type, x-client-info","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
@@ -16,7 +17,7 @@ async function translate(apiKey:string,items:Array<{id:string,text:string}>){
   return Array.isArray(parsed?.translations)?parsed.translations:[];
 }
 
-Deno.serve(async req=>{
+Deno.serve(withReadOnlyGuard(async req=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
   try{
     if(req.method!=="POST")return json({error:"Method not allowed"},405);
@@ -46,4 +47,4 @@ Deno.serve(async req=>{
     for(const row of generated){const id=clean(row?.id,80),zh=clean(row?.zh,4096),en=clean(row?.en,4096);if(!allowed.has(id)||!zh||!en)continue;const record={translation_zh:zh,translation_en:en,detected_language:compact(clean(row?.detected_language,80)),translated_at:new Date().toISOString()};const result=await admin.from("whatsapp_messages").update(record).eq("id",id);if(!result.error)saved.push({id,detected_language:record.detected_language,zh,en})}
     return json({translations:[...cached,...saved]});
   }catch(error){return json({error:error instanceof Error?error.message:String(error)},400)}
-});
+}));

@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Content-Type": "application/json" };
@@ -16,7 +17,7 @@ async function ensureWabaSubscription(businessAccountId: string, graphVersion: s
   return true;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withReadOnlyGuard(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const url = Deno.env.get("SUPABASE_URL") || "", publishable = envKey("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY"), service = envKey("SUPABASE_SECRET_KEYS", "SUPABASE_SERVICE_ROLE_KEY");
@@ -78,4 +79,4 @@ Deno.serve(async (req) => {
     await admin.from("audit_logs").insert({ actor_id: user.id, entity_type: "whatsapp_connection", entity_id: connection.id, action: "whatsapp_connection_verified", after_data: { provider, business_account_id: businessAccountId, phone_number_id: phoneNumberId }, reason: "管理员验证并启用 WhatsApp Business 企业通道" });
     return json({ connection });
   } catch (error) { return json({ error: error instanceof Error ? error.message : "WhatsApp 通道验证失败" }, 400); }
-});
+}));

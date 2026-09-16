@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import nodemailer from "npm:nodemailer@7.0.6";
 
@@ -23,7 +24,7 @@ function errorText(error: unknown) {
   return error instanceof Error ? error.message : String(error || "未知错误");
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withReadOnlyGuard(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   let eventId: number | null = null;
   let admin: ReturnType<typeof createClient> | null = null;
@@ -88,4 +89,4 @@ Deno.serve(async (req) => {
     if (admin && eventId) await admin.from("integration_events").update({ delivery_status: "failed", error_message: errorText(error), delivered_at: new Date().toISOString() }).eq("id", eventId);
     return new Response(JSON.stringify({ error: errorText(error) }), { status: 400, headers: cors });
   }
-});
+}));

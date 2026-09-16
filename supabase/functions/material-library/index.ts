@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, apikey, content-type, x-client-info","Content-Type":"application/json"};
@@ -7,7 +8,7 @@ const errorText=(error:unknown)=>error instanceof Error?error.message:String(err
 function envKey(grouped:string,standard:string){const value=Deno.env.get(grouped);if(value){try{return JSON.parse(value).default||""}catch{}}return Deno.env.get(standard)||""}
 function bytesToBase64(bytes:Uint8Array){let binary="";for(let offset=0;offset<bytes.length;offset+=32768)binary+=String.fromCharCode(...bytes.subarray(offset,offset+32768));return btoa(binary)}
 
-Deno.serve(async request=>{
+Deno.serve(withReadOnlyGuard(async request=>{
   if(request.method==="OPTIONS")return new Response("ok",{headers:cors});
   try{
     const authorization=request.headers.get("Authorization")||"",supabaseUrl=Deno.env.get("SUPABASE_URL")||"";
@@ -41,4 +42,4 @@ Deno.serve(async request=>{
     }
     throw new Error("不支持的物料库操作");
   }catch(error){return new Response(JSON.stringify({error:errorText(error)}),{status:400,headers:cors})}
-});
+}));

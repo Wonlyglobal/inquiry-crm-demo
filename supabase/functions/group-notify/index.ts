@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, apikey, content-type, x-client-info","Content-Type":"application/json"};
@@ -16,7 +17,7 @@ async function postDingTalk(url:string,content:string){
   if(!response.ok||Number(result.errcode)!==0)throw new Error(text(result.errmsg||`HTTP ${response.status}`));
 }
 
-Deno.serve(async request=>{
+Deno.serve(withReadOnlyGuard(async request=>{
   if(request.method==="OPTIONS")return new Response("ok",{headers:cors});
   try{
     const authorization=request.headers.get("Authorization")||"",url=Deno.env.get("SUPABASE_URL")||"";
@@ -40,4 +41,4 @@ Deno.serve(async request=>{
     const failed=results.filter(result=>!result.sent);if(failed.length)throw new Error(failed.map(result=>`${result.provider}: ${result.error}`).join("；"));
     return new Response(JSON.stringify({sent:results.filter(result=>result.sent).map(result=>result.provider),configured:channels.map(channel=>channel.provider)}),{headers:cors});
   }catch(error){return new Response(JSON.stringify({error:error instanceof Error?error.message:String(error)}),{status:400,headers:cors})}
-});
+}));

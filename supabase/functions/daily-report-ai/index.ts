@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.57.4";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
@@ -5,7 +6,7 @@ const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status
 const clean=(value:unknown,max=6000)=>String(value||"").trim().slice(0,max);
 const envKey=(grouped:string,standard:string)=>{const value=Deno.env.get(grouped);if(value){try{return JSON.parse(value).default||""}catch{}}return Deno.env.get(standard)||""};
 
-Deno.serve(async req=>{
+Deno.serve(withReadOnlyGuard(async req=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
   try{
     const url=Deno.env.get("SUPABASE_URL")||"",anon=Deno.env.get("SUPABASE_ANON_KEY")||"",secret=envKey("SUPABASE_SECRET_KEYS","SUPABASE_SERVICE_ROLE_KEY"),token=(req.headers.get("Authorization")||"").replace(/^Bearer\s+/i,"");
@@ -30,4 +31,4 @@ Deno.serve(async req=>{
     const result=JSON.parse(clean(payload?.choices?.[0]?.message?.content,12000).replace(/^```json\s*|\s*```$/g,""));
     return reply({draft:{key_progress:clean(result.key_progress),blockers:clean(result.blockers),tomorrow_plan:clean(result.tomorrow_plan)},source_counts:{plans:(plans||[]).length,follow_ups:(follows||[]).length,new_leads:(leads||[]).length}});
   }catch(error){return reply({error:error instanceof Error?error.message:String(error)},400)}
-});
+}));

@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
@@ -27,7 +28,7 @@ async function loadCompleteThread(db:any,inquiryId:string){
   return all.sort((left,right)=>new Date(left.created_at||left.received_at||left.sent_at||0).getTime()-new Date(right.created_at||right.received_at||right.sent_at||0).getTime());
 }
 
-Deno.serve(async req=>{
+Deno.serve(withReadOnlyGuard(async req=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
   try{
     const url=Deno.env.get("SUPABASE_URL")||"";
@@ -76,4 +77,4 @@ Deno.serve(async req=>{
     }
     return new Response(JSON.stringify({summarized:true,summary:record}),{headers:cors});
   }catch(error){return new Response(JSON.stringify({error:error instanceof Error?error.message:String(error)}),{status:400,headers:cors})}
-});
+}));

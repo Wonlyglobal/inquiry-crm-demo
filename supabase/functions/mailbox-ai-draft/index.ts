@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
@@ -16,7 +17,7 @@ async function loadAllInquiryMessages(db:any,inquiryId:string){
   }
 }
 
-Deno.serve(async req=>{
+Deno.serve(withReadOnlyGuard(async req=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
   try{
     const url=Deno.env.get("SUPABASE_URL")||"",secret=envKey("SUPABASE_SECRET_KEYS","SUPABASE_SERVICE_ROLE_KEY"),anon=Deno.env.get("SUPABASE_ANON_KEY")||"";
@@ -63,4 +64,4 @@ Deno.serve(async req=>{
     if(draftError||!draftId)throw new Error(`AI 草稿保存失败：${draftError?.message||"未返回草稿编号"}`);
     return response({draft:{id:draftId,subject,body:draftBody,language:targetLanguage,rationale_zh:rationale}});
   }catch(error){return response({error:error instanceof Error?error.message:String(error)},400)}
-});
+}));

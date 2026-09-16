@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import nodemailer from "npm:nodemailer@7.0.6";
 
@@ -33,7 +34,7 @@ function emailHtml(value: string) {
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#17231f">${escaped.replace(marker, `${marker}<br><img src="https://letter.foreverdoodle.com/wonly-logo-gold.png" alt="WONLY" width="210" style="display:block;width:210px;max-width:100%;height:auto;margin:10px 0 8px;border:0">`)}</div>`;
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withReadOnlyGuard(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const authorization = req.headers.get("Authorization") || "";
@@ -117,4 +118,4 @@ Deno.serve(async (req) => {
   } catch (error) {
     return new Response(JSON.stringify({ error: errorText(error) }), { status: 400, headers: cors });
   }
-});
+}));

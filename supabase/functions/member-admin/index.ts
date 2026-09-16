@@ -1,3 +1,4 @@
+import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors = {
@@ -32,7 +33,7 @@ function createTemporaryPassword() {
   return Array.from(bytes, (value) => alphabet[value % alphabet.length]).join("");
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withReadOnlyGuard(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const authorization = req.headers.get("Authorization") || "";
@@ -156,4 +157,4 @@ Deno.serve(async (req) => {
   } catch (error) {
     return new Response(JSON.stringify({ error: errorText(error) }), { status: 400, headers: cors });
   }
-});
+}));

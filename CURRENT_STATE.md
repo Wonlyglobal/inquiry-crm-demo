@@ -8,6 +8,12 @@
 - 待发布迁移 `20260916000000_lock_followups_to_workflows.sql` 将撤销登录用户对 `follow_ups` 的直接增删改权限，保留经 `record_inquiry_followup_v2` 和 `complete_follow_up_task` 的审计业务流程。
 - 生产只读核验结果为 `anon_create=f; auth_insert=t; auth_update=f; auth_delete=f`，证明数据库尚未应用本迁移。迁移 SQL 已在 Supabase 编辑器准备，尚未点击执行，等待生产权限变更和回滚验收的明确确认。
 
+## 2026-09-16 联系人与客户头像写入权限收紧（生产库待确认）
+
+- 静态前端与迁移提交 `4175e89` 已推送到 `main`，GitHub Pages 流水线 `35063465724` 成功；完整自动化回归 206/206 通过。
+- WhatsApp 客户头像不再由浏览器直接更新 `contacts`，改用 `set_customer_contact_avatar` 审计 RPC；服务端核验活跃角色、当前客户归属、当前用户存储路径和已上传对象，并写入 `contact_avatar_updated` 审计。
+- 待发布迁移 `20260916100000_lock_contacts_to_workflows.sql` 将撤销登录用户对 `contacts` 的直接增删改；新增联系人继续经 `add_customer_contact` 执行，邮件同步的 `service_role` 写入不受影响。生产库尚未执行此迁移。
+
 ## 2026-09-15 每日计划写入权限闭环
 
 - 日历中的每日计划不再允许登录用户直接新增、修改或删除底层表；创建计划与填写关键成果只能经过 `create_sales_daily_plan`、`save_sales_daily_plan_result` 两个受控事务函数，避免绕过角色、内容和日期校验或漏写审计。

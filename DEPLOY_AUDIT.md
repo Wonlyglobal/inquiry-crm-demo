@@ -1,5 +1,13 @@
 # Production deployment audit
 
+## 2026-09-16 — publish audited contact avatar workflow; database pending confirmation
+
+- Target source: GitHub repository `Wonlyglobal/inquiry-crm-demo`, branch `main`.
+- Source commit: `4175e89` (`Lock contact writes to audited workflows`). GitHub Pages workflow `35063465724` completed successfully.
+- Verification: the complete automated suite passed 206/206 tests before publication.
+- Change summary: replace the browser's direct `contacts` update with `set_customer_contact_avatar`; validate active role, current customer scope, caller-owned storage path and uploaded object; write `contact_avatar_updated` audit evidence; prepare revocation of direct authenticated contact mutations.
+- Safety state: migration `20260916100000_lock_contacts_to_workflows.sql` and rollback-only production acceptance are committed but have not been run against production. No production contact, avatar object or permission was modified in this step.
+
 ## 2026-09-16 — publish audited follow-up workflow source; database pending confirmation
 
 - Target source: GitHub repository `Wonlyglobal/inquiry-crm-demo`, branch `main`.

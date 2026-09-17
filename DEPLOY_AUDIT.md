@@ -9,6 +9,8 @@
 - Final ACL evidence: `table_exists=true; auth_select=true; auth_write=false; readonly_select=true; readonly_write=false; anon_review=false; auth_review=true; readonly_review=false; rollback_rows=0`.
 - Safety: the AI treats email content as untrusted, retains only exact source quotes, caps suggestions without verified quotes below 50%, and never automatically converts, deletes, assigns or contacts a customer. No real inquiry was classified during deployment.
 - Verification before publication: complete automated suite `218/218`, module syntax check and `git diff --check` passed.
+- Publication: implementation commit `9fe3fe5` and rollout record `10b9b47` were pushed to `main`; GitHub Pages workflow `35172131821` completed successfully. A direct production source fetch confirmed `email-intake-ai`, `review_ai_suggestion` and the non-automatic safety message are published.
+- Visible acceptance: the production CRM loaded under the existing authorized manager session; Mail Triage showed two pending messages, and opening the newest message displayed the `AI 分拣建议` card and `AI 分析` button. The button was deliberately not invoked, so no real email was classified or changed. Production function inventory reports `email-intake-ai` version `1`, `ACTIVE`, `verify_jwt=true`.
 
 ## 2026-09-17 — send and synchronize the accepted #000080 reply
 

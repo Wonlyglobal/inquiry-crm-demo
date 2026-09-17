@@ -8,6 +8,7 @@
 - `email-intake-ai` Edge Function 已部署生产；邮件正文按不可信输入处理，仅保留可在原文中精确匹配的证据引用，无证据时置信度上限为 49%。
 - 生产事务回滚验收返回 `ai_suggestion_feedback_rollback_passed`；权限复核为 `auth_select=true; auth_write=false; readonly_select=true; readonly_write=false; anon_review=false; auth_review=true; readonly_review=false; rollback_rows=0`。
 - AI 只生成建议和记录反馈，不会自动转询盘、删邮件、分配业务员或联系客户。本地全量回归 218/218 通过。
+- 功能与部署记录已推送 `main`，GitHub Pages 流水线 `35172131821` 成功；线上邮件详情已可见“AI 分拣建议 / AI 分析”入口和人工操作边界文案。发布验收未点击生成，未改动真实邮件或询盘。
 
 ## 2026-09-16 跟进任务写入权限收紧
 

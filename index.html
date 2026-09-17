@@ -994,6 +994,13 @@
       .ai-triage-evidence li { margin:5px 0; line-height:1.55; }
       .ai-triage-review { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-top:14px; }
       .ai-triage-review button { width:auto; margin:0; }
+      .qualification-ai-panel { margin:0 0 16px; padding:16px; border:1px solid #c8dcd0; border-radius:14px; background:#f4faf6; }
+      .qualification-ai-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
+      .qualification-ai-field { min-width:0; padding:12px; border:1px solid var(--line); border-radius:11px; background:#fff; }
+      .qualification-ai-field textarea { min-height:82px; margin-top:7px; resize:vertical; }
+      .qualification-ai-meta { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+      .qualification-ai-evidence { margin:8px 0 0; padding-left:18px; color:var(--muted); font-size:12px; line-height:1.55; }
+      .qualification-ai-gap { margin:8px 0 0; color:#8a5a16; font-size:12px; line-height:1.55; }
       .email-detail-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:9px; margin-top:16px; }
       .email-detail-actions button { width:auto; margin:0; }
       @media (max-width: 700px) {
@@ -1002,6 +1009,7 @@
         .email-class-tabs { gap:9px; padding:6px 12px 16px; }
         .email-detail-meta { grid-template-columns:1fr; }
         .ai-triage-grid { grid-template-columns:1fr; }
+        .qualification-ai-fields { grid-template-columns:1fr; }
       }
       .hint {
         font-size: 11px;
@@ -2095,7 +2103,8 @@
           <p class="hint">市场部、主管和老板可直接判断；业务员提交无效申请，由主管确认后关闭并计入经营看板。所有操作保留修改前内容、操作人、时间与原因。</p>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="qualification">
-          <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px"><div id="qualification-workflow-note" class="notice" style="flex:1"></div><button id="qualification-auto-prefill" class="ghost" type="button">从询盘与背调自动整理</button></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px"><div id="qualification-workflow-note" class="notice" style="flex:1"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="qualification-auto-prefill" class="ghost" type="button">规则整理</button><button id="qualification-ai-prefill" class="secondary" type="button">AI 证据预填</button></div></div>
+          <div id="qualification-ai-panel" class="qualification-ai-panel hidden"></div>
           <div id="qualification-phase-status" class="qualification-phase-status"><span class="tag pending" data-qualification-phase="market">市场预审待完成</span><span class="tag pending" data-qualification-phase="sales">销售确认待完成</span><span class="tag pending" data-qualification-phase="manager">主管定级待确认</span></div>
           <div class="qualification-summary"><div><span class="hint">MTL 6+1 渐进式核验</span><br><b id="qualification-score-label">0 / 100</b></div><span id="qualification-priority-label" class="tag">P2 常规</span></div>
           <p class="hint">每项都可以单独补充，未知信息可留空；保存时按现有证据计算成熟度，不把资料补充设为必填。</p>
@@ -2356,10 +2365,10 @@
         }
         const retryable = method === "GET" || method === "HEAD";
         const attempts = retryable ? 3 : 1;
-        // DeepSeek triage can legitimately take longer than an ordinary mutation.
-        // Keep the client timeout above the Edge Function's 40s model timeout so
+        // DeepSeek analysis can legitimately take longer than an ordinary mutation.
+        // Keep the client timeout above the Edge Function's model timeout so
         // the UI receives the structured result instead of a FunctionsFetchError.
-        const timeoutMs = retryable ? 12000 : requestUrl.includes("/functions/v1/email-intake-ai") ? 50000 : 20000;
+        const timeoutMs = retryable ? 12000 : requestUrl.includes("/functions/v1/inquiry-qualification-ai") ? 60000 : requestUrl.includes("/functions/v1/email-intake-ai") ? 50000 : 20000;
         let lastError;
         for (let attempt = 1; attempt <= attempts; attempt += 1) {
           const controller = new AbortController();
@@ -2398,6 +2407,7 @@
       let dailySection = "report";
       let passwordChangeMode = "initial";
       let currentInquiry = null;
+      let currentQualificationAiSuggestion = null;
       const followAssistantRefreshing=new Set();
       let outreachComposeMode = "outreach";
       let currentCompanyEvents = [];
@@ -4736,6 +4746,7 @@
           return;
         }
         currentInquiry = inquiry;
+        currentQualificationAiSuggestion = null;
         renderOutreachGuidanceOptions();
         // email_intake is loaded in a separate query, so preserve it on the
         // active inquiry record for outreach generation and reply workflows.
@@ -4780,6 +4791,7 @@
         $("#qualification-priority").value=inquiry.lead_priority||"P2";
         configureQualificationAccess();
         renderQualificationSummary(inquiry);
+        await loadQualificationAiSuggestion(inquiry.id);
         $("#nurture-plan-panel").classList.toggle("hidden",inquiry.sales_disposition!=="recycled");
         $("#nurture-next-at").value=inquiry.nurture_next_at?new Date(new Date(inquiry.nurture_next_at).getTime()-new Date(inquiry.nurture_next_at).getTimezoneOffset()*60000).toISOString().slice(0,16):"";
         $("#nurture-note").value=inquiry.nurture_note||"";
@@ -5872,6 +5884,44 @@
         if(pending){const parsed=parseOutcomeReason(currentInquiry.invalid_request_reason||"");review.innerHTML=`<b>待主管审核的无效申请</b><p class="hint" style="margin:7px 0">${esc(outcomeReasonNames[parsed.type]||"其他")}：${esc(parsed.detail||"未填写说明")}</p>${canReview?`<div class="field"><label>审核原因 *</label><input id="detail-invalid-review-reason" class="input" placeholder="填写通过或驳回依据" /></div><div class="form-actions" style="margin:10px 0 0"><button id="reject-invalid-request" class="ghost" type="button">驳回申请</button><button id="approve-invalid-request" class="primary" type="button">确认无效并关闭</button></div>`:`<span class="tag">等待主管审核</span>`}`;if(canReview){$("#approve-invalid-request").onclick=()=>reviewInvalidRequest(true);$("#reject-invalid-request").onclick=()=>reviewInvalidRequest(false)}}
       }
       const qualificationFieldIds=["identity","need","role","value","timing","fit","next-step"];
+      const qualificationAiFieldLabels={identity:"公司身份",need:"明确需求",role:"联系人角色",value:"价值/预算",timing:"时间窗口",fit:"业务匹配",next_step:"明确下一步"};
+      const qualificationAiSourceLabels={inquiry:"询盘原文",company:"公司背调",email_intake:"原始来信",email_message:"邮件沟通",whatsapp_message:"WhatsApp 沟通"};
+      function qualificationAiFormKey(key){return key==="next_step"?"next-step":key}
+      function qualificationAiStatusLabel(status){return {generated:"待审核",accepted:"已采纳",modified:"修改后采纳",rejected:"已驳回",superseded:"已过期"}[status]||status}
+      function renderQualificationAiSuggestion(suggestion=currentQualificationAiSuggestion){
+        const panel=$("#qualification-ai-panel");currentQualificationAiSuggestion=suggestion||null;
+        if(!suggestion){panel.classList.add("hidden");panel.innerHTML="";return}
+        const proposed=suggestion.applied_data||suggestion.proposed_data||{},fields=proposed.fields||{},reviewed=suggestion.status!=="generated";
+        const cards=Object.entries(qualificationAiFieldLabels).map(([key,label])=>{const item=fields[key]||{},evidence=Array.isArray(item.evidence)?item.evidence:[],confidence=Math.round(Number(item.confidence||0)*100),value=String(item.value||"");return `<div class="qualification-ai-field"><div class="qualification-ai-meta"><b>${esc(label)}</b><span class="tag">${confidence}%</span></div><textarea class="input" data-qualification-ai-field="${key}" ${reviewed?"readonly":""} placeholder="未发现可核验证据">${esc(value)}</textarea>${evidence.length?`<ul class="qualification-ai-evidence">${evidence.map(e=>{const type=String(e.source_ref||"").split(":")[0];return `<li><b>${esc(qualificationAiSourceLabels[type]||type)}：</b>“${esc(e.quote||"")}”</li>`}).join("")}</ul>`:`<p class="hint" style="margin:8px 0 0">暂无已核验的原文引用，该项不会被 AI 填入。</p>`}${item.missing_question?`<p class="qualification-ai-gap"><b>待确认：</b>${esc(item.missing_question)}</p>`:""}</div>`}).join("");
+        panel.innerHTML=`<div class="ai-triage-head"><div><h4>6+1 资格核验 AI 建议</h4><small>${esc(suggestion.rationale_zh||"仅整理有原文证据的信息；未知项保持为空。")}</small></div><div><span class="ai-triage-confidence">综合置信度 ${Math.round(Number(suggestion.confidence||0)*100)}%</span><div class="tag" style="margin-top:6px">${esc(qualificationAiStatusLabel(suggestion.status))}</div></div></div><div class="qualification-ai-fields">${cards}</div>${reviewed?`<div class="ai-triage-review"><button class="secondary" type="button" data-qualification-ai-action="regenerate">重新分析</button></div>`:`<div class="field" style="margin-top:14px"><label>人工审核说明</label><input id="qualification-ai-review-note" class="input" maxlength="500" placeholder="修改后采纳时请说明调整依据" /></div><div class="ai-triage-review"><button class="ghost" type="button" data-qualification-ai-action="rejected">驳回建议</button><button class="secondary" type="button" data-qualification-ai-action="modified">修改后填入表单</button><button class="primary" type="button" data-qualification-ai-action="accepted">采纳并填入空白项</button></div>`}<small style="display:block;margin-top:10px">AI 不会改优先级或保存询盘。采纳只填入当前角色可编辑的空白项，仍需逐项核对并点击“保存资格核验”。</small>`;
+      }
+      async function loadQualificationAiSuggestion(inquiryId){
+        const {data,error}=await supabase.from("ai_suggestions").select("*").eq("suggestion_type","inquiry_qualification_prefill").eq("target_type","inquiry").eq("target_id",inquiryId).order("created_at",{ascending:false}).limit(1).maybeSingle();
+        if(error){currentQualificationAiSuggestion=null;renderQualificationAiSuggestion(null);return}
+        renderQualificationAiSuggestion(data||null);
+      }
+      function qualificationAiEditedData(suggestion){
+        const proposed=structuredClone(suggestion.proposed_data||{});proposed.fields=proposed.fields||{};
+        Object.keys(qualificationAiFieldLabels).forEach(key=>{const input=$(`[data-qualification-ai-field="${key}"]`);proposed.fields[key]={...(proposed.fields[key]||{}),value:input?.value.trim()||""}});return proposed;
+      }
+      function applyQualificationAiToForm(data){
+        const editable=qualificationEditableFields(),fields=data?.fields||{};let applied=0;
+        Object.keys(qualificationAiFieldLabels).forEach(key=>{const formKey=qualificationAiFormKey(key),input=$("#qualification-"+formKey),value=String(fields[key]?.value||"").trim();if(input&&editable.has(formKey)&&!input.value.trim()&&value){input.value=value;input.dispatchEvent(new Event("input",{bubbles:true}));applied++}});
+        if(applied)$("#qualification-reason").value=$("#qualification-reason").value.trim()||"根据 AI 建议及原文证据预填，已由人工复核；保存前仍需逐项确认";
+        return applied;
+      }
+      async function generateQualificationAiSuggestion(){
+        if(!currentInquiry)return;const button=$("#qualification-ai-prefill"),original=button.textContent;button.disabled=true;button.textContent="AI 分析中…";
+        const result=await supabase.functions.invoke("inquiry-qualification-ai",{body:{inquiry_id:currentInquiry.id}});let message=result.data?.error||result.error?.message;if(result.error?.context)try{message=(await result.error.context.clone().json())?.error||message}catch{}
+        button.disabled=false;button.textContent=original;if(message)return toast("资格核验 AI 分析失败："+message);renderQualificationAiSuggestion(result.data?.suggestion||null);if(result.data?.source_warning)toast(result.data.source_warning);else toast(result.data?.cached?"已读取现有资格核验 AI 建议":"资格核验 AI 建议已生成");
+      }
+      async function reviewQualificationAiSuggestion(decision){
+        const suggestion=currentQualificationAiSuggestion;if(!suggestion||suggestion.status!=="generated")return;
+        const note=$("#qualification-ai-review-note")?.value.trim()||"";if(decision==="modified"&&!note)return toast("请填写修改说明");
+        const applied=decision==="modified"?qualificationAiEditedData(suggestion):null,label={accepted:"采纳",modified:"修改后采纳",rejected:"驳回"}[decision],button=$(`[data-qualification-ai-action="${decision}"]`);button.disabled=true;
+        const {error}=await supabase.rpc("review_ai_suggestion",{target_suggestion_id:suggestion.id,target_decision:decision,target_applied_data:applied,target_review_note:note||`资格核验人工${label} AI 建议`});button.disabled=false;if(error)return toast("资格核验 AI 建议审核失败："+error.message);
+        const formData=decision==="modified"?applied:suggestion.proposed_data,count=decision==="rejected"?0:applyQualificationAiToForm(formData);currentQualificationAiSuggestion={...suggestion,status:decision,review_decision:decision,review_note:note,applied_data:decision==="modified"?applied:decision==="accepted"?suggestion.proposed_data:null};renderQualificationAiSuggestion(currentQualificationAiSuggestion);toast(decision==="rejected"?"已驳回 AI 建议并留存审计":`已${label}并填入 ${count} 个可编辑空白项，请核对后保存`);
+      }
       function qualificationEditableFields(){
         if(["owner","sales_manager"].includes(profile?.role))return new Set([...qualificationFieldIds,"priority"]);
         if(profile?.role==="marketing")return new Set(["identity","need","fit"]);
@@ -5885,6 +5935,7 @@
         const notes={marketing:"市场部仅完成初步资格预审：公司身份、客户邮件中明确提出的需求和业务匹配。预算、决策角色、采购时间及下一步由销售沟通后补充。",sales:"销售负责确认联系人角色、预算价值、采购时间和明确下一步；市场预审字段只读，最终优先级由销售主管确认。",sales_manager:"销售主管可复核全部资格信息，并确认最终线索优先级与响应 SLA。",owner:"老板可复核全部资格信息，并确认最终线索优先级与响应 SLA。"};
         $("#qualification-workflow-note").textContent=notes[role]||"资格信息按市场预审、销售确认和主管定级分阶段完成。";$("#save-qualification").textContent=role==="marketing"?"保存初步资格预审":role==="sales"?"保存销售资格确认":"保存资格核验与优先级";$("#save-qualification").disabled=editable.size===0;
         $("#qualification-auto-prefill").classList.toggle("hidden",!["marketing","sales_manager","owner"].includes(role));
+        $("#qualification-ai-prefill").classList.toggle("hidden",editable.size===0);
       }
       function qualificationScoreFromForm(){
         const completed=qualificationFieldIds.filter(key=>$(`#qualification-${key}`).value.trim()).length;
@@ -5936,6 +5987,8 @@
       });
       qualificationFieldIds.forEach(key=>$("#qualification-"+key).addEventListener("input",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value,qualification_manager_confirmed_at:null})));
       $("#qualification-priority").addEventListener("change",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value,qualification_manager_confirmed_at:null}));
+      $("#qualification-ai-prefill").addEventListener("click",generateQualificationAiSuggestion);
+      $("#qualification-ai-panel").addEventListener("click",event=>{const action=event.target.closest?.("[data-qualification-ai-action]")?.dataset.qualificationAiAction;if(!action)return;if(action==="regenerate")generateQualificationAiSuggestion();else reviewQualificationAiSuggestion(action)});
       $("#qualification-auto-prefill").addEventListener("click",()=>{if(!currentInquiry)return;const company=currentInquiry.companies||{},setEmpty=(id,value)=>{const input=$(id);if(input&&!input.value.trim()&&value)input.value=value};setEmpty("#qualification-identity",[company.name,company.domain,displayCountry(company.country||currentInquiry.target_country)].filter(Boolean).join(" · "));setEmpty("#qualification-need",[currentInquiry.demand_summary,currentInquiry.project_name&&(`项目：${currentInquiry.project_name}`),currentInquiry.title].filter(Boolean).join("\n"));const needs=Array.isArray(company.likely_needs)?company.likely_needs.map(item=>item?.need||item?.display||item).filter(Boolean).slice(0,3):[];setEmpty("#qualification-fit",[company.main_business&&(`主营业务：${company.main_business}`),needs.length&&(`可能匹配：${needs.join("；")}`)].filter(Boolean).join("\n"));$("#qualification-reason").value=$("#qualification-reason").value.trim()||"根据询盘原文与已生成背调自动整理市场预审，保存前已人工复核";renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value});toast("已整理市场预审空白项，请核对后保存")});
       $("#save-qualification").addEventListener("click",async()=>{
         if(!currentInquiry)return;

@@ -133,3 +133,13 @@
 - Live source backup: `/private/tmp/crm-readonly-live-backup`. Local original function bodies were compared with deployed source before wrapping them; the company-website-images download contained multiple source variants, including an exact match to the checked-in body.
 - Validation uses `tests/production-marketing-read-only-rollback.sql`, which rolls back every test record and compares complete visible-row fingerprints internally without exporting customer/mail data. Business writes and RPCs are forbidden; initial password completion is the only scoped write exception.
 - Account creation is recorded in production `audit_logs`. No password, service key or user session token is retained in repository files.
+
+## 2026-09-17 — real-email AI triage production acceptance
+
+- Targets: GitHub Pages production CRM and Supabase project `plhverjihjilnuhlhlxi`.
+- Reason: execute an evidence-bearing AI analysis on a real website inquiry and verify the generic suggestion/audit foundation end to end.
+- Source changes: `98b7ed6` disables obsolete gateway JWT verification for `email-intake-ai` while retaining verified internal user authorization; `f00db46` gives this 40-second model call a 50-second client timeout. Pages workflow `35176045900` completed successfully.
+- Provider outcome: DeepSeek returned `Insufficient Balance` and no DeepSeek suggestion was persisted. Codex produced the fallback result and it is explicitly recorded as `provider=openai-codex`, `model=gpt-5`; no provider identity was falsified.
+- Persisted evidence: classification `real_inquiry`, confidence `0.9900`, seven exact email evidence quotes, and a matching `ai_suggestion_generated` audit row attributed to the authenticated owner profile. Record identifiers remain in the production database rather than repository documentation.
+- Verification: the production CRM visibly renders the result, extracted facts, confidence, evidence, and human accept/modify/reject controls. Full automated regression is 219/219. No customer communication or automatic business workflow mutation was performed.
+- Outstanding: restore DeepSeek credit or configure an alternate production provider before relying on the automatic `AI 分析` button for future emails.

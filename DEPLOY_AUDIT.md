@@ -1,5 +1,15 @@
 # Production deployment audit
 
+## 2026-09-17 — link manually converted mailbox messages to inquiries
+
+- Target: Supabase production project `plhverjihjilnuhlhlxi` and GitHub Pages source `Wonlyglobal/inquiry-crm-demo` branch `main`.
+- Reason: converting a reviewed shared-inbox email only updated `email_intake.inquiry_id`; the synchronized `email_messages` copies remained `pending`, so the inquiry could not show the original email, record email follow-up evidence, generate a communication summary, or reliably match later replies.
+- Database change: `20260917090000_link_manual_email_conversion_messages.sql` links only exact non-empty RFC Message-ID copies and refuses to overwrite a copy already linked to another inquiry. All mailbox copies are linked for threading; one inbound/shared copy is selected as the canonical follow-up and initial summary source. Existing converted intakes are backfilled idempotently.
+- Production application: Supabase CLI dry-run was attempted through both the saved pooler and linked project, but the remote closed both database connections before SQL validation. The saved migration was therefore executed in the authenticated production SQL editor and returned `Success. No rows returned`.
+- Acceptance inquiry: `#000080` / `b175fd07-3e21-4060-aeda-e3c869c11847`. Before: `linked messages=0; summaries=0; subject copies=2; states=pending:null,pending:null`. After: `linked messages=2; email-sync follow-ups=1; summaries=1; both copies=matched:manual_intake_conversion; helper installed=true`.
+- Frontend change: after a successful conversion, unique inquiry IDs invoke `email-communication-ai` with the `mail_sync` trigger so future conversions receive a complete thread summary in addition to the transaction-safe rules fallback.
+- Verification: complete automated suite passed 210/210 tests; `git diff --check` passed. No test inquiry or email was deleted.
+
 ## 2026-09-16 — deploy audited contact avatar workflow to production
 
 - Target source: GitHub repository `Wonlyglobal/inquiry-crm-demo`, branch `main`.

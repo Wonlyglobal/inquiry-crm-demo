@@ -9,6 +9,8 @@
 - Acceptance inquiry: `#000080` / `b175fd07-3e21-4060-aeda-e3c869c11847`. Before: `linked messages=0; summaries=0; subject copies=2; states=pending:null,pending:null`. After: `linked messages=2; email-sync follow-ups=1; summaries=1; both copies=matched:manual_intake_conversion; helper installed=true`.
 - Frontend change: after a successful conversion, unique inquiry IDs invoke `email-communication-ai` with the `mail_sync` trigger so future conversions receive a complete thread summary in addition to the transaction-safe rules fallback.
 - Verification: complete automated suite passed 210/210 tests; `git diff --check` passed. No test inquiry or email was deleted.
+- Publication: source commit `a216d6a` (`Link converted emails to inquiry threads`) was pushed to `main`; GitHub Pages workflow `35168509608` completed successfully. A direct production fetch confirmed the published `convertEmailIntakes` invokes `email-communication-ai` after conversion.
+- Visible acceptance: after refreshing production CRM and opening #000080 → “分配与跟进”, the page displayed the rules summary, the inbound customer email, the outbound sent copy, and one email-sync timeline item. The optional DeepSeek refresh did not add a second version during this run, but the transaction-safe rules summary remains available and the linkage/reply-thread state is complete.
 
 ## 2026-09-16 — deploy audited contact avatar workflow to production
 

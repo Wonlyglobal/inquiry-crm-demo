@@ -6,6 +6,7 @@ const sql=fs.readFileSync(new URL('../supabase/migrations/20260917094500_ai_sugg
 const worker=fs.readFileSync(new URL('../supabase/functions/email-intake-ai/index.ts',import.meta.url),'utf8');
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const rollback=fs.readFileSync(new URL('./production-ai-suggestion-feedback-rollback.sql',import.meta.url),'utf8');
+const config=fs.readFileSync(new URL('../supabase/config.toml',import.meta.url),'utf8');
 
 test('generic AI suggestions retain evidence and explicit review outcomes',()=>{
   assert.match(sql,/create table if not exists public\.ai_suggestions/);
@@ -33,6 +34,8 @@ test('email triage AI treats message content as untrusted and verifies quoted ev
   assert.match(worker,/new Set\(\["real_inquiry","warmup","spam","supplier_promotion","job_application","other"\]\)/);
   assert.match(worker,/record_ai_suggestion/);
   assert.match(worker,/duplicate_risk/);
+  assert.match(worker,/userDb\.auth\.getUser\(\)/);
+  assert.match(config,/\[functions\.email-intake-ai\]\s*verify_jwt = false/);
 });
 
 test('email triage UI exposes generation and accepted, modified and rejected feedback',()=>{

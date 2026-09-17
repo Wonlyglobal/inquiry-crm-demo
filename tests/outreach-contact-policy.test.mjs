@@ -11,12 +11,18 @@ test('client explicitly distinguishes a customer reply from proactive outreach',
 
 test('proactive outreach is blocked server-side unless contact policy allows it',()=>{
   assert.match(sender,/\["reply", "outreach"\]\.includes\(requestedMessageKind\)/);
-  assert.match(sender,/email_messages"\)\.select\("direction"\)/);
-  assert.match(sender,/latestThreadMessage\.direction === "inbound" \? "reply" : "outreach"/);
+  assert.match(sender,/email_messages"\)\.select\("direction,sender_email"\)/);
+  assert.match(sender,/const latestSender = clean\(latestThreadMessage\?\.sender_email, 320\)\.toLowerCase\(\)/);
+  assert.match(sender,/latestSender === recipient \? "reply" : "outreach"/);
   assert.match(sender,/messageKind === "outreach"/);
   assert.match(sender,/userClient\.rpc\("check_inquiry_contact_allowed"/);
   assert.match(sender,/status: 409/);
   assert.match(sender,/触达规则拦截/);
+});
+
+test('duplicate sent and shared-inbox copies are classified by the verified customer sender',()=>{
+  assert.match(sender,/same RFC message can appear as outbound in a salesperson's/);
+  assert.doesNotMatch(sender,/latestThreadMessage\.direction === "inbound"/);
 });
 
 test('successful outreach advances frequency control and records the outcome',()=>{

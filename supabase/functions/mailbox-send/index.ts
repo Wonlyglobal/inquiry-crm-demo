@@ -72,13 +72,15 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     if (draftError || !draft) throw draftError || new Error("开发信草稿不存在");
     if (draft.created_by !== user.id && !["owner", "sales_manager"].includes(caller.role)) return new Response(JSON.stringify({ error: "只能发送本人创建的邮件草稿" }), { status: 403, headers: cors });
     if (draft.status === "sent") return new Response(JSON.stringify({ error: "该开发信已经发送，请勿重复发送" }), { status: 409, headers: cors });
-    const { data: latestThreadMessage, error: threadError } = await admin.from("email_messages").select("direction").eq("inquiry_id", inquiryId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: latestThreadMessage, error: threadError } = await admin.from("email_messages").select("direction,sender_email").eq("inquiry_id", inquiryId).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (threadError) throw threadError;
     // Do not trust the browser to exempt a message from suppression. A reply
-    // is determined from the authoritative thread: an initial inquiry or a
-    // latest inbound customer message. Anything after our latest outbound
-    // message is proactive follow-up and must pass contact policy.
-    const messageKind = !latestThreadMessage || latestThreadMessage.direction === "inbound" ? "reply" : "outreach";
+    // is determined from the authoritative customer address on the original
+    // intake. The same RFC message can appear as outbound in a salesperson's
+    // Sent folder and inbound in the shared inquiry mailbox, so stored folder
+    // direction alone is not sufficient to classify the conversation.
+    const latestSender = clean(latestThreadMessage?.sender_email, 320).toLowerCase();
+    const messageKind = !latestThreadMessage || latestSender === recipient ? "reply" : "outreach";
     if (messageKind === "outreach") {
       const { data: contactPolicy, error: contactPolicyError } = await userClient.rpc("check_inquiry_contact_allowed", { target_inquiry_id: inquiryId });
       if (contactPolicyError) throw contactPolicyError;

@@ -1,5 +1,16 @@
 # Production deployment audit
 
+## 2026-09-17 — send and synchronize the accepted #000080 reply
+
+- Scope: controlled internal acceptance reply for inquiry `#000080`; recipient `chloelee@wonlyglobal.com`; subject `Re: RFQ-CRM-20260917-A: 12 Steel Security Doors for Training Center`.
+- Authorization: the operator reviewed the recipient, subject and body in CRM and explicitly confirmed sending. The first blocked attempt did not transmit a message.
+- Root cause: the original message existed as both a personal Sent copy and a shared-inbox copy. Classifying by the latest copy's stored `direction` incorrectly treated a legitimate reply as proactive outreach.
+- Fix: `mailbox-send` now compares the latest message sender with the verified original intake/customer sender, preserving correct reply classification when inbound and outbound mailbox copies coexist. Regression coverage includes this duplicate-copy case.
+- Verification: complete automated suite passed 213/213 tests. Production Edge Function `mailbox-send` was deployed from commit `bca3ff2` (`Classify email replies by verified sender`). The direct-reply UI was previously published from commit `e1699b4`; Pages workflow `35169156778` succeeded.
+- Send result: CRM reported `Sent · 2026-09-17 09:15:11`; the persisted draft is `sent` with no error.
+- Synchronization result: linked messages increased `2→4`; the new Sent and Inbox copies share one RFC Message-ID and both reference the original Message-ID; email follow-ups increased `1→3`; communication-summary versions increased `1→3`.
+- Safety: this was an internal controlled acceptance message, not a production-customer communication. No customer record or email was deleted.
+
 ## 2026-09-17 — link manually converted mailbox messages to inquiries
 
 - Target: Supabase production project `plhverjihjilnuhlhlxi` and GitHub Pages source `Wonlyglobal/inquiry-crm-demo` branch `main`.

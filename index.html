@@ -6808,13 +6808,18 @@
         return { passed: true, blockers, advisories, checks, words, questionCount };
       }
       function resolveInquiryRecipient() {
+        const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        const intakeSender = String(currentInquiry?.email_intake?.sender_email || "").trim().toLowerCase();
+        // A direct reply must go back to the authenticated inbound message sender.
+        // This remains valid for controlled internal acceptance messages; only
+        // inferred fallbacks continue to exclude WONLY-owned addresses.
+        if (isValidEmail(intakeSender)) return intakeSender;
         const candidates = [
-          currentInquiry?.email_intake?.sender_email,
           ...(String($("#detail-research-contacts")?.value || "").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []),
           ...(String(currentInquiry?.original_message || "").match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []),
         ];
         return candidates.map((email) => String(email || "").trim().toLowerCase()).find((email) =>
-          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !/@(?:wonlyglobal|wonlygroup)\.(?:com|net)$/i.test(email),
+          isValidEmail(email) && !/@(?:wonlyglobal|wonlygroup)\.(?:com|net)$/i.test(email),
         ) || "";
       }
       $("#reply-inquiry").addEventListener("click",()=>{

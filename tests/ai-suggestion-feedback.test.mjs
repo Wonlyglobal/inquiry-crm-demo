@@ -47,6 +47,11 @@ test('email triage UI exposes generation and accepted, modified and rejected fee
   assert.match(html,/data-ai-triage-review="rejected"/);
 });
 
+test('production client allows email triage to finish before aborting the request',()=>{
+  assert.match(html,/requestUrl\.includes\("\/functions\/v1\/email-intake-ai"\) \? 50000 : 20000/);
+  assert.match(worker,/signal:AbortSignal\.timeout\(40000\)/);
+});
+
 test('production rollback acceptance covers review audit and rejects direct writes',()=>{
   assert.match(rollback,/begin;[\s\S]+rollback;/);
   assert.match(rollback,/review_ai_suggestion/);

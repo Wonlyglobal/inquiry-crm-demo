@@ -2350,12 +2350,16 @@
       }, true);
       async function resilientFetch(input, init = {}) {
         const method = String(init.method || (input instanceof Request ? input.method : "GET") || "GET").toUpperCase();
+        const requestUrl = String(input instanceof Request ? input.url : input || "");
         if (crmReadOnly && !readOnlyRequestAllowed(input, method)) {
           return new Response(JSON.stringify({code:"42501",message:"市场部只读账号不能执行此操作",error:"市场部只读账号不能执行此操作"}), {status:403,headers:{"Content-Type":"application/json"}});
         }
         const retryable = method === "GET" || method === "HEAD";
         const attempts = retryable ? 3 : 1;
-        const timeoutMs = retryable ? 12000 : 20000;
+        // DeepSeek triage can legitimately take longer than an ordinary mutation.
+        // Keep the client timeout above the Edge Function's 40s model timeout so
+        // the UI receives the structured result instead of a FunctionsFetchError.
+        const timeoutMs = retryable ? 12000 : requestUrl.includes("/functions/v1/email-intake-ai") ? 50000 : 20000;
         let lastError;
         for (let attempt = 1; attempt <= attempts; attempt += 1) {
           const controller = new AbortController();

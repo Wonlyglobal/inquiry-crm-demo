@@ -1,6 +1,13 @@
 # 询盘 CRM 当前状态
 
-更新时间：2026-09-16（Asia/Shanghai）
+更新时间：2026-09-17（Asia/Shanghai）
+
+## 2026-09-17 通用 AI 建议反馈底座与询盘分拣
+
+- 生产库已应用 `20260917094500_ai_suggestion_feedback_foundation.sql`：统一保存 AI 建议、数据指纹、模型、置信度、原文证据与人工采纳/修改/驳回。
+- `email-intake-ai` Edge Function 已部署生产；邮件正文按不可信输入处理，仅保留可在原文中精确匹配的证据引用，无证据时置信度上限为 49%。
+- 生产事务回滚验收返回 `ai_suggestion_feedback_rollback_passed`；权限复核为 `auth_select=true; auth_write=false; readonly_select=true; readonly_write=false; anon_review=false; auth_review=true; readonly_review=false; rollback_rows=0`。
+- AI 只生成建议和记录反馈，不会自动转询盘、删邮件、分配业务员或联系客户。本地全量回归 218/218 通过。
 
 ## 2026-09-16 跟进任务写入权限收紧
 
@@ -362,9 +369,3 @@
 - 成员业务角色为 `marketing`，认证角色为独立的 `crm_marketing_readonly`，并设置管理员控制的 `app_metadata.crm_read_only=true`。只读角色不继承 `authenticated`，仅获业务数据/附件读取权限；所有新增 RLS 策略仅作用于该新角色，现有角色及全局请求钩子保持原状。
 - 唯一写入例外为本人首次改密完成标记；专用 RPC 不允许修改其他成员或业务字段。发送、连接、AI 生成等 Edge 接口统一检查经过 Auth 验证的只读身份，前端显示“市场部只读”并禁用操作控件。
 - 验证：203 项自动化测试通过；生产回滚事务验证逐表可见数据与同一普通市场部身份完全一致、无业务写入权限；真实新账号验证登录/读取成功，直接修改、业务 RPC、邮件发送、WhatsApp 发送和邮件助手均返回 403，附件列表可读；验证会话已退出，首次改密要求未清除。
-## 2026-09-17 通用 AI 建议反馈底座（待生产发布）
-
-- 已实现通用 `ai_suggestions` 模型，支持原文证据、置信度、采纳/修改/驳回反馈与审计。
-- 已接入邮件询盘 AI 分拣；AI 只提供建议，不自动执行转询盘、删除或对客发送。
-- 本地全量回归 218/218 通过，并已准备事务回滚式产品库验收。
-- 当前仅代码就绪，未迁移生产库、未部署 Edge Function、未发布前端。

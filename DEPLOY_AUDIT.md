@@ -1,5 +1,15 @@
 # Production deployment audit
 
+## 2026-09-17 — audited AI suggestion foundation and email-intake triage
+
+- Authorization: the user explicitly confirmed production publication after reviewing the completed local implementation and its safety boundary.
+- Database: `20260917094500_ai_suggestion_feedback_foundation.sql` was executed in the authenticated Supabase production SQL editor and returned `Success. No rows returned`.
+- Function: `email-intake-ai` and the shared read-only guard were deployed to Supabase project `plhverjihjilnuhlhlxi`.
+- Rollback acceptance: `production-ai-suggestion-feedback-rollback.sql` returned `ai_suggestion_feedback_rollback_passed`; suggestion review, modified applied data and audit persistence were proven inside a transaction, while direct authenticated table writes were rejected.
+- Final ACL evidence: `table_exists=true; auth_select=true; auth_write=false; readonly_select=true; readonly_write=false; anon_review=false; auth_review=true; readonly_review=false; rollback_rows=0`.
+- Safety: the AI treats email content as untrusted, retains only exact source quotes, caps suggestions without verified quotes below 50%, and never automatically converts, deletes, assigns or contacts a customer. No real inquiry was classified during deployment.
+- Verification before publication: complete automated suite `218/218`, module syntax check and `git diff --check` passed.
+
 ## 2026-09-17 — send and synchronize the accepted #000080 reply
 
 - Scope: controlled internal acceptance reply for inquiry `#000080`; recipient `chloelee@wonlyglobal.com`; subject `Re: RFQ-CRM-20260917-A: 12 Steel Security Doors for Training Center`.

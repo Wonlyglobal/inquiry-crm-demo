@@ -37,6 +37,7 @@ test('qualification AI gathers visible inquiry, email, WhatsApp and company rese
 test('qualification UI supports generate, evidence review, accept, modify and reject',()=>{
   assert.match(html,/id="qualification-ai-prefill"/);
   assert.match(html,/id="qualification-ai-panel"/);
+  assert.match(html,/panel\.classList\.remove\("hidden"\)/);
   assert.match(html,/inquiry-qualification-ai/);
   assert.match(html,/data-qualification-ai-action="accepted"/);
   assert.match(html,/data-qualification-ai-action="modified"/);

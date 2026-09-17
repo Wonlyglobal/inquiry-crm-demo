@@ -15,7 +15,7 @@ function object(value:unknown){return value&&typeof value==="object"&&!Array.isA
 async function sha256(value:string){const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function addSource(sources:Source[],source_type:string,source_id:string,value:unknown){const text=clean(value,14000);if(text)sources.push({source_ref:`${source_type}:${source_id}`,source_type,source_id,text})}
 function sourceText(values:Record<string,unknown>){return Object.entries(values).filter(([,value])=>value!==null&&value!==undefined&&String(value).trim()).map(([key,value])=>`${key}: ${typeof value==="string"?value:JSON.stringify(value)}`).join("\n")}
-function confidence(value:unknown){const raw=clean(value,40).toLowerCase();if(!raw)return 0;const labels:Record<string,number>={high:0.85,"高":0.85,medium:0.65,"中":0.65,low:0.35,"低":0.35};if(raw in labels)return labels[raw];const numeric=Number(raw.replace("%",""));if(!Number.isFinite(numeric))return 0;return Math.max(0,Math.min(1,raw.includes("%")||numeric>1?numeric/100:numeric))}
+function parseConfidence(value:unknown){const raw=clean(value,40).toLowerCase();if(!raw)return 0;const labels:Record<string,number>={high:0.85,"高":0.85,medium:0.65,"中":0.65,low:0.35,"低":0.35};if(raw in labels)return labels[raw];const numeric=Number(raw.replace("%",""));if(!Number.isFinite(numeric))return 0;return Math.max(0,Math.min(1,raw.includes("%")||numeric>1?numeric/100:numeric))}
 
 Deno.serve(withReadOnlyGuard(async req=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
@@ -61,7 +61,7 @@ Deno.serve(withReadOnlyGuard(async req=>{
     const result=object(jsonObject(clean(payload?.choices?.[0]?.message?.content,30000))),rawFields=object(result.fields),sourceMap=new Map(sources.map(item=>[item.source_ref,item]));
     const fields={} as Record<FieldKey,unknown>,allEvidence:Array<Record<string,unknown>>=[];let confidenceTotal=0,confidenceCount=0;
     for(const key of fieldKeys){
-      const raw=object(rawFields[key]),value=clean(raw.value,2400),missingQuestion=clean(raw.missing_question,500),rawConfidence=confidence(raw.confidence);
+      const raw=object(rawFields[key]),value=clean(raw.value,2400),missingQuestion=clean(raw.missing_question,500),rawConfidence=parseConfidence(raw.confidence);
       const evidence=(Array.isArray(raw.evidence)?raw.evidence:[]).map(object).map(item=>({field:key,source_ref:clean(item.source_ref,180),quote:clean(item.quote,600)})).filter(item=>{const source=sourceMap.get(item.source_ref);return Boolean(item.quote&&source?.text.includes(item.quote))}).slice(0,8);
       const confidence=evidence.length?rawConfidence:Math.min(rawConfidence,0.49),safeValue=evidence.length?value:"";
       fields[key]={value:safeValue,confidence,evidence,missing_question:missingQuestion||(!safeValue?"该项缺少可核对信息，请在后续沟通中确认。":"")};allEvidence.push(...evidence);confidenceTotal+=confidence;confidenceCount++;

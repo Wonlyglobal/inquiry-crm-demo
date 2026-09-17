@@ -983,6 +983,17 @@
       .email-detail-meta b { display:block; overflow-wrap:anywhere; font-size:13px; }
       .email-detail-body { max-height:46vh; overflow:auto; margin:0; padding:16px; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); font:13px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-wrap; overflow-wrap:anywhere; unicode-bidi:plaintext; text-align:start; }
       .mail-message strong,.mail-message p,.mail-directional{unicode-bidi:plaintext;text-align:start}
+      .ai-triage-card { margin:0 0 16px; padding:16px; border:1px solid #c8dcd0; border-radius:14px; background:#f4faf6; }
+      .ai-triage-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+      .ai-triage-head h4 { margin:0 0 5px; }
+      .ai-triage-confidence { color:var(--brand); font-weight:800; }
+      .ai-triage-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin-top:12px; }
+      .ai-triage-grid div { padding:9px 11px; border-radius:9px; background:#fff; border:1px solid var(--line); }
+      .ai-triage-grid span { display:block; color:var(--muted); font-size:11px; margin-bottom:3px; }
+      .ai-triage-evidence { margin:12px 0 0; padding-left:20px; }
+      .ai-triage-evidence li { margin:5px 0; line-height:1.55; }
+      .ai-triage-review { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-top:14px; }
+      .ai-triage-review button { width:auto; margin:0; }
       .email-detail-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:9px; margin-top:16px; }
       .email-detail-actions button { width:auto; margin:0; }
       @media (max-width: 700px) {
@@ -990,6 +1001,7 @@
         .email-triage-actions .tag { margin-left: 0; }
         .email-class-tabs { gap:9px; padding:6px 12px 16px; }
         .email-detail-meta { grid-template-columns:1fr; }
+        .ai-triage-grid { grid-template-columns:1fr; }
       }
       .hint {
         font-size: 11px;
@@ -3605,9 +3617,26 @@
       $("#email-trash-selected").addEventListener("click",()=>manageSelectedEmails("trash"));
       $("#email-restore-selected").addEventListener("click",()=>manageSelectedEmails("restore"));
       $("#email-delete-selected").addEventListener("click",()=>manageSelectedEmails("delete"));
+      const aiTriageClassificationNames={real_inquiry:"真实询盘",warmup:"养号邮件",spam:"垃圾邮件",supplier_promotion:"供应商推销",job_application:"求职邮件",other:"其他"};
+      function aiTriageCard(suggestion){
+        if(!suggestion)return `<section class="ai-triage-card"><div class="ai-triage-head"><div><h4>AI 分拣建议</h4><small>AI 仅提供分拣建议，不会自动转询盘、删除邮件或联系客户。</small></div><button id="email-ai-analyze" class="secondary" type="button">AI 分析</button></div></section>`;
+        const data=suggestion.proposed_data||{},extracted=data.extracted||{},classification=data.classification||"other",evidence=Array.isArray(suggestion.evidence)?suggestion.evidence:[],fields=[["联系人",extracted.contact_name],["公司",extracted.company_name],["国家/地区",extracted.country],["产品",extracted.product_category],["数量",extracted.quantity],["项目",extracted.project_name]].filter(([,value])=>value),reviewed=suggestion.status!=="generated",reviewNames={accepted:"已采纳",modified:"修改后采纳",rejected:"已驳回",superseded:"已过期"};
+        return `<section class="ai-triage-card"><div class="ai-triage-head"><div><h4>AI 分拣建议：${esc(aiTriageClassificationNames[classification]||classification)}</h4><small>${esc(suggestion.rationale_zh||"未提供理由")}</small></div><div><span class="ai-triage-confidence">置信度 ${Math.round(Number(suggestion.confidence||0)*100)}%</span>${reviewed?`<div class="tag" style="margin-top:6px">${esc(reviewNames[suggestion.status]||suggestion.status)}</div>`:""}</div></div>${fields.length?`<div class="ai-triage-grid">${fields.map(([label,value])=>`<div><span>${label}</span><b>${esc(value)}</b></div>`).join("")}</div>`:""}${extracted.demand_summary?`<p style="margin:12px 0 0"><b>需求摘要：</b>${esc(extracted.demand_summary)}</p>`:""}${evidence.length?`<div style="margin-top:12px"><b>原文证据</b><ul class="ai-triage-evidence">${evidence.map(item=>`<li><b>${esc(item.field)}：</b>“${esc(item.quote)}”</li>`).join("")}</ul></div>`:'<p class="hint" style="margin:12px 0 0">未找到可核对的原文引用，系统已将置信度限制在 49% 以下，请优先人工判断。</p>'}<p class="hint" style="margin:12px 0 0">${esc(data.duplicate_risk?.reason_zh||"未进行重复风险检查")}</p><div class="ai-triage-review">${reviewed?'<button id="email-ai-analyze" class="secondary" type="button">重新分析</button>':`<button class="ghost" type="button" data-ai-triage-review="rejected">驳回建议</button><button class="secondary" type="button" data-ai-triage-review="modified">修改后采纳</button><button class="primary" type="button" data-ai-triage-review="accepted">采纳建议</button>`}</div><small style="display:block;margin-top:10px">采纳、修改和驳回均会留存审计；业务处理仍使用下方人工操作按钮。</small></section>`;
+      }
+      async function reviewEmailTriageSuggestion(suggestion,decision){
+        if(decision==="modified"){
+          const current=suggestion.proposed_data?.classification||"other",options=Object.entries(aiTriageClassificationNames).map(([value,label])=>`<option value="${value}" ${value===current?"selected":""}>${label}</option>`).join("");
+          openDashboardModal("修改 AI 分拣建议",`<form id="ai-triage-modify-form"><div class="field"><label>人工确认分类 *</label><select id="ai-triage-modified-classification" class="input">${options}</select></div><div class="field"><label>修改说明 *</label><textarea id="ai-triage-review-note" class="input" rows="4" required placeholder="说明修改依据，例如：邮件中有明确的产品、数量和项目信息"></textarea></div><div class="form-actions"><button id="ai-triage-modify-cancel" class="ghost" type="button">取消</button><button class="primary" type="submit">保存修改审核</button></div></form>`);
+          $("#ai-triage-modify-cancel").onclick=()=>openEmailIntakeDetail(suggestion.target_id);
+          $("#ai-triage-modify-form").onsubmit=async event=>{event.preventDefault();const note=$("#ai-triage-review-note").value.trim();if(!note)return toast("请填写修改说明");const classification=$("#ai-triage-modified-classification").value,applied={...(suggestion.proposed_data||{}),classification};const {error}=await supabase.rpc("review_ai_suggestion",{target_suggestion_id:suggestion.id,target_decision:"modified",target_applied_data:applied,target_review_note:note});if(error)return toast("AI 建议审核失败："+error.message);toast("修改结果已留存审计");await openEmailIntakeDetail(suggestion.target_id)};
+          return;
+        }
+        const label=decision==="accepted"?"采纳":"驳回";if(!await appConfirm(`确认${label}该 AI 分拣建议？\n\n本操作只记录反馈，不会自动转询盘、删除邮件或联系客户。`,{title:`${label} AI 建议`,confirmText:`确认${label}`}))return;
+        const {error}=await supabase.rpc("review_ai_suggestion",{target_suggestion_id:suggestion.id,target_decision:decision,target_applied_data:null,target_review_note:`邮件分拣人工${label} AI 建议`});if(error)return toast("AI 建议审核失败："+error.message);toast(`已${label} AI 建议并留存审计`);await openEmailIntakeDetail(suggestion.target_id);
+      }
       async function openEmailIntakeDetail(emailIntakeId){
         openDashboardModal("邮件详情",'<p class="hint">正在读取完整邮件内容…</p>');
-        const {data:email,error}=await supabase.from("email_intake").select("id,sender_email,sender_name,recipient_email,subject,body_text,processing_status,triage_label,received_at,created_at,inquiry_id,trashed_at").eq("id",emailIntakeId).single();
+        const [{data:email,error},{data:suggestion}]=await Promise.all([supabase.from("email_intake").select("id,sender_email,sender_name,recipient_email,subject,body_text,processing_status,triage_label,received_at,created_at,inquiry_id,trashed_at").eq("id",emailIntakeId).single(),supabase.from("ai_suggestions").select("*").eq("suggestion_type","email_intake_triage").eq("target_type","email_intake").eq("target_id",emailIntakeId).order("created_at",{ascending:false}).limit(1).maybeSingle()]);
         if(error||!email){$("#dashboard-modal").classList.add("hidden");return toast("邮件详情加载失败："+(error?.message||"记录不存在"))}
         const triageName={real:"真实邮件",warmup:"养号邮件"}[email.triage_label]||"待分拣";
         const processingName={pending_review:"待人工分拣",converted:"已转询盘",rejected:"已排除",researching:"背调中",researched:"已完成背调",registered:"已提交分配",forwarded:"已转发业务员"}[email.processing_status]||email.processing_status||"—";
@@ -3616,8 +3645,10 @@
           : email.inquiry_id
             ? '<button id="email-detail-open-inquiry" class="primary" type="button">打开关联询盘</button>'
             : '<button id="email-detail-trash" class="ghost" type="button">移入垃圾箱</button><button id="email-detail-warmup" class="ghost" type="button">标记养号邮件</button><button id="email-detail-convert" class="primary" type="button">转为询盘商机</button>';
-        openDashboardModal("邮件详情 · "+(email.subject||"无主题"),`<div class="email-detail-meta"><div><span>发件人</span><b>${esc([email.sender_name,email.sender_email].filter(Boolean).join(" · ")||"—")}</b></div><div><span>收件人</span><b>${esc(email.recipient_email||"—")}</b></div><div><span>收件时间</span><b>${esc(fmtDate(email.received_at||email.created_at))}</b></div><div><span>当前判断</span><b>${esc(triageName+" · "+processingName)}</b></div></div><p class="hint">请阅读完整正文后再判断是否属于商机邮件。</p><pre class="email-detail-body" dir="auto">${esc(email.body_text||"（邮件没有可读取的纯文本正文）")}</pre><div class="email-detail-actions">${actions}</div>`);
+        openDashboardModal("邮件详情 · "+(email.subject||"无主题"),`<div class="email-detail-meta"><div><span>发件人</span><b>${esc([email.sender_name,email.sender_email].filter(Boolean).join(" · ")||"—")}</b></div><div><span>收件人</span><b>${esc(email.recipient_email||"—")}</b></div><div><span>收件时间</span><b>${esc(fmtDate(email.received_at||email.created_at))}</b></div><div><span>当前判断</span><b>${esc(triageName+" · "+processingName)}</b></div></div>${email.trashed_at?"":aiTriageCard(suggestion)}<p class="hint">请阅读完整正文和 AI 引用证据后，再由人工决定业务处理。</p><pre class="email-detail-body" dir="auto">${esc(email.body_text||"（邮件没有可读取的纯文本正文）")}</pre><div class="email-detail-actions">${actions}</div>`);
         const close=()=>$("#dashboard-modal").classList.add("hidden");
+        $("#email-ai-analyze")?.addEventListener("click",async event=>{const button=event.currentTarget,original=button.textContent;button.disabled=true;button.textContent="AI 分析中…";const result=await supabase.functions.invoke("email-intake-ai",{body:{email_intake_id:email.id}});let message=result.data?.error||result.error?.message;if(result.error?.context)try{message=(await result.error.context.clone().json())?.error||message}catch{}button.disabled=false;button.textContent=original;if(message)return toast("AI 分拣分析失败："+message);toast(result.data?.cached?"已读取现有 AI 分拣建议":"AI 分拣建议已生成");await openEmailIntakeDetail(email.id)});
+        $$('[data-ai-triage-review]').forEach(button=>button.addEventListener("click",()=>reviewEmailTriageSuggestion(suggestion,button.dataset.aiTriageReview)));
         $("#email-detail-open-inquiry")?.addEventListener("click",()=>{close();openInquiryDetail(email.inquiry_id)});
         $("#email-detail-convert")?.addEventListener("click",async()=>{if(!await appConfirm("确认将这封邮件转为询盘商机？",{title:"转为询盘商机",confirmText:"确认转换"}))return;close();await convertEmailIntakes([email.id],true)});
         $("#email-detail-warmup")?.addEventListener("click",async()=>{if(!await appConfirm("确认将这封邮件标记为养号邮件？\n\n标记后将退出待分拣队列，且不能转为询盘商机。",{title:"标记养号邮件",confirmText:"确认标记"}))return;const result=await supabase.rpc("triage_email_intakes",{target_ids:[email.id],target_label:"warmup"});if(result.error)return toast("邮件标记失败："+result.error.message);close();toast("已标记为养号邮件");await loadModule("email")});

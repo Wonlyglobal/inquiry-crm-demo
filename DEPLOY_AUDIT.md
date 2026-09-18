@@ -187,3 +187,14 @@
 - Change: every signed-in role receives a header-level `修改密码` entry; the request is forced to the authenticated account's bound company email and that field is read-only. The existing Supabase recovery callback remains the only path that exposes the new-password form.
 - Security: no password is stored or sent through CRM tables, no administrator can choose another recipient from this flow, and no database or customer record is changed.
 - Verification before release: focused tests `12/12`, full regression `260/260`, extracted module syntax check and `git diff --check` all pass.
+
+## 2026-09-18 15:18 +08:00 — AI email draft pre-send fact checking
+
+- Targets: GitHub Pages production CRM and Supabase project `plhverjihjilnuhlhlxi`.
+- Reason: the business owner requested factual verification before an AI-generated email draft can be sent.
+- Evidence boundary: the checker uses the inquiry's complete email thread, structured CRM facts, confirmed company facts, latest communication summary, and only approved or sent quotations. AI-supported claims retain exact source excerpts; unverifiable excerpts are downgraded.
+- Enforcement: generated or restored AI drafts are checked automatically; editing the subject or body invalidates the result. Unsupported high-risk price, delivery, certification, warranty, capability, discount/sample, or binding commitments block sending. The send worker independently verifies draft ownership, fact-check ownership, inquiry target, content hash and verdict before SMTP delivery.
+- Scheduling boundary: AI drafts cannot be scheduled in this release because evidence may change between scheduling and execution; manual and non-AI scheduled mail behavior is unchanged.
+- Deployment: commit `44f5a66` was pushed to `main`; GitHub Pages workflow `35318661271` completed successfully. Supabase functions `mailbox-draft-fact-check` and `mailbox-compose-send` were deployed successfully.
+- Verification: full automated regression `265/265`, extracted browser module syntax and `git diff --check` pass. Live HTML contains the check panel, function call, scheduled-send guard and server-verification IDs. An unauthenticated production call to the new function returns `403` with the CRM permission guard header.
+- Data safety: acceptance did not send customer email, invoke DeepSeek on production customer data, or create test business records.

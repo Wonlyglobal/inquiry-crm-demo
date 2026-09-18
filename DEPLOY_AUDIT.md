@@ -5,7 +5,9 @@
 - Authorization: after the live smoke test exposed that the market-department account still had owner access, the user confirmed that Li Huayan should use the market role.
 - Target: the single active production profile `chloelee@wonlyglobal.com` (`c43bd3c2-6e3a-4228-99c7-dc95f33643f2`).
 - Change: updated only `profiles.role` from `owner` to `marketing`, guarded by the exact profile ID, normalized email and previous `owner` value; name, title, department and active state were left unchanged.
-- Verification: the production `RETURNING` result reported `team=市场部`, `role=marketing`, `active=true`. A fresh login is required before continuing the market-role UI acceptance.
+- Verification: the production `RETURNING` result reported `team=市场部`, `role=marketing`, `active=true`. A fresh production CRM load immediately used the corrected role.
+- Live role acceptance: the navigation exposed only dashboard, market workbench, inquiry overview, scoped customer data, knowledge, role guide, email triage, nurture, research and 360. System settings, personal mailbox, WhatsApp, quotation, fulfillment, assignment pool, public pool and sales reports were absent. An assigned inquiry exposed only research, source/original review, validity, attribution, user-path and company-event tabs; sales communication, follow-up, quotation and fulfillment tabs were absent. The 360 page reported anonymous collaborative evaluation with no access to other employees' results.
+- Safety: this acceptance was read-only. No email was classified or moved, no inquiry was converted, no research field was saved, no message was sent and no business record was changed.
 
 ## 2026-09-18 — publish audited CRM role responsibility boundaries
 

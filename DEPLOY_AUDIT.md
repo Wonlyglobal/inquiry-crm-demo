@@ -1,5 +1,12 @@
 # Production deployment audit
 
+## 2026-09-18 — correct Li Huayan's CRM permission role
+
+- Authorization: after the live smoke test exposed that the market-department account still had owner access, the user confirmed that Li Huayan should use the market role.
+- Target: the single active production profile `chloelee@wonlyglobal.com` (`c43bd3c2-6e3a-4228-99c7-dc95f33643f2`).
+- Change: updated only `profiles.role` from `owner` to `marketing`, guarded by the exact profile ID, normalized email and previous `owner` value; name, title, department and active state were left unchanged.
+- Verification: the production `RETURNING` result reported `team=市场部`, `role=marketing`, `active=true`. A fresh login is required before continuing the market-role UI acceptance.
+
 ## 2026-09-18 — publish audited CRM role responsibility boundaries
 
 - Authorization: the user explicitly requested `发布生产` after the role-overlap implementation and local verification were complete.

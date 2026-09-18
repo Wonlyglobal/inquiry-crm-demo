@@ -194,5 +194,8 @@ insert into public.company_research_jobs(company_id,inquiry_id,trigger_reason)
 select distinct on(i.company_id) i.company_id,i.id,'initial_monitor_backfill'
 from public.inquiries i
 where i.company_id is not null and coalesce(i.excluded_from_dashboard,false)=false
+  and not exists(select 1 from public.company_research_jobs existing where existing.company_id=i.company_id)
 order by i.company_id,i.created_at desc;
+update public.company_research_jobs set status='pending',last_error=null,updated_at=clock_timestamp()
+where status='failed' and last_error ilike '%result%ambiguous%';
 select private.process_company_research_jobs(100);

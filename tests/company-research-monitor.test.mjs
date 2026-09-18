@@ -12,6 +12,7 @@ test("new inquiries queue a background research monitor job",()=>{
   assert.match(sql,/after insert or update of company_id,target_country,contact_id/);
   assert.match(sql,/process-company-research-monitor-jobs/);
   assert.match(sql,/\*\/5 \* \* \* \*/);
+  assert.match(sql,/not exists\(select 1 from public\.company_research_jobs existing/);
 });
 
 test("monitor records freshness and evidence gaps without rewriting research facts",()=>{

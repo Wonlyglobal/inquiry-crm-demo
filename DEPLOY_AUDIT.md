@@ -198,3 +198,15 @@
 - Deployment: commit `44f5a66` was pushed to `main`; GitHub Pages workflow `35318661271` completed successfully. Supabase functions `mailbox-draft-fact-check` and `mailbox-compose-send` were deployed successfully.
 - Verification: full automated regression `265/265`, extracted browser module syntax and `git diff --check` pass. Live HTML contains the check panel, function call, scheduled-send guard and server-verification IDs. An unauthenticated production call to the new function returns `403` with the CRM permission guard header.
 - Data safety: acceptance did not send customer email, invoke DeepSeek on production customer data, or create test business records.
+
+## 2026-09-18 15:26 +08:00 — visible-scope duplicate and repurchase candidate detection
+
+- Targets: GitHub Pages production CRM and Supabase project `plhverjihjilnuhlhlxi`.
+- Reason: continue the audited AI roadmap with duplicate-customer and repurchase-opportunity recognition during email triage.
+- Matching: candidates combine exact contact email, non-free business domain, exact company/contact identity, product overlap and project overlap. The result includes a bounded score, explicit reasons and at most five candidates.
+- Authorization boundary: candidate source rows are loaded with the authenticated user's Supabase client, so AI processing cannot reveal contacts, companies or inquiries hidden by that role's existing RLS visibility.
+- Human control: the UI only labels possible duplicates or repurchases and links to the visible inquiry for review; it never merges, overwrites or mutates customer records.
+- Audit: the enriched result stays inside the existing `ai_suggestions` generation/review trail.
+- Verification before release: focused duplicate/repurchase coverage passes; full automated regression `266/266`, extracted browser module syntax and `git diff --check` pass.
+- Data safety: static acceptance did not invoke DeepSeek, modify production customer data or create test business records.
+- Deployment: pending production function and Pages release.

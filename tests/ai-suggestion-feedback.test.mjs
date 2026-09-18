@@ -47,6 +47,19 @@ test('email triage UI exposes generation and accepted, modified and rejected fee
   assert.match(html,/data-ai-triage-review="rejected"/);
 });
 
+test('email triage identifies visible duplicate or repurchase candidates without merging records',()=>{
+  assert.match(worker,/loadAll\(userDb,"contacts"/);
+  assert.match(worker,/loadAll\(userDb,"companies"/);
+  assert.match(worker,/loadAll\(userDb,"inquiries"/);
+  assert.match(worker,/联系人邮箱完全相同/);
+  assert.match(worker,/企业邮箱域名与客户公司相同/);
+  assert.match(worker,/suggested_action/);
+  assert.match(worker,/duplicateCandidates[\s\S]*\.slice\(0,5\)/);
+  assert.match(html,/重复客户 \/ 复购商机候选/);
+  assert.match(html,/只供人工核对，不会自动合并或覆盖客户资料/);
+  assert.match(html,/data-duplicate-inquiry/);
+});
+
 test('production client allows email triage to finish before aborting the request',()=>{
   assert.match(html,/requestUrl\.includes\("\/functions\/v1\/email-intake-ai"\) \? 50000 : 20000/);
   assert.match(worker,/signal:AbortSignal\.timeout\(40000\)/);

@@ -209,4 +209,4 @@
 - Audit: the enriched result stays inside the existing `ai_suggestions` generation/review trail.
 - Verification before release: focused duplicate/repurchase coverage passes; full automated regression `266/266`, extracted browser module syntax and `git diff --check` pass.
 - Data safety: static acceptance did not invoke DeepSeek, modify production customer data or create test business records.
-- Deployment: pending production function and Pages release.
+- Deployment: commit `8d54613` was pushed to `main`; GitHub Pages workflow `35319731521` completed successfully; `email-intake-ai` was deployed to Supabase production. Live HTML contains the candidate panel, inquiry links and no-auto-merge warning. An unauthenticated production call returns `403` with `x-crm-permission-guard: 20260916`.

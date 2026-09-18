@@ -24,7 +24,7 @@ test('knowledge UI searches complete persisted content and inserts it into the c
   assert.match(html,/meta:\{searchText:item\.content\}/);
   assert.match(html,/id="knowledge-insert-mail"/);
   assert.match(html,/body\.value=`\$\{body\.value\}\$\{separator\}\$\{article\.content\}`/);
-  assert.match(html,/view==="knowledge"&&!\['owner','sales_manager','marketing'\]\.includes\(profile\.role\)/);
+  assert.match(html,/view==="knowledge"&&!\['owner','marketing'\]\.includes\(profile\.role\)/);
 });
 
 test('production sales knowledge acceptance check is rollback-only',()=>{

@@ -1545,7 +1545,7 @@
             <div class="dashboard-toolbar-primary"><div class="dashboard-scope-group"><div class="period-tabs" role="group" aria-label="市场任务周期"><button class="period-tab marketing-period-tab" data-marketing-period="today">今日</button><button class="period-tab marketing-period-tab" data-marketing-period="week">本周</button><button class="period-tab marketing-period-tab active" data-marketing-period="month">本月</button><button class="period-tab marketing-period-tab" data-marketing-period="quarter">本季度</button><button class="period-tab marketing-period-tab" data-marketing-period="year">本年度</button></div><select id="marketing-period" class="input compact hidden"><option value="today">今日</option><option value="week">本周</option><option value="month" selected>本月</option><option value="quarter">本季度</option><option value="year">本年度</option></select></div><span class="dashboard-scope-note">任务和渠道数据随所选周期同步更新</span></div>
           </div>
           <section id="marketing-workbench" class="dashboard-panel manager-workbench hidden">
-            <div class="sales-workbench-head"><div><b>市场任务中心</b><p>优先处理当前周期内尚未完成的市场流程</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">连接询盘邮箱</button><button id="marketing-open-email" class="primary">进入邮件分拣</button><button id="marketing-open-research" class="ghost">客户背调</button><button id="marketing-open-assignment" class="ghost">查看待分配</button></div></div>
+            <div class="sales-workbench-head"><div><b>市场任务中心</b><p>优先处理当前周期内尚未完成的市场流程</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">公共邮箱状态</button><button id="marketing-open-email" class="primary">进入邮件分拣</button><button id="marketing-open-research" class="ghost">客户背调</button></div></div>
             <div id="marketing-workbench-kpis" class="sales-workbench-kpis"></div>
             <div class="manager-workbench-body"><div><div class="panel-title"><b>市场待处理事项</b><span class="dashboard-scope-note">按流程优先级排列</span></div><div id="marketing-priority-list" class="manager-priority-list"></div></div><div id="marketing-source-overview" class="manager-workload"></div></div>
           </section>
@@ -2427,6 +2427,15 @@
         marketing: "市场部",
         sales: "销售",
       };
+      const roleViewAccess = {
+        owner: new Set(["dashboard","sales-today","follow-calendar","marketing-center","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","settings"]),
+        sales_manager: new Set(["dashboard","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360"]),
+        marketing: new Set(["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360"]),
+        sales: new Set(["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
+      };
+      function canAccessView(view, role = profile?.role) {
+        return Boolean(role && roleViewAccess[role]?.has(view));
+      }
       const statusNames = {
         pending_assignment: "待分配",
         received: "收到询盘",
@@ -2616,36 +2625,10 @@
         applyReadOnlyControls();
         setMemberAvatar($("#avatar"), profile, "王");
         const role = profile.role;
-        const canConfigureMailboxes = ["owner", "sales_manager", "marketing"].includes(role);
-        const visibility = {
-          "marketing-center": ["marketing"].includes(role),
-          "sales-today": ["owner", "sales_manager", "sales"].includes(role),
-          "follow-calendar": ["owner", "sales_manager", "sales"].includes(role),
-          customers: ["owner", "sales_manager", "sales", "marketing"].includes(role),
-          email: ["owner", "sales_manager", "marketing"].includes(role),
-          communications: ["owner", "sales_manager", "sales", "marketing"].includes(role),
-          mailbox: ["owner", "sales_manager", "sales", "marketing"].includes(role),
-          templates: ["owner", "sales_manager", "sales", "marketing"].includes(role),
-          knowledge: ["owner", "sales_manager", "sales", "marketing"].includes(role),
-          sop: ["owner", "sales_manager", "sales", "marketing"].includes(role),
-          quotes: ["owner", "sales_manager", "sales"].includes(role),
-          fulfillment: ["owner", "sales_manager", "sales", "marketing"].includes(role),
-          assignment: ["owner", "sales_manager", "marketing"].includes(role),
-          nurture: ["owner", "sales_manager", "marketing"].includes(role),
-          "public-pool": ["owner", "sales_manager", "sales", "marketing"].includes(role),
-          research: ["owner", "sales_manager", "marketing"].includes(role),
-          daily: ["owner", "sales_manager", "sales"].includes(role),
-          "performance-360": ["owner", "sales_manager", "sales", "marketing"].includes(role),
-          "legacy-projects": ["owner", "sales_manager", "marketing"].includes(role),
-          settings: canConfigureMailboxes,
-        };
-        Object.entries(visibility).forEach(([view, visible]) => {
-          const nav = $(`.nav[data-view="${view}"]`);
-          if (nav) nav.classList.toggle("hidden", !visible);
-        });
+        $$(".nav[data-view]").forEach(nav => nav.classList.toggle("hidden", !canAccessView(nav.dataset.view, role)));
         $("#assignment-action-head").classList.toggle(
           "hidden",
-          !["owner", "marketing"].includes(role),
+          role !== "owner",
         );
         const salesView=role==="sales",managerView=role==="sales_manager",marketingView=role==="marketing";
         $("#dashboard-page").classList.toggle("sales-role-view",salesView);
@@ -3138,13 +3121,13 @@
           loadAllCustomerRows(()=>supabase.from("inquiries").select("id,inquiry_no,title,status,validity,product_category,quantity,target_country,source,created_at,won_amount,won_currency,won_at,owner_id").eq("company_id",companyId).order("created_at",{ascending:false})),
         ]);
         const firstError=[companyResult,contactsResult,inquiriesResult].find(result=>result.error)?.error;if(firstError)return toast("客户资料加载失败："+firstError.message);
-        const company=companyResult.data,contacts=contactsResult.data||[],inquiries=inquiriesResult.data||[],inquiryIds=inquiries.map(item=>item.id);
+        const company=companyResult.data,contacts=contactsResult.data||[],inquiries=inquiriesResult.data||[],inquiryIds=inquiries.map(item=>item.id),marketHasAssigned=profile.role==="marketing"&&inquiries.some(item=>item.owner_id),commercialInquiryIds=marketHasAssigned?inquiries.filter(item=>!item.owner_id).map(item=>item.id):inquiryIds;
         const [messagesResult,whatsappMessagesResult,quotesResult,wonEvidenceResult,documentsResult]=await Promise.all([
-          inquiryIds.length?loadAllCustomerRows(()=>supabase.from("email_messages").select("id,inquiry_id,direction,sender_email,recipient_emails,subject,received_at,sent_at,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
-          inquiryIds.length?loadAllCustomerRows(()=>supabase.from("whatsapp_messages").select("id,inquiry_id,direction,sender_phone,recipient_phone,message_type,body_text,delivery_status,occurred_at").in("inquiry_id",inquiryIds).order("occurred_at",{ascending:false})):Promise.resolve({data:[],error:null}),
-          inquiryIds.length?loadAllCustomerRows(()=>supabase.from("quotation_versions").select("id,inquiry_id,quote_no,total_amount,currency,status,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
-          inquiryIds.length?loadAllCustomerRows(()=>supabase.from("inquiry_won_requests").select("id,inquiry_id,evidence_bucket,evidence_path,evidence_name,status,created_at").in("inquiry_id",inquiryIds).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
-          loadAllCustomerRows(()=>supabase.from("customer_documents").select("id,company_id,document_type,file_name,storage_bucket,storage_path,content_type,size_bytes,notes,uploaded_by,created_at").eq("company_id",companyId).order("created_at",{ascending:false})),
+          commercialInquiryIds.length?loadAllCustomerRows(()=>supabase.from("email_messages").select("id,inquiry_id,direction,sender_email,recipient_emails,subject,received_at,sent_at,created_at").in("inquiry_id",commercialInquiryIds).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
+          commercialInquiryIds.length?loadAllCustomerRows(()=>supabase.from("whatsapp_messages").select("id,inquiry_id,direction,sender_phone,recipient_phone,message_type,body_text,delivery_status,occurred_at").in("inquiry_id",commercialInquiryIds).order("occurred_at",{ascending:false})):Promise.resolve({data:[],error:null}),
+          commercialInquiryIds.length?loadAllCustomerRows(()=>supabase.from("quotation_versions").select("id,inquiry_id,quote_no,total_amount,currency,status,created_at").in("inquiry_id",commercialInquiryIds).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
+          commercialInquiryIds.length?loadAllCustomerRows(()=>supabase.from("inquiry_won_requests").select("id,inquiry_id,evidence_bucket,evidence_path,evidence_name,status,created_at").in("inquiry_id",commercialInquiryIds).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
+          profile.role!=="marketing"?loadAllCustomerRows(()=>supabase.from("customer_documents").select("id,company_id,document_type,file_name,storage_bucket,storage_path,content_type,size_bytes,notes,uploaded_by,created_at").eq("company_id",companyId).order("created_at",{ascending:false})):Promise.resolve({data:[],error:null}),
         ]);
         const relatedError=[messagesResult,whatsappMessagesResult,quotesResult,wonEvidenceResult,documentsResult].find(result=>result.error)?.error;
         if(relatedError)return toast("客户沟通或文件加载失败："+relatedError.message);
@@ -3161,11 +3144,12 @@
         const attachmentRows=threadAttachments.map(item=>{const message=messages.find(row=>row.id===item.email_message_id);return `<tr><td>邮件附件</td><td>${esc(item.file_name)}</td><td>${esc(message?.subject||"客户沟通邮件")}</td><td>${materialSize(item.size_bytes)}</td><td>${fmtDate(item.created_at)}</td><td><button class="table-action" type="button" data-customer-document="${esc(item.storage_path)}" data-customer-document-bucket="email-attachments">打开</button></td></tr>`}).join("");
         const evidenceRows=wonEvidence.map(item=>`<tr><td>${item.status==="approved"?"成交凭证":"成交申请凭证"}</td><td>${esc(item.evidence_name||"未命名凭证")}</td><td>订单 / 合同 / 定金凭证</td><td>—</td><td>${fmtDate(item.created_at)}</td><td><button class="table-action" type="button" data-customer-document="${esc(item.evidence_path)}" data-customer-document-bucket="${esc(item.evidence_bucket||"research-attachments")}">打开</button></td></tr>`).join("");
         const documentTypeNames={contract:"合同",proforma_invoice:"PI / 形式发票",purchase_order:"采购订单",quotation:"报价单",payment_proof:"付款凭证",other:"其他"};
-        const ownedInquiry=inquiries.some(item=>item.owner_id===profile.id),canManageDocuments=["owner","sales_manager","marketing"].includes(profile.role)||ownedInquiry;
+        const ownedInquiry=inquiries.some(item=>item.owner_id===profile.id),canManageDocuments=profile.role==="owner"||(profile.role==="sales"&&ownedInquiry),canManageContacts=profile.role==="owner"||(profile.role==="sales"&&ownedInquiry)||(profile.role==="marketing"&&!marketHasAssigned);
         const managedRows=customerDocuments.map(item=>`<tr><td>${documentTypeNames[item.document_type]||"其他"}</td><td>${esc(item.file_name)}</td><td>${esc(item.notes||"客户资料库")}</td><td>${materialSize(item.size_bytes)}</td><td>${fmtDate(item.created_at)}</td><td><button class="table-action" type="button" data-customer-document="${esc(item.storage_path)}" data-customer-document-bucket="customer-documents">打开</button></td></tr>`).join("");
         const documentRows=managedRows+attachmentRows+evidenceRows||'<tr><td colspan="6">暂无合同、PI、成交凭证或邮件附件</td></tr>';
         const documentUpload=canManageDocuments?`<form id="customer-document-form" style="margin-top:16px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--soft)"><h4 style="margin-top:0">上传客户文件</h4><div class="detail-grid"><div class="field"><label>文件类型 *</label><select id="customer-document-type" class="input"><option value="contract">合同</option><option value="proforma_invoice">PI / 形式发票</option><option value="purchase_order">采购订单</option><option value="quotation">报价单</option><option value="payment_proof">付款凭证</option><option value="other">其他</option></select></div><div class="field"><label>文件 *</label><input id="customer-document-file" class="input" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png" required /></div></div><div class="field"><label>备注</label><input id="customer-document-notes" class="input" placeholder="例如：2026 年度采购合同 / 第 2 版 PI" /></div><div class="form-actions"><button class="primary" type="submit">上传并保存文件</button></div></form>`:"";
-        openDashboardModal(`客户资料 · ${company.name}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>公司</span><div>${esc(company.name)}</div></div><div class="legacy-detail-item"><span>国家 / 城市</span><div>${esc([company.country,company.city].filter(Boolean).join(" · ")||"—")}</div></div><div class="legacy-detail-item"><span>官网 / 域名</span><div>${esc(company.website||company.domain||"—")}</div></div><div class="legacy-detail-item"><span>客户类型</span><div>${esc(company.company_type||"—")}</div></div><div class="legacy-detail-item"><span>采购偏好</span><div>${esc(products.join("、")||brief.purchase_preferences||"待从询盘和全部沟通中补充")}</div></div><div class="legacy-detail-item"><span>客户价值</span><div>${esc(company.value_grade||"—")} · ${company.value_score??"未评分"} 分 · 采购可能性 ${esc(company.purchase_likelihood||"待判断")}</div></div><div class="legacy-detail-item"><span>历史询盘 / 成交</span><div>${inquiries.length} 条 / ${won.length} 条</div></div><div class="legacy-detail-item"><span>跟进策略</span><div>${esc(company.recommended_strategy||"待补充")}</div></div></div><h4 style="margin-top:22px">联系人</h4><div class="dashboard-table-scroll"><table><thead><tr><th>姓名</th><th>职务</th><th>邮箱</th><th>电话</th><th>WhatsApp</th><th>LinkedIn</th></tr></thead><tbody>${contactRows}</tbody></table></div><form id="customer-contact-form" style="margin-top:20px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--soft)"><h4 style="margin-top:0">新增联系人</h4><div class="detail-grid"><div class="field"><label>姓名 *</label><input id="customer-contact-name" class="input" required /></div><div class="field"><label>职务</label><input id="customer-contact-title" class="input" /></div><div class="field"><label>邮箱</label><input id="customer-contact-email" class="input" type="email" /></div><div class="field"><label>电话</label><input id="customer-contact-phone" class="input" /></div><div class="field"><label>WhatsApp</label><input id="customer-contact-whatsapp" class="input" /></div><div class="field"><label>LinkedIn</label><input id="customer-contact-linkedin" class="input" type="url" placeholder="https://linkedin.com/in/..." /></div></div><div class="field"><label>新增依据 *</label><input id="customer-contact-reason" class="input" required placeholder="例如：客户邮件签名确认" /></div><div class="form-actions"><button class="primary" type="submit">保存联系人</button></div></form><h4 style="margin-top:22px">历史询盘</h4><div class="dashboard-table-scroll"><table><thead><tr><th>编号</th><th>主题</th><th>阶段</th><th>产品</th><th>数量</th><th>创建时间</th></tr></thead><tbody>${inquiryRows}</tbody></table></div><h4 style="margin-top:22px">报价记录</h4><div class="dashboard-table-scroll"><table><thead><tr><th>报价编号</th><th>金额</th><th>状态</th><th>创建时间</th></tr></thead><tbody>${quoteRows}</tbody></table></div><h4 style="margin-top:22px">客户文件（合同 / PI / 成交凭证 / 邮件附件）</h4><p class="hint">合同、PI 等文件上传后归档到当前客户；邮件附件和成交凭证保留真实来源，点击后生成短时安全链接。</p><div class="dashboard-table-scroll"><table><thead><tr><th>类型</th><th>文件名</th><th>来源</th><th>大小</th><th>时间</th><th>操作</th></tr></thead><tbody>${documentRows}</tbody></table></div>${documentUpload}<h4 style="margin-top:22px">全部沟通记录（邮件 / WhatsApp）</h4><div class="dashboard-table-scroll"><table><thead><tr><th>时间</th><th>渠道</th><th>方向</th><th>联系人</th><th>主题 / 消息</th></tr></thead><tbody>${communicationRows}</tbody></table></div>`);
+        const contactForm=canManageContacts?`<form id="customer-contact-form" style="margin-top:20px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--soft)"><h4 style="margin-top:0">新增联系人</h4><div class="detail-grid"><div class="field"><label>姓名 *</label><input id="customer-contact-name" class="input" required /></div><div class="field"><label>职务</label><input id="customer-contact-title" class="input" /></div><div class="field"><label>邮箱</label><input id="customer-contact-email" class="input" type="email" /></div><div class="field"><label>电话</label><input id="customer-contact-phone" class="input" /></div><div class="field"><label>WhatsApp</label><input id="customer-contact-whatsapp" class="input" /></div><div class="field"><label>LinkedIn</label><input id="customer-contact-linkedin" class="input" type="url" placeholder="https://linkedin.com/in/..." /></div></div><div class="field"><label>新增依据 *</label><input id="customer-contact-reason" class="input" required placeholder="例如：客户邮件签名确认" /></div><div class="form-actions"><button class="primary" type="submit">保存联系人</button></div></form>`:marketHasAssigned?'<p class="hint">已分配客户的联系人由负责业务员维护；市场部仅保留归因与结果视图。</p>':"";
+        openDashboardModal(`客户资料 · ${company.name}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>公司</span><div>${esc(company.name)}</div></div><div class="legacy-detail-item"><span>国家 / 城市</span><div>${esc([company.country,company.city].filter(Boolean).join(" · ")||"—")}</div></div><div class="legacy-detail-item"><span>官网 / 域名</span><div>${esc(company.website||company.domain||"—")}</div></div><div class="legacy-detail-item"><span>客户类型</span><div>${esc(company.company_type||"—")}</div></div><div class="legacy-detail-item"><span>采购偏好</span><div>${esc(products.join("、")||brief.purchase_preferences||"待从询盘和全部沟通中补充")}</div></div><div class="legacy-detail-item"><span>客户价值</span><div>${esc(company.value_grade||"—")} · ${company.value_score??"未评分"} 分 · 采购可能性 ${esc(company.purchase_likelihood||"待判断")}</div></div><div class="legacy-detail-item"><span>历史询盘 / 成交</span><div>${inquiries.length} 条 / ${won.length} 条</div></div><div class="legacy-detail-item"><span>跟进策略</span><div>${esc(company.recommended_strategy||"待补充")}</div></div></div><h4 style="margin-top:22px">联系人</h4><div class="dashboard-table-scroll"><table><thead><tr><th>姓名</th><th>职务</th><th>邮箱</th><th>电话</th><th>WhatsApp</th><th>LinkedIn</th></tr></thead><tbody>${contactRows}</tbody></table></div>${contactForm}<h4 style="margin-top:22px">历史询盘</h4><div class="dashboard-table-scroll"><table><thead><tr><th>编号</th><th>主题</th><th>阶段</th><th>产品</th><th>数量</th><th>创建时间</th></tr></thead><tbody>${inquiryRows}</tbody></table></div>${marketHasAssigned?'<h4 style="margin-top:22px">营销结果</h4><p class="hint">已分配客户仅展示询盘和成交结果；报价、交易文件和销售沟通归负责业务员与主管。</p>':`<h4 style="margin-top:22px">报价记录</h4><div class="dashboard-table-scroll"><table><thead><tr><th>报价编号</th><th>金额</th><th>状态</th><th>创建时间</th></tr></thead><tbody>${quoteRows}</tbody></table></div><h4 style="margin-top:22px">客户文件（合同 / PI / 成交凭证 / 邮件附件）</h4><p class="hint">合同、PI 等文件上传后归档到当前客户；邮件附件和成交凭证保留真实来源，点击后生成短时安全链接。</p><div class="dashboard-table-scroll"><table><thead><tr><th>类型</th><th>文件名</th><th>来源</th><th>大小</th><th>时间</th><th>操作</th></tr></thead><tbody>${documentRows}</tbody></table></div>${documentUpload}<h4 style="margin-top:22px">全部沟通记录（邮件 / WhatsApp）</h4><div class="dashboard-table-scroll"><table><thead><tr><th>时间</th><th>渠道</th><th>方向</th><th>联系人</th><th>主题 / 消息</th></tr></thead><tbody>${communicationRows}</tbody></table></div>`}`);
         $$('[data-customer-document]').forEach(button=>button.onclick=async()=>{const preview=window.open("","_blank");if(!preview)return toast("浏览器阻止了附件窗口，请允许本站打开新窗口后重试");preview.opener=null;preview.document.body.textContent="正在生成安全查看链接…";const {data,error}=await supabase.storage.from(button.dataset.customerDocumentBucket).createSignedUrl(button.dataset.customerDocument,120,{download:true});if(error||!data?.signedUrl){preview.close();return toast("客户文件暂时无法打开："+(error?.message||"未生成链接"))}preview.location.replace(data.signedUrl)});
         $$('[data-customer-inquiry]').forEach(row=>row.addEventListener("click",()=>{$("#dashboard-modal").classList.add("hidden");openInquiryDetail(row.dataset.customerInquiry)}));
         $("#customer-document-form")?.addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,button=event.submitter,file=$("#customer-document-file").files?.[0];if(!file)return toast("请选择客户文件");if(file.size>52428800)return toast("客户文件不能超过 50MB");button.disabled=true;const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_")||"document";const path=`${companyId}/${profile.id}/${Date.now()}-${safe}`;const uploaded=await supabase.storage.from("customer-documents").upload(path,file,{upsert:false,contentType:file.type||"application/octet-stream"});if(uploaded.error){button.disabled=false;return toast("客户文件上传失败："+uploaded.error.message)}const inserted=await supabase.from("customer_documents").insert({company_id:companyId,document_type:$("#customer-document-type").value,file_name:file.name,storage_path:path,content_type:file.type||"application/octet-stream",size_bytes:file.size,notes:$("#customer-document-notes").value.trim()||null,uploaded_by:profile.id}).select().single();if(inserted.error){await supabase.storage.from("customer-documents").remove([path]);button.disabled=false;return toast("客户文件登记失败："+inserted.error.message)}const audit=await supabase.from("audit_logs").insert({actor_id:profile.id,entity_type:"company",entity_id:companyId,action:"customer_document_uploaded",after_data:{document_id:inserted.data.id,document_type:inserted.data.document_type,file_name:file.name,size_bytes:file.size},reason:"客户资料库上传文件"});button.disabled=false;if(audit.error)return toast("文件已保存，但审计记录写入失败");toast("客户文件已上传并归档");await openCustomerRecord(companyId)});
@@ -3345,6 +3329,10 @@
           settings: ["系统设置", "成员、角色与首次登录状态", "成员账号"],
         }[view];
         if (!config) return;
+        if (!canAccessView(view)) {
+          toast("当前角色无权进入该功能");
+          return switchView("dashboard");
+        }
         activeModuleView = view;
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         const loadVersion = ++moduleLoadVersion;
@@ -3359,8 +3347,8 @@
         $("#module-search").placeholder = `搜索${config[2]}`;
         $("#module-toolbar").classList.add("hidden");
         $("#legacy-project-template").classList.toggle("hidden", view !== "legacy-projects");
-        $("#legacy-project-import").classList.toggle("hidden", view !== "legacy-projects" || !["owner","sales_manager","marketing"].includes(profile?.role));
-        if(view === "legacy-projects" && ["owner","sales_manager","marketing"].includes(profile?.role)){
+        $("#legacy-project-import").classList.toggle("hidden", view !== "legacy-projects" || profile?.role!=="owner");
+        if(view === "legacy-projects" && profile?.role==="owner"){
           supabase.rpc("import_legacy_engineering_projects",{p_rows:[],p_source_file:"capability-check"}).then(({error})=>{
             if(error)$("#legacy-project-import").classList.add("hidden");
           }).catch(()=>$("#legacy-project-import").classList.add("hidden"));
@@ -3384,9 +3372,9 @@
         const modulePrimary = $("#module-primary");
         modulePrimary.disabled = false;
         modulePrimary.onclick = view === "whatsapp" ? () => openWhatsAppConnectionForm() : view === "performance-360" ? () => openSales360CycleForm() : null;
-        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","whatsapp","templates","knowledge","follow-calendar","performance-360"].includes(view) || (view==="knowledge"&&!['owner','sales_manager','marketing'].includes(profile.role)) || (view==="performance-360"&&profile.role!=="owner"));
+        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","whatsapp","templates","knowledge","follow-calendar","performance-360"].includes(view) || (view==="knowledge"&&!['owner','marketing'].includes(profile.role)) || (view==="whatsapp"&&!['owner','sales_manager'].includes(profile.role)) || (view==="performance-360"&&profile.role!=="owner"));
         $("#calendar-generate-daily").classList.toggle("hidden",view!=="follow-calendar"||profile.role!=="sales");
-        const canManageSharedInquiry = ["owner", "sales_manager", "marketing"].includes(profile.role);
+        const canManageSharedInquiry = profile.role === "owner";
         const sharedInquiryButton = $("#connect-shared-inquiry");
         sharedInquiryButton.classList.toggle("hidden", view !== "settings" || !canManageSharedInquiry);
         sharedInquiryButton.textContent = "连接公共询盘邮箱";
@@ -3415,10 +3403,7 @@
         if (view === "knowledge") modulePrimary.textContent = "+ 新建知识";
         if (view === "follow-calendar") modulePrimary.textContent = "+ 新增每日计划";
         if (view === "performance-360") modulePrimary.textContent = "+ 创建影子评分周期";
-        const denied =
-          (view === "settings" && !["owner", "sales_manager", "marketing"].includes(profile.role)) ||
-          (["email", "assignment", "nurture", "research"].includes(view) &&
-            !["owner", "sales_manager", "marketing"].includes(profile.role));
+        const denied = !canAccessView(view);
         if (denied) {
           renderModuleTable(["提示"], [{ cells: ["当前账号无权查看此页面"] }]);
           refreshButton.classList.remove("loading");
@@ -3849,6 +3834,7 @@
         await openInquiryDetail(id);
       }
       async function openDirectAssignment(id){
+        if(!["owner","sales_manager"].includes(profile?.role))return toast("仅老板或销售主管可查看推荐并完成分配");
         const [{data:inquiry,error},{data:sales}]=await Promise.all([
           supabase.from("inquiries").select("id,inquiry_no,title,source,owner_id").eq("id",id).single(),
           supabase.from("profiles").select("id,full_name,email").eq("role","sales").eq("active",true).order("full_name")
@@ -3958,15 +3944,15 @@
         openDashboardModal(`历史工程 #${project.legacy_project_id} · ${project.partner_name || project.project_name || "项目详情"}`, `<div class="legacy-detail-grid">${fields.map(([label,value]) => `<div class="legacy-detail-item"><span>${esc(label)}</span><div>${value === null || value === undefined || value === "" ? "—" : esc(value)}</div></div>`).join("")}${website ? `<div class="legacy-detail-item"><span>网站</span><div>${website}</div></div>` : ""}</div><p class="hint" style="margin-top:16px">该记录来自旧 CRM 文件，仅用于历史工程管理，不计入新询盘响应率、成交率和渠道 ROI。</p>`);
       }
       async function switchView(view, options = {}) {
+        if (!canAccessView(view)) {
+          toast("当前角色无权进入该功能");
+          view = "dashboard";
+          options = {};
+        }
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         $("#sales-profile-page").classList.add("hidden");
         setActiveNavigation(view);
         if (view === "daily") {
-          if (!["owner", "sales_manager", "sales"].includes(profile.role)) {
-            toast("当前账号无权查看销售日报");
-            await switchView("dashboard");
-            return;
-          }
           $("#dashboard-page").classList.add("hidden");
           $("#marketing-center-page").classList.add("hidden");
           $("#module-page").classList.add("hidden");
@@ -4891,6 +4877,11 @@
         }
         currentInquiry = inquiry;
         currentQualificationAiSuggestion = null;
+        const marketAssignedScope=profile.role==="marketing"&&Boolean(inquiry.owner_id);
+        const marketHiddenDetailTabs=profile.role==="marketing"
+          ? new Set(["outreach","pipeline","followup",...(marketAssignedScope?["contact-policy","qualification","audit"]:[])])
+          : new Set();
+        $$(".detail-tab[data-detail-tab]").forEach(tab=>tab.classList.toggle("hidden",marketHiddenDetailTabs.has(tab.dataset.detailTab)));
         renderOutreachGuidanceOptions();
         // email_intake is loaded in a separate query, so preserve it on the
         // active inquiry record for outreach generation and reply workflows.
@@ -4939,11 +4930,11 @@
         $("#nurture-plan-panel").classList.toggle("hidden",inquiry.sales_disposition!=="recycled");
         $("#nurture-next-at").value=inquiry.nurture_next_at?new Date(new Date(inquiry.nurture_next_at).getTime()-new Date(inquiry.nurture_next_at).getTimezoneOffset()*60000).toISOString().slice(0,16):"";
         $("#nurture-note").value=inquiry.nurture_note||"";
-        const canNurture=["owner","sales_manager","marketing"].includes(profile.role);
+        const canNurture=["owner","marketing"].includes(profile.role);
         ["nurture-next-at","nurture-note","nurture-reason","save-nurture-plan","resubmit-nurtured-inquiry"].forEach(id=>{$("#"+id).disabled=!canNurture});
         renderMarketingTouches(currentInquiry.marketingTouches);
         $("#marketing-touch-at").value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
-        const canAttribute=["owner","sales_manager","marketing"].includes(profile.role);
+        const canAttribute=["owner","marketing"].includes(profile.role);
         $("#marketing-touch-form").classList.toggle("hidden",!canAttribute);
         populateContactPolicyForm(currentInquiry.contactPolicy);
         renderUserJourney(currentInquiry.journeyEvents);
@@ -5054,7 +5045,7 @@
           outreachComposeMode="outreach";$("#outreach-draft-title").textContent="邮件草稿";
           $("#outreach-draft").classList.add("hidden"); $("#outreach-status").textContent = "草稿尚未保存";
         }
-        $("#reply-inquiry").classList.toggle("hidden",!["owner","sales_manager","sales"].includes(profile.role));
+        $("#reply-inquiry").classList.toggle("hidden",!["owner","sales"].includes(profile.role));
         // Sales users may not be allowed to read the raw email_intake row via
         // RLS even though the inquiry still contains a verified customer email.
         // Use the same recipient resolver as the compose action so the button
@@ -5073,10 +5064,11 @@
         owner.disabled = !canAssign || inquiry.validity!=="valid";
         owner.title = inquiry.validity!=="valid" ? "请先在“有效性判断”中确认有效" : "";
         const workflowReady=inquiry.validity==="valid"&&inquiry.invalid_review_status!=="pending";
+        const canEditCommercialWorkflow=profile.role==="owner"||(profile.role==="sales"&&inquiry.owner_id===profile.id);
         $("#detail-workflow-lock").classList.toggle("hidden",workflowReady);
-        ["detail-status","detail-won-amount","detail-won-currency","detail-estimated-amount","detail-estimated-currency","detail-probability","detail-expected-close","detail-deal-type","detail-primary-source","detail-risk-flag","detail-won-evidence","detail-reason","save-detail","follow-method","follow-next","follow-content","follow-feedback","follow-first-contact","add-follow"].forEach(id=>{const element=$("#"+id);if(element)element.disabled=!workflowReady});
+        ["detail-status","detail-won-amount","detail-won-currency","detail-estimated-amount","detail-estimated-currency","detail-probability","detail-expected-close","detail-deal-type","detail-primary-source","detail-risk-flag","detail-won-evidence","detail-reason","save-detail","follow-method","follow-next","follow-content","follow-feedback","follow-first-contact","add-follow"].forEach(id=>{const element=$("#"+id);if(element)element.disabled=!workflowReady||!canEditCommercialWorkflow});
         $("#follow-first-contact").checked=false;
-        $("#follow-first-contact").disabled=!workflowReady||Boolean(inquiry.first_valid_contact_at);
+        $("#follow-first-contact").disabled=!workflowReady||!canEditCommercialWorkflow||Boolean(inquiry.first_valid_contact_at);
         $("#follow-first-contact-wrap").title=inquiry.first_valid_contact_at?`已于 ${fmtDate(inquiry.first_valid_contact_at)} 记录首次有效联系`:"勾选后该跟进将作为首次响应证据";
         inquiry.email_intake = intake || null;
         const workflow = $("#email-workflow");
@@ -5708,6 +5700,8 @@
         }),
       );
       function setDetailTab(name = "research") {
+        const requested=$(`.detail-tab[data-detail-tab="${name}"]`);
+        if(!requested||requested.classList.contains("hidden"))name="research";
         $$(".detail-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.detailTab === name));
         $$(".detail-section").forEach((section) => section.classList.toggle("hidden", section.dataset.detailSection !== name));
         if(name === "events") renderCompanyEventTimeline();
@@ -6018,7 +6012,7 @@
       async function releaseToPublicPool(){const reason=$("#public-pool-reason")?.value.trim();if(!reason)return toast("释放到公海必须填写原因");if(!await appConfirm("确认释放到客户公海？原负责人将失去该询盘的修改权限，但历史记录会完整保留。",{title:"释放到客户公海",confirmText:"确认释放"}))return;const button=$("#release-public-pool");button.disabled=true;const {error}=await supabase.rpc("release_inquiry_to_public_pool",{target_inquiry_id:currentInquiry.id,release_reason:reason});button.disabled=false;if(error)return toast("释放失败："+error.message);toast("客户已释放到公海，原负责人和原因均已留痕");await Promise.all([openInquiryDetail(currentInquiry.id),loadInquiries(),loadNotifications()])}
       function renderQuickValidity(validity) {
         const names={pending:"待确认",valid:"有效",invalid:"无效"};
-        const canFullJudge=["owner","sales_manager","marketing"].includes(profile?.role),canInvalidate=canFullJudge||profile?.role==="sales";
+        const canFullJudge=["owner","marketing"].includes(profile?.role),canInvalidate=canFullJudge||profile?.role==="sales";
         $("#detail-validity-current").textContent=names[validity]||"待确认";
         $$(".validity-choice").forEach(button=>{button.classList.toggle("active",button.dataset.validity===validity);button.disabled=button.dataset.validity==="invalid"?!canInvalidate:!canFullJudge});
         $("#detail-save-invalid").disabled=!canInvalidate;
@@ -6069,7 +6063,7 @@
       }
       function qualificationEditableFields(){
         if(["owner","sales_manager"].includes(profile?.role))return new Set([...qualificationFieldIds,"priority"]);
-        if(profile?.role==="marketing")return new Set(["identity","need","fit"]);
+        if(profile?.role==="marketing")return currentInquiry?.owner_id?new Set():new Set(["identity","need","fit"]);
         if(profile?.role==="sales")return new Set(["role","value","timing","next-step"]);
         return new Set();
       }
@@ -6105,7 +6099,7 @@
       }
       function localDateTimeInputValue(value){if(!value)return "";const d=new Date(value);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
       const contactConsentNames={unknown:"联系依据待核实",legitimate_interest:"已核实合法利益 / 业务关系",opted_in:"客户已明确同意",opted_out:"客户已退订"};
-      function canEditContactPolicy(){return ["owner","sales_manager","marketing","sales"].includes(profile?.role)&&(profile?.role!=="sales"||currentInquiry?.owner_id===profile.id)}
+      function canEditContactPolicy(){return ["owner","marketing","sales"].includes(profile?.role)&&(profile?.role!=="sales"||currentInquiry?.owner_id===profile.id)&&(profile?.role!=="marketing"||!currentInquiry?.owner_id)}
       function renderContactPolicyStatus(policy){
         const badge=$("#contact-policy-badge"),status=$("#contact-policy-status"),now=Date.now(),nextAt=policy?.next_allowed_at?new Date(policy.next_allowed_at):null;
         let label="尚未配置",message="尚未配置：主动开发信会被安全策略阻止，直到联系依据已核实。",blocked=true;
@@ -6174,7 +6168,7 @@
       }
       async function saveQuickValidity(validity) {
         if(!currentInquiry)return;
-        const canFullJudge=["owner","sales_manager","marketing"].includes(profile?.role);
+        const canFullJudge=["owner","marketing"].includes(profile?.role);
         if(!canFullJudge&&!(profile?.role==="sales"&&validity==="invalid"))return toast("业务员只能将负责的询盘判定为无效，并且必须填写原因");
         let invalidReason=null;
         if(validity==="invalid"){
@@ -7462,7 +7456,12 @@
       });
       $("#connect-shared-inquiry").addEventListener("click", () => openMailboxBinding(profile.id, true, true));
       $("#sales-connect-mailbox").addEventListener("click", () => openMailboxBinding(profile.id, true));
-      $("#marketing-connect-inquiry").addEventListener("click", () => openMailboxBinding(profile.id, true, true));
+      $("#marketing-connect-inquiry").addEventListener("click", async () => {
+        const {data,error}=await supabase.rpc("get_shared_inquiry_mailbox_status").maybeSingle();
+        if(error)return toast("公共邮箱状态加载失败："+error.message);
+        const status={connected:"已连接",error:"连接异常",disabled:"已停用"}[data?.status]||"未连接";
+        openDashboardModal("公共询盘邮箱状态",`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>邮箱</span><div>inquiry@wonlyglobal.com</div></div><div class="legacy-detail-item"><span>状态</span><div>${esc(status)}</div></div><div class="legacy-detail-item"><span>最近测试</span><div>${data?.last_tested_at?fmtDate(data.last_tested_at):"—"}</div></div><div class="legacy-detail-item"><span>最近同步</span><div>${data?.last_synced_at?fmtDate(data.last_synced_at):"—"}</div></div></div>${data?.error_message?`<p class="danger-text">异常：${esc(data.error_message)}</p>`:""}<p class="hint">市场部仅查看同步状态；连接凭据和集成配置由系统管理员维护。</p>`);
+      });
       $("#add-member").addEventListener("click", () => {
         $("#member-form").reset();
         $("#member-modal").classList.remove("hidden");
@@ -7562,7 +7561,7 @@
         $("#mailbox-modal").classList.add("hidden");
         toast("邮箱连接成功");
         await refreshPersonalMailboxEntry();
-        if (["owner", "sales_manager", "marketing"].includes(profile.role)) await loadModule("settings");
+        if (profile.role === "owner") await loadModule("settings");
       });
       $("#dashboard-period").addEventListener("change", (event) => {
         const custom = event.target.value === "custom";
@@ -7606,7 +7605,6 @@
       $("#manager-open-daily").addEventListener("click",openDailyReport);
       $("#marketing-open-email").addEventListener("click",()=>switchView("email"));
       $("#marketing-open-research").addEventListener("click",()=>switchView("research"));
-      $("#marketing-open-assignment").addEventListener("click",()=>switchView("assignment"));
       $("#sales-profile-back").addEventListener("click",()=>switchView("dashboard"));
       $("#dashboard-data-scope").addEventListener("change",event=>{const period=$("#dashboard-period");if(event.target.value==="legacy")period.value="all";else if(period.value==="all")period.value="month";$$(".period-tab[data-period]").forEach(button=>button.classList.toggle("active",button.dataset.period===period.value));renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)});
       $("#dashboard-apply").addEventListener("click", () => renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups));

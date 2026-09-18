@@ -1,5 +1,16 @@
 # Production deployment audit
 
+## 2026-09-18 — publish audited CRM role responsibility boundaries
+
+- Authorization: the user explicitly requested `发布生产` after the role-overlap implementation and local verification were complete.
+- Target: Supabase project `plhverjihjilnuhlhlxi` (`WONLY Global / wonly-inquiry-crm / main / PRODUCTION`) and GitHub Pages repository `Wonlyglobal/inquiry-crm-demo`, branch `main`.
+- Database: `20260918130000_role_function_overlap_optimization.sql` first passed a full transaction rollback dry-run through the authenticated Supabase Management API, then was applied to production successfully.
+- Rollback acceptance: `production-role-function-overlap-rollback.sql` proved the market hand-off boundary, manager workflow boundary and assigned-sales document duty inside one rolled-back transaction. Final evidence: `trigger=t; market_assigned_message_scope=t; market_quote_scope=t; manager_document_write=f; rollback_audits=0; rollback_documents=0`.
+- Frontend and policy scope: one central role matrix now gates navigation and direct view entry; market loses sales execution after assignment; managers retain assignment, approval, audit and qualification review without impersonating sales execution; knowledge authorship and historical import have one accountable role; legacy direct outreach-draft insertion is restricted to owner or assigned sales.
+- Verification before publication: complete automated suite `254/254`, frontend ES-module syntax parsing and `git diff --check` passed.
+- Publication: implementation commit `928e71a` was pushed to `main`; GitHub Pages workflow `35304582279` completed successfully. A cache-busted production fetch confirmed `roleViewAccess`, the manager-only assignment gate, public-mailbox status and market hidden-detail-tab rules are live.
+- Safety: no real inquiry, customer, email, document or employee record was modified by acceptance; all acceptance writes were rolled back and residue counts were zero.
+
 ## 2026-09-17 — audited AI suggestion foundation and email-intake triage
 
 - Authorization: the user explicitly confirmed production publication after reviewing the completed local implementation and its safety boundary.

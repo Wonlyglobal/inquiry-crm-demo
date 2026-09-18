@@ -180,3 +180,10 @@
 - Regression: all automated tests pass (`248/248`), including `16/16` sales-360 tests; frontend module syntax and `git diff --check` pass.
 - Frontend release: source commit `6f3de59` was pushed to `main`; GitHub Pages workflow `35299762144` completed successfully. The live HTML was fetched from `https://crm.foreverdoodle.com/?v=6f3de59` and contains the 360 center, shadow-cycle action and talent-review UI.
 - Release boundary: this release installs the audited scoring, anonymous evaluation, calibration, appeal, reminder and talent-recommendation foundation only. Creating the first production cycle remains a separate, explicit business action and must begin in shadow mode.
+## 2026-09-18 14:31 +08:00 — password change with bound-email verification
+
+- Target: GitHub Pages production CRM at `https://crm.foreverdoodle.com/`.
+- Reason: the business owner requested a password-change entry that requires email verification.
+- Change: every signed-in role receives a header-level `修改密码` entry; the request is forced to the authenticated account's bound company email and that field is read-only. The existing Supabase recovery callback remains the only path that exposes the new-password form.
+- Security: no password is stored or sent through CRM tables, no administrator can choose another recipient from this flow, and no database or customer record is changed.
+- Verification before release: focused tests `12/12`, full regression `260/260`, extracted module syntax check and `git diff --check` all pass.

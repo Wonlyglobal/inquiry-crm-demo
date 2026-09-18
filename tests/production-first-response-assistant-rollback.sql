@@ -16,9 +16,9 @@ begin
 
   perform set_config('request.jwt.claim.role','service_role',true);
   draft_id:=public.record_email_ai_draft(
-    target.author_id,target.inquiry_id,target.message_id,'reply','English',
-    'Rollback acceptance only','Thank you. Could you confirm the required quantity?',
-    '仅验证首次响应建议持久化','生产回滚验收',
+    target.author_id,target.inquiry_id,target.message_id,'reply'::text,'English'::text,
+    'Rollback acceptance only'::text,'Thank you. Could you confirm the required quantity?'::text,
+    '仅验证首次响应建议持久化'::text,'生产回滚验收'::text,
     jsonb_build_object('mode','minimum_first_response','recommended_send_at',clock_timestamp(),
       'customer_local_window','09:00–11:00','acknowledged_items',jsonb_build_array('客户已发送询盘'),
       'clarifying_questions',jsonb_build_array('请确认数量'),'do_not_promise',jsonb_build_array('价格与交期'))

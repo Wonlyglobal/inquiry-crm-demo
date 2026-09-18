@@ -223,3 +223,15 @@
 - Verification: focused tests `6/6`, full automated regression `272/272`, extracted browser module syntax and `git diff --check` pass. The rollback-only production acceptance completed successfully and proved confirmed facts and demand signals remain unchanged.
 - Production state: `company_research_jobs`, the inquiry trigger and the five-minute cron job all resolve; `5/5` jobs are completed, `0` failed and `5` companies have a monitoring timestamp. Anonymous RPC execution and anonymous queue reads are both denied; authenticated execution remains available through the role-aware RPC.
 - Deployment: commit `56eb467` was pushed to `main`; GitHub Pages workflow `35321379134` completed successfully. Live HTML contains the monitoring panel, manual refresh RPC, non-overwrite warning and timestamped role-guide entry.
+
+## 2026-09-18 16:23 +08:00 — evidence-aware first-response assistant
+
+- Targets: GitHub Pages production CRM and Supabase project `plhverjihjilnuhlhlxi`.
+- Reason: continue the AI roadmap with a safe first-response workflow that helps sales respond quickly without inventing commercial commitments.
+- Response behavior: an authorized user can generate a 60–120 word minimum first reply that acknowledges confirmed points, asks at most three essential questions and proposes one low-friction next step. A separate full-reply action remains available.
+- Evidence controls: every generated or restored reply still passes the existing mandatory pre-send fact check. The UI separately lists acknowledged items, missing clarifications and unsupported price, delivery, certification, payment or capability promises. Manual edits invalidate both the fact check and the generated response plan.
+- Timing: the assistant derives a reviewable 09:00–11:00 customer-local business-day window from the inquiry country. The user may copy that value into scheduling, but the assistant never sends or schedules automatically.
+- Persistence and authorization: migration `20260918170000_first_response_assistant.sql` adds private `response_plan` metadata and a backward-compatible 10-argument service-only draft workflow. Production verification confirmed the column and both RPC overloads; only `service_role` can invoke the new overload, while `anon` and `authenticated` are denied.
+- Deployment: migration commit `a401ee0` and application commit `241e1f0` were pushed to `main`; GitHub Pages workflow `35324029550` completed successfully. Supabase function `mailbox-ai-draft` was deployed, and an unauthenticated production call returned `403` with the CRM guard header.
+- Verification: focused tests `11/11`, full automated regression `278/278`, extracted browser-module syntax and `git diff --check` pass. The production rollback acceptance persisted and inspected a real linked-message response plan inside a transaction, then rolled it back successfully. Live HTML contains the minimum-reply action, response-plan panel and response mode marker.
+- Data safety: acceptance did not send or schedule email, invoke DeepSeek on production customer content, or leave any test draft or audit record.

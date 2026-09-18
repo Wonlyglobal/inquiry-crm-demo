@@ -38,7 +38,7 @@ test("high-risk unsupported claims deterministically block and are audited",()=>
 
 test("composer auto-checks AI drafts, invalidates edits and gates send",()=>{
   assert.match(html,/id="mail-fact-check-panel"/);
-  assert.match(html,/mailAiDraftId=draft\.id;mailFactCheckState=null;renderMailFactCheck\(\);/);
+  assert.match(html,/mailAiDraftId=draft\.id;[\s\S]{0,180}mailFactCheckState=null;renderMailFactCheck\(\);/);
   assert.match(html,/await runMailFactCheck\(\)/);
   assert.match(html,/\["#mail-compose-subject","#mail-compose-body"\][\s\S]*invalidateMailFactCheck/);
   assert.match(html,/const factCheck=await runMailFactCheck\(\{silent:true\}\)/);

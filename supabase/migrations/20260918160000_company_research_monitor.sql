@@ -57,7 +57,7 @@ declare
   source_time timestamptz;
   is_stale boolean := false;
   health_status text := 'current';
-  result jsonb;
+  monitor_result jsonb;
 begin
   select * into job from public.company_research_jobs where id=target_job_id for update;
   if job.id is null then raise exception '背调任务不存在'; end if;
@@ -89,17 +89,17 @@ begin
   end if;
 
   health_status:=case when jsonb_array_length(conflicts)>0 then 'conflict' when evidence_count=0 then 'missing' when is_stale then 'stale' else 'current' end;
-  result:=jsonb_build_object(
+  monitor_result:=jsonb_build_object(
     'status',health_status,'checked_at',clock_timestamp(),'source_updated_at',source_time,
     'refresh_due_at',coalesce(source_time,clock_timestamp())+interval '90 days','stale',is_stale,
     'evidence_count',evidence_count,'conflict_count',jsonb_array_length(conflicts),
     'conflicts',conflicts,'reasons',reasons,'inquiry_id',inquiry.id
   );
-  update public.companies set research_health=result,research_checked_at=clock_timestamp(),
+  update public.companies set research_health=monitor_result,research_checked_at=clock_timestamp(),
     research_refresh_due_at=coalesce(source_time,clock_timestamp())+interval '90 days'
   where id=company.id;
-  update public.company_research_jobs set status='completed',result=result,completed_at=clock_timestamp(),updated_at=clock_timestamp() where id=job.id;
-  return result;
+  update public.company_research_jobs set status='completed',result=monitor_result,completed_at=clock_timestamp(),updated_at=clock_timestamp() where id=job.id;
+  return monitor_result;
 end;
 $$;
 revoke all on function private.assess_company_research(uuid) from public,anon,authenticated;
@@ -123,7 +123,7 @@ begin
       perform private.assess_company_research(queued.id);
       processed:=processed+1;
     exception when others then
-      update public.company_research_jobs set status='failed',last_error=left(sqlerrm,1000),updated_at=clock_timestamp() where id=queued.id;
+      update public.company_research_jobs set status='failed',attempts=attempts+1,last_error=left(sqlerrm,1000),updated_at=clock_timestamp() where id=queued.id;
     end;
   end loop;
   return processed;

@@ -17,7 +17,8 @@ test("new inquiries queue a background research monitor job",()=>{
 test("monitor records freshness and evidence gaps without rewriting research facts",()=>{
   assert.match(sql,/interval '90 days'/);
   assert.match(sql,/evidence_count/);
-  assert.match(sql,/research_health=result/);
+  assert.match(sql,/research_health=monitor_result/);
+  assert.match(sql,/set status='failed',attempts=attempts\+1/);
   assert.doesNotMatch(sql,/set confirmed_facts=/);
   assert.doesNotMatch(sql,/set demand_signals=/);
 });

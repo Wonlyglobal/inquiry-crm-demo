@@ -152,4 +152,5 @@
 - Safety result: migration-time reminder processing inserted `0` notifications; production contains `0` sales 360 cycles, so no test cycle, score, talent action or employee notification was created.
 - Verification: both primary tables and both workspace/talent RPCs resolve; anonymous cycle creation is denied; authenticated cycle creation is granted; marketing read-only users are blocked from talent recommendations; the hourly reminder cron job exists.
 - Regression: all automated tests pass (`248/248`), including `16/16` sales-360 tests; frontend module syntax and `git diff --check` pass.
+- Frontend release: source commit `6f3de59` was pushed to `main`; GitHub Pages workflow `35299762144` completed successfully. The live HTML was fetched from `https://crm.foreverdoodle.com/?v=6f3de59` and contains the 360 center, shadow-cycle action and talent-review UI.
 - Release boundary: this release installs the audited scoring, anonymous evaluation, calibration, appeal, reminder and talent-recommendation foundation only. Creating the first production cycle remains a separate, explicit business action and must begin in shadow mode.

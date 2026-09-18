@@ -1983,6 +1983,10 @@
           </div>
           <p class="hint">超级智能体会在打开询盘时自动检索、交叉验证、填入并保存；没有可靠证据的项目会明确标注“未检索到可信信息”。</p>
           <p id="detail-research-status" class="hint">背调状态：尚未执行</p>
+          <div id="research-monitor-panel" class="quality-panel">
+            <div class="quality-panel-head"><div><b>背调新鲜度与冲突监控</b><div class="hint" style="margin-top:5px">新询盘入库后自动排队检查；只提醒人工复核，不会自动覆盖已确认事实。</div></div><div style="display:flex;align-items:center;gap:8px"><span id="research-monitor-badge" class="tag">待检查</span><button id="refresh-research-monitor" class="table-action" type="button">重新检查</button></div></div>
+            <div id="research-monitor-checks" class="quality-checks"></div>
+          </div>
           <div id="detail-research-evidence" class="hint hidden"></div>
           <div id="research-quality-panel" class="quality-panel">
             <div class="quality-panel-head"><b>背调质量与证据覆盖</b><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span id="research-quality-badge" class="tag">待检查</span><button id="complete-detail-research" class="primary" type="button">完成背调并允许生成</button></div></div>
@@ -2459,6 +2463,7 @@
         dashboard:"经营看板","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户资料库",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
+        {at:"2026-09-18 15:48",title:"客户背调增加自动排队与新鲜度监控",detail:"新询盘入库后后台检查背调证据、资料时效、国家和企业邮箱域名冲突；只提醒复核，不覆盖事实。",roles:["owner","sales_manager","marketing","sales"]},
         {at:"2026-09-18 15:26",title:"邮件分拣增加重复客户与复购识别",detail:"综合联系人邮箱、企业域名、公司/联系人、产品和项目证据给出可见询盘候选及匹配理由，仅提醒人工核对，不自动合并。",roles:["owner","sales_manager","marketing"]},
         {at:"2026-09-18 15:08",title:"AI 邮件草稿增加发送前事实检查",detail:"自动核对邮件线索、CRM 已确认信息和已批准报价；编辑后检查失效，无依据的高风险承诺会禁止发送。",roles:["owner","sales_manager","sales"]},
         {at:"2026-09-18 14:31",title:"修改密码增加邮箱验证",detail:"所有角色可从右上角发起改密；验证链接只发送到当前账号绑定的公司邮箱。",roles:["owner","sales_manager","marketing","sales"]},
@@ -4924,7 +4929,7 @@
           supabase
             .from("inquiries")
             .select(
-              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,updated_at,assigned_at,first_valid_contact_at,first_contact_due_at,quoted_at,next_follow_up_at,retained_until,public_pool_entered_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,qualification_identity,qualification_need,qualification_role,qualification_value,qualification_timing,qualification_fit,qualification_next_step,qualification_score,lead_priority,qualification_manager_confirmed_at,qualification_manager_confirmed_by,sales_disposition,sales_disposition_at,sales_disposition_by,recycle_reason,nurture_status,nurture_next_at,nurture_note,nurture_updated_at,nurture_updated_by,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
+              "id,inquiry_no,title,status,source,owner_id,validity,invalid_reason,invalid_review_status,invalid_requested_by,invalid_requested_at,invalid_request_reason,lost_reason,estimated_amount,currency,won_amount,won_currency,won_exchange_rate,won_at,probability,expected_close_date,deal_type,primary_source,risk_flag,created_at,updated_at,assigned_at,first_valid_contact_at,first_contact_due_at,quoted_at,next_follow_up_at,retained_until,public_pool_entered_at,original_message,target_country,contact_name,contact_job_title,demand_summary,project_name,company_id,qualification_identity,qualification_need,qualification_role,qualification_value,qualification_timing,qualification_fit,qualification_next_step,qualification_score,lead_priority,qualification_manager_confirmed_at,qualification_manager_confirmed_by,sales_disposition,sales_disposition_at,sales_disposition_by,recycle_reason,nurture_status,nurture_next_at,nurture_note,nurture_updated_at,nurture_updated_by,companies(id,name,domain,country,company_type,main_business,risk_level,ai_summary,value_score,value_grade,purchase_likelihood,recommended_strategy,risk_forced_downgrade,research_status,match_method,match_confidence,confirmed_facts,demand_signals,likely_needs,risks_counterevidence,research_contacts,research_sales_brief,research_evidence_sources,researched_at,source_updated_at,research_health,research_checked_at,research_refresh_due_at,news_signals,seo_focus_categories,project_category_signals,map_address,google_maps_url,openstreetmap_url,map_provider,map_place_id,map_verified_at,company_photo_sources)",
             )
             .eq("id", id)
             .single(),
@@ -5087,6 +5092,7 @@
         $("#detail-research-reason").value = "";
         currentInquiry.businessResearch = null;
         $("#detail-research-status").textContent = company.ai_summary ? "背调状态：已有背调资料，可重新执行" : "背调状态：尚未执行";
+        renderResearchMonitor(company.research_health||{},company);
         $("#detail-research-evidence").classList.add("hidden");
         $("#detail-research-evidence").replaceChildren();
         const { data: latestImport } = await supabase.from("research_imports")
@@ -6995,6 +7001,17 @@
         const risks = researchLines("#detail-research-risks-counter").map((line) => ({ statement: line, date: "持续核验", confidence: "内部判断", source: "背调交叉验证", raw: line }));
         renderResearchEvidenceCards($("#research-risk-cards"), risks, "risk", "尚未记录反证；完成背调前仍需核验付款能力、项目真实性与最终用途。");
       }
+      function renderResearchMonitor(health={},company={}){
+        const badge=$("#research-monitor-badge"),wrap=$("#research-monitor-checks");if(!badge||!wrap)return;
+        const names={current:"资料有效",stale:"建议刷新",missing:"证据待补",conflict:"发现冲突"},status=health.status||"pending",items=[];
+        badge.textContent=names[status]||"已排队";wrap.replaceChildren();
+        if(health.checked_at||company.research_checked_at)items.push({kind:"pass",text:`后台检查：${fmtDate(health.checked_at||company.research_checked_at)}`});
+        if(Number(health.evidence_count)>=0&&status!=="pending")items.push({kind:Number(health.evidence_count)>0?"pass":"warn",text:`可追溯背调证据 ${Number(health.evidence_count)||0} 条`});
+        (health.reasons||[]).forEach(text=>items.push({kind:"warn",text}));
+        (health.conflicts||[]).forEach(item=>items.push({kind:"fail",text:item.message||"背调信息存在冲突"}));
+        if(!items.length)items.push({kind:"warn",text:"新询盘已进入后台背调检查队列"});
+        items.forEach(item=>{const row=document.createElement("div");row.className=`quality-check ${item.kind}`;row.textContent=`${item.kind==="pass"?"✓":item.kind==="fail"?"×":"!"} ${item.text}`;wrap.append(row)});
+      }
       function assessResearchQuality({ render = true } = {}) {
         const company = $("#detail-research-company").value.trim();
         const domain = $("#detail-research-domain").value.trim();
@@ -7283,6 +7300,7 @@
         evaluateOutreachDraft(subject, $("#outreach-body").value, $("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim());
       }));
       ["#detail-research-company", "#detail-research-domain", "#detail-smart-country", "#detail-research-type", "#detail-research-deep-status", "#detail-research-match-confidence", "#detail-research-why-now", "#detail-research-confirmed-facts", "#detail-research-demand-signals", "#detail-research-likely-needs", "#detail-research-risks-counter", "#detail-research-contacts", "#detail-research-next-action", "#detail-research-project-categories", "#detail-research-sources"].forEach((selector) => $(selector).addEventListener("input", () => assessResearchQuality()));
+      $("#refresh-research-monitor").addEventListener("click",async()=>{if(!currentInquiry)return;const button=$("#refresh-research-monitor"),original=button.textContent;button.disabled=true;button.textContent="检查中…";const {data,error}=await supabase.rpc("refresh_inquiry_research_monitor",{target_inquiry_id:currentInquiry.id});button.disabled=false;button.textContent=original;if(error)return toast("背调监控检查失败："+error.message);currentInquiry.companies={...(currentInquiry.companies||{}),research_health:data,research_checked_at:data?.checked_at,research_refresh_due_at:data?.refresh_due_at};renderResearchMonitor(data||{},currentInquiry.companies);toast("背调新鲜度与冲突检查已更新")});
       $("#send-outreach").addEventListener("click", async () => {
         const recipient = $("#outreach-recipient").value.trim();
         if (!recipient) return toast("询盘没有可用的客户邮箱");

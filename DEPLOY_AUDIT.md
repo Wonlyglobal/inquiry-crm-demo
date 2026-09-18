@@ -210,3 +210,14 @@
 - Verification before release: focused duplicate/repurchase coverage passes; full automated regression `266/266`, extracted browser module syntax and `git diff --check` pass.
 - Data safety: static acceptance did not invoke DeepSeek, modify production customer data or create test business records.
 - Deployment: commit `8d54613` was pushed to `main`; GitHub Pages workflow `35319731521` completed successfully; `email-intake-ai` was deployed to Supabase production. Live HTML contains the candidate panel, inquiry links and no-auto-merge warning. An unauthenticated production call returns `403` with `x-crm-permission-guard: 20260916`.
+
+## 2026-09-18 15:48 +08:00 — queued company-research freshness and conflict monitoring
+
+- Target: Supabase project `plhverjihjilnuhlhlxi` and the GitHub Pages CRM.
+- Reason: move research quality checks from inquiry-open time to a durable intake-triggered queue and expose freshness/conflict evidence without creating unverified facts.
+- Queue: inquiry insert or company/country/contact identity changes enqueue one company research monitor job; a five-minute scheduler processes pending work and retries failed jobs at most three times.
+- Checks: 90-day source freshness, traceable evidence count, inquiry/company country mismatch, and business-email/company-domain mismatch.
+- Safety: the monitor only writes dedicated health metadata and job audit rows. It does not update confirmed facts, demand signals, customer identity or commercial workflow state.
+- Authorization: manual refresh requires an active CRM account and is limited to owners, managers, marketing or the inquiry's current salesperson. Anonymous table and RPC access remains revoked.
+- Verification before release: focused tests `6/6`, full automated regression `271/271`, extracted browser module syntax and `git diff --check` pass. A rollback-only production acceptance script proves confirmed research evidence is unchanged.
+- Deployment: pending database migration and Pages release.

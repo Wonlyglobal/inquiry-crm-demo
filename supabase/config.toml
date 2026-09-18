@@ -401,6 +401,9 @@ verify_jwt = false
 [functions.assignment-recommendation]
 verify_jwt = false
 
+[functions.mailbox-draft-fact-check]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

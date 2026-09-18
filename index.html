@@ -1898,6 +1898,11 @@
           </div>
           <div class="field"><label>本次回复补充说明（可选）</label><textarea id="mail-ai-instruction" class="input" rows="2" maxlength="2000" placeholder="例如：告知客户样品可在 7 天内准备；不要承诺最终交期"></textarea><small class="hint">AI 只使用邮件、CRM 已确认事实和这里的补充说明；缺少的信息会转为待确认问题，不会编造。</small></div>
           <div id="mail-ai-status" class="notice hidden"></div>
+          <div id="mail-fact-check-panel" class="quality-panel hidden">
+            <div class="quality-panel-head"><div><b>AI 草稿发送前事实检查</b><div class="hint" style="margin-top:6px">核对邮件线索、CRM 确认信息和已批准报价；编辑正文后必须重新检查。</div></div><div style="display:flex;align-items:center;gap:8px"><span id="mail-fact-check-badge" class="tag">待检查</span><button id="mail-fact-check-run" class="secondary" type="button">重新检查</button></div></div>
+            <div id="mail-fact-check-summary" class="hint">生成 AI 草稿后将自动检查。</div>
+            <div id="mail-fact-check-claims" class="quality-checks"></div>
+          </div>
           <div class="field"><label>收件人</label><input id="mail-compose-to" class="input" type="email" required placeholder="name@company.com" /></div>
           <div class="field"><label>抄送（多个邮箱用逗号分隔）</label><input id="mail-compose-cc" class="input" placeholder="cc@company.com" /></div>
           <div class="field"><label>主题</label><input id="mail-compose-subject" class="input mail-directional" dir="auto" required /></div>
@@ -2454,6 +2459,7 @@
         dashboard:"经营看板","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户资料库",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
+        {at:"2026-09-18 15:08",title:"AI 邮件草稿增加发送前事实检查",detail:"自动核对邮件线索、CRM 已确认信息和已批准报价；编辑后检查失效，无依据的高风险承诺会禁止发送。",roles:["owner","sales_manager","sales"]},
         {at:"2026-09-18 14:31",title:"修改密码增加邮箱验证",detail:"所有角色可从右上角发起改密；验证链接只发送到当前账号绑定的公司邮箱。",roles:["owner","sales_manager","marketing","sales"]},
         {at:"2026-09-18 13:46",title:"操作指南升级为实时角色指南",detail:"当前角色可用功能由生产权限矩阵自动生成，并新增按时间倒序的更新记录。",roles:["owner","sales_manager","marketing","sales"]},
         {at:"2026-09-18 13:42",title:"市场部生产权限验收完成",detail:"市场部保留分拣、初筛、背调、归因和培育；隐藏销售私有沟通、跟进、报价、履约与系统管理。",roles:["owner","marketing"]},
@@ -2703,7 +2709,7 @@
           : data?.error_message||"连接当前业务员的企业邮箱";
         button.setAttribute("aria-disabled",connected?"true":"false");
       }
-      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [];
+      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [], mailAiDraftId = null, mailFactCheckState = null, mailFactCheckRunning = false;
       let whatsappRealtimeChannel = null, whatsappRealtimeTimer = null;
       const whatsappWorkspaceState = { connection:null, messages:[], inquiries:[], contacts:[], selectedPhone:"", selectedInquiryId:null, search:"", newChat:false, sending:false };
       const builtinMailTemplates = [
@@ -2909,6 +2915,7 @@
         const item=mailTemplateItems.get($("#mail-template-select").value);if(!item)return;
         if(item.subject)$("#mail-compose-subject").value=item.subject;
         const body=item.body||item.body_text||"",quoted=mailComposerMessage?quotedOriginalMail(mailComposerMessage):"";$("#mail-compose-body").value=quoted?`${body}\n\n${quoted}`:body;
+        invalidateMailFactCheck();
       }
       async function saveCurrentMailTemplate(){
         const name=$("#mail-template-name").value.trim(),body=$("#mail-compose-body").value.trim();
@@ -2935,6 +2942,34 @@
       }
       function editableMailBody(){return $("#mail-compose-body").value.split(/\n\s*-{10,}\s*原始邮件\s*-{10,}\s*\n/)[0].trim()}
       function syncMailComposerDirection(){const rtl=$("#mail-compose-language")?.value==="Arabic";["#mail-compose-subject","#mail-compose-body"].forEach(selector=>{const field=$(selector);if(!field)return;field.dir=rtl?"rtl":"auto";field.style.textAlign=rtl?"right":"start"})}
+      function mailFactCheckKey(){return JSON.stringify({inquiry_id:$("#mail-compose-inquiry").value||null,subject:$("#mail-compose-subject").value.trim(),body:editableMailBody()})}
+      function renderMailFactCheck(){
+        const panel=$("#mail-fact-check-panel"),badge=$("#mail-fact-check-badge"),summary=$("#mail-fact-check-summary"),claims=$("#mail-fact-check-claims");
+        panel.classList.toggle("hidden",!mailAiDraftId);claims.replaceChildren();if(!mailAiDraftId)return;
+        if(mailFactCheckRunning){badge.textContent="检查中";summary.textContent="正在核对完整邮件线索、CRM 事实和已批准报价…";return}
+        if(!mailFactCheckState){badge.textContent="待检查";summary.textContent="该 AI 草稿未通过当前版本的事实检查，发送前将强制检查。";return}
+        if(mailFactCheckState.key!==mailFactCheckKey()){badge.textContent="已失效";summary.textContent="主题或正文已修改，请重新检查。";return}
+        const data=mailFactCheckState.data,verdict=data.verdict||"block";badge.textContent={pass:"通过",warning:"有提醒",block:"已阻止"}[verdict]||"已阻止";
+        summary.textContent=mailFactCheckState.rationale||({pass:"未发现无依据事实或承诺。",warning:"存在需要人工复核的一般性事实。",block:"存在无依据的高风险事实或承诺，禁止发送。"}[verdict]);
+        (data.claims||[]).forEach(item=>{const row=document.createElement("div"),supported=item.status==="supported",blocked=!supported&&item.severity==="high";row.className=`quality-check ${supported?"pass":blocked?"fail":"warn"}`;row.textContent=`${supported?"✓":blocked?"×":"!"} ${item.claim}${item.advice_zh?`：${item.advice_zh}`:""}`;claims.append(row)});
+        if(!(data.claims||[]).length){const row=document.createElement("div");row.className="quality-check pass";row.textContent="✓ 未识别到需核验的具体事实承诺";claims.append(row)}
+      }
+      function invalidateMailFactCheck(){if(!mailAiDraftId)return;mailFactCheckState=null;renderMailFactCheck()}
+      async function runMailFactCheck({silent=false}={}){
+        if(!mailAiDraftId)return {ok:true,verdict:"not_required"};
+        const inquiryId=$("#mail-compose-inquiry").value,subject=$("#mail-compose-subject").value.trim(),body=editableMailBody(),key=mailFactCheckKey();
+        if(!inquiryId){if(!silent)toast("AI 草稿必须关联询盘后才能做事实检查");return {ok:false,verdict:"block"}}
+        if(mailFactCheckState?.key===key)return {ok:mailFactCheckState.data.verdict!=="block",verdict:mailFactCheckState.data.verdict};
+        if(mailFactCheckRunning)return {ok:false,verdict:"pending"};
+        mailFactCheckRunning=true;renderMailFactCheck();const button=$("#mail-fact-check-run");button.disabled=true;
+        try{
+          const {data,error}=await supabase.functions.invoke("mailbox-draft-fact-check",{body:{inquiry_id:inquiryId,draft_id:mailAiDraftId,subject,body}});
+          if(error||data?.error){let detail=data?.error||error?.message||"事实检查无结果";if(error?.context)try{detail=(await error.context.clone().json())?.error||detail}catch{}throw new Error(detail)}
+          const suggestion=data?.suggestion,facts=suggestion?.proposed_data;if(!facts?.verdict)throw new Error("事实检查结果不完整");
+          mailFactCheckState={key,data:facts,rationale:suggestion.rationale_zh||"",suggestionId:suggestion.id};return {ok:facts.verdict!=="block",verdict:facts.verdict};
+        }catch(error){mailFactCheckState=null;if(!silent)toast("事实检查失败："+(error.message||error));return {ok:false,verdict:"error"}}
+        finally{mailFactCheckRunning=false;button.disabled=false;renderMailFactCheck()}
+      }
       function mailboxSignature(){
         const local=String(profile?.email||"").toLowerCase().split("@")[0].replace(/[^a-z]/g,""),known={sander:"Sander",chloelee:"Chloe Lee",lyle:"Lyle",jackson:"Jackson",kevinli:"Kevin Li",yuna:"Yuna",megan:"Megan",lawrencewang:"Lawrence Wang",alice:"Alice",haiyangliu:"Haiyang Liu",lily:"Lily",renee:"Renee"};
         return unifiedEnglishSignature(known[local]||local.replace(/^[a-z]/,letter=>letter.toUpperCase())||profile?.full_name||"WONLY Sales");
@@ -2952,15 +2987,16 @@
           const responseBody=`${stripExistingSignature(draft.body)}\n\n${mailboxSignature()}`.trim(),quoted=mailComposerMessage?quotedOriginalMail(mailComposerMessage):"";
           $("#mail-compose-body").value=quoted?`${responseBody}\n\n${quoted}`:responseBody;
           $("#mail-ai-status").textContent=draft.rationale_zh?`草稿已保存 · 生成说明：${draft.rationale_zh}`:"AI 草稿已保存，请人工核对后再发送";
-          toast(translating?"已完成翻译，请检查后发送":"已根据完整客户上下文生成回复，请检查后发送");
+          mailAiDraftId=draft.id;mailFactCheckState=null;renderMailFactCheck();
+          toast(translating?"已完成翻译，正在事实检查":"已生成回复，正在事实检查");await runMailFactCheck();
         }catch(error){$("#mail-ai-status").textContent="生成失败："+(error.message||error);toast("邮件助手失败："+(error.message||error))}
         finally{button.disabled=false;button.textContent=originalText}
       }
       async function openRecentMailAiDrafts(){
-        const {data,error}=await supabase.from("email_ai_drafts").select("id,action,language,subject,body_text,rationale_zh,created_at").eq("author_id",profile.id).order("created_at",{ascending:false}).limit(20);
+        const {data,error}=await supabase.from("email_ai_drafts").select("id,inquiry_id,action,language,subject,body_text,rationale_zh,created_at").eq("author_id",profile.id).order("created_at",{ascending:false}).limit(20);
         if(error)return toast("AI 草稿加载失败："+error.message);
         const drafts=data||[];openDashboardModal("最近 AI 邮件草稿",drafts.length?`<div class="dashboard-table-scroll"><table><thead><tr><th>生成时间</th><th>类型</th><th>语言</th><th>主题</th><th>操作</th></tr></thead><tbody>${drafts.map(item=>`<tr><td>${fmtDate(item.created_at)}</td><td>${item.action==="reply"?"智能回复":"草稿翻译"}</td><td>${esc(item.language)}</td><td>${esc(item.subject)}</td><td><button class="table-action" type="button" data-restore-ai-draft="${item.id}">恢复草稿</button></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">尚未生成 AI 邮件草稿</div>');
-        $$('[data-restore-ai-draft]').forEach(button=>button.onclick=()=>{const item=drafts.find(row=>row.id===button.dataset.restoreAiDraft);if(!item)return;const responseBody=`${stripExistingSignature(item.body_text)}\n\n${mailboxSignature()}`.trim(),quoted=mailComposerMessage?quotedOriginalMail(mailComposerMessage):"";$("#mail-compose-subject").value=item.subject;$("#mail-compose-body").value=quoted?`${responseBody}\n\n${quoted}`:responseBody;$("#mail-compose-language").value=item.language;syncMailComposerDirection();$("#mail-ai-status").textContent=item.rationale_zh?`已恢复草稿 · 生成说明：${item.rationale_zh}`:"已恢复持久化 AI 草稿";$("#mail-ai-status").classList.remove("hidden");$("#dashboard-modal").classList.add("hidden");toast("AI 草稿已恢复，可继续编辑")});
+        $$('[data-restore-ai-draft]').forEach(button=>button.onclick=async()=>{const item=drafts.find(row=>row.id===button.dataset.restoreAiDraft);if(!item)return;const responseBody=`${stripExistingSignature(item.body_text)}\n\n${mailboxSignature()}`.trim(),quoted=mailComposerMessage?quotedOriginalMail(mailComposerMessage):"";$("#mail-compose-subject").value=item.subject;$("#mail-compose-body").value=quoted?`${responseBody}\n\n${quoted}`:responseBody;$("#mail-compose-language").value=item.language;syncMailComposerDirection();$("#mail-ai-status").textContent=item.rationale_zh?`已恢复草稿 · 生成说明：${item.rationale_zh}`:"已恢复持久化 AI 草稿";$("#mail-ai-status").classList.remove("hidden");$("#dashboard-modal").classList.add("hidden");mailAiDraftId=item.id;mailFactCheckState=null;renderMailFactCheck();toast("AI 草稿已恢复，正在事实检查");await runMailFactCheck()});
       }
       async function openMailComposer(message=null){
         const replying=Boolean(message);
@@ -2974,7 +3010,7 @@
         $("#mail-compose-cc").value="";
         $("#mail-compose-subject").value=replying&&message.subject&&!/^re:/i.test(message.subject)?`Re: ${message.subject}`:(message?.subject||"");
         $("#mail-compose-body").value=replying?`\n\n${quotedOriginalMail(message)}`:"";
-        $("#mail-compose-files").value="";selectedMaterialAttachments=[];renderSelectedMaterialAttachments();updateMailAttachmentSummary();$("#mail-compose-scheduled-at").value="";$("#mail-template-name").value="";$("#mail-compose-language").value=replyingInArabic?"Arabic":"English";syncMailComposerDirection();$("#mail-ai-instruction").value="";$("#mail-ai-status").classList.add("hidden");
+        $("#mail-compose-files").value="";selectedMaterialAttachments=[];renderSelectedMaterialAttachments();updateMailAttachmentSummary();$("#mail-compose-scheduled-at").value="";$("#mail-template-name").value="";$("#mail-compose-language").value=replyingInArabic?"Arabic":"English";syncMailComposerDirection();$("#mail-ai-instruction").value="";$("#mail-ai-status").classList.add("hidden");mailAiDraftId=null;mailFactCheckState=null;mailFactCheckRunning=false;renderMailFactCheck();
         $("#mail-ai-reply").disabled=!(message?.direction==="inbound"&&message?.inquiry_id);$("#mail-ai-reply").title=$("#mail-ai-reply").disabled?"只有已关联客户询盘的来信才能生成上下文回复":"";
         const minimum=new Date(Date.now()+2*60000);minimum.setSeconds(0,0);$("#mail-compose-scheduled-at").min=localDateTimeInputValue(minimum.toISOString());
         await loadMailTemplates();$("#mail-template-select").value="";
@@ -7473,6 +7509,8 @@
       $("#mail-ai-reply").addEventListener("click",()=>runMailboxAi("reply"));
       $("#mail-ai-translate").addEventListener("click",()=>runMailboxAi("translate"));
       $("#mail-ai-history").addEventListener("click",openRecentMailAiDrafts);
+      $("#mail-fact-check-run").addEventListener("click",()=>runMailFactCheck());
+      ["#mail-compose-subject","#mail-compose-body"].forEach(selector=>$(selector).addEventListener("input",invalidateMailFactCheck));
       $("#mail-select-material").addEventListener("click",chooseMaterialForMail);
       $("#mail-compose-files").addEventListener("change",event=>{const files=[...(event.target.files||[])],bytes=files.reduce((sum,file)=>sum+file.size,0)+selectedMaterialAttachments.reduce((sum,item)=>sum+Number(item.sizeBytes||0),0);if(files.length+selectedMaterialAttachments.length>MAIL_ATTACHMENT_COUNT_LIMIT){toast("阿里邮箱普通附件最多 100 个");event.target.value=""}else if(bytes>MAIL_ATTACHMENT_LIMIT_BYTES)toast("附件超过 50MB，可点击“一键压缩附件”后重试");updateMailAttachmentSummary()});
       $("#mail-compress-files").addEventListener("click",async()=>{
@@ -7502,7 +7540,10 @@
         if(scheduledAt&&scheduledAt.getTime()<Date.now()+115000)return toast("定时发送至少安排在 2 分钟后");
         if(scheduledAt&&scheduledAt.getTime()>Date.now()+30*86400000)return toast("定时发送最多可安排在 30 天内");
         if(scheduledAt&&(files.length||selectedMaterialAttachments.length))return toast("定时邮件暂不支持附件，请移除附件或改为立即发送");
-        const attachmentCount=files.length+selectedMaterialAttachments.length,confirmation=scheduledAt?`确认安排在 ${fmtDate(scheduledAt.toISOString())} 发送给 ${to}？\n\n主题：${subject}`:`确认从 ${profile.email} 发送邮件给 ${to}？\n\n主题：${subject}${attachmentCount?`\n附件：${attachmentCount} 个`:""}`;
+        if(scheduledAt&&mailAiDraftId)return toast("AI 草稿暂不支持定时发送；事实检查通过后请立即发送，避免到期时依据已变更。");
+        const factCheck=await runMailFactCheck({silent:true});
+        if(mailAiDraftId&&!factCheck.ok){const message=factCheck.verdict==="block"?"AI 草稿包含无依据的高风险事实或承诺，已禁止发送。请按检查建议修改后重新检查。":"AI 草稿尚未完成有效事实检查，暂不能发送。";return toast(message)}
+        const attachmentCount=files.length+selectedMaterialAttachments.length,factWarning=mailAiDraftId&&factCheck.verdict==="warning"?"\n\n事实检查：有一般性待复核项，请确认已人工核对。":"",confirmation=(scheduledAt?`确认安排在 ${fmtDate(scheduledAt.toISOString())} 发送给 ${to}？\n\n主题：${subject}`:`确认从 ${profile.email} 发送邮件给 ${to}？\n\n主题：${subject}${attachmentCount?`\n附件：${attachmentCount} 个`:""}`)+factWarning;
         if(!await appConfirm(confirmation,{title:scheduledAt?"确认定时发送":"发送邮件",confirmText:scheduledAt?"确认安排":"确认发送"}))return;
         const button=$("#send-mail-compose");button.disabled=true;button.textContent="发送中…";
         if(scheduledAt){
@@ -7512,7 +7553,7 @@
           $("#mail-compose-modal").classList.add("hidden");mailboxFolder="scheduled";$$('#mailbox-folder-tabs [data-mailbox-folder]').forEach(item=>item.classList.toggle("active",item.dataset.mailboxFolder==="scheduled"));toast("定时邮件已保存，发送前可在“定时发送”中取消");return loadModule("mailbox");
         }
         let attachments=[];try{attachments=await Promise.all(files.map(async file=>({name:file.name,type:file.type,base64:await attachmentBase64(file)})))}catch(readError){button.disabled=false;button.textContent="发送";return toast("附件准备失败："+(readError.message||readError))}
-        const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,quotation_id:$("#mail-compose-quotation").value||null,in_reply_to:$("#mail-compose-reply-id").value||null,attachments,material_asset_ids:selectedMaterialAttachments.map(item=>item.id)}});
+        const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,quotation_id:$("#mail-compose-quotation").value||null,in_reply_to:$("#mail-compose-reply-id").value||null,ai_draft_id:mailAiDraftId,fact_check_id:mailFactCheckState?.suggestionId||null,attachments,material_asset_ids:selectedMaterialAttachments.map(item=>item.id)}});
         button.disabled=false;button.textContent="发送";
         if(error||data?.error)return toast("邮件发送失败："+(data?.error||error?.message));
         $("#mail-compose-modal").classList.add("hidden");toast(data?.warnings?.length?`邮件已发送；${data.warnings.join("；")}`:"邮件已发送，正在同步到已发送和客户沟通记录");setTimeout(()=>loadModule(activeModuleView==="quotes"?"quotes":"mailbox"),5000);

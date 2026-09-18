@@ -33,6 +33,7 @@ test('assignment modal shows top candidates but leaves confirmation in the exist
   assert.match(html,/label:"智能分配",onClick:\(\)=>openDirectAssignment\(x\.id\)/);
   assert.match(html,/data-assignment-candidate/);
   assert.match(html,/确认分配前仍可修改/);
+  assert.match(html,/failed to send a request[\s\S]*assignment-recommendation/);
   assert.match(html,/assign_inquiry_to_sales/);
   assert.match(config,/\[functions\.assignment-recommendation\][\s\S]*verify_jwt = false/);
 });

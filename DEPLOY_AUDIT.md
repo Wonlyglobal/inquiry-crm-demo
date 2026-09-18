@@ -1,5 +1,11 @@
 # Production deployment audit
 
+## 2026-09-18 — live role guide and timestamped change history
+
+- Scope: move Role Guide to the final sidebar position, generate the signed-in account's visible-module summary from the production `roleViewAccess` matrix, filter operating procedures to the current role, and show a newest-first list of timestamped role/process updates.
+- Verification: dedicated role tests passed `8/8`; the complete automated suite passed `256/256`; the extracted frontend ES module passed syntax validation and `git diff --check` reported no errors.
+- Data safety: the change is frontend-only and does not alter employee roles, inquiries, mail, customers or permissions in the database.
+
 ## 2026-09-18 — correct Li Huayan's CRM permission role
 
 - Authorization: after the live smoke test exposed that the market-department account still had owner access, the user confirmed that Li Huayan should use the market role.

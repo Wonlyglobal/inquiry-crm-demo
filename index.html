@@ -582,6 +582,19 @@
       button.module-insight.active { border-color:var(--green); background:var(--soft); box-shadow:inset 0 0 0 1px var(--green); }
       .module-insight span { display:block; margin-bottom:8px; color:var(--muted); font-size:11px; }
       .module-insight b { font-size:21px; }
+      .role-guide-live { display:grid; grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr); gap:14px; margin-bottom:14px; }
+      .role-guide-card { padding:18px; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.82); box-shadow:0 10px 30px rgba(42,66,60,.05); }
+      .role-guide-card h3 { margin:0; font-size:17px; }
+      .role-guide-card p { margin:6px 0 0; color:var(--muted); font-size:12px; line-height:1.55; }
+      .role-guide-status { display:flex; align-items:center; gap:8px; margin-top:14px; color:var(--green); font-size:12px; font-weight:800; }
+      .role-guide-status::before { content:""; width:8px; height:8px; border-radius:50%; background:#2ca36b; box-shadow:0 0 0 4px rgba(44,163,107,.12); }
+      .role-guide-modules { display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
+      .role-guide-module { padding:6px 9px; border-radius:999px; background:var(--soft); color:var(--brand); font-size:10px; font-weight:800; }
+      .role-guide-update-list { display:grid; gap:0; margin-top:10px; }
+      .role-guide-update { display:grid; grid-template-columns:122px minmax(0,1fr); gap:14px; padding:12px 0; border-top:1px solid var(--line); }
+      .role-guide-update time { color:var(--muted); font-size:11px; font-weight:700; }
+      .role-guide-update b { display:block; font-size:13px; }
+      .role-guide-update span { display:block; margin-top:4px; color:var(--muted); font-size:11px; line-height:1.5; }
       .inquiry-command { margin-bottom:14px; padding:17px; border:1px solid var(--line); border-radius:17px; background:#fff; }
       .inquiry-command-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:14px; }
       .inquiry-command-head h2 { margin:0 0 5px; font-size:17px; }
@@ -1107,6 +1120,7 @@
       .wa-new-chat{flex:1;overflow:auto;padding:28px clamp(20px,5vw,62px);background:#f8faf9}.wa-new-chat-card{max-width:650px;margin:0 auto;padding:24px;border:1px solid var(--line);border-radius:18px;background:#fff}.wa-new-chat-card h3{margin:0 0 6px}.wa-new-chat-card>p{margin:0 0 20px;color:var(--muted);font-size:11px}.wa-contact-results{display:grid;gap:7px;margin-top:14px}.wa-contact-option{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:11px;border:1px solid var(--line);border-radius:11px;background:#fff;text-align:left;cursor:pointer}.wa-contact-option:hover{background:#f2f7f4}.wa-contact-option b,.wa-contact-option small{display:block}.wa-contact-option small{margin-top:3px;color:var(--muted)}.wa-online-dot{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%;background:#27a568}
       @media(max-width:900px){.wa-workspace{grid-template-columns:280px minmax(0,1fr)}.wa-bubble{max-width:84%}}
       @media(max-width:700px){.wa-workspace{height:calc(100vh - 155px);grid-template-columns:1fr}.wa-workspace:not(.chat-open) .wa-chat{display:none}.wa-workspace.chat-open .wa-sidebar{display:none}.wa-mobile-back{display:grid}.wa-messages{padding:16px 12px}.wa-bubble{max-width:88%}.wa-chat-head{padding:10px 12px}.wa-new-chat{padding:16px}.wa-new-chat-card{padding:18px}}
+      @media(max-width:900px){.role-guide-live{grid-template-columns:1fr}.role-guide-update{grid-template-columns:1fr;gap:5px}}
       .toast {
         position: fixed;
         right: 24px;
@@ -1352,8 +1366,6 @@
           <i data-lucide="files"></i><span>我的模板</span></button
         ><button class="nav" data-view="knowledge">
           <i data-lucide="book-open-text"></i><span>销售知识库</span></button
-        ><button class="nav" data-view="sop">
-          <i data-lucide="list-checks"></i><span>角色操作指南</span></button
         ><button class="nav" data-view="quotes">
           <i data-lucide="file-text"></i><span>报价管理</span></button
         ><button class="nav" data-view="fulfillment">
@@ -1376,8 +1388,10 @@
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
         ><button class="nav" data-view="performance-360">
           <i data-lucide="badge-check"></i><span>360 评分中心</span></button
-        ><button class="nav bottom" data-view="settings">
+        ><button class="nav" data-view="settings">
           <i data-lucide="settings"></i><span>系统设置</span>
+        </button><button class="nav bottom" data-view="sop">
+          <i data-lucide="list-checks"></i><span>角色操作指南</span>
         </button>
       </aside>
       <main class="main">
@@ -1569,6 +1583,7 @@
               <button id="module-primary" class="primary hidden"></button>
             </div>
           </div>
+          <section id="role-guide-live" class="role-guide-live hidden" aria-label="角色指南实时更新"></section>
           <div id="module-insights" class="module-insights hidden"></div>
           <section id="whatsapp-workspace" class="wa-workspace hidden" aria-label="WhatsApp Business 聊天工作台"></section>
           <section id="inquiry-command" class="inquiry-command hidden">
@@ -2433,8 +2448,24 @@
         marketing: new Set(["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360"]),
         sales: new Set(["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
+      const roleGuideViewNames = {
+        dashboard:"经营看板","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户资料库",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心",settings:"系统设置",sop:"角色操作指南"
+      };
+      const roleGuideUpdates = [
+        {at:"2026-09-18 13:46",title:"操作指南升级为实时角色指南",detail:"当前角色可用功能由生产权限矩阵自动生成，并新增按时间倒序的更新记录。",roles:["owner","sales_manager","marketing","sales"]},
+        {at:"2026-09-18 13:42",title:"市场部生产权限验收完成",detail:"市场部保留分拣、初筛、背调、归因和培育；隐藏销售私有沟通、跟进、报价、履约与系统管理。",roles:["owner","marketing"]},
+        {at:"2026-09-18 11:48",title:"市场、主管和业务员职责边界收口",detail:"市场负责初筛与培育，主管负责分配与审批，业务员负责客户沟通、跟进、报价和履约。",roles:["owner","sales_manager","marketing","sales"]},
+        {at:"2026-09-18 10:32",title:"360 评分中心上线",detail:"接入匿名多方评价、角色可见范围、校准、申诉和影子运行提示。",roles:["owner","sales_manager","marketing","sales"]}
+      ];
       function canAccessView(view, role = profile?.role) {
         return Boolean(role && roleViewAccess[role]?.has(view));
+      }
+      function renderRoleGuideLive(){
+        const role=profile?.role,box=$("#role-guide-live");
+        if(!role||!box)return;
+        const modules=[...(roleViewAccess[role]||[])].filter(view=>view!=="sop").map(view=>roleGuideViewNames[view]||view);
+        const updates=roleGuideUpdates.filter(item=>item.roles.includes(role));
+        box.innerHTML=`<article class="role-guide-card"><h3>${esc(roleNames[role]||role)}·当前权限指南</h3><p>与当前生产角色权限矩阵实时同步；角色或菜单改变后，重新打开本页即会更新。</p><div class="role-guide-status">已同步当前生产权限 · ${esc(new Date().toLocaleString("zh-CN",{hour12:false}))}</div><div class="role-guide-modules">${modules.map(name=>`<span class="role-guide-module">${esc(name)}</span>`).join("")}</div></article><article class="role-guide-card"><h3>最近更新</h3><p>按生产发布和权限验收时间倒序排列。</p><div class="role-guide-update-list">${updates.map(item=>`<div class="role-guide-update"><time>${esc(item.at)}</time><div><b>${esc(item.title)}</b><span>${esc(item.detail)}</span></div></div>`).join("")}</div></article>`;
       }
       const statusNames = {
         pending_assignment: "待分配",
@@ -3356,6 +3387,8 @@
         $("#module-filter-summary").classList.add("hidden");
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
+        $("#role-guide-live").classList.toggle("hidden",view!=="sop");
+        if(view==="sop")renderRoleGuideLive();
         $("#whatsapp-workspace").classList.toggle("hidden",view!=="whatsapp");
         $("#module-table-wrap").classList.toggle("hidden",view==="whatsapp");
         $("#inquiry-command").classList.toggle("hidden", view !== "inquiries");
@@ -3458,7 +3491,9 @@
             ["老板","4. 目标与资源","月初及经营复盘时","设置目标，检查完成率、渠道 ROI、团队负载和知识库缺口","目标分解到已启用成员，资源调整有依据"],
             ["全部角色","异常处理","页面报错、邮箱不同步或数据不一致时","先刷新并核对筛选；记录询盘编号、时间和错误提示；不得重复提交或绕过审批","问题可复现，修复后回归原业务流程"]
           ];
-          query=Promise.resolve({data:steps,error:null});columns=["角色","流程节点","触发时机","标准操作","完成标准"];mapper=x=>({meta:{searchText:x.join(" ")},cells:x});
+          const currentRoleName=roleNames[profile.role]||profile.role,visibleSteps=steps.filter(step=>step[0]===currentRoleName||step[0]==="全部角色");
+          $("#module-table-title").textContent=`${currentRoleName}操作流程`;
+          query=Promise.resolve({data:visibleSteps,error:null});columns=["角色","流程节点","触发时机","标准操作","完成标准"];mapper=x=>({meta:{searchText:x.join(" ")},cells:x});
         } else if(view==="sales-today"){
           const qualityRefresh=await runModuleQuery(supabase.rpc("refresh_my_data_quality_alerts"),2);
           if(qualityRefresh.error)console.warn("数据质量提醒刷新失败",qualityRefresh.error);
@@ -3705,7 +3740,7 @@
         const onRowClick = view === "knowledge" ? (row)=>row.materialAsset?openMaterialAsset(row.materialAsset):row.knowledgeArticle&&openKnowledgeArticle(row.knowledgeArticle) : view === "fulfillment" ? (row)=>row.fulfillmentInquiry&&openFulfillmentManager(row.fulfillmentInquiry) : view === "customers" ? (row)=>row.customerCompanyId&&openCustomerRecord(row.customerCompanyId) : view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : view === "mailbox" ? (row)=>row.message&&openMailboxMessage(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, loadedAt:new Date().toISOString() });
-        $("#module-table-context").textContent = `${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
+        $("#module-table-context").textContent = view==="sop"?`当前角色专属流程 · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`:`${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
         if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
         if (view === "sales-today" && todayTaskCounts) {
           const categories=[["all","全部任务"],["assigned","新分配询盘"],["reply","客户新回复"],["followup","今日待跟进"],["overdue","逾期任务"],["quote","待报价"],["expiring","即将失效"],["quality","数据质量"]];

@@ -15,6 +15,24 @@ test('one central role matrix removes duplicated daily execution menus',()=>{
   assert.match(html,/if \(!canAccessView\(view\)\) \{[\s\S]*?当前角色无权进入该功能/);
 });
 
+test('role guide stays last in the sidebar and reflects the live role matrix',()=>{
+  const settingsIndex=html.indexOf('data-view="settings"');
+  const guideIndex=html.indexOf('data-view="sop"');
+  const railEnd=html.indexOf('</aside>',guideIndex);
+  assert.ok(settingsIndex>0&&guideIndex>settingsIndex&&guideIndex<railEnd);
+  assert.match(html,/class="nav bottom" data-view="sop"/);
+  assert.match(html,/const roleGuideViewNames = \{/);
+  assert.match(html,/\.\.\.\(roleViewAccess\[role\]\|\|\[\]\)/);
+  assert.match(html,/已同步当前生产权限/);
+});
+
+test('role guide includes timestamped release notes and only the signed-in role workflow',()=>{
+  assert.match(html,/const roleGuideUpdates = \[[\s\S]*?at:"2026-09-18 13:46"/);
+  assert.match(html,/最近更新/);
+  assert.match(html,/steps\.filter\(step=>step\[0\]===currentRoleName\|\|step\[0\]==="全部角色"\)/);
+  assert.match(html,/当前角色专属流程/);
+});
+
 test('dead configuration and assignment entry points are role gated',()=>{
   assert.match(html,/view==="whatsapp"&&!\['owner','sales_manager'\]\.includes\(profile\.role\)/);
   assert.match(html,/if\(!\["owner","sales_manager"\]\.includes\(profile\?\.role\)\)return toast\("仅老板或销售主管可查看推荐并完成分配"\)/);

@@ -143,3 +143,13 @@
 - Persisted evidence: classification `real_inquiry`, confidence `0.9900`, seven exact email evidence quotes, and a matching `ai_suggestion_generated` audit row attributed to the authenticated owner profile. Record identifiers remain in the production database rather than repository documentation.
 - Verification: the production CRM visibly renders the result, extracted facts, confidence, evidence, and human accept/modify/reject controls. Full automated regression is 219/219. No customer communication or automatic business workflow mutation was performed.
 - Outstanding: restore DeepSeek credit or configure an alternate production provider before relying on the automatic `AI 分析` button for future emails.
+
+## 2026-09-18 — sales 360 scoring production foundation
+
+- Targets: GitHub Pages production CRM and Supabase project `plhverjihjilnuhlhlxi`.
+- Authorization: the business owner explicitly requested production release with “上线吧”.
+- Database changes: applied `20260918110000_sales_360_score_foundation.sql` and `20260918120000_sales_360_reminders_and_talent_actions.sql` through the authenticated Supabase SQL Editor after the saved local pooler credential failed password validation.
+- Safety result: migration-time reminder processing inserted `0` notifications; production contains `0` sales 360 cycles, so no test cycle, score, talent action or employee notification was created.
+- Verification: both primary tables and both workspace/talent RPCs resolve; anonymous cycle creation is denied; authenticated cycle creation is granted; marketing read-only users are blocked from talent recommendations; the hourly reminder cron job exists.
+- Regression: all automated tests pass (`248/248`), including `16/16` sales-360 tests; frontend module syntax and `git diff --check` pass.
+- Release boundary: this release installs the audited scoring, anonymous evaluation, calibration, appeal, reminder and talent-recommendation foundation only. Creating the first production cycle remains a separate, explicit business action and must begin in shadow mode.

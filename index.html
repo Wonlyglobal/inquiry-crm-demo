@@ -1374,6 +1374,8 @@
           <i data-lucide="folder-kanban"></i><span>历史工程</span></button
         ><button id="daily-report-button" class="nav" data-view="daily">
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
+        ><button class="nav" data-view="performance-360">
+          <i data-lucide="badge-check"></i><span>360 评分中心</span></button
         ><button class="nav bottom" data-view="settings">
           <i data-lucide="settings"></i><span>系统设置</span>
         </button>
@@ -2324,11 +2326,11 @@
         if (url.pathname.startsWith("/functions/v1/")) return false;
         if (method === "POST" && /^\/storage\/v1\/object\/(sign|list)\//.test(url.pathname)) return true;
         if (["GET", "HEAD", "OPTIONS"].includes(method)) return true;
-        return method === "POST" && ["/rest/v1/rpc/get_shared_inquiry_mailbox_status", "/rest/v1/rpc/finish_initial_password_change", "/rest/v1/rpc/finish_readonly_initial_password_change"].includes(url.pathname);
+        return method === "POST" && ["/rest/v1/rpc/get_shared_inquiry_mailbox_status", "/rest/v1/rpc/finish_initial_password_change", "/rest/v1/rpc/finish_readonly_initial_password_change", "/rest/v1/rpc/get_my_sales_360_workspace", "/rest/v1/rpc/submit_sales_360_evaluation"].includes(url.pathname);
       }
       function readOnlyMutationControl(button) {
         if (button.matches(".nav,[data-view],.detail-tab,[data-detail-tab],[data-close]")) return false;
-        if (button.closest("#login-form,#password-form,#forgot-password-form")) return false;
+        if (button.closest("#login-form,#password-form,#forgot-password-form,#sales360-evaluation-form")) return false;
         const label = (button.textContent || "").trim();
         return /保存|提交|新增|新建|创建|删除|移除|导入|上传|连接|发送|转发|登记|标记|恢复|禁用|启用|生成|编辑|批准|驳回|作废|归档|重新背调|开始背调|加入时间轴|转为询盘|设置成本|布局/.test(label)
           || /^(去分配|分配|更新|重新|退回|领取|释放|确认|完成|执行)/.test(label)
@@ -2353,7 +2355,7 @@
         }
       }, true);
       document.addEventListener("submit", event => {
-        if (crmReadOnly && !["login-form","password-form","forgot-password-form"].includes(event.target.id)) {
+        if (crmReadOnly && !["login-form","password-form","forgot-password-form","sales360-evaluation-form"].includes(event.target.id)) {
           event.preventDefault(); event.stopImmediatePropagation(); toast("当前账号为市场部只读权限");
         }
       }, true);
@@ -2633,6 +2635,7 @@
           "public-pool": ["owner", "sales_manager", "sales", "marketing"].includes(role),
           research: ["owner", "sales_manager", "marketing"].includes(role),
           daily: ["owner", "sales_manager", "sales"].includes(role),
+          "performance-360": ["owner", "sales_manager", "sales", "marketing"].includes(role),
           "legacy-projects": ["owner", "sales_manager", "marketing"].includes(role),
           settings: canConfigureMailboxes,
         };
@@ -3212,6 +3215,108 @@
         openDashboardModal("新建销售知识",`<form id="knowledge-create-form"><div class="detail-grid"><div class="field"><label>分类 *</label><select id="knowledge-category" class="input"><option value="product">产品参数</option><option value="certification">认证资料</option><option value="faq">常见问题</option><option value="quotation">报价规范</option><option value="case">成功案例</option></select></div><div class="field"><label>语言</label><input id="knowledge-language" class="input" value="zh-CN" /></div></div><div class="field"><label>标题 *</label><input id="knowledge-title" class="input" required maxlength="160" /></div><div class="field"><label>摘要</label><textarea id="knowledge-summary" class="input" rows="2"></textarea></div><div class="field"><label>正文 *</label><textarea id="knowledge-content" class="input" rows="10" required placeholder="填写已经核实、可直接用于客户沟通的内容"></textarea></div><div class="field"><label>标签（逗号分隔）</label><input id="knowledge-tags" class="input" placeholder="防火门, CE, 酒店项目" /></div><div class="form-actions"><button class="primary" type="submit">保存知识</button></div></form>`);
         $("#knowledge-create-form").addEventListener("submit",async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const {error}=await supabase.from("sales_knowledge_articles").insert({category:$("#knowledge-category").value,title:$("#knowledge-title").value.trim(),summary:$("#knowledge-summary").value.trim()||null,content:$("#knowledge-content").value.trim(),tags:$("#knowledge-tags").value.split(/[,，]/).map(x=>x.trim()).filter(Boolean),language:$("#knowledge-language").value.trim()||"zh-CN",created_by:profile.id});button.disabled=false;if(error)return toast("知识保存失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("销售知识已保存");await loadModule("knowledge")});
       }
+      const sales360DimensionLabels={
+        performance_contribution:"业绩贡献",values:"价值观",responsibility:"责任担当",
+        execution:"执行力",professionalism:"专业能力",goal_delivery:"目标达成",growth:"成长改进",
+        collaboration:"协作配合",responsiveness:"响应效率",knowledge_sharing:"知识分享",
+        lead_feedback_quality:"线索反馈质量",handoff_collaboration:"交接协同",recycle_evidence:"退回依据完整性",
+        goal_review:"目标复盘",problem_identification:"问题识别",improvement_plan:"改进计划"
+      };
+      const sales360GroupLabels={owner:"老板评价",manager:"直属主管评价",peer:"同组互评",marketing:"市场部评价",self:"自评"};
+      const sales360StateLabels={collecting:"评价收集中",provisional:"待校准",calibration:"校准中",locked:"已锁定",appeal:"申诉中",adjusted:"已调整",closed:"已归档"};
+      const sales360CalibrationLabels={pending_owner:"待老板审核",approved:"校准已批准",rejected:"校准已驳回"};
+      const sales360AppealLabels={pending_manager:"待主管初审",pending_owner:"待老板终审",approved:"申诉通过",rejected:"申诉驳回"};
+      const sales360TalentLabels={recognition:"优秀认可",promotion_candidate:"晋升候选",training:"培训改进",coaching:"重点辅导",elimination_observation:"淘汰观察",elimination_review:"淘汰评审",no_action:"暂无专项建议"};
+      const sales360DecisionLabels={pending:"待老板确认",confirmed:"老板已确认",rejected:"老板已驳回"};
+      function sales360Period(item){return `${String(item.period_start||"").slice(0,7)}${item.shadow_mode?" · 影子运行":""}`}
+      function openSales360Evaluation(task){
+        const dimensions=(task.dimensions||[]).map(key=>`<div class="field"><label>${esc(sales360DimensionLabels[key]||key)} *</label><select class="input" data-sales360-score="${esc(key)}" required><option value="">请选择</option><option value="5">5 · 明显超出要求</option><option value="4">4 · 超出要求</option><option value="3">3 · 达到要求</option><option value="2">2 · 部分未达要求</option><option value="1">1 · 明显未达要求</option></select></div>`).join("");
+        openDashboardModal(`匿名评价 · ${task.subject_name}`,`<form id="sales360-evaluation-form"><p class="hint">${esc(sales360Period(task))} · ${esc(sales360GroupLabels[task.evaluator_group]||task.evaluator_group)}。被评价人看不到评价者身份；1、2 或 5 分必须填写事实依据。</p><div class="detail-grid">${dimensions}</div><div class="field"><label>评价摘要</label><textarea id="sales360-summary" class="input" rows="3" maxlength="1000" placeholder="概括优势、风险与建议"></textarea></div><div class="field"><label>事实依据</label><textarea id="sales360-evidence" class="input" rows="4" maxlength="2000" placeholder="引用具体任务、客户、时间或交付事实；极端评分必填"></textarea></div><div class="form-actions"><button class="primary" type="submit">匿名提交评价</button></div></form>`);
+        $("#sales360-evaluation-form").onsubmit=async event=>{
+          event.preventDefault();
+          const scores={},values=[...$$('[data-sales360-score]')];
+          values.forEach(input=>{scores[input.dataset.sales360Score]=Number(input.value)});
+          if(values.some(input=>!input.value))return toast("请完成全部维度评分");
+          const evidence=$("#sales360-evidence").value.trim();
+          if(values.some(input=>[1,2,5].includes(Number(input.value)))&&evidence.length<8)return toast("评分为 1、2 或 5 时，请填写至少 8 个字的事实依据");
+          const button=event.submitter;button.disabled=true;
+          const {error}=await supabase.rpc("submit_sales_360_evaluation",{target_assignment_id:task.assignment_id,target_scores:scores,target_summary:$("#sales360-summary").value.trim()||null,target_evidence:evidence||null});
+          button.disabled=false;
+          if(error)return toast("评价提交失败："+error.message);
+          $("#dashboard-modal").classList.add("hidden");toast("匿名评价已提交，评价者身份不会向被评价人展示");await loadModule("performance-360");
+        };
+      }
+      function openSales360CycleForm(){
+        const previous=new Date();previous.setDate(1);previous.setMonth(previous.getMonth()-1);
+        const defaultMonth=`${previous.getFullYear()}-${String(previous.getMonth()+1).padStart(2,"0")}`;
+        openDashboardModal("创建 360 影子评分周期",`<form id="sales360-cycle-form"><p class="hint">第一期强制为影子运行：采集真实评价并验证流程，但不影响奖金、晋升或淘汰。系统仅允许创建已结束月份。</p><div class="field"><label>评分月份 *</label><input id="sales360-cycle-month" class="input" type="month" max="${defaultMonth}" value="${defaultMonth}" required /></div><div class="form-actions"><button class="primary" type="submit">创建影子周期并分配评价任务</button></div></form>`);
+        $("#sales360-cycle-form").onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const {error}=await supabase.rpc("create_sales_360_cycle",{target_period_start:$("#sales360-cycle-month").value+"-01",shadow_run:true});button.disabled=false;if(error)return toast("周期创建失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("影子评分周期已创建，匿名任务已分配");await loadModule("performance-360")};
+      }
+      function openSales360GoalForm(item){
+        openDashboardModal(`设置月度目标 · ${item.sales_name}`,`<form id="sales360-goal-form"><p class="hint">${esc(sales360Period(item))}。目标和奖金基数仅老板及该团队主管可维护，所有修改都会进入评分审计。</p><div class="detail-grid"><div class="field"><label>成交目标（人民币）*</label><input id="sales360-goal-amount" class="input" type="number" min="1" step="0.01" required value="${esc(item.target_won_amount_cny??"")}" /></div><div class="field"><label>月度奖金基数（人民币）*</label><input id="sales360-bonus-base" class="input" type="number" min="0" step="0.01" required value="${esc(item.monthly_bonus_base??0)}" /></div></div><label class="check-line"><input id="sales360-new-hire" type="checkbox" ${item.new_hire_protected?"checked":""}> 入职前三个月保护期，仅评分培训、不触发淘汰</label><div class="field"><label>目标说明</label><textarea id="sales360-goal-note" class="input" rows="3" maxlength="1000">${esc(item.target_note||"")}</textarea></div><div class="form-actions"><button class="primary" type="submit">保存目标</button></div></form>`);
+        $("#sales360-goal-form").onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const {error}=await supabase.rpc("set_sales_360_goal",{target_result_id:item.result_id,target_won_amount_cny:Number($("#sales360-goal-amount").value),target_bonus_base:Number($("#sales360-bonus-base").value),protect_new_hire:$("#sales360-new-hire").checked,target_note:$("#sales360-goal-note").value.trim()||null});button.disabled=false;if(error)return toast("目标保存失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("评分目标已保存并记录审计");await loadModule("performance-360")};
+      }
+      function openSales360AppealForm(item){
+        openDashboardModal(`提交评分申诉 · ${sales360Period(item)}`,`<form id="sales360-appeal-form"><p class="hint">请说明需要复核的事实并提供可核验线索。直属主管初审、老板终审；匿名评价人身份不会因此自动公开。</p><div class="field"><label>申诉理由 *</label><textarea id="sales360-appeal-reason" class="input" rows="6" minlength="8" maxlength="4000" required placeholder="至少 8 个字，说明评分与事实不一致之处"></textarea></div><div class="field"><label>证据线索（每行一项）</label><textarea id="sales360-appeal-evidence" class="input" rows="4" placeholder="例如：询盘编号、邮件主题、跟进日期或订单编号"></textarea></div><div class="form-actions"><button class="primary" type="submit">提交申诉</button></div></form>`);
+        $("#sales360-appeal-form").onsubmit=async event=>{event.preventDefault();const button=event.submitter,reason=$("#sales360-appeal-reason").value.trim(),evidence=$("#sales360-appeal-evidence").value.split("\n").map(value=>value.trim()).filter(Boolean);if(reason.length<8)return toast("请完整填写申诉理由");button.disabled=true;const {error}=await supabase.rpc("submit_sales_360_appeal",{target_result_id:item.result_id,appeal_reason:reason,appeal_evidence:evidence});button.disabled=false;if(error)return toast("申诉提交失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("申诉已提交，等待直属主管初审");await loadModule("performance-360")};
+      }
+      function openSales360CalibrationForm(item){
+        const score=Number(item.total_score||0),minimum=Math.max(0,score-10),maximum=Math.min(100,score+10);
+        openDashboardModal(`提交校准建议 · ${item.sales_name}`,`<form id="sales360-calibration-form"><p class="hint">当前 ${score} 分。主管只能提交有事实依据的建议，最终分数由老板审核决定；建议调整范围为 ${minimum}—${maximum} 分。</p><div class="field"><label>建议总分 *</label><input id="sales360-calibration-score" class="input" type="number" min="${minimum}" max="${maximum}" step="0.01" value="${score}" required /></div><div class="field"><label>校准依据 *</label><textarea id="sales360-calibration-reason" class="input" rows="5" minlength="8" maxlength="2000" required placeholder="至少 8 个字，说明目标难度、业务事实及调整原因"></textarea></div><div class="field"><label>证据线索（每行一项）</label><textarea id="sales360-calibration-evidence" class="input" rows="4" placeholder="例如：询盘编号、订单编号、客户邮件或跟进记录"></textarea></div><div class="form-actions"><button class="primary" type="submit">提交老板审核</button></div></form>`);
+        $("#sales360-calibration-form").onsubmit=async event=>{event.preventDefault();const button=event.submitter,reason=$("#sales360-calibration-reason").value.trim(),evidence=$("#sales360-calibration-evidence").value.split("\n").map(value=>value.trim()).filter(Boolean);if(reason.length<8)return toast("请填写至少 8 个字的校准依据");button.disabled=true;const {error}=await supabase.rpc("submit_sales_360_calibration",{target_result_id:item.result_id,proposed_total_score:Number($("#sales360-calibration-score").value),calibration_reason:reason,calibration_evidence:evidence});button.disabled=false;if(error)return toast("校准建议提交失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("校准建议已提交，等待老板审核");await loadModule("performance-360")};
+      }
+      function openSales360CalibrationReview(item){
+        const evidence=(item.evidence||[]).map(value=>`<li>${esc(String(value))}</li>`).join("")||"<li>未填写</li>";
+        openDashboardModal(`审核校准建议 · ${item.sales_name}`,`<form id="sales360-calibration-review-form"><p class="hint">${esc(sales360Period(item))} · 原分 ${item.original_total_score}，主管建议 ${item.proposed_total_score}。</p><div class="notice"><b>主管依据</b><p>${esc(item.reason||"—")}</p><ul>${evidence}</ul></div><div class="field"><label>老板审核意见 *</label><textarea id="sales360-calibration-review-note" class="input" rows="5" minlength="8" maxlength="2000" required placeholder="至少 8 个字，记录批准或驳回依据"></textarea></div><div class="form-actions"><button class="ghost" type="button" data-decision="reject">驳回建议</button><button class="primary" type="button" data-decision="approve">批准并调整</button></div></form>`);
+        $$('[data-decision]').forEach(button=>button.onclick=async()=>{const note=$("#sales360-calibration-review-note").value.trim();if(note.length<8)return toast("请填写至少 8 个字的审核意见");$$('[data-decision]').forEach(x=>x.disabled=true);const approve=button.dataset.decision==="approve",{error}=await supabase.rpc("review_sales_360_calibration",{target_calibration_id:item.calibration_id,approve,review_note:note});$$('[data-decision]').forEach(x=>x.disabled=false);if(error)return toast("校准审核失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast(approve?"已批准校准建议并调整总分":"已驳回校准建议");await loadModule("performance-360")});
+      }
+      function openSales360AppealReview(item,role){
+        const isOwner=role==="owner",evidence=(item.evidence||[]).map(value=>`<li>${esc(String(value))}</li>`).join("")||"<li>未填写</li>";
+        openDashboardModal(`${isOwner?"终审":"初审"}评分申诉 · ${item.sales_name}`,`<form id="sales360-appeal-review-form"><p class="hint">${esc(sales360Period(item))} · 当前 ${item.total_score??"—"} 分。${isOwner?`主管建议：${item.manager_recommendation==="approve"?"通过":"驳回"}；${esc(item.manager_note||"未填写")}`:"主管只提出通过或驳回建议，老板负责终审。"}</p><div class="notice"><b>业务员申诉理由</b><p>${esc(item.reason||"—")}</p><ul>${evidence}</ul></div>${isOwner?`<div class="field"><label>终审调整分数（可不填）</label><input id="sales360-appeal-score" class="input" type="number" min="${Math.max(0,Number(item.total_score||0)-10)}" max="${Math.min(100,Number(item.total_score||0)+10)}" step="0.01" placeholder="不填则维持当前分数" /></div>`:""}<div class="field"><label>${isOwner?"老板终审意见":"主管初审意见"} *</label><textarea id="sales360-appeal-review-note" class="input" rows="5" minlength="8" maxlength="2000" required placeholder="至少 8 个字，记录判断依据"></textarea></div><div class="form-actions"><button class="ghost" type="button" data-appeal-decision="reject">建议驳回</button><button class="primary" type="button" data-appeal-decision="approve">${isOwner?"通过申诉":"建议通过"}</button></div></form>`);
+        $$('[data-appeal-decision]').forEach(button=>button.onclick=async()=>{const note=$("#sales360-appeal-review-note").value.trim();if(note.length<8)return toast("请填写至少 8 个字的审核意见");$$('[data-appeal-decision]').forEach(x=>x.disabled=true);const score=isOwner?$("#sales360-appeal-score").value:"",approve=button.dataset.appealDecision==="approve",{error}=await supabase.rpc("review_sales_360_appeal",{target_appeal_id:item.appeal_id,approve,review_note:note,adjusted_total_score:score===""?null:Number(score)});$$('[data-appeal-decision]').forEach(x=>x.disabled=false);if(error)return toast("申诉审核失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast(isOwner?"申诉终审已完成":"主管初审已提交，等待老板终审");await loadModule("performance-360")});
+      }
+      function openSales360TalentReview(item){
+        const evidence=item.evidence||{},focuses=(evidence.focuses||[]).map(value=>`<li>${esc(String(value))}</li>`).join("")||"<li>暂无专项薄弱项</li>";
+        openDashboardModal(`审核人才建议 · ${item.sales_name}`,`<form id="sales360-talent-review-form"><p class="hint">${esc(sales360Period(item))} · ${item.total_score} 分 / ${esc(item.grade||"—")} · ${item.shadow_only?"影子建议，不执行实际人事动作":"正式建议，仍须老板人工决定"}</p><div class="notice"><b>${esc(sales360TalentLabels[item.action_type]||item.action_type)}</b><p>${esc(item.rationale||"—")}</p><ul>${focuses}</ul>${item.training_plan?`<p><b>改进计划：</b>${esc(item.training_plan)}</p>`:""}</div><div class="field"><label>老板决策依据 *</label><textarea id="sales360-talent-review-note" class="input" rows="5" minlength="8" maxlength="2000" required placeholder="至少 8 个字；确认只代表纳入人工管理流程，不会由系统自动晋升或淘汰"></textarea></div><div class="form-actions"><button class="ghost" type="button" data-talent-decision="reject">驳回建议</button><button class="primary" type="button" data-talent-decision="approve">${item.shadow_only?"确认影子建议":"确认建议"}</button></div></form>`);
+        $$('[data-talent-decision]').forEach(button=>button.onclick=async()=>{const note=$("#sales360-talent-review-note").value.trim();if(note.length<8)return toast("请填写至少 8 个字的决策依据");$$('[data-talent-decision]').forEach(x=>x.disabled=true);const approve=button.dataset.talentDecision==="approve",{error}=await supabase.rpc("review_sales_360_talent_recommendation",{target_recommendation_id:item.recommendation_id,approve,decision_note:note});$$('[data-talent-decision]').forEach(x=>x.disabled=false);if(error)return toast("人才建议审核失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast(approve?(item.shadow_only?"影子建议已确认，不会执行人事动作":"建议已确认，等待线下管理流程"):"人才建议已驳回");await loadModule("performance-360")});
+      }
+      function openSales360TalentDetail(item){
+        const evidence=item.evidence||{},focuses=(evidence.focuses||[]).map(value=>`<li>${esc(String(value))}</li>`).join("")||"<li>暂无专项薄弱项</li>";
+        openDashboardModal(`${sales360TalentLabels[item.action_type]||"人才建议"} · ${item.sales_name}`,`<p class="hint">${esc(sales360Period(item))} · ${item.total_score} 分 / ${esc(item.grade||"—")} · ${esc(sales360DecisionLabels[item.status]||item.status)}${item.shadow_only?" · 影子运行":""}</p><div class="notice"><b>触发依据</b><p>${esc(item.rationale||"—")}</p><ul>${focuses}</ul>${item.training_plan?`<p><b>改进计划：</b>${esc(item.training_plan)}</p>`:""}${item.review_note?`<p><b>老板意见：</b>${esc(item.review_note)}</p>`:""}</div><p class="hint">系统只生成建议；奖金、晋升、淘汰及培训结论仍须由有权限的负责人按正式流程人工确认。</p>`);
+      }
+      function openSales360CalculateForm(cycle){
+        openDashboardModal(`计算影子评分 · ${sales360Period(cycle)}`,`<form id="sales360-calculate-form"><p class="hint">系统将在服务端冻结本周期客观数据，按 60 分客观指标和 40 分匿名评价生成结果。仍有评价未完成或目标未设置时会拒绝计算。</p><div class="form-actions"><button class="primary" type="submit">确认计算并进入校准</button></div></form>`);
+        $("#sales360-calculate-form").onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;const {error}=await supabase.rpc("calculate_sales_360_cycle",{target_cycle_id:cycle.id});button.disabled=false;if(error)return toast("评分计算失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("影子评分已生成，等待校准和老板发布");await loadModule("performance-360")};
+      }
+      function openSales360LockForm(cycle){
+        openDashboardModal(`锁定并发布 · ${sales360Period(cycle)}`,`<form id="sales360-lock-form"><p class="hint">发布后业务员可查看本人结果并在 3 天内申诉。首期仍是影子运行，不实际影响奖金、晋升或淘汰。</p><div class="field"><label>发布与校准依据 *</label><textarea id="sales360-lock-reason" class="input" rows="5" minlength="8" maxlength="2000" required placeholder="说明已完成的校准检查、异常处理和发布依据"></textarea></div><div class="form-actions"><button class="primary" type="submit">锁定结果并开放申诉</button></div></form>`);
+        $("#sales360-lock-form").onsubmit=async event=>{event.preventDefault();const reason=$("#sales360-lock-reason").value.trim();if(reason.length<8)return toast("请填写至少 8 个字的发布依据");const button=event.submitter;button.disabled=true;const {error}=await supabase.rpc("lock_sales_360_cycle",{target_cycle_id:cycle.id,lock_reason:reason});button.disabled=false;if(error)return toast("结果发布失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("影子评分结果已锁定，申诉窗口开放 3 天");await loadModule("performance-360")};
+      }
+      async function loadSales360Workspace(loadVersion){
+        const {data,error}=await supabase.rpc("get_my_sales_360_workspace");
+        if(loadVersion!==moduleLoadVersion)return;
+        if(error){renderModuleTable(["提示"],[{cells:["360 评分中心加载失败："+error.message]}]);return}
+        const workspace=data||{},tasks=workspace.tasks||[],own=workspace.own_results||[],visible=workspace.visible_results||[],calibrations=workspace.calibrations||[],appeals=workspace.appeals||[];
+        const talentResponse=workspace.role==="marketing"?{data:[],error:null}:await supabase.rpc("get_my_sales_360_talent_recommendations");
+        if(loadVersion!==moduleLoadVersion)return;
+        if(talentResponse.error&&!/schema cache|could not find the function/i.test(talentResponse.error.message||""))console.warn("360 人才建议加载失败",talentResponse.error);
+        const talentRecommendations=(talentResponse.data||[]).filter(item=>item.action_type!=="no_action");
+        const pending=tasks.filter(item=>item.status==="pending").length,pendingReviews=calibrations.filter(item=>item.status==="pending_owner").length+appeals.filter(item=>workspace.role==="owner"?item.status==="pending_owner":item.status==="pending_manager").length+(workspace.role==="owner"?talentRecommendations.filter(item=>item.status==="pending").length:0);
+        const roleMode={owner:"全公司管理",sales_manager:"本团队管理",sales:"本人评分与申诉",marketing:"匿名协作评价"}[workspace.role]||"本人任务";
+        $("#module-insights").innerHTML=[["当前角色视图",roleMode],["待完成匿名评价",pending],["待我审核",pendingReviews],[workspace.role==="marketing"?"他人结果权限":"可见评分结果",workspace.role==="marketing"?"不可见":visible.length||own.length]].map(([label,value])=>`<div class="module-insight"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("");
+        $("#module-insights").classList.remove("hidden");
+        const rows=[];
+        if(workspace.role==="owner")(workspace.cycles||[]).forEach(cycle=>{const actions=[];if(cycle.status==="collecting")actions.push({label:"计算评分",onClick:()=>openSales360CalculateForm(cycle)});if(cycle.status==="calibration")actions.push({label:"锁定发布",onClick:()=>openSales360LockForm(cycle)});rows.push({cells:["评分周期","全体业务员",sales360Period(cycle),"老板管理",sales360StateLabels[cycle.status]||cycle.status,cycle.evaluation_due_at?fmtDate(cycle.evaluation_due_at):"—",...(actions.length?[]:["—"])],actions})});
+        tasks.forEach(task=>rows.push({cells:["我的匿名评价任务",task.subject_name,sales360Period(task),sales360GroupLabels[task.evaluator_group]||task.evaluator_group,task.status==="pending"?"待评价":"已提交",task.due_at?fmtDate(task.due_at):"—",...(task.status==="pending"?[]:["已完成"])],actions:task.status==="pending"?[{label:"开始评价",onClick:()=>openSales360Evaluation(task)}]:[]}));
+        visible.forEach(item=>{const actions=[{label:item.target_won_amount_cny==null?"设置目标":"调整目标",onClick:()=>openSales360GoalForm(item)}];if(workspace.role==="sales_manager"&&item.state==="calibration")actions.push({label:"提交校准建议",onClick:()=>openSales360CalibrationForm(item)});rows.push({cells:["团队评分结果",item.sales_name,sales360Period(item),item.team||"—",sales360StateLabels[item.state]||item.state,item.total_score==null?(item.target_won_amount_cny==null?"待设置目标":`目标 ¥${Number(item.target_won_amount_cny).toLocaleString()}`):`${item.total_score} · ${item.grade||"—"}`],actions})});
+        own.forEach(item=>{const canAppeal=["locked","appeal"].includes(item.state)&&item.appeal_due_at&&new Date(item.appeal_due_at)>new Date();rows.push({cells:["我的评分结果",profile.full_name,sales360Period(item),"本人",sales360StateLabels[item.state]||item.state,item.total_score==null?"尚未出分":`${item.total_score} · ${item.grade||"—"}`,...(canAppeal?[]:["—"])],actions:canAppeal?[{label:"提交申诉",onClick:()=>openSales360AppealForm(item)}]:[]})});
+        calibrations.forEach(item=>{const canReview=workspace.role==="owner"&&item.status==="pending_owner";rows.push({cells:["校准建议",item.sales_name,sales360Period(item),item.team||"主管提交",sales360CalibrationLabels[item.status]||item.status,`${item.original_total_score} → ${item.proposed_total_score}`,...(canReview?[]:["—"])],actions:canReview?[{label:"审核校准",onClick:()=>openSales360CalibrationReview(item)}]:[]})});
+        appeals.forEach(item=>{const canReview=workspace.role==="owner"?item.status==="pending_owner":workspace.role==="sales_manager"&&item.status==="pending_manager";rows.push({cells:["评分申诉",item.sales_name,sales360Period(item),item.team||"本人申诉",sales360AppealLabels[item.status]||item.status,item.total_score==null?"—":`${item.total_score} 分`,...(canReview?[]:["—"])],actions:canReview?[{label:workspace.role==="owner"?"终审申诉":"初审申诉",onClick:()=>openSales360AppealReview(item,workspace.role)}]:[]})});
+        talentRecommendations.forEach(item=>{const canReview=workspace.role==="owner"&&item.status==="pending";rows.push({cells:[item.action_type==="training"||item.action_type==="coaching"?"培训改进建议":"人才管理建议",item.sales_name,sales360Period(item),item.team||"本人",`${sales360TalentLabels[item.action_type]||item.action_type}${item.shadow_only?" · 影子":""}`,workspace.role==="sales"?(item.training_plan||item.rationale):sales360DecisionLabels[item.status]||item.status],actions:[{label:canReview?"审核建议":"查看建议",onClick:()=>canReview?openSales360TalentReview(item):openSales360TalentDetail(item)}]})});
+        renderModuleTable(["类型","对象","周期","评价关系 / 团队","状态","截止 / 得分","操作"],rows);
+        $("#module-table-context").textContent="匿名评价不向被评价人展示评价者身份 · 第一期为影子运行";
+        if(!rows.length)setModuleState("empty","当前没有 360 评价任务或评分结果");
+      }
       async function loadModule(view, options = {}) {
         if (view !== "inquiries") activeInquiryScope = "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
@@ -3236,6 +3341,7 @@
           "public-pool": ["客户公海", "展示释放或转派后等待主管重新分配的客户", "待重新分配客户"],
           research: ["客户背调", "公司基础信息、风险提示与 AI 调查结果", "公司调查记录"],
           "legacy-projects": ["历史工程管控", "原 CRM 工程项目独立归档，不计入新询盘转化口径", "历史工程项目"],
+          "performance-360": ["360 评分中心", "月度绩效、晋升淘汰、培训改进和管理分析；评价过程匿名、结果可申诉", "360 评价任务与结果"],
           settings: ["系统设置", "成员、角色与首次登录状态", "成员账号"],
         }[view];
         if (!config) return;
@@ -3277,8 +3383,8 @@
         setModuleState("loading");
         const modulePrimary = $("#module-primary");
         modulePrimary.disabled = false;
-        modulePrimary.onclick = view === "whatsapp" ? () => openWhatsAppConnectionForm() : null;
-        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","whatsapp","templates","knowledge","follow-calendar"].includes(view) || (view==="knowledge"&&!['owner','sales_manager','marketing'].includes(profile.role)));
+        modulePrimary.onclick = view === "whatsapp" ? () => openWhatsAppConnectionForm() : view === "performance-360" ? () => openSales360CycleForm() : null;
+        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","whatsapp","templates","knowledge","follow-calendar","performance-360"].includes(view) || (view==="knowledge"&&!['owner','sales_manager','marketing'].includes(profile.role)) || (view==="performance-360"&&profile.role!=="owner"));
         $("#calendar-generate-daily").classList.toggle("hidden",view!=="follow-calendar"||profile.role!=="sales");
         const canManageSharedInquiry = ["owner", "sales_manager", "marketing"].includes(profile.role);
         const sharedInquiryButton = $("#connect-shared-inquiry");
@@ -3308,6 +3414,7 @@
         if (view === "templates") modulePrimary.textContent = "+ 新建模板";
         if (view === "knowledge") modulePrimary.textContent = "+ 新建知识";
         if (view === "follow-calendar") modulePrimary.textContent = "+ 新增每日计划";
+        if (view === "performance-360") modulePrimary.textContent = "+ 创建影子评分周期";
         const denied =
           (view === "settings" && !["owner", "sales_manager", "marketing"].includes(profile.role)) ||
           (["email", "assignment", "nurture", "research"].includes(view) &&
@@ -3323,6 +3430,13 @@
           await loadWhatsAppWorkspace(loadVersion);
           refreshButton.classList.remove("loading");
           refreshButton.disabled=false;
+          return;
+        }
+        if(view==="performance-360"){
+          await loadSales360Workspace(loadVersion);
+          refreshButton.classList.remove("loading");
+          refreshButton.disabled=false;
+          icons();
           return;
         }
         let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null, mailboxScheduledView = false, mailboxTemplateView = false, publicPoolRequests = [], publicPoolRequestError = null;

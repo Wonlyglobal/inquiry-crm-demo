@@ -398,6 +398,9 @@ verify_jwt = false
 [functions.inquiry-qualification-ai]
 verify_jwt = false
 
+[functions.assignment-recommendation]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

@@ -496,6 +496,7 @@
       .sales-workbench-kpi-link:hover { border-color:#8eaa98; box-shadow:0 8px 22px rgba(39,78,57,.10); transform:translateY(-1px); }
       .sales-workbench-kpi-link:focus-visible { outline:3px solid rgba(209,115,50,.28); outline-offset:2px; }
       .sales-workbench-kpi-link span::after { content:" →"; color:var(--brand); font-weight:800; }
+      .task-action-context{padding:14px;background:#f6f8f6;border-radius:12px;overflow-wrap:anywhere}.task-action-context p{line-height:1.6}.task-action-buttons{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
       .sales-task-list { border-top:1px solid var(--line); padding:8px 14px 14px; }
       .sales-task-item { display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,auto) auto; gap:16px; align-items:center; padding:14px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
       .sales-task-item:last-child { border-bottom:0; }
@@ -3088,6 +3089,79 @@
         const {error}=await supabase.rpc("cancel_scheduled_mailbox_message",{target_outbox_id:outboxId});
         if(error)return toast("取消失败："+error.message);toast("定时邮件已取消");await loadModule("mailbox");
       }
+      // Task actions use the existing authenticated workflows; opening a task never sends or calls AI.
+      function salesTaskAdvice(task){
+        if(task.category==="reply"||task.label==="查看回复")return "先核对客户原文，回应已确认事项，再约定下一步。";
+        if(task.category==="quote"||task.label==="创建报价")return "检查需求、规格与数量，完善报价后按现有流程提交审批。";
+        if(task.category==="quality"||task.label==="查看风险")return "先核对缺失项和证据，确认后补充资料。";
+        if(task.category==="expiring"||/保留/.test(task.label||""))return "核对真实进展，必要时通过原流程申请保留。";
+        return "核对上次沟通，记录本次实际结果，并安排明确的下次跟进。";
+      }
+      function salesTaskFollowupPayload(inquiryId,values,now=Date.now()){
+        const content=String(values.content||"").trim(),next=new Date(values.next);
+        if(!content)throw new Error("请填写本次实际跟进内容");
+        if(!Number.isFinite(next.getTime())||next.getTime()<=now)throw new Error("请选择未来的下次跟进时间");
+        if(!["phone","meeting","email","whatsapp","other"].includes(values.method))throw new Error("请选择跟进方式");
+        return {target_inquiry_id:inquiryId,follow_method:values.method,follow_content:content,customer_response:String(values.feedback||"").trim()||null,next_follow_at:next.toISOString(),mark_first_valid_contact:false,task_priority:"normal",reminder_at:null};
+      }
+      let salesTaskPanelVersion=0;
+      async function openSalesTask(task){
+        if(profile?.role!=="sales")return toast("此入口仅用于业务员处理本人任务");
+        if(!task?.id)return toast("任务不存在，请刷新列表");
+        const version=++salesTaskPanelVersion;
+        try{
+          const {data:inquiry,error}=await supabase.from("inquiries").select("id,inquiry_no,title,owner_id,status,validity,excluded_from_dashboard,invalid_review_status,target_country,contact_name,product_category,quantity,demand_summary,companies(name)").eq("id",task.id).eq("owner_id",profile.id).single();
+          if(version!==salesTaskPanelVersion)return;
+          if(error||!inquiry)throw new Error("任务已不可访问，请刷新任务列表");
+          if(inquiry.excluded_from_dashboard||inquiry.validity!=="valid"||["won","lost"].includes(inquiry.status))throw new Error("商机状态已变化，请刷新后查看");
+          const {data:recent,error:recentError}=await supabase.from("follow_ups").select("content,customer_feedback,created_at").eq("inquiry_id",inquiry.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
+          if(version!==salesTaskPanelVersion)return;
+          const canRecord=inquiry.invalid_review_status!=="pending";
+          openDashboardModal(`处理任务 · #${String(inquiry.inquiry_no||"").padStart(6,"0")}`,`<div class="task-action-context"><h3>${esc(inquiry.title)}</h3><p>${esc([inquiry.companies?.name,inquiry.contact_name,displayCountry(inquiry.target_country)].filter(Boolean).join(" · "))}</p><p><b>为什么处理：</b>${esc(task.reason||"核对当前商机进展")}</p><p><b>建议下一步：</b>${esc(salesTaskAdvice(task))}</p><p><b>采购需求：</b>${esc(inquiry.demand_summary||[inquiry.product_category,inquiry.quantity].filter(Boolean).join(" · ")||"尚未记录，需向客户核实")}</p><p><b>最近跟进：</b>${esc(recentError?"暂时无法加载，可稍后重试":recent?`${fmtDate(recent.created_at)} · ${recent.content}${recent.customer_feedback?`；客户反馈：${recent.customer_feedback}`:""}`:"暂无跟进记录")}</p></div><div class="task-action-buttons"><button type="button" class="ghost" id="task-open-source">查看沟通原文</button>${task.messageId?'<button type="button" class="ghost" id="task-reply-mail">回复这封邮件</button>':""}${task.followupId?'<button type="button" class="ghost" id="task-complete-original">确认原跟进已完成</button>':""}<button type="button" class="ghost" id="task-open-quote">处理报价</button><button type="button" class="ghost" id="task-open-detail">完整询盘 / 保留申请</button></div>${canRecord?`<form id="task-follow-form"><h4>记录实际跟进</h4><p class="hint">这里只登记已经发生的沟通；邮件和 WhatsApp 仍从原沟通入口发送。保存不会自动完成其他待办，也不会自动计为首次有效联系。</p><div class="detail-grid"><div class="field"><label for="task-follow-method">跟进方式</label><select id="task-follow-method" class="input"><option value="phone">电话</option><option value="meeting">会议 / 拜访</option><option value="email">邮件</option><option value="whatsapp">WhatsApp</option><option value="other">其他</option></select></div><div class="field"><label for="task-follow-next">下次跟进时间 *</label><input id="task-follow-next" class="input" type="datetime-local" required /></div></div><div class="field"><label for="task-follow-content">本次实际结果 *</label><textarea id="task-follow-content" class="input" rows="3" maxlength="5000" required placeholder="例如：已电话核对数量，客户将在周五提供规格"></textarea></div><div class="field"><label for="task-follow-feedback">客户反馈</label><textarea id="task-follow-feedback" class="input" rows="2" maxlength="5000" placeholder="没有反馈时留空"></textarea></div><p id="task-follow-status" class="hint" role="status" aria-live="polite"></p><div class="form-actions"><button class="primary" type="submit">保存跟进与下次计划</button></div></form>`:'<p class="hint">此询盘有待审无效申请，暂不可新增跟进。</p>'}`);
+          const openTab=async tab=>{$("#dashboard-modal").classList.add("hidden");await openInquiryDetail(inquiry.id);if(currentInquiry?.id===inquiry.id)setDetailTab(tab)};
+          $("#task-open-source").onclick=()=>openTab("summary");
+          $("#task-reply-mail")?.addEventListener("click",async event=>{
+            const button=event.currentTarget;button.disabled=true;
+            try{const {data:message,error}=await supabase.from("email_messages").select("*").eq("id",task.messageId).eq("inquiry_id",inquiry.id).eq("direction","inbound").single();if(error||!message)throw new Error("原邮件不可访问，请刷新任务后重试");await openMailComposer(message);$("#dashboard-modal").classList.add("hidden")}
+            catch(error){toast(error?.message||"邮件加载失败")}
+            finally{button.disabled=false}
+          });
+          $("#task-complete-original")?.addEventListener("click",async event=>{
+            const button=event.currentTarget;
+            if(!await appConfirm("确认已实际完成这条原跟进任务？该操作不会发送消息，也不会完成同一客户的其他任务。",{title:"完成原跟进",confirmText:"确认完成"}))return;
+            button.disabled=true;
+            let completed=false;
+            try{
+              const {data:original,error:readError}=await supabase.from("follow_ups").select("id").eq("id",task.followupId).eq("inquiry_id",inquiry.id).eq("author_id",profile.id).single();
+              if(readError||!original)throw new Error("原任务已不可访问，请刷新后重试");
+              const {error}=await supabase.rpc("complete_follow_up_task",{target_follow_up_id:original.id});if(error)throw error;
+              completed=true;button.textContent="原跟进已完成";moduleMemoryCache.delete("sales-today");moduleMemoryCache.delete("follow-calendar");await loadModule("sales-today");
+            }catch(error){toast((completed?"原跟进已完成，列表刷新失败：":"完成失败：")+(error?.message||error))}
+            finally{button.disabled=completed}
+          });
+          $("#task-open-detail").onclick=()=>openTab("followup");
+          $("#task-open-quote").onclick=()=>openQuoteManager(inquiry);
+          const form=$("#task-follow-form");if(!form)return;
+          $("#task-follow-next").min=localDateTimeInputValue(new Date(Date.now()+60000).toISOString());
+          let saving=false,saved=false;
+          form.onsubmit=async event=>{
+            event.preventDefault();if(saving||saved)return;
+            const status=form.querySelector("#task-follow-status"),button=form.querySelector('button[type="submit"]');
+            try{
+              const payload=salesTaskFollowupPayload(inquiry.id,{method:form.querySelector("#task-follow-method").value,content:form.querySelector("#task-follow-content").value,feedback:form.querySelector("#task-follow-feedback").value,next:form.querySelector("#task-follow-next").value});
+              saving=true;button.disabled=true;status.textContent="正在保存…";
+              const {error:saveError}=await supabase.rpc("record_inquiry_followup_v2",payload);
+              if(saveError)throw saveError;
+              saved=true;button.textContent="已保存";status.textContent="跟进与下次计划已保存；原待办须核对后单独完成。";
+              form.querySelectorAll("input,textarea,select").forEach(input=>input.disabled=true);
+              moduleMemoryCache.delete("sales-today");moduleMemoryCache.delete("follow-calendar");
+              if(activeModuleView==="sales-today")await loadModule("sales-today");
+              else await loadInquiries();
+            }catch(saveError){status.textContent=(saved?"已保存，但列表刷新失败，请手动刷新：":"未确认保存成功，请核对记录后再操作：")+(saveError?.message||saveError)}
+            finally{saving=false;button.disabled=saved}
+          };
+        }catch(error){toast(error?.message||"任务加载失败，请重试")}
+      }
       async function completeFollowUpFromCalendar(task){
         if(!task?.id)return;
         if(!await appConfirm(`确认完成这条跟进任务？\n\n${task.content||"跟进客户"}`,{title:"完成跟进任务",confirmText:"确认完成"}))return;
@@ -3577,11 +3651,11 @@
           if(firstError)query=Promise.resolve({data:null,error:firstError});else{
             const inquiries=inquiriesResult.data||[],byId=new Map(inquiries.map(x=>[x.id,x])),now=new Date(),today=chinaDate(),messagesById=new Map((messagesResult.data||[]).map(x=>[x.id,x])),whatsappMessagesById=new Map((whatsappMessagesResult.data||[]).map(x=>[x.id,x])),latestQuote=new Map(),tasks=[];
             (quotesResult.data||[]).forEach(x=>{if(x.inquiry_id&&byId.has(x.inquiry_id)&&!latestQuote.has(x.inquiry_id))latestQuote.set(x.inquiry_id,x)});
-            const add=(category,priority,inquiry,reason,time,label)=>tasks.push({category,priority,...inquiry,reason,time,label});
+            const add=(category,priority,inquiry,reason,time,label,source={})=>tasks.push({category,priority,...inquiry,reason,time,label,...source});
             inquiries.filter(x=>x.assigned_at&&!x.first_valid_contact_at).forEach(x=>{const assignedAt=new Date(x.assigned_at),dueAt=x.first_contact_due_at?new Date(x.first_contact_due_at):new Date(assignedAt.getTime()+30*60000);if(dueAt<now)add("overdue",1,x,`首次响应已逾期，请立即阅读原文和背调并联系客户`,dueAt.toISOString(),"首响已逾期");else if(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(assignedAt)===today)add("assigned",1,x,"今日新分配，请核对客户需求并在首响时限内联系客户",x.assigned_at,"新分配")});
-            (replyRemindersResult.data||[]).forEach(reminder=>{const x=byId.get(reminder.inquiry_id),mail=messagesById.get(reminder.inbound_message_id);if(x)add("reply",1,x,`客户新回复：${mail?.subject||"无主题"}`,reminder.received_at||mail?.received_at||mail?.created_at,"客户新回复")});
+            (replyRemindersResult.data||[]).forEach(reminder=>{const x=byId.get(reminder.inquiry_id),mail=messagesById.get(reminder.inbound_message_id);if(x)add("reply",1,x,`客户新回复：${mail?.subject||"无主题"}`,reminder.received_at||mail?.received_at||mail?.created_at,"客户新回复",{messageId:reminder.inbound_message_id})});
             (whatsappReplyRemindersResult.data||[]).forEach(reminder=>{const x=byId.get(reminder.inquiry_id),message=whatsappMessagesById.get(reminder.inbound_message_id),preview=String(message?.body_text||`[${message?.message_type||"消息"}]`).slice(0,80);if(x)add("reply",1,x,`WhatsApp 客户新回复：${preview}`,reminder.received_at||message?.occurred_at,"WhatsApp 新回复")});
-            (followupsResult.data||[]).forEach(f=>{const x=byId.get(f.inquiry_id);if(!x)return;const due=new Date(f.next_follow_up_at),category=due<now?"overdue":new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(due)===today?"followup":null;if(category){const p=f.priority==="high"?1:f.priority==="low"?4:3,rolled=f.rollover_count?` · 已自动顺延 ${f.rollover_count} 次`:"";add(category,category==="overdue"?1:p,x,(f.content||"按计划联系客户")+rolled,f.next_follow_up_at,category==="overdue"?"已逾期":f.priority==="high"?"今日跟进 · 高":"今日跟进")}});
+            (followupsResult.data||[]).forEach(f=>{const x=byId.get(f.inquiry_id);if(!x)return;const due=new Date(f.next_follow_up_at),category=due<now?"overdue":new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(due)===today?"followup":null;if(category){const p=f.priority==="high"?1:f.priority==="low"?4:3,rolled=f.rollover_count?` · 已自动顺延 ${f.rollover_count} 次`:"";add(category,category==="overdue"?1:p,x,(f.content||"按计划联系客户")+rolled,f.next_follow_up_at,category==="overdue"?"已逾期":f.priority==="high"?"今日跟进 · 高":"今日跟进",{followupId:f.id})}});
             inquiries.filter(x=>["qualified","contacted"].includes(x.status)).forEach(x=>{const quote=latestQuote.get(x.id),status=quote?.status;if(status==="pending_approval"||status==="sent")return;if(status==="draft")add("quote",2,x,"报价草稿尚未提交主管审批",quote.created_at,"待完善报价");else if(status==="approved")add("quote",1,x,"报价已获主管批准，等待发送客户",quote.created_at,"待发送报价");else add("quote",2,x,"客户已进入可报价阶段，尚未创建报价单",x.updated_at,"待创建报价")});
             inquiries.filter(x=>x.retained_until).forEach(x=>{const expiresAt=new Date(`${x.retained_until}T23:59:59+08:00`),remaining=expiresAt-now;if(remaining<0)add("overdue",1,x,`客户保留期已于 ${x.retained_until} 到期`,expiresAt.toISOString(),"保留已过期");else if(remaining<=7*86400000)add("expiring",2,x,`客户保留期将在 ${x.retained_until} 到期`,expiresAt.toISOString(),"即将失效")});
             (qualityResult.data||[]).forEach(alert=>{const x=byId.get(alert.inquiry_id);if(x)add("quality",alert.severity==="high"?1:3,x,alert.message,alert.detected_at,alert.severity==="high"?"数据缺失 · 高":"数据缺失")});
@@ -3590,7 +3664,7 @@
             query=Promise.resolve({data:tasks,error:null});
           }
           columns=["类型","优先级","询盘","国家/地区","当前阶段","任务原因","时间","操作"];
-          mapper=x=>({id:x.id,meta:{category:x.category,risk:x.priority===1},cells:[x.label,x.priority===1?"紧急":x.priority===2?"优先":"正常",`#${String(x.inquiry_no).padStart(6,"0")} · ${x.title}`,displayCountry(x.target_country),displayInquiryStage(x),x.reason,taskTimeText(x.time)],actions:[{label:x.category==="quote"?"去报价":"立即处理",onClick:()=>x.category==="quote"?openQuoteManager(x):openInquiryDetail(x.id)}]});clickable=true;
+          mapper=x=>({id:x.id,salesTask:x,meta:{category:x.category,risk:x.priority===1},cells:[x.label,x.priority===1?"紧急":x.priority===2?"优先":"正常",`#${String(x.inquiry_no).padStart(6,"0")} · ${x.title}`,displayCountry(x.target_country),displayInquiryStage(x),x.reason,taskTimeText(x.time)],actions:[{label:x.category==="quote"?"去报价":"立即处理",onClick:()=>openSalesTask(x)}]});clickable=true;
         } else if(view==="knowledge"){
           query=(async()=>{const [articles,materials]=await Promise.all([loadModuleRowsPaged((from,to)=>supabase.from("sales_knowledge_articles").select("id,category,title,summary,content,tags,language,updated_at,created_by").eq("active",true).order("updated_at",{ascending:false}).range(from,to)),supabase.functions.invoke("material-library",{body:{action:"list",limit:500}})]);if(articles.error)return articles;if(materials.error||materials.data?.error)return {data:null,error:new Error(materials.data?.error||materials.error?.message||"物料库加载失败")};return {data:[...(materials.data?.assets||[]).map(item=>({...item,knowledgeSource:"material"})),...(articles.data||[]).map(item=>({...item,knowledgeSource:"article"}))],error:null}})();
           columns=["来源","分类 / 类型","标题","语言","大小 / 标签","更新时间","操作"];
@@ -3803,7 +3877,7 @@
           $("#email-mark-warmup").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
         }
         const mappedRows = sourceRows.map(mapper);
-        const onRowClick = view === "knowledge" ? (row)=>row.materialAsset?openMaterialAsset(row.materialAsset):row.knowledgeArticle&&openKnowledgeArticle(row.knowledgeArticle) : view === "fulfillment" ? (row)=>row.fulfillmentInquiry&&openFulfillmentManager(row.fulfillmentInquiry) : view === "customers" ? (row)=>row.customerCompanyId&&openCustomerRecord(row.customerCompanyId) : view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : view === "mailbox" ? (row)=>row.message&&openMailboxMessage(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
+        const onRowClick = view === "sales-today" ? (row)=>openSalesTask(row.salesTask) : view === "knowledge" ? (row)=>row.materialAsset?openMaterialAsset(row.materialAsset):row.knowledgeArticle&&openKnowledgeArticle(row.knowledgeArticle) : view === "fulfillment" ? (row)=>row.fulfillmentInquiry&&openFulfillmentManager(row.fulfillmentInquiry) : view === "customers" ? (row)=>row.customerCompanyId&&openCustomerRecord(row.customerCompanyId) : view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : view === "mailbox" ? (row)=>row.message&&openMailboxMessage(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, loadedAt:new Date().toISOString() });
         $("#module-table-context").textContent = view==="sop"?`当前角色专属流程 · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`:`${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
@@ -4271,7 +4345,8 @@
         pendingQuote.forEach(x=>tasks.push({priority:4,id:x.id,title:x.title,reason:"客户需求已进入可报价阶段，尚未创建报价单",time:x.updated_at,label:"创建报价"}));
         tasks.push(...stageWarningTasks(open));const consolidated=consolidateTasks(tasks);
         $("#sales-task-list").innerHTML=consolidated.length?consolidated.slice(0,10).map(t=>`<div class="sales-task-item" data-sales-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${taskTimeText(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>今日暂无紧急待办</b><small>可以继续处理正常跟进或新增客户线索</small></div>';
-        $$('[data-sales-task]').forEach(item=>item.addEventListener("click",()=>openInquiryDetail(item.dataset.salesTask)));
+        $('#sales-task-list').insertAdjacentHTML('beforeend','<button type="button" class="ghost" id="sales-all-tasks">查看全部任务并处理</button>');$('#sales-all-tasks').onclick=()=>switchView('sales-today');
+        $$('[data-sales-task]').forEach(item=>item.addEventListener("click",()=>openSalesTask(consolidated.find(task=>task.id===item.dataset.salesTask))));
       }
       function renderManagerWorkbench(rows,profiles,followups){
         if(profile?.role!=="sales_manager")return;

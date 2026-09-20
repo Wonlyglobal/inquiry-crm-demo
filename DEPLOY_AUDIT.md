@@ -235,3 +235,15 @@
 - Deployment: migration commit `a401ee0` and application commit `241e1f0` were pushed to `main`; GitHub Pages workflow `35324029550` completed successfully. Supabase function `mailbox-ai-draft` was deployed, and an unauthenticated production call returned `403` with the CRM guard header.
 - Verification: focused tests `11/11`, full automated regression `278/278`, extracted browser-module syntax and `git diff --check` pass. The production rollback acceptance persisted and inspected a real linked-message response plan inside a transaction, then rolled it back successfully. Live HTML contains the minimum-reply action, response-plan panel and response mode marker.
 - Data safety: acceptance did not send or schedule email, invoke DeepSeek on production customer content, or leave any test draft or audit record.
+
+
+## 2026-09-20T09:44:57+08:00 — sales task actions release
+
+- Authorization: user explicitly requested “发布生产”; executor: Codex.
+- Target: Wonlyglobal/inquiry-crm-demo main / https://crm.foreverdoodle.com/.
+- Reason: release the accepted first-stage task actions UI.
+- Before: c77d3ed; live index SHA-256 3566aee135bff9bbd9400e395085d117c392c2f9d02525526e9b5cf438d66ce6 matches that source exactly.
+- Scope: index.html, task-action tests and acceptance documentation only. Risk-center work in the original checkout is excluded. No database migration, permissions change, AI request or customer communication.
+- Validation: isolated release tree 283/283 tests, module syntax, diff check, synthetic Chrome checks for failure/input retention, retries, duplicate submission, exact task completion and mobile overflow. The earlier 290 total included 7 unreleased risk-center tests.
+- Rollback: revert this release commit on main; prior runtime page is retained in c77d3ed. No database rollback needed.
+- Deployment: prepared for authorized push; Pages success and live hash will be verified after push and recorded in project WORKLOG.md. Production customer writes are not part of acceptance.

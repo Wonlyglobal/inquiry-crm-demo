@@ -1389,6 +1389,8 @@
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
         ><button class="nav" data-view="performance-360">
           <i data-lucide="badge-check"></i><span>360 评分中心</span></button
+        ><button class="nav" data-view="risk-review">
+          <i data-lucide="shield-alert"></i><span>风险审查中心</span></button
         ><button class="nav" data-view="settings">
           <i data-lucide="settings"></i><span>系统设置</span>
         </button><button class="nav bottom" data-view="sop">
@@ -2435,7 +2437,7 @@
         ),
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
-      let profile = null, currentAuthUser = null, dashboardLayoutEditing = false, dashboardPreferenceState = null, dashboardPreferenceSaveTimer = null, dashboardPreferenceSaveQueue = Promise.resolve(), dashboardPreferencesApplying = false, detailTabsEditing = false, detailTabsSaveTimer = null;
+      let profile = null, currentAuthUser = null, riskControlState = {export_suspended:false,download_suspended:false,sensitive_reveal_suspended:false}, dashboardLayoutEditing = false, dashboardPreferenceState = null, dashboardPreferenceSaveTimer = null, dashboardPreferenceSaveQueue = Promise.resolve(), dashboardPreferencesApplying = false, detailTabsEditing = false, detailTabsSaveTimer = null;
       let returnToDailyAfterLeadCreate = false;
       let dailySection = "report";
       let passwordChangeMode = "initial";
@@ -2460,15 +2462,16 @@
         sales: "销售",
       };
       const roleViewAccess = {
-        owner: new Set(["dashboard","sales-today","follow-calendar","marketing-center","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","settings"]),
-        sales_manager: new Set(["dashboard","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360"]),
+        owner: new Set(["dashboard","sales-today","follow-calendar","marketing-center","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","risk-review","settings"]),
+        sales_manager: new Set(["dashboard","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review"]),
         marketing: new Set(["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360"]),
         sales: new Set(["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
       const roleGuideViewNames = {
-        dashboard:"经营看板","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户资料库",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心",settings:"系统设置",sop:"角色操作指南"
+        dashboard:"经营看板","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户资料库",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
+        {at:"2026-09-20 10:15",title:"新增风险审查中心第一阶段",detail:"老板可查看全公司、主管可查看本团队业务风险；确定性规则识别无人负责、首响逾期和跟进逾期，处置、解除和关闭均留不可删除事件记录。",roles:["owner","sales_manager"]},
         {at:"2026-09-18 16:05",title:"邮件新增首次响应助手",detail:"可生成最小可发回复，列出已回应内容、必要澄清问题、不可承诺事项和客户当地建议发送时段；不会自动发送。",roles:["owner","sales_manager","sales"]},
         {at:"2026-09-18 15:48",title:"客户背调增加自动排队与新鲜度监控",detail:"新询盘入库后后台检查背调证据、资料时效、国家和企业邮箱域名冲突；只提醒复核，不覆盖事实。",roles:["owner","sales_manager","marketing","sales"]},
         {at:"2026-09-18 15:26",title:"邮件分拣增加重复客户与复购识别",detail:"综合联系人邮箱、企业域名、公司/联系人、产品和项目证据给出可见询盘候选及匹配理由，仅提醒人工核对，不自动合并。",roles:["owner","sales_manager","marketing"]},
@@ -2668,6 +2671,17 @@
         }
         showApp();
       }
+      async function loadMyRiskControls(){
+        const {data,error}=await supabase.rpc("get_my_risk_controls");
+        if(error){if(!/schema cache|could not find the function/i.test(error.message||""))console.warn("账号风险控制加载失败",error);return}
+        riskControlState={...riskControlState,...(data||{})};
+        const restricted=riskControlState.export_suspended||riskControlState.download_suspended||riskControlState.sensitive_reveal_suspended;
+        if(restricted)toast("安全保护已启用：部分导出、下载或敏感字段揭示功能暂时受限");
+      }
+      function allowRiskControlledExport(){
+        if(!riskControlState.export_suspended&&!riskControlState.download_suspended)return true;
+        toast("当前账号的导出/下载能力已因风险保护暂停，请联系老板完成复验和解除");return false;
+      }
       async function showApp() {
         $("#login").classList.add("hidden");
         $("#password-modal").classList.add("hidden");
@@ -2692,7 +2706,7 @@
         $("#dashboard-subtitle").textContent="询盘效率、销售转化、渠道 ROI 与风险预警";
         ["#dashboard-team","#dashboard-sales","#dashboard-data-scope","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
         ["#dashboard-team","#dashboard-sales","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
-        const startup = await Promise.allSettled([loadInquiries(), loadNotifications(), refreshPersonalMailboxEntry(), loadDashboardPreferences()]);
+        const startup = await Promise.allSettled([loadInquiries(), loadNotifications(), refreshPersonalMailboxEntry(), loadDashboardPreferences(),loadMyRiskControls()]);
         initializeDashboardLayout();
         initializeDetailTabsOrder();
         if (startup.some((result) => result.status === "rejected")) toast("部分数据暂时未加载，系统已保留可用页面；可稍后重试");
@@ -3472,6 +3486,47 @@
         $("#module-table-context").textContent="匿名评价不向被评价人展示评价者身份 · 第一期为影子运行";
         if(!rows.length)setModuleState("empty","当前没有 360 评价任务或评分结果");
       }
+      const riskSeverityLabels={p0:"P0 严重",p1:"P1 高",p2:"P2 中",p3:"P3 低"};
+      const riskStatusLabels={open:"待响应",contained:"已控制",under_review:"审查中",remediation:"整改中",resolved:"已解决",false_positive:"误报关闭"};
+      const riskDomainLabels={security:"安全风险",business:"业务风险"};
+      const riskDecisionLabels={start_review:"开始审查",remediation:"进入整改",contain:"暂停敏感能力",release:"复验并解除限制",resolve:"确认解决",false_positive:"确认误报"};
+      function riskControlText(item){const control=item.controls||{},active=control.export_suspended||control.download_suspended||control.sensitive_reveal_suspended;return active?"导出/下载/敏感揭示已暂停":"无活动限制"}
+      function riskAllowedDecisions(item){
+        const owner=profile?.role==="owner",closed=["resolved","false_positive"].includes(item.status),actions=[];
+        if(closed)return actions;
+        if(item.status==="open")actions.push("start_review");
+        if(["under_review","contained","remediation"].includes(item.status))actions.push("remediation");
+        const control=item.controls||{},active=control.export_suspended||control.download_suspended||control.sensitive_reveal_suspended;
+        if(owner&&["p0","p1"].includes(item.severity)&&item.subject_user_id&&!active)actions.push("contain");
+        if(owner&&active)actions.push("release");
+        if(!active&&(["under_review","remediation"].includes(item.status)||item.severity==="p3"))actions.push("resolve","false_positive");
+        return [...new Set(actions)];
+      }
+      function openRiskCase(item){
+        const events=(item.events||[]).map(event=>`<div class="role-guide-update"><time>${esc(fmtDate(event.created_at))}</time><div><b>${esc(riskDecisionLabels[event.event_type]||event.event_type)}</b><span>${esc(event.reason||"—")}${event.actor_name?` · ${esc(event.actor_name)}`:" · 系统规则"}</span></div></div>`).join("")||'<p class="hint">暂无事件</p>';
+        const decisions=riskAllowedDecisions(item),activeControl=riskControlText(item);
+        openDashboardModal(`风险 #${String(item.case_no).padStart(6,"0")} · ${item.title}`,`<div class="notice"><b>${esc(riskSeverityLabels[item.severity]||item.severity)} · ${esc(riskDomainLabels[item.domain]||item.domain)} · ${esc(riskStatusLabels[item.status]||item.status)}</b><p>${esc(item.summary)}</p><p><b>涉及对象：</b>${esc(item.subject_name||"未指定账号")} ${item.subject_team?`· ${esc(item.subject_team)}`:""}${item.inquiry_no?` · 询盘 #${esc(item.inquiry_no)}`:""}</p><p><b>当前控制：</b>${esc(activeControl)}</p><p><b>响应时限：</b>${esc(fmtDate(item.due_at))}</p></div><details><summary>查看最小化规则证据</summary><pre style="white-space:pre-wrap;word-break:break-word">${esc(JSON.stringify(item.evidence||{},null,2))}</pre></details><h3>不可删除处置时间线</h3><div class="role-guide-update-list">${events}</div>${decisions.length?`<form id="risk-review-form"><div class="field"><label>处置动作 *</label><select id="risk-review-decision" class="input">${decisions.map(value=>`<option value="${value}">${esc(riskDecisionLabels[value])}</option>`).join("")}</select></div><div class="field"><label>人工审查依据 *</label><textarea id="risk-review-reason" class="input" rows="4" minlength="8" maxlength="2000" required placeholder="说明核查证据、影响范围、处置或解除依据，至少 8 个字"></textarea></div><p class="hint">自动控制不会删除数据或修改客户归属；P0/P1 的控制、解除和终审仅限老板。</p><div class="form-actions"><button class="primary" type="submit">确认并记录审计</button></div></form>`:'<p class="hint">该案件已关闭，历史记录不可修改或删除。</p>'}`);
+        const form=$("#risk-review-form");if(!form)return;
+        form.onsubmit=async event=>{event.preventDefault();const decision=$("#risk-review-decision").value,reason=$("#risk-review-reason").value.trim();if(reason.length<8)return toast("请填写至少 8 个字的审查依据");const button=event.submitter;button.disabled=true;const {error}=await supabase.rpc("review_risk_case",{target_case_id:item.id,decision,decision_reason:reason});button.disabled=false;if(error)return toast("风险处置失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("风险处置已记录并进入不可删除事件链");await loadModule("risk-review")};
+      }
+      async function runRiskScan(){
+        const button=$("#module-primary"),original=button.textContent;button.disabled=true;button.textContent="扫描中…";
+        const {data,error}=await supabase.rpc("run_crm_risk_scan");button.disabled=false;button.textContent=original;
+        if(error)return toast("风险扫描失败："+error.message);
+        toast(`扫描完成，本次命中 ${Number(data?.scanned||0)} 项；重复风险已合并`);await loadModule("risk-review");
+      }
+      async function loadRiskReviewWorkspace(loadVersion){
+        const {data,error}=await supabase.rpc("get_my_risk_review_workspace");
+        if(loadVersion!==moduleLoadVersion)return;
+        if(error){renderModuleTable(["提示"],[{cells:["风险审查中心加载失败："+error.message]}]);return}
+        const cases=data?.cases||[],open=cases.filter(item=>!["resolved","false_positive"].includes(item.status)),critical=open.filter(item=>["p0","p1"].includes(item.severity)),contained=open.filter(item=>item.status==="contained"),overdue=open.filter(item=>item.due_at&&new Date(item.due_at)<new Date());
+        $("#module-insights").innerHTML=[["P0 / P1",critical.length],["待审查",open.filter(item=>item.status==="open").length],["已控制",contained.length],["超过响应时限",overdue.length]].map(([label,value])=>`<div class="module-insight"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("");
+        $("#module-insights").classList.remove("hidden");
+        const rows=cases.map(item=>({id:item.id,meta:{risk:["p0","p1"].includes(item.severity),searchText:[item.title,item.summary,item.subject_name,item.subject_team,item.inquiry_no,item.domain,item.status].join(" ")},cells:[riskSeverityLabels[item.severity]||item.severity,riskDomainLabels[item.domain]||item.domain,item.title,item.subject_name||item.subject_team||"系统/未指定",riskStatusLabels[item.status]||item.status,fmtDate(item.due_at),riskControlText(item)],actions:[{label:["resolved","false_positive"].includes(item.status)?"查看":"审查",onClick:()=>openRiskCase(item)}]}));
+        renderModuleTable(["等级","风险域","风险事项","涉及对象","状态","响应时限","控制","操作"],rows);
+        $("#module-table-context").textContent=`${data?.role==="owner"?"全公司风险":"本团队业务风险"} · 确定性规则 · 不使用 AI 自动定责`;
+        if(!rows.length)setModuleState("empty","当前没有可见风险案件，可运行确定性扫描");
+      }
       async function loadModule(view, options = {}) {
         if (view !== "inquiries") activeInquiryScope = "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
@@ -3497,6 +3552,7 @@
           research: ["客户背调", "公司基础信息、风险提示与 AI 调查结果", "公司调查记录"],
           "legacy-projects": ["历史工程管控", "原 CRM 工程项目独立归档，不计入新询盘转化口径", "历史工程项目"],
           "performance-360": ["360 评分中心", "月度绩效、晋升淘汰、培训改进和管理分析；评价过程匿名、结果可申诉", "360 评价任务与结果"],
+          "risk-review": ["风险审查中心", "统一查看安全与业务风险，按 P0–P3 分级审查、处置、整改和复验", "风险案件"],
           settings: ["系统设置", "成员、角色与首次登录状态", "成员账号"],
         }[view];
         if (!config) return;
@@ -3544,8 +3600,8 @@
         setModuleState("loading");
         const modulePrimary = $("#module-primary");
         modulePrimary.disabled = false;
-        modulePrimary.onclick = view === "whatsapp" ? () => openWhatsAppConnectionForm() : view === "performance-360" ? () => openSales360CycleForm() : null;
-        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","whatsapp","templates","knowledge","follow-calendar","performance-360"].includes(view) || (view==="knowledge"&&!['owner','marketing'].includes(profile.role)) || (view==="whatsapp"&&!['owner','sales_manager'].includes(profile.role)) || (view==="performance-360"&&profile.role!=="owner"));
+        modulePrimary.onclick = view === "whatsapp" ? () => openWhatsAppConnectionForm() : view === "performance-360" ? () => openSales360CycleForm() : view === "risk-review" ? () => runRiskScan() : null;
+        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","whatsapp","templates","knowledge","follow-calendar","performance-360","risk-review"].includes(view) || (view==="knowledge"&&!['owner','marketing'].includes(profile.role)) || (view==="whatsapp"&&!['owner','sales_manager'].includes(profile.role)) || (view==="performance-360"&&profile.role!=="owner"));
         $("#calendar-generate-daily").classList.toggle("hidden",view!=="follow-calendar"||profile.role!=="sales");
         const canManageSharedInquiry = profile.role === "owner";
         const sharedInquiryButton = $("#connect-shared-inquiry");
@@ -3576,6 +3632,7 @@
         if (view === "knowledge") modulePrimary.textContent = "+ 新建知识";
         if (view === "follow-calendar") modulePrimary.textContent = "+ 新增每日计划";
         if (view === "performance-360") modulePrimary.textContent = "+ 创建影子评分周期";
+        if (view === "risk-review") modulePrimary.textContent = "运行风险扫描";
         const denied = !canAccessView(view);
         if (denied) {
           renderModuleTable(["提示"], [{ cells: ["当前账号无权查看此页面"] }]);
@@ -3592,6 +3649,13 @@
         }
         if(view==="performance-360"){
           await loadSales360Workspace(loadVersion);
+          refreshButton.classList.remove("loading");
+          refreshButton.disabled=false;
+          icons();
+          return;
+        }
+        if(view==="risk-review"){
+          await loadRiskReviewWorkspace(loadVersion);
           refreshButton.classList.remove("loading");
           refreshButton.disabled=false;
           icons();
@@ -7838,8 +7902,8 @@
       $("#ai-assistant-close").addEventListener("click",()=>$("#ai-assistant-panel").classList.add("hidden"));
       $("#ai-clear-chat").addEventListener("click",()=>{aiConversation=[];aiLastContext=null;aiLastQuestion="";$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制、导出 Excel 或打印为 PDF。</div>';toast("AI 对话已清空");});
       $("#ai-copy-result").addEventListener("click",async()=>{const text=latestAiAnswer();if(!text)return toast("请先向 AI 提问");await navigator.clipboard.writeText(text);toast("已复制最新 AI 回答");});
-      $("#ai-export-csv").addEventListener("click",exportAiCsv);
-      $("#ai-export-pdf").addEventListener("click",printAiResult);
+      $("#ai-export-csv").addEventListener("click",()=>{if(allowRiskControlledExport())exportAiCsv()});
+      $("#ai-export-pdf").addEventListener("click",()=>{if(allowRiskControlledExport())printAiResult()});
       $$("[data-ai-question]").forEach(button=>button.addEventListener("click",()=>{$("#ai-assistant-input").value=button.dataset.aiQuestion;$("#ai-assistant-form").requestSubmit();}));
       $("#ai-assistant-form").addEventListener("submit",async event=>{
         event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
@@ -7852,6 +7916,7 @@
       });
       $("#dashboard-export-csv").addEventListener("click", () => {
         if (!["owner","sales_manager"].includes(profile?.role)) return toast("仅老板或销售主管可导出看板");
+        if (!allowRiskControlledExport()) return;
         const tableRows=[["榜单","名次","成员","实际值","环比","团队平均"]];
         $$(".leaderboard").forEach(card=>{const title=card.querySelector("b").textContent; card.querySelectorAll("tbody tr").forEach(tr=>tableRows.push([title,...[...tr.cells].map(td=>td.innerText.trim())]));});
         tableRows.push([],['筛选周期',$("#dashboard-period").selectedOptions[0].text],['生成时间',new Date().toLocaleString('zh-CN',{hour12:false})]);
@@ -7860,6 +7925,7 @@
       });
       $("#dashboard-export-pdf").addEventListener("click", () => {
         if (!["owner","sales_manager"].includes(profile?.role)) return toast("仅老板或销售主管可导出看板");
+        if (!allowRiskControlledExport()) return;
         window.print();
       });
       bindMetricHelp();

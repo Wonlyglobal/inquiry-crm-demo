@@ -1,0 +1,14 @@
+# Publish the browser application; keep server source, tests and internal records out of Pages.
+exclude:
+  - docs
+  - tests
+  - scripts
+  - mail-sync
+  - supabase
+  - CURRENT_STATE.md
+  - DECISIONS.md
+  - DEPLOY_AUDIT.md
+  - SECURITY.md
+  - WORKLOG.md
+  - AGENTS.md
+  - README.md

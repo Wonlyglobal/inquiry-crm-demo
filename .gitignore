@@ -1,0 +1,15 @@
+# Local credentials and secret exports
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+# Local tooling and audit output
+node_modules/
+.DS_Store
+._*
+playwright-report/
+test-results/
+*redacted.json

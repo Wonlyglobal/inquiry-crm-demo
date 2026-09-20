@@ -1440,7 +1440,7 @@
                 <input id="dashboard-start" class="input compact hidden" type="date" />
                 <input id="dashboard-end" class="input compact hidden" type="date" />
               </div>
-              <div class="dashboard-actions"><button id="dashboard-targets" class="ghost">设置目标</button><button id="dashboard-export-csv" class="ghost">导出 Excel</button><button id="dashboard-export-pdf" class="ghost">导出 PDF</button></div>
+              <div class="dashboard-actions"><button id="dashboard-targets" class="ghost">设置目标</button><button id="dashboard-export-csv" class="ghost">申请导出清单</button><button id="dashboard-export-pdf" class="ghost">导出审批记录</button></div>
             </div>
             <div class="dashboard-toolbar-secondary">
             <div class="dashboard-filter-group">
@@ -2305,7 +2305,7 @@
     </div>
     <button id="ai-assistant-open" class="ai-fab hidden"><i data-lucide="sparkles"></i><span>AI 数据助手</span></button>
     <aside id="ai-assistant-panel" class="ai-panel hidden" aria-label="AI 数据助手">
-      <div class="ai-panel-head"><strong><i data-lucide="bot"></i> AI 数据助手</strong><div class="ai-panel-actions"><button id="ai-clear-chat">清空</button><button id="ai-copy-result">复制</button><button id="ai-export-csv">导出 Excel</button><button id="ai-export-pdf">打印/PDF</button><button id="ai-assistant-close" class="close">×</button></div></div>
+      <div class="ai-panel-head"><strong><i data-lucide="bot"></i> AI 数据助手</strong><div class="ai-panel-actions"><button id="ai-clear-chat">清空</button><button id="ai-copy-result">复制</button><button id="ai-export-csv">申请导出清单</button><button id="ai-export-pdf">导出审批记录</button><button id="ai-assistant-close" class="close">×</button></div></div>
       <div id="ai-assistant-scope" class="ai-scope">读取当前权限及看板筛选范围</div>
       <div id="ai-assistant-messages" class="ai-messages"><div class="ai-message assistant">你好，我可以总结你有权限查看的 CRM 数据。所有数字均由系统实时计算，并附带统计周期。</div></div>
       <div class="ai-suggestions"><button data-ai-question="生成今日销售日报">今日销售日报</button><button data-ai-question="生成本周销售周报">本周销售周报</button><button data-ai-question="总结当前经营情况">总结经营情况</button><button data-ai-question="业务员销售额排名">销售额排名</button><button data-ai-question="有哪些超时和风险询盘">风险询盘</button><button data-ai-question="分析当前商机漏斗">商机漏斗</button></div>
@@ -3213,7 +3213,7 @@
       async function openQuoteManager(inquiry){
         const {data:versions,error}=await supabase.from("quotation_versions").select("*").eq("inquiry_id",inquiry.id).order("version_no",{ascending:false});if(error)return toast("报价记录加载失败："+error.message);
         const canCreate=inquiry.owner_id===profile.id||["owner","sales_manager"].includes(profile.role),canReview=["owner","sales_manager"].includes(profile.role);
-        const quoteActions=q=>`${["draft","rejected"].includes(q.status)&&(q.created_by===profile.id||inquiry.owner_id===profile.id)?`<button class="table-action" data-quote-submit="${q.id}">${q.status==="rejected"?"重新提交":"提交审核"}</button>`:""}${q.status==="pending_approval"&&canReview?`<button class="table-action" data-quote-approve="${q.id}">批准</button><button class="table-action" data-quote-reject="${q.id}">驳回</button>`:""}<button class="table-action" data-quote-print="${q.id}">查看/打印</button>${q.status==="approved"?`<button class="table-action" data-quote-send="${q.id}">发送客户</button>`:""}`;
+        const quoteActions=q=>`${["draft","rejected"].includes(q.status)&&(q.created_by===profile.id||inquiry.owner_id===profile.id)?`<button class="table-action" data-quote-submit="${q.id}">${q.status==="rejected"?"重新提交":"提交审核"}</button>`:""}${q.status==="pending_approval"&&canReview?`<button class="table-action" data-quote-approve="${q.id}">批准</button><button class="table-action" data-quote-reject="${q.id}">驳回</button>`:""}<button class="table-action" data-quote-view="${q.id}">查看明细</button>${q.status==="approved"?`<button class="table-action" data-quote-send="${q.id}">发送客户</button>`:""}`;
         const quoteStatus=q=>q.customer_replied_at?`客户已回复 · ${fmtDate(q.customer_replied_at)}`:q.status==="sent"?`已发送${q.sent_at?` · ${fmtDate(q.sent_at)}`:""}`:({draft:"草稿",pending_approval:"待审核",approved:"已批准",rejected:"已驳回"}[q.status]||q.status);
         const quoteLineRow=()=>`<div class="quote-line" style="display:grid;grid-template-columns:1.3fr 1.7fr .65fr .8fr auto;gap:10px;align-items:end;margin-bottom:10px"><div class="field"><label>产品/型号</label><input class="input quote-product" required /></div><div class="field"><label>规格说明</label><input class="input quote-spec" /></div><div class="field"><label>数量</label><input class="input quote-qty" type="number" min="0.01" step="0.01" required /></div><div class="field"><label>单价</label><input class="input quote-unit-price" type="number" min="0" step="0.01" required /></div><button class="secondary quote-remove" type="button" aria-label="删除此明细">删除</button></div>`;
         openDashboardModal(`报价管理 · #${String(inquiry.inquiry_no).padStart(6,"0")}`,`<div class="dashboard-table-scroll"><table><thead><tr><th>报价编号</th><th>主题</th><th>金额</th><th>有效期</th><th>状态</th><th>操作</th></tr></thead><tbody>${(versions||[]).map(q=>`<tr><td>${esc(q.quote_no||`V${q.version_no}`)}</td><td>${esc(q.subject)}${q.review_note?`<small style="display:block;margin-top:5px">审核意见：${esc(q.review_note)}</small>`:""}</td><td>${esc(q.currency)} ${Number(q.total_amount).toLocaleString()}</td><td>${q.validity_until||"—"}</td><td>${esc(quoteStatus(q))}</td><td>${quoteActions(q)}</td></tr>`).join("")||'<tr><td colspan="6">暂无报价版本</td></tr>'}</tbody></table></div>${canCreate?`<form id="quote-create-form" style="margin-top:18px"><h4>新建报价版本</h4><div class="detail-grid"><div class="field"><label>报价主题</label><input id="quote-subject" class="input" required value="${esc(inquiry.title)}" /></div><div class="field"><label>币种</label><select id="quote-currency" class="input"><option>USD</option><option>CNY</option><option>EUR</option></select></div></div><div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 8px"><strong>报价明细</strong><button id="quote-add-line" class="secondary" type="button">＋ 添加产品</button></div><div id="quote-lines">${quoteLineRow()}</div><div style="text-align:right;font-weight:700;margin:8px 0 16px">预计总额：<span id="quote-total">USD 0.00</span></div><div class="detail-grid"><div class="field"><label>有效期</label><input id="quote-valid" class="input" type="date" /></div><div class="field"><label>贸易条款</label><input id="quote-terms" class="input" placeholder="FOB / CIF / EXW 等" /></div></div><div class="field"><label>备注</label><textarea id="quote-notes" class="input" rows="3"></textarea></div><div class="form-actions"><button class="primary" type="submit">保存新版本</button></div></form>`:""}`);
@@ -3224,7 +3224,7 @@
         $$('[data-quote-submit]').forEach(b=>b.onclick=()=>{const id=b.dataset.quoteSubmit;openDashboardModal("提交报价审核",`<form id="quote-submit-form"><div class="field"><label>提交说明 *</label><textarea id="quote-submit-note" class="input" rows="4" required placeholder="说明本版报价范围、关键条款和需要主管关注的事项"></textarea></div><div class="form-actions"><button class="primary" type="submit">提交主管审核</button></div></form>`);$("#quote-submit-form").onsubmit=async event=>{event.preventDefault();const result=await supabase.rpc("submit_quotation_for_approval",{target_quotation_id:id,submit_note:$("#quote-submit-note").value.trim()});if(result.error)return toast("提交失败："+result.error.message);toast("报价已提交主管审核并发送通知");openQuoteManager(inquiry)}});
         $$('[data-quote-approve],[data-quote-reject]').forEach(b=>b.onclick=()=>{const approved=Boolean(b.dataset.quoteApprove),id=b.dataset.quoteApprove||b.dataset.quoteReject;openDashboardModal(approved?"批准报价":"驳回报价",`<form id="quote-review-form"><div class="field"><label>审核意见 *</label><textarea id="quote-review-note" class="input" rows="4" required placeholder="记录价格、条款、风险或修改要求"></textarea></div><div class="form-actions"><button class="${approved?"primary":"danger"}" type="submit">确认${approved?"批准":"驳回"}</button></div></form>`);$("#quote-review-form").onsubmit=async event=>{event.preventDefault();const result=await supabase.rpc("review_quotation",{target_quotation_id:id,approve:approved,review_note:$("#quote-review-note").value.trim()});if(result.error)return toast("审核失败："+result.error.message);toast(approved?"报价已批准，可发送客户":"报价已驳回并通知业务员");openQuoteManager(inquiry)}});
         const quoteText=q=>`${q.subject}\nQuotation No: ${q.quote_no||`V${q.version_no}`}\n\n${(q.line_items||[]).map((l,i)=>`${i+1}. ${l.product}${l.specification?` - ${l.specification}`:""}\n   ${l.quantity} × ${q.currency} ${l.unit_price} = ${q.currency} ${(Number(l.quantity)*Number(l.unit_price)).toFixed(2)}`).join("\n\n")}\n\nTotal: ${q.currency} ${Number(q.total_amount).toFixed(2)}\nTrade terms: ${q.trade_terms||"To be confirmed"}\nValid until: ${q.validity_until||"To be confirmed"}\n${q.notes?`\nNotes: ${q.notes}`:""}`;
-        $$('[data-quote-print]').forEach(b=>b.onclick=()=>{const q=versions.find(x=>x.id===b.dataset.quotePrint),w=window.open("","_blank");if(!w)return toast("浏览器阻止了打印窗口");w.document.write(`<title>${esc(q.quote_no||q.subject)}</title><pre style="font:16px/1.6 Arial;white-space:pre-wrap;padding:40px">${esc(quoteText(q))}</pre><script>window.print()<\/script>`);w.document.close()});
+        $$('[data-quote-view]').forEach(b=>b.onclick=()=>{const q=versions.find(x=>x.id===b.dataset.quoteView);if(!q)return;openDashboardModal("报价明细",`<p class="hint">报价为 L3 机密数据。打印与导出需独立审批，当前仅支持在线查看。</p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(quoteText(q))}</pre>`)});
         $$('[data-quote-send]').forEach(b=>b.onclick=async()=>{const q=versions.find(x=>x.id===b.dataset.quoteSend),{data:intake}=await supabase.from("email_intake").select("sender_email").eq("inquiry_id",inquiry.id).order("created_at",{ascending:false}).limit(1).maybeSingle();if(!intake?.sender_email)return toast("询盘没有可用的客户邮箱");$("#dashboard-modal").classList.add("hidden");openMailComposer();$("#mail-compose-inquiry").value=inquiry.id;$("#mail-compose-quotation").value=q.id;$("#mail-compose-to").value=intake.sender_email;$("#mail-compose-subject").value=`Quotation ${q.quote_no||""} - ${q.subject}`;$("#mail-compose-body").value=`Dear Customer,\n\nPlease find our quotation details below:\n\n${quoteText(q)}\n\nBest regards,\n${profile.full_name}`});
       }
       const sampleStatusNames={preparing:"准备中",shipped:"已寄出",delivered:"已签收",feedback_received:"已反馈",closed:"已完成"};
@@ -4217,7 +4217,7 @@
         if(reminderSync.error&&!/schema cache|could not find the function/i.test(reminderSync.error.message||""))console.warn("客户保留期提醒同步失败",reminderSync.error);
         const { data, error } = await loadModuleRowsPaged((from,to)=>supabase
           .from("notifications")
-          .select("id,inquiry_id,title,body,read_at,created_at")
+          .select("id,inquiry_id,export_request_id,title,body,read_at,created_at")
           .order("created_at", { ascending: false })
           .range(from,to));
         if (error) return;
@@ -4246,9 +4246,9 @@
           const time = document.createElement("small");
           time.textContent = fmtDate(item.created_at);
           row.append(title, detail, time);
-          if (item.inquiry_id) {
+          if (item.inquiry_id||item.export_request_id) {
             const linkHint = document.createElement("small");
-            linkHint.textContent = "查看询盘 →";
+            linkHint.textContent = item.export_request_id?"查看导出审批 →":"查看询盘 →";
             linkHint.style.cssText = "display:block;margin-top:5px;color:var(--green);font-weight:700";
             row.append(linkHint);
           }
@@ -4259,7 +4259,11 @@
                 .update({ read_at: new Date().toISOString() })
                 .eq("id", item.id);
             $("#notice-panel").classList.add("hidden");
-            if (item.inquiry_id) await openInquiryDetail(item.inquiry_id);
+            if(item.export_request_id){
+              const result=await callControlledExportRpc("list_crm_exports");
+              const request=(result.data||[]).find(r=>r.id===item.export_request_id);
+              if(result.error)toast("导出审批读取失败："+result.error.message);else if(request)await openControlledExportDetail(request);else await openControlledExportCenter();
+            }else if (item.inquiry_id) await openInquiryDetail(item.inquiry_id);
             await loadNotifications();
           });
           list.append(row);
@@ -4689,25 +4693,47 @@
         ],sales:c.salesStats.map((x,i)=>({rank:i+1,...x})),stages:c.stages,sources:c.sources,risks:c.risky.map(x=>({no:String(x.inquiry_no||"").padStart(6,"0"),title:x.title||"未命名询盘",stage:statusNames[x.status]||x.status,owner:ownerName(x.owner_id),next:x.next_follow_up_at?fmtDate(x.next_follow_up_at):"未安排",reason:x.risk_flag?"高风险标记":x.next_follow_up_at&&new Date(x.next_follow_up_at)<new Date()?"跟进已逾期":"预计成交日期已过"}))};
       }
       function reportBar(value,max){const width=max>0?Math.max(0,Math.min(20,Math.round(value/max*20))):0;return `${"█".repeat(width)}${"░".repeat(20-width)}`}
-      async function exportAiCsv(){
-        if(!aiConversation.length)return toast("请先向 AI 提问");
-        const model=aiReportModel(),{c}=model,button=$("#ai-export-csv"),original=button.textContent;button.disabled=true;button.textContent="生成中…";
-        try{
-          const XLSX=await import("https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/+esm"),workbook=XLSX.utils.book_new(),navy="17372F",orange="C65F13",pale="EAF2ED",white="FFFFFF",gray="66756E";
-          const addSheet=(name,rows,widths)=>{const sheet=XLSX.utils.aoa_to_sheet(rows),range=XLSX.utils.decode_range(sheet["!ref"]||"A1");sheet["!cols"]=widths.map(w=>({wch:w}));sheet["!rows"]=[{hpt:30}];for(let col=range.s.c;col<=range.e.c;col++){const cell=sheet[XLSX.utils.encode_cell({r:0,c:col})];if(cell)cell.s={font:{bold:true,color:{rgb:white},sz:14},fill:{fgColor:{rgb:navy}},alignment:{vertical:"center"}}}for(let row=1;row<=range.e.r;row++){for(let col=0;col<=range.e.c;col++){const cell=sheet[XLSX.utils.encode_cell({r:row,c:col})];if(!cell)continue;cell.s={font:{color:{rgb:col===0?navy:"26352F"}},fill:{fgColor:{rgb:row%2?pale:white}},alignment:{vertical:"top",wrapText:true},border:{bottom:{style:"thin",color:{rgb:"DCE5E0"}}}}}}XLSX.utils.book_append_sheet(workbook,sheet,name);return sheet};
-          const overview=[["WONLY CRM 经营分析报告","当前值","单位","对比/状态","可视化"],...[ ["统计周期",model.period,"","",""] ,["数据范围",c.scope,"","",""] ,["生成时间",model.generated,"","",""] ],...model.kpis.map(([name,value,unit,note])=>[name,unit==="%"?value:value,unit,note,reportBar(unit==="%"?value*100:Number(value),unit==="%"?100:Math.max(...model.kpis.filter(x=>x[2]===unit).map(x=>Number(x[1])||0),1))])];
-          const overviewSheet=addSheet("经营概览",overview,[24,24,12,20,26]);overviewSheet["!merges"]=[];model.kpis.forEach(([,value,unit],index)=>{const cell=overviewSheet[`B${index+5}`];if(cell&&unit==="%")cell.z="0.0%";if(cell&&unit==="CNY")cell.z='¥#,##0.00';});
-          const maxSales=Math.max(...model.sales.map(x=>x.amount),1);addSheet("业务员排名",[["名次","业务员","成交额（人民币）","成交额（美元）","成交单数","处理询盘数","销售额对比条"],...model.sales.map(x=>[x.rank,x.name,x.amount,c.usd?Number((x.amount/c.usd).toFixed(2)):"汇率待更新",x.won,x.handled,reportBar(x.amount,maxSales)])],[8,20,20,20,12,14,26]);
-          const maxStage=Math.max(...model.stages.map(x=>x.count),1);addSheet("销售漏斗",[["商机阶段","数量","占当前商机比例","数量对比条"],...model.stages.map(x=>[x.name,x.count,c.active.length?x.count/c.active.length:0,reportBar(x.count,maxStage)])],[20,12,22,28]);
-          const maxSource=Math.max(...model.sources.map(x=>x.count),1);addSheet("渠道分析",[["渠道","询盘数","占新增询盘比例","数量对比条"],...model.sources.map(x=>[x.name,x.count,c.created.length?x.count/c.created.length:0,reportBar(x.count,maxSource)])],[22,12,22,28]);
-          addSheet("风险清单",[["询盘编号","询盘主题","当前阶段","负责人","下次跟进","风险原因"],...model.risks.map(x=>[x.no,x.title,x.stage,x.owner,x.next,x.reason])],[14,46,16,16,22,24]);
-          addSheet("AI分析",[["分析主题","内容"],["成员提问",model.question],["AI分析",model.answer],["统计周期",model.period],["数据范围",c.scope],["口径说明","成交额按成交时间、成交日锁定汇率和成交时负责人统计；未分配不计入业务员排名。"]],[18,100]);
-          const output=XLSX.write(workbook,{bookType:"xlsx",type:"array",cellStyles:true}),href=URL.createObjectURL(new Blob([output],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})),link=document.createElement("a");link.href=href;link.download=`WONLY-CRM经营分析-${new Date().toISOString().slice(0,10)}.xlsx`;link.click();setTimeout(()=>URL.revokeObjectURL(href),1000);toast("可视化 Excel 报告已生成");
-        }catch(error){toast("Excel 报告生成失败："+(error?.message||error))}finally{button.disabled=false;button.textContent=original}
+      async function callControlledExportRpc(name,args){
+        try{return await supabase.rpc(name,args)}catch(error){return {error:{message:error?.message||"网络异常，请刷新确认申请状态"}}}
       }
-      function printAiResult(){
-        if(!aiConversation.length)return toast("请先向 AI 提问");const model=aiReportModel(),{c}=model,frame=document.createElement("iframe");frame.style.position="fixed";frame.style.width="1px";frame.style.height="1px";frame.style.opacity="0";document.body.append(frame);const doc=frame.contentDocument,maxSales=Math.max(...model.sales.map(x=>x.amount),1),maxStage=Math.max(...model.stages.map(x=>x.count),1),maxSource=Math.max(...model.sources.map(x=>x.count),1),bar=(label,value,max,display)=>`<div class="bar-row"><span>${esc(label)}</span><i><b style="width:${max?Math.max(2,value/max*100):0}%"></b></i><strong>${esc(display??value)}</strong></div>`,rows=(headers,data)=>`<table><thead><tr>${headers.map(x=>`<th>${esc(x)}</th>`).join("")}</tr></thead><tbody>${data.map(row=>`<tr>${row.map(x=>`<td>${esc(x)}</td>`).join("")}</tr>`).join("")||`<tr><td colspan="${headers.length}">暂无数据</td></tr>`}</tbody></table>`;
-        doc.open();doc.write(`<meta charset="utf-8"><title>WONLY CRM 经营分析报告</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:"PingFang SC","Microsoft YaHei",Arial,sans-serif;color:#17271f;margin:0;font-size:11px;line-height:1.55}header{background:#17372f;color:#fff;padding:20px 22px;border-radius:14px;margin-bottom:14px}h1{font-size:24px;margin:0 0 5px}.meta{color:#dce9e2}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 16px}.kpi{border:1px solid #d8e2dd;border-radius:10px;padding:10px;background:#f7faf8}.kpi span{display:block;color:#66756e}.kpi b{display:block;font-size:18px;margin:3px 0}.kpi small{color:#c65f13}section{break-inside:avoid;margin:14px 0}h2{font-size:15px;border-left:4px solid #c65f13;padding-left:8px;margin:0 0 8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.bar-row{display:grid;grid-template-columns:94px 1fr 72px;gap:8px;align-items:center;margin:6px 0}.bar-row i{height:10px;background:#edf2ef;border-radius:8px;overflow:hidden}.bar-row i b{display:block;height:100%;background:#c65f13;border-radius:8px}.bar-row strong{text-align:right}table{width:100%;border-collapse:collapse;font-size:10px}th{background:#17372f;color:#fff;text-align:left;padding:7px}td{padding:7px;border-bottom:1px solid #dfe7e2;vertical-align:top}tr:nth-child(even) td{background:#f5f8f6}.analysis{white-space:pre-wrap;border:1px solid #d8e2dd;border-radius:10px;padding:12px;background:#f7faf8}.footer{margin-top:12px;color:#66756e;border-top:1px solid #dfe7e2;padding-top:8px}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style><header><h1>WONLY CRM 经营分析报告</h1><div class="meta">统计周期：${esc(model.period)}<br>数据范围：${esc(c.scope)}<br>生成时间：${esc(model.generated)}</div></header><div class="kpis">${model.kpis.map(([name,value,unit,note])=>`<div class="kpi"><span>${esc(name)}</span><b>${unit==="%"?(value*100).toFixed(1)+"%":unit==="CNY"?money(value,"CNY"):esc(`${value} ${unit}`)}</b><small>${esc(note)}</small></div>`).join("")}</div><div class="grid"><section><h2>业务员销售额</h2>${model.sales.map(x=>bar(x.name,x.amount,maxSales,money(x.amount,"CNY"))).join("")||"暂无数据"}</section><section><h2>销售漏斗</h2>${model.stages.map(x=>bar(x.name,x.count,maxStage,`${x.count} 条`)).join("")||"暂无数据"}</section><section><h2>渠道分布</h2>${model.sources.map(x=>bar(x.name,x.count,maxSource,`${x.count} 条`)).join("")||"暂无数据"}</section><section><h2>风险概览</h2><div class="analysis">超时未响应：${c.overdue.length} 条\n风险或逾期商机：${c.risky.length} 条\n进行中商机：${c.active.length} 条</div></section></div><section><h2>风险与待处理清单</h2>${rows(["编号","询盘","阶段","负责人","下次跟进","原因"],model.risks.map(x=>[x.no,x.title,x.stage,x.owner,x.next,x.reason]))}</section><section><h2>AI 分析结论</h2><div class="analysis"><b>${esc(model.question)}</b>\n\n${esc(model.answer)}</div></section><div class="footer">数据口径：成交额按成交时间、成交日锁定汇率和成交时负责人统计；未分配不计入业务员排名。</div>`);doc.close();setTimeout(()=>{frame.contentWindow.focus();frame.contentWindow.print();setTimeout(()=>frame.remove(),1500)},500);
+      let controlledExportView=0;
+      async function openControlledExportCenter(){
+        const view=++controlledExportView;
+        openDashboardModal("导出审批",'<p role="status">正在读取导出申请…</p>');
+        const {data,error}=await callControlledExportRpc("list_crm_exports");
+        if(view!==controlledExportView)return;
+        if(error){openDashboardModal("导出审批",`<p role="alert">暂时无法读取导出审批：${esc(error.message)}。不会改用浏览器直接导出。</p>`);return}
+        const candidates=aiDataContext().created||[],canSelect=candidates.length>0&&candidates.length<=200;
+        const statusNamesExport={pending:"待双人审核",approved:"已批准",rejected:"已驳回",revoked:"已撤回",consumed:"已领取"};
+        openDashboardModal("导出审批",`<p class="hint">当前仅支持同一团队的询盘清单（编号、状态、创建时间、国家、产品类别），不包含邮件正文、附件、报价或 AI 回答。按 L3 机密数据由主管与老板分别审核；申请人不能自批。批准后 10 分钟内可领取一次带追踪标识的 CSV，Excel 可打开。</p><form id="controlled-export-form"><h3>申请导出</h3>${canSelect?`<p>当前看板统计期内 ${candidates.length} 条，请核对并选择同一团队的记录。</p><div class="dashboard-table-scroll" style="max-height:220px;overflow:auto"><table><thead><tr><th>选择</th><th>询盘编号</th><th>负责人</th></tr></thead><tbody>${candidates.map(x=>`<tr><td><input type="checkbox" name="export-inquiry" value="${esc(x.id)}" aria-label="选择询盘 ${esc(x.inquiry_no)}"></td><td>#${esc(x.inquiry_no)}</td><td>${esc(dashboardState.profiles.find(p=>p.id===x.owner_id)?.full_name||"未分配（不支持导出）")}</td></tr>`).join("")}</tbody></table></div><div class="field"><label for="controlled-export-purpose">导出用途（8–1000 字）</label><textarea id="controlled-export-purpose" class="input" minlength="8" maxlength="1000" required></textarea></div><button class="primary" type="submit">提交申请</button>`:`<p>当前筛选有 ${candidates.length} 条记录。请先在看板缩小到 1–200 条，再申请导出。</p>`}<p id="controlled-export-status" role="status"></p></form><h3>我的申请与待审记录</h3><button class="ghost" id="controlled-export-refresh">刷新</button><div class="dashboard-table-scroll"><table><thead><tr><th>申请号</th><th>团队 / 数量</th><th>状态</th><th>操作</th></tr></thead><tbody>${(data||[]).map(r=>`<tr><td>${esc(r.id.slice(0,8))}</td><td>${esc(r.scope_team)} / ${Number(r.row_count)}</td><td>${esc(((r.status==="pending"&&new Date(r.expires_at)<new Date())||(r.status==="approved"&&new Date(r.download_expires_at)<new Date()))?"已过期":statusNamesExport[r.status]||r.status)}</td><td><button class="ghost" data-export-detail="${esc(r.id)}">查看并处理</button></td></tr>`).join("")||'<tr><td colspan="4">暂无申请</td></tr>'}</tbody></table></div>`);
+        $("#controlled-export-refresh").onclick=openControlledExportCenter;
+        $$('[data-export-detail]').forEach(button=>button.onclick=()=>openControlledExportDetail((data||[]).find(r=>r.id===button.dataset.exportDetail)));
+        let saving=false;
+        $("#controlled-export-form").onsubmit=async event=>{event.preventDefault();if(saving)return;const ids=$$('input[name="export-inquiry"]:checked').map(x=>x.value),purpose=$("#controlled-export-purpose")?.value.trim()||"";if(!ids.length||purpose.length<8)return toast("请选择询盘，并填写至少 8 字用途");saving=true;const button=event.submitter;button.disabled=true;let result;try{result=await callControlledExportRpc("request_crm_export",{inquiry_ids:ids,export_purpose:purpose})}catch(e){result={error:{message:e.message||"网络异常"}}}if(view!==controlledExportView)return;if(result.error){saving=false;button.disabled=false;$("#controlled-export-status").textContent="申请失败："+result.error.message;return}toast("导出申请已提交，等待主管与老板分别审核");await openControlledExportCenter()};
+      }
+      async function openControlledExportDetail(item){
+        if(!item)return;
+        const view=++controlledExportView;
+        openDashboardModal("导出申请",'<p role="status">正在核对快照与访问权限…</p>');
+        const {data,error}=await callControlledExportRpc("preview_crm_export",{request_id:item.id});
+        if(view!==controlledExportView)return;
+        const mine=item.requester_id===profile.id,open=["pending","approved"].includes(item.status),eligible=!mine&&item.status==="pending"&&["owner","sales_manager"].includes(profile.role)&&!(item.approvals||[]).some(a=>a.reviewer_id===profile.id);
+        openDashboardModal("导出申请",`<p>申请号：${esc(item.id)}<br>用途：${esc(item.purpose)}<br>分级：L3；团队：${esc(item.scope_team)}；记录数：${Number(item.row_count)}</p><p class="hint">批准前请确认用途、字段与接收范围合理。文件只含下面的固定字段；不会导出任意客户端内容。</p>${error?`<p role="alert">快照不可用：${esc(error.message)}</p>`:`<div class="dashboard-table-scroll"><table><thead><tr><th>编号</th><th>状态</th><th>创建时间</th><th>国家</th><th>产品类别</th></tr></thead><tbody>${(data.rows||[]).map(r=>`<tr><td>${esc(r.inquiry_no)}</td><td>${esc(r.status)}</td><td>${esc(r.created_at)}</td><td>${esc(r.target_country)}</td><td>${esc(r.product_category)}</td></tr>`).join("")}</tbody></table></div>`}<p>审批记录：${(item.approvals||[]).map(a=>`${a.stage==="owner"?"老板":"主管"}：${a.approved?"通过":"驳回"}（${esc(a.reason)}）`).join("；")||"暂无"}</p><div class="field"><label for="export-review-reason">审批或撤回依据（8–1000 字）</label><textarea id="export-review-reason" class="input" minlength="8" maxlength="1000"></textarea></div><div class="form-actions">${eligible&&!error?'<button class="primary" data-export-action="approve">通过审核</button><button class="ghost" data-export-action="reject">驳回</button>':""}${open?'<button class="ghost" data-export-action="revoke">撤回申请</button>':""}${mine&&item.status==="approved"&&!error?'<button class="primary" data-export-action="download">领取 CSV（一次）</button>':""}<button class="ghost" id="export-detail-back">返回列表</button></div><p id="export-action-status" role="status"></p><p class="hint">领取会消耗一次授权；网络中断可导致文件未保存，需重新申请。已保存文件无法远程收回。权限变更、过期或风险限制会阻止领取。</p>`);
+        $("#export-detail-back").onclick=openControlledExportCenter;
+        let busy=false;
+        $$('[data-export-action]').forEach(button=>button.onclick=async()=>{
+          if(busy)return;const action=button.dataset.exportAction,reason=$("#export-review-reason").value.trim();if(action!=="download"&&reason.length<8)return toast("请填写至少 8 字依据");
+          busy=true;$$('[data-export-action]').forEach(b=>b.disabled=true);
+          const name=action==="download"?"consume_crm_export":action==="revoke"?"revoke_crm_export":"review_crm_export",args={request_id:item.id};
+          if(action==="revoke")args.revoke_reason=reason;else if(action!=="download")Object.assign(args,{approve:action==="approve",review_reason:reason,reviewed_hash:data.snapshot_hash});
+          let result;try{result=await callControlledExportRpc(name,args)}catch(e){result={error:{message:e.message||"网络异常"}}}
+          if(view!==controlledExportView)return;
+          if(result.error){$("#export-action-status").textContent="操作未完成："+result.error.message;busy=false;$$('[data-export-action]').forEach(b=>b.disabled=false);return}
+          if(action==="download"){
+            const file=result.data,link=document.createElement("a"),href=URL.createObjectURL(new Blob(["\ufeff",file.content],{type:"text/csv;charset=utf-8"}));link.href=href;link.download=file.filename;link.click();setTimeout(()=>URL.revokeObjectURL(href),1000);
+            $("#export-action-status").textContent="一次性领取已记录。请确认浏览器已保存文件。";
+          }else{toast("操作已记录");await openControlledExportCenter()}
+        });
       }
       function addAiMessage(role,text){const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;$("#ai-assistant-messages").append(el);$("#ai-assistant-messages").scrollTop=$("#ai-assistant-messages").scrollHeight;}
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
@@ -7900,10 +7926,10 @@
       $("#inquiry-definitions").addEventListener("click",openInquiryDefinitions);
       $("#ai-assistant-open").addEventListener("click",openAiAssistant);
       $("#ai-assistant-close").addEventListener("click",()=>$("#ai-assistant-panel").classList.add("hidden"));
-      $("#ai-clear-chat").addEventListener("click",()=>{aiConversation=[];aiLastContext=null;aiLastQuestion="";$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制、导出 Excel 或打印为 PDF。</div>';toast("AI 对话已清空");});
+      $("#ai-clear-chat").addEventListener("click",()=>{aiConversation=[];aiLastContext=null;aiLastQuestion="";$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制；询盘清单导出需独立审批。</div>';toast("AI 对话已清空");});
       $("#ai-copy-result").addEventListener("click",async()=>{const text=latestAiAnswer();if(!text)return toast("请先向 AI 提问");await navigator.clipboard.writeText(text);toast("已复制最新 AI 回答");});
-      $("#ai-export-csv").addEventListener("click",()=>{if(allowRiskControlledExport())exportAiCsv()});
-      $("#ai-export-pdf").addEventListener("click",()=>{if(allowRiskControlledExport())printAiResult()});
+      $("#ai-export-csv").addEventListener("click",openControlledExportCenter);
+      $("#ai-export-pdf").addEventListener("click",openControlledExportCenter);
       $$("[data-ai-question]").forEach(button=>button.addEventListener("click",()=>{$("#ai-assistant-input").value=button.dataset.aiQuestion;$("#ai-assistant-form").requestSubmit();}));
       $("#ai-assistant-form").addEventListener("submit",async event=>{
         event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
@@ -7914,20 +7940,8 @@
         if(fallbackReason){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",fallbackReason);answer+=`\n\n⚠️ DeepSeek 暂未生效，本次使用 CRM 本地统计：${fallbackReason}`;}
         submit.disabled=false;submit.textContent="提问";addAiMessage("assistant",answer);aiConversation.push({role:"user",content:question},{role:"assistant",content:answer});
       });
-      $("#dashboard-export-csv").addEventListener("click", () => {
-        if (!["owner","sales_manager"].includes(profile?.role)) return toast("仅老板或销售主管可导出看板");
-        if (!allowRiskControlledExport()) return;
-        const tableRows=[["榜单","名次","成员","实际值","环比","团队平均"]];
-        $$(".leaderboard").forEach(card=>{const title=card.querySelector("b").textContent; card.querySelectorAll("tbody tr").forEach(tr=>tableRows.push([title,...[...tr.cells].map(td=>td.innerText.trim())]));});
-        tableRows.push([],['筛选周期',$("#dashboard-period").selectedOptions[0].text],['生成时间',new Date().toLocaleString('zh-CN',{hour12:false})]);
-        const csv="\ufeff"+tableRows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");
-        const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download=`经营看板-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
-      });
-      $("#dashboard-export-pdf").addEventListener("click", () => {
-        if (!["owner","sales_manager"].includes(profile?.role)) return toast("仅老板或销售主管可导出看板");
-        if (!allowRiskControlledExport()) return;
-        window.print();
-      });
+      $("#dashboard-export-csv").addEventListener("click",openControlledExportCenter);
+      $("#dashboard-export-pdf").addEventListener("click",openControlledExportCenter);
       bindMetricHelp();
       const openRecoveryPassword = () => {
         passwordChangeMode = "recovery";

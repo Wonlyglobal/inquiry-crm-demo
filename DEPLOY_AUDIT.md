@@ -256,3 +256,41 @@
 - Validation: isolated release tree 283/283 tests, module syntax, diff check, synthetic Chrome checks for failure/input retention, retries, duplicate submission, exact task completion and mobile overflow. The earlier 290 total included 7 unreleased risk-center tests.
 - Rollback: revert this release commit on main; prior runtime page is retained in c77d3ed. No database rollback needed.
 - Deployment: prepared for authorized push; Pages success and live hash will be verified after push and recorded in project WORKLOG.md. Production customer writes are not part of acceptance.
+
+
+## 2026-09-20T09:55:27+08:00 — GitHub 安全加固
+
+- 授权人：本次用户；执行人：Codex；目标：Wonlyglobal/inquiry-crm-demo；原因：限制生产直推与公开托管风险。
+- 已生效：main 强制 PR/独立一人审核/两项 CI/管理员约束，禁止强推和删除；Dependabot 漏洞告警与安全更新、私密报告开启。API 回读验证通过。
+- 审核人 chloe19980401 已按用户指定邀请 write，待接受。账号双重验证已启用；GitHub Free 已核实，改私有可能使 Pages 下线，因此未更改可见性或付费套餐。
+- 验证：历史 501 提交密钥模式扫描未命中；本地最终 290/290 测试通过，CRM HTTPS 200。扫描不等同全部业务敏感信息无泄漏。
+- 代码交付：安全 PR #1，自动检查与 Pages 文件排除待独立审核合并；仓库设置已生效，应用与数据库无本轮变更。
+- 回滚：代码走受保护 revert PR；安全控制降低须另行明确批准。剩余风险：公开历史、待接受邀请、待合并 PR、套餐/托管选择。完整记录 docs/GITHUB-SECURITY-HARDENING-2026-09-20.md。
+
+
+## 2026-09-20 Codeup 迁移（无生产部署）
+
+用户授权改用 Codeup，Codex 完成私有源码副本与主分支独立审核保护。两分支/507 个可达提交一致；WIP MR #1 未合并。独立审核成员及 Flow CI 尚未接入。原 GitHub Pages、域名、数据库均未变更，源码托管迁移不代表生产发布迁移完成。回滚为暂停新托管流程，保留原受保护发布路径。详见项目 docs/CODEUP-MIGRATION-2026-09-20.md。
+
+
+## 2026-09-20 风险续审（未部署）
+
+用户授权继续风险审查。Codex 对 0b59af6 发现风险 RPC 空值授权、多案件控制覆盖、AI 团队隔离与外发门禁、导出下载控制缺口。仅源码审查及官方 SQL 语义核对，无生产变更、利用或客户数据外发。完整触发条件、验收及剩余风险见项目 docs/RISK-REVIEW-FOLLOWUP-2026-09-20.md。文档可撤回，无运行时回滚。用户已选择继续 GitHub，Codeup 迁移暂停。
+
+
+## 2026-09-20 风险修复候选（未部署）
+
+用户授权“开始修复”，Codex 完成两条风险/存储迁移和邮件 AI 权限、外发阻断候选。297 项回归与 22 项隔离 PostgreSQL 行为断言通过。生产无变更，未提交合并或部署。审批网关与服务端导出尚未建设，独立审核尚待人员落实。授权、前后状态、影响、验证、回滚与剩余风险见 docs/risk-hardening-acceptance-2026-09-20.md。
+
+
+## 2026-09-20 第二批受控导出候选（未部署）
+
+用户授权开始第二批并继续。Codex 完成固定字段导出服务端双审批、单次领取、撤回及审计，页面导出转审批，市场部只读存储风险覆盖，八个已盘点 DeepSeek 入口默认阻断。300 项 Node 和 62 项隔离 PostgreSQL 断言通过，合成浏览器流程通过。无真实客户操作、真实审批或生产状态变化。尚待独立审核、生产兼容核对与发布；完整 AI 分级网关、原多表 Excel/PDF 仍未完成。前后状态、影响、回滚及剩余风险见 docs/controlled-exports-acceptance-2026-09-20.md。
+
+
+## 2026-09-20 — 风险修复第三批（本地，未部署）
+
+- 授权人：用户“继续”；执行人：Codex；目标：导出审批通知、报价明细；原因：补齐审批提醒并收口未审批打印。
+- 交付：按角色与团队生成站内审批/状态通知，缺少独立审核人明确提示；禁止客户端伪造或改绑导出通知；报价保留在线查看并移除直接打印入口。
+- 验证：301 项 Node 回归、48 项隔离 PostgreSQL 导出断言、页面模块语法和 diff 检查通过。均为本地/合成数据，无实际通知或生产写入；前后生产状态不变。
+- 回滚：未发布可按差异撤销本批；发布后保留审计向前修复，不恢复无审批打印。剩余：独立审核、生产 notifications/RLS 兼容及浏览器验收、正式报价打印审批、催办、AI 分级网关和外部归档。详见 docs/export-notifications-acceptance-2026-09-20.md。

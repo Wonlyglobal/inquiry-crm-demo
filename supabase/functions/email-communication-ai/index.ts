@@ -1,3 +1,4 @@
+import { customerDataAiFetch, assertCustomerDataAiPolicy } from "../_shared/customer-data-ai.ts";
 import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
@@ -47,6 +48,7 @@ Deno.serve(withReadOnlyGuard(async req=>{
       const {data:{user},error:userError}=await userDb.auth.getUser(token);if(userError||!user)return new Response(JSON.stringify({error:"登录已失效"}),{status:401,headers:cors});
       const visible=await userDb.from("inquiries").select("id").eq("id",inquiryId).maybeSingle();if(visible.error||!visible.data)return new Response(JSON.stringify({error:"无权查看该询盘"}),{status:403,headers:cors});
     }
+    assertCustomerDataAiPolicy();
     const [{data:inquiry,error:inquiryError},thread]=await Promise.all([
       db.from("inquiries").select("id,title,product_category,quantity,target_country,status,demand_summary,project_name,contact_name,company_id").eq("id",inquiryId).single(),
       loadCompleteThread(db,inquiryId),
@@ -58,7 +60,7 @@ Deno.serve(withReadOnlyGuard(async req=>{
     const perMessageChars=Math.max(320,Math.min(2600,Math.floor(70000/chronological.length)));
     const emailHistory=chronological.map((message,index)=>`[${index+1}] ${message.channel==="whatsapp"?"WhatsApp":"邮件"}·${message.direction==="inbound"?"客户来信":"我方发信"}｜${message.received_at||message.sent_at||message.created_at}\n主题：${clean(message.subject,300)||"无主题"}\n正文：${clean(message.body_text,perMessageChars)||"（无正文）"}`).join("\n\n");
     const systemPrompt=`你是 WONLY 海外门锁与门类业务 CRM 的客户跟进分析员。你必须真正理解整段往来，而不是复述或把公司背调机械插入。只依据给定材料：区分客户明确说过的事实、我方承诺、尚未确认的信息和合理建议；不得编造客户痛点、预算、数量、认证、交期或决策权。重点识别客户当下阻碍采购决策的痛点、最新问题、隐含顾虑、我方尚未兑现的承诺，并提出一个低阻力的下一步。输出严格 JSON，字段为 summary_zh、customer_needs_pain_points、confirmed_items、pending_items、objections、commitments、risks、recommended_next_step、recommended_follow_up_at。各文本字段用简洁中文；无证据时明确写“暂无明确证据”而非猜测。recommended_follow_up_at 使用 ISO 8601；客户明确要求时间时优先，否则按紧急度建议未来 1–7 天。`;
-    const response=await fetch("https://api.deepseek.com/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model:Deno.env.get("DEEPSEEK_MODEL")||"deepseek-chat",temperature:0.1,max_tokens:1800,response_format:{type:"json_object"},messages:[{role:"system",content:systemPrompt},{role:"user",content:`当前时间：${new Date().toISOString()}\n询盘资料：${JSON.stringify(inquiry)}\n客户背调（只可作为背景，不得冒充客户表述）：${JSON.stringify(company)}\n\n全部邮件（按时间正序，共 ${chronological.length} 封）：\n${emailHistory}`}]}),signal:AbortSignal.timeout(40000)});
+    const response=await customerDataAiFetch("https://api.deepseek.com/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model:Deno.env.get("DEEPSEEK_MODEL")||"deepseek-chat",temperature:0.1,max_tokens:1800,response_format:{type:"json_object"},messages:[{role:"system",content:systemPrompt},{role:"user",content:`当前时间：${new Date().toISOString()}\n询盘资料：${JSON.stringify(inquiry)}\n客户背调（只可作为背景，不得冒充客户表述）：${JSON.stringify(company)}\n\n全部邮件（按时间正序，共 ${chronological.length} 封）：\n${emailHistory}`}]}),signal:AbortSignal.timeout(40000)});
     const payload=await response.json();if(!response.ok)throw new Error(payload?.error?.message||`DeepSeek ${response.status}`);
     const result=jsonObject(clean(payload?.choices?.[0]?.message?.content));
     const generationDedupeKey=["mail_sync","automatic_refresh"].includes(generationTrigger)?`${inquiryId}:${latestCommunicationKey}:${generationTrigger}`:null;

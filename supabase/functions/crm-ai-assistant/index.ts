@@ -1,3 +1,4 @@
+import { customerDataAiFetch } from "../_shared/customer-data-ai.ts";
 import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
@@ -28,7 +29,7 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     const apiKey = Deno.env.get("DEEPSEEK_API_KEY") || "";
     if (!apiKey) return new Response(JSON.stringify({ error: "DeepSeek API Key 尚未配置" }), { status: 503, headers: cors });
 
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
+    const response = await customerDataAiFetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({

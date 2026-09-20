@@ -1,5 +1,14 @@
 # Production deployment audit
 
+## 2026-09-20 — publish risk review center phase A
+
+- Authorization: the user explicitly requested production publication after reviewing the local Phase A implementation and its safety boundary.
+- Target: Supabase project `plhverjihjilnuhlhlxi` (`WONLY Global / wonly-inquiry-crm / main / PRODUCTION`) and GitHub Pages repository `Wonlyglobal/inquiry-crm-demo`, branch `main`.
+- Database: `20260920090000_risk_review_center.sql` was executed in the authenticated production SQL editor and returned `Success. No rows returned`; the hourly deterministic business-risk scan was scheduled without scanning or changing customer ownership during deployment.
+- Rollback acceptance: `production-risk-review-center-rollback.sql` returned `risk_cases=true; immutable_events=true; reviewed_rpc=true; anon_review_denied=false`. The transaction was rolled back and left no test risk case, control or audit residue.
+- Verification before publication: complete automated suite `285/285`, frontend/module syntax validation and `git diff --check` passed.
+- Safety: the release does not automatically delete customers, change inquiry ownership, punish employees or send customer communications. P0/P1 containment is owner-controlled; real session revocation, unified server-side export enforcement and external tamper-resistant archival remain future work.
+
 ## 2026-09-18 — live role guide and timestamped change history
 
 - Scope: move Role Guide to the final sidebar position, generate the signed-in account's visible-module summary from the production `roleViewAccess` matrix, filter operating procedures to the current role, and show a newest-first list of timestamped role/process updates.
@@ -235,7 +244,6 @@
 - Deployment: migration commit `a401ee0` and application commit `241e1f0` were pushed to `main`; GitHub Pages workflow `35324029550` completed successfully. Supabase function `mailbox-ai-draft` was deployed, and an unauthenticated production call returned `403` with the CRM guard header.
 - Verification: focused tests `11/11`, full automated regression `278/278`, extracted browser-module syntax and `git diff --check` pass. The production rollback acceptance persisted and inspected a real linked-message response plan inside a transaction, then rolled it back successfully. Live HTML contains the minimum-reply action, response-plan panel and response mode marker.
 - Data safety: acceptance did not send or schedule email, invoke DeepSeek on production customer content, or leave any test draft or audit record.
-
 
 ## 2026-09-20T09:44:57+08:00 — sales task actions release
 

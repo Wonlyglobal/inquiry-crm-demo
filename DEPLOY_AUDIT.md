@@ -7,6 +7,7 @@
 - Database: `20260920090000_risk_review_center.sql` was executed in the authenticated production SQL editor and returned `Success. No rows returned`; the hourly deterministic business-risk scan was scheduled without scanning or changing customer ownership during deployment.
 - Rollback acceptance: `production-risk-review-center-rollback.sql` returned `risk_cases=true; immutable_events=true; reviewed_rpc=true; anon_review_denied=false`. The transaction was rolled back and left no test risk case, control or audit residue.
 - Verification before publication: complete automated suite `285/285`, frontend/module syntax validation and `git diff --check` passed.
+- Publication: commit `15c5196` was pushed to `main`; GitHub Pages workflow `35482432790` completed successfully. The live `index.html` and local release file share SHA-256 `c7650355a422c2822e208d35a3013314ad85570764276d9d2d5d303268554c19`, and the live source contains the role-gated risk navigation plus all three risk RPC calls.
 - Safety: the release does not automatically delete customers, change inquiry ownership, punish employees or send customer communications. P0/P1 containment is owner-controlled; real session revocation, unified server-side export enforcement and external tamper-resistant archival remain future work.
 
 ## 2026-09-18 — live role guide and timestamped change history

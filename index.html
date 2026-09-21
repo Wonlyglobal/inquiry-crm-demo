@@ -572,6 +572,10 @@
       .module-status-pill.pending { background:#fff4e8; color:#a9571e; }
       .module-status-pill.invalid { background:#f9e8e6; color:#a33f35; }
       .module-owner-unassigned { color:#a9571e; font-weight:700; }
+      .knowledge-thumbnail { width:76px; height:48px; display:grid; place-items:center; overflow:hidden; border:1px solid var(--line); border-radius:9px; background:linear-gradient(145deg,#edf5ef,#dfece3); color:#315f49; font-size:11px; font-weight:800; }
+      .knowledge-thumbnail img { width:100%; height:100%; display:block; object-fit:cover; }
+      .knowledge-thumbnail.video { background:linear-gradient(145deg,#e8f1ed,#cfdfd5); }
+      .knowledge-thumbnail.document { background:linear-gradient(145deg,#f5f3ed,#e9e3d7); color:#786444; }
       .module-state-title { display:block; margin-bottom:5px; color:var(--ink); }
       .module-retry { margin-top:14px; }
       .module-loading-icon { animation:module-spin .9s linear infinite; }
@@ -2855,6 +2859,11 @@
           row.cells.forEach((value, index) => {
             const td = document.createElement("td"), label = columns[index];
             if(label==="选择"){const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=selectedEmailIntakeIds.has(row.selectionId);checkbox.setAttribute("aria-label","选择邮件");checkbox.onclick=event=>event.stopPropagation();checkbox.onchange=()=>{if(checkbox.checked)selectedEmailIntakeIds.add(row.selectionId);else selectedEmailIntakeIds.delete(row.selectionId);$("#email-selected-count").textContent="已选 "+selectedEmailIntakeIds.size+" 条"};td.append(checkbox);tr.append(td);return}
+            if(activeModuleView==="knowledge"&&label==="缩略图"){
+              const preview=row.preview||{},box=document.createElement("div");box.className=`knowledge-thumbnail ${preview.kind||"document"}`;box.setAttribute("aria-label",preview.alt||"文件缩略图");
+              if(preview.url){const img=document.createElement("img");img.src=preview.url;img.alt=preview.alt||"文件缩略图";img.loading="lazy";img.referrerPolicy="no-referrer";img.addEventListener("error",()=>{box.textContent=preview.fallback||"文件"});box.append(img)}else box.textContent=preview.fallback||"文件";
+              td.append(box);tr.append(td);return;
+            }
             if (activeModuleView === "inquiries" && label === "询盘主题") td.className = "module-cell-primary";
             if (activeModuleView === "inquiries" && ["阶段", "有效性"].includes(label)) {
               const pill = document.createElement("span");
@@ -3343,6 +3352,22 @@
       const knowledgeCategoryNames={product:"产品参数",certification:"认证资料",faq:"常见问题",quotation:"报价规范",case:"成功案例"};
       const MAIL_ATTACHMENT_LIMIT_BYTES=50*1024*1024,MAIL_ATTACHMENT_COUNT_LIMIT=100;
       const materialSize=bytes=>Number(bytes)>=1048576?`${(Number(bytes)/1048576).toFixed(1)} MB`:`${Math.max(1,Math.round(Number(bytes)/1024))} KB`;
+      function materialUploaderName(asset={}){
+        const nested=asset.uploadedBy||asset.uploader||asset.createdBy||asset.owner;
+        if(typeof nested==="string"&&nested.trim())return nested.trim();
+        if(nested&&typeof nested==="object")return nested.fullName||nested.full_name||nested.displayName||nested.name||nested.email||"未提供";
+        return asset.uploaderName||asset.uploader_name||asset.uploadedByName||asset.uploaded_by_name||asset.createdByName||asset.created_by_name||"未提供";
+      }
+      function knowledgePreview(item={}){
+        const name=String(item.name||item.title||""),type=String(item.mimeType||item.mime_type||item.type||"").toLowerCase(),signature=`${type} ${name}`.toLowerCase();
+        const rawUrl=item.thumbnailUrl||item.thumbnail_url||item.previewUrl||item.preview_url||item.coverUrl||item.cover_url||"",url=safeExternalUrl(rawUrl);
+        const kind=/video|视频|\.mp4$|\.mov$|\.webm$/.test(signature)?"video":/image|图片|图像|\.png$|\.jpe?g$|\.webp$|\.gif$/.test(signature)?"image":"document";
+        return {url,kind,alt:`${name||"文件"}缩略图`,fallback:kind==="video"?"视频":kind==="image"?"图片":"文档"};
+      }
+      function knowledgePreviewMarkup(item={}){
+        const preview=knowledgePreview(item);
+        return `<div class="knowledge-thumbnail ${preview.kind}" aria-label="${esc(preview.alt)}">${preview.url?`<img src="${esc(preview.url)}" alt="${esc(preview.alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(document.createTextNode('${esc(preview.fallback)}'))">`:esc(preview.fallback)}</div>`;
+      }
       function renderSelectedMaterialAttachments(){
         const wrap=$("#mail-material-attachments");if(!wrap)return;
         wrap.innerHTML=selectedMaterialAttachments.map(item=>`<span class="tag" style="display:inline-flex;align-items:center;gap:6px">${esc(item.name)} · ${esc(materialSize(item.sizeBytes))}<button type="button" data-remove-material="${item.id}" aria-label="移除附件 ${esc(item.name)}" style="border:0;background:none;cursor:pointer;font-size:18px;line-height:1">×</button></span>`).join("");
@@ -3357,7 +3382,7 @@
         selectedMaterialAttachments.push(asset);renderSelectedMaterialAttachments();updateMailAttachmentSummary();toast("已加入邮件附件");
       }
       function openMaterialAsset(asset){
-        openDashboardModal(asset.name,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>来源</span><div>WONLY 物料库 · 实时</div></div><div class="legacy-detail-item"><span>类型</span><div>${esc(asset.type||"文件")}</div></div><div class="legacy-detail-item"><span>语言 / 地区</span><div>${esc(asset.language||"—")} / ${esc(asset.region||"—")}</div></div><div class="legacy-detail-item"><span>文件大小</span><div>${esc(materialSize(asset.sizeBytes))}</div></div><div class="legacy-detail-item"><span>版本</span><div>${esc(asset.versionLabel||"当前版本")}</div></div><div class="legacy-detail-item"><span>更新时间</span><div>${esc(fmtDate(asset.updatedAt))}</div></div></div><div class="form-actions"><button id="material-add-mail" class="primary" type="button">作为附件添加到邮件</button></div>`);
+        openDashboardModal(asset.name,`<div style="margin-bottom:16px">${knowledgePreviewMarkup(asset)}</div><div class="legacy-detail-grid"><div class="legacy-detail-item"><span>上传人</span><div>${esc(materialUploaderName(asset))}</div></div><div class="legacy-detail-item"><span>类型</span><div>${esc(asset.type||"文件")}</div></div><div class="legacy-detail-item"><span>语言 / 地区</span><div>${esc(asset.language||"—")} / ${esc(asset.region||"—")}</div></div><div class="legacy-detail-item"><span>文件大小</span><div>${esc(materialSize(asset.sizeBytes))}</div></div><div class="legacy-detail-item"><span>版本</span><div>${esc(asset.versionLabel||"当前版本")}</div></div><div class="legacy-detail-item"><span>更新时间</span><div>${esc(fmtDate(asset.updatedAt))}</div></div></div><div class="form-actions"><button id="material-add-mail" class="primary" type="button">作为附件添加到邮件</button></div>`);
         $("#material-add-mail").onclick=async()=>{$("#dashboard-modal").classList.add("hidden");if($("#mail-compose-modal").classList.contains("hidden"))await openMailComposer();await addMaterialAttachment(asset)};
       }
       async function chooseMaterialForMail(){
@@ -3377,7 +3402,7 @@
         body.focus();toast("知识内容已插入邮件，可继续编辑后发送");
       }
       function openKnowledgeArticle(article){
-        openDashboardModal(article.title,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>分类</span><div>${esc(knowledgeCategoryNames[article.category]||article.category)}</div></div><div class="legacy-detail-item"><span>标签</span><div>${esc((article.tags||[]).join("、")||"—")}</div></div></div>${article.summary?`<p class="hint" style="margin-top:16px">${esc(article.summary)}</p>`:""}<pre style="padding:16px;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit;line-height:1.7">${esc(article.content)}</pre><div class="form-actions"><button id="knowledge-insert-mail" class="primary" type="button">插入到邮件</button></div>`);
+        openDashboardModal(article.title,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>分类</span><div>${esc(knowledgeCategoryNames[article.category]||article.category)}</div></div><div class="legacy-detail-item"><span>上传人</span><div>${esc(article.uploaderName||"未提供")}</div></div><div class="legacy-detail-item"><span>标签</span><div>${esc((article.tags||[]).join("、")||"—")}</div></div></div>${article.summary?`<p class="hint" style="margin-top:16px">${esc(article.summary)}</p>`:""}<pre style="padding:16px;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit;line-height:1.7">${esc(article.content)}</pre><div class="form-actions"><button id="knowledge-insert-mail" class="primary" type="button">插入到邮件</button></div>`);
         $("#knowledge-insert-mail").addEventListener("click",()=>insertKnowledgeIntoMail(article));
       }
       function openKnowledgeEditor(){
@@ -3730,9 +3755,15 @@
           columns=["类型","优先级","询盘","国家/地区","当前阶段","任务原因","时间","操作"];
           mapper=x=>({id:x.id,salesTask:x,meta:{category:x.category,risk:x.priority===1},cells:[x.label,x.priority===1?"紧急":x.priority===2?"优先":"正常",`#${String(x.inquiry_no).padStart(6,"0")} · ${x.title}`,displayCountry(x.target_country),displayInquiryStage(x),x.reason,taskTimeText(x.time)],actions:[{label:x.category==="quote"?"去报价":"立即处理",onClick:()=>openSalesTask(x)}]});clickable=true;
         } else if(view==="knowledge"){
-          query=(async()=>{const [articles,materials]=await Promise.all([loadModuleRowsPaged((from,to)=>supabase.from("sales_knowledge_articles").select("id,category,title,summary,content,tags,language,updated_at,created_by").eq("active",true).order("updated_at",{ascending:false}).range(from,to)),supabase.functions.invoke("material-library",{body:{action:"list",limit:500}})]);if(articles.error)return articles;if(materials.error||materials.data?.error)return {data:null,error:new Error(materials.data?.error||materials.error?.message||"物料库加载失败")};return {data:[...(materials.data?.assets||[]).map(item=>({...item,knowledgeSource:"material"})),...(articles.data||[]).map(item=>({...item,knowledgeSource:"article"}))],error:null}})();
-          columns=["来源","分类 / 类型","标题","语言","大小 / 标签","更新时间","操作"];
-          mapper=item=>item.knowledgeSource==="material"?({id:item.id,materialAsset:item,meta:{searchText:(item.tags||[]).join(" ")},cells:["物料库 · 实时",item.type||"文件",item.name,item.language||"—",materialSize(item.sizeBytes),fmtDate(item.updatedAt)],actions:[{label:"查看 / 添加附件",onClick:()=>openMaterialAsset(item)}]}):({id:item.id,knowledgeArticle:item,meta:{searchText:item.content},cells:["CRM 知识",knowledgeCategoryNames[item.category]||item.category,item.title,item.language||"—",(item.tags||[]).join("、")||"—",fmtDate(item.updated_at)],actions:[{label:"查看并插入",onClick:()=>openKnowledgeArticle(item)}]});
+          query=(async()=>{
+            const [articles,materials]=await Promise.all([loadModuleRowsPaged((from,to)=>supabase.from("sales_knowledge_articles").select("id,category,title,summary,content,tags,language,updated_at,created_by").eq("active",true).order("updated_at",{ascending:false}).range(from,to)),supabase.functions.invoke("material-library",{body:{action:"list",limit:500}})]);
+            if(articles.error)return articles;if(materials.error||materials.data?.error)return {data:null,error:new Error(materials.data?.error||materials.error?.message||"物料库加载失败")};
+            const creatorIds=[...new Set((articles.data||[]).map(item=>item.created_by).filter(Boolean))],creatorNames={};
+            if(creatorIds.length){const creators=await runModuleQuery(supabase.from("profiles").select("id,full_name,email").in("id",creatorIds),2);if(creators.error)console.warn("知识上传人加载失败",creators.error);else(creators.data||[]).forEach(item=>creatorNames[item.id]=item.full_name||item.email||"未提供")}
+            return {data:[...(materials.data?.assets||[]).map(item=>({...item,uploaderName:materialUploaderName(item),knowledgeSource:"material"})),...(articles.data||[]).map(item=>({...item,uploaderName:creatorNames[item.created_by]||(item.created_by===profile.id?profile.full_name:"未提供"),knowledgeSource:"article"}))],error:null};
+          })();
+          columns=["缩略图","分类 / 类型","标题","上传人","语言","大小 / 标签","更新时间","操作"];
+          mapper=item=>item.knowledgeSource==="material"?({id:item.id,materialAsset:item,preview:knowledgePreview(item),meta:{searchText:`${(item.tags||[]).join(" ")} ${item.uploaderName||""}`},cells:[null,item.type||"文件",item.name,item.uploaderName||"未提供",item.language||"—",materialSize(item.sizeBytes),fmtDate(item.updatedAt)],actions:[{label:"查看 / 添加附件",onClick:()=>openMaterialAsset(item)}]}):({id:item.id,knowledgeArticle:item,preview:{kind:"document",alt:`${item.title||"知识条目"}缩略图`,fallback:"知识"},meta:{searchText:`${item.content||""} ${item.uploaderName||""}`},cells:[null,knowledgeCategoryNames[item.category]||item.category,item.title,item.uploaderName||"未提供",item.language||"—",(item.tags||[]).join("、")||"—",fmtDate(item.updated_at)],actions:[{label:"查看并插入",onClick:()=>openKnowledgeArticle(item)}]});
           clickable=true;
         } else if(view==="fulfillment"){
           let inquiryQuery=(from,to)=>{let q=supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,estimated_amount,currency,won_amount,won_currency,created_at,updated_at,companies(name)").eq("validity","valid").not("status","in","(lost)").eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).range(from,to);if(profile.role==="sales")q=q.eq("owner_id",profile.id);return q};

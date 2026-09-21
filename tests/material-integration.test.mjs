@@ -8,8 +8,17 @@ const edge=await readFile(new URL("../supabase/functions/material-library/index.
 test("sales knowledge merges live material records with CRM articles",()=>{
   assert.match(html,/supabase\.functions\.invoke\("material-library",\{body:\{action:"list"/);
   assert.match(html,/knowledgeSource:"material"/);
-  assert.match(html,/物料库 · 实时/);
   assert.match(html,/查看 \/ 添加附件/);
+});
+
+test("sales knowledge shows uploader and safe thumbnails instead of source",()=>{
+  assert.match(html,/columns=\["缩略图","分类 \/ 类型","标题","上传人","语言","大小 \/ 标签","更新时间","操作"\]/);
+  assert.doesNotMatch(html,/columns=\["来源","分类 \/ 类型","标题","语言","大小 \/ 标签","更新时间","操作"\]/);
+  assert.match(html,/function materialUploaderName\(asset=\{\}\)/);
+  assert.match(html,/thumbnailUrl\|\|item\.thumbnail_url\|\|item\.previewUrl/);
+  assert.match(html,/className=`knowledge-thumbnail/);
+  assert.match(html,/select\("id,full_name,email"\)\.in\("id",creatorIds\)/);
+  assert.match(html,/uploaderName:creatorNames\[item\.created_by\]/);
 });
 
 test("mail composer preserves local and material attachments under one limit",()=>{

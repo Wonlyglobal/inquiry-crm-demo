@@ -24,3 +24,10 @@ test('regional peers are sorted by operational score',()=>{
  const territory=matchTerritory('US','美洲大区');
  assert.deepEqual(rankTerritoryCandidates([{name:'甲',score:3,territory},{name:'乙',score:8,territory}]).map(x=>x.score),[8,3]);
 });
+
+test('CRM bilingual country labels resolve and conflicting regions stay unknown',()=>{
+ assert.equal(resolveInquiryRegion('India / 印度'),'南亚');
+ assert.equal(resolveInquiryRegion('United Arab Emirates / 阿联酋'),'中东');
+ assert.equal(resolveInquiryRegion('China / 中国'),null);
+ assert.equal(resolveInquiryRegion('India / 美国'),null);
+});

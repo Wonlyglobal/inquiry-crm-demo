@@ -18,7 +18,13 @@ for (const [region, codes] of Object.entries(groups)) {
   }
 }
 for(const [name,region] of Object.entries({'USA':'美洲','United States of America':'美洲','UK':'欧洲','UAE':'中东','United Arab Emirates':'中东','阿联酋':'中东','越南':'东南亚','Vietnam':'东南亚'}))aliases.set(normalize(name),region);
-export function resolveInquiryRegion(country) { return aliases.get(normalize(country)) || null; }
+export function resolveInquiryRegion(country) {
+  const direct=aliases.get(normalize(country));
+  if(direct)return direct;
+  // CRM stores bilingual labels such as "India / 印度".
+  const regions=String(country||'').split(/\s*[/／]\s*/).map(part=>aliases.get(normalize(part))).filter(Boolean);
+  return regions.length && new Set(regions).size===1 ? regions[0] : null;
+}
 export function matchTerritory(country, territory) {
   const region=resolveInquiryRegion(country), configured=String(territory||'').trim().replace(/–|—/g,'-');
   if(!region)return {region:null,rank:0,status:'unknown_country',label:'询盘国家未识别，待主管确认'};

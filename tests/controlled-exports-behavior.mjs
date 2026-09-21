@@ -21,6 +21,7 @@ const inquiry='10000000-0000-4000-8000-000000000001',other='10000000-0000-4000-8
 await db.query(`insert into inquiries values($1,$2,1,'received',now(),'=synthetic formula','Doors',false),($3,$4,2,'received',now(),'B','Locks',false)`,[inquiry,sales,other,outsider]);
 await db.exec(await readFile(new URL('supabase/migrations/20260920120000_controlled_inquiry_exports.sql',root),'utf8'));
 await db.exec(await readFile(new URL('supabase/migrations/20260920130000_export_notifications.sql',root),'utf8'));
+await db.exec(await readFile(new URL('supabase/migrations/20260921090000_export_manager_team_scopes.sql',root),'utf8'));
 const actor=async id=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');};
 const sql=async(q,args=[])=>db.query(q,args);
 const deny=async(q,args,pattern)=>{await assert.rejects(()=>sql(q,args),pattern);checks++};
@@ -96,4 +97,51 @@ assert.ok((await sql("select title from notifications where export_request_id=$1
 await sql('update profiles set active=false where id=$1',[manager]);
 const noReviewer=await request();await db.exec('reset role');
 assert.ok((await sql('select title from notifications where export_request_id=$1 and recipient_id=$2',[noReviewer,sales])).rows.some(n=>n.title==='导出申请缺少独立审核人'));checks++;
+
+// Explicit scopes override home-team inference; actual data remains synthetic.
+await db.exec('reset role');
+await sql("update profiles set active=true,team='HQ' where id=$1",[manager]);
+await sql("insert into private.crm_export_manager_teams(manager_id,team,reason,approval_reference) values($1,'A','合成主管授权验收记录','synthetic-review-001'),($1,'B','合成主管授权验收记录','synthetic-review-001')",[manager]);
+const scopeRequest=async(i,who)=>{await actor(who);return (await sql('select request_crm_export($1,$2) as id',[[i],'合成团队授权专项验收用途'])).rows[0].id;};
+const scopeA=await scopeRequest(inquiry,sales),scopeB=await scopeRequest(other,outsider);
+await db.exec('reset role');
+for(const rid of [scopeA,scopeB]){
+ assert.equal((await sql('select count(*)::int n from notifications where export_request_id=$1 and recipient_id=$2',[rid,manager])).rows[0].n,1);checks++;
+}
+await actor(manager);const visible=(await sql('select list_crm_exports() as x')).rows[0].x;
+assert.ok(visible.some(r=>r.id===scopeA)&&visible.some(r=>r.id===scopeB));checks++;
+await approveBoth(scopeA);await approveBoth(scopeB);
+await actor(outsider);assert.ok((await sql('select consume_crm_export($1) as x',[scopeB])).rows[0].x.content);checks++;
+await db.exec('reset role');
+await sql("update private.crm_export_manager_teams set active=false,reason='合成撤销授权即时校验' where manager_id=$1 and team='A'",[manager]);
+await actor(sales);await deny('select consume_crm_export($1)',[scopeA],/审核人权限/);
+await actor(manager);await deny('select preview_crm_export($1)',[scopeA],/无权/);
+await deny("insert into private.crm_export_manager_teams(manager_id,team,reason,approval_reference) values($1,'测试','客户端提升权限应被拒绝','synthetic-review-002')",[manager],/permission denied/);
+await db.exec('reset role');await deny('delete from private.crm_export_manager_teams',[],/immutable/);
+await deny("update private.crm_export_manager_team_events set executor='tamper'",[],/immutable/);
+await deny("update private.crm_export_manager_teams set team='测试' where manager_id=$1 and team='A'",[manager],/不可改绑/);
+assert.equal((await sql('select count(*)::int n from private.crm_export_manager_team_events')).rows[0].n,3);checks++;
+await sql("update profiles set team='测试' where id=$1",[outsider]);
+const scopeTest=await scopeRequest(other,outsider);
+await actor(manager);await deny('select preview_crm_export($1)',[scopeTest],/无权/);
+await db.exec('reset role');await sql("update profiles set team='HQ' where id=$1",[outsider]);
+const scopeHome=await scopeRequest(other,outsider);
+await actor(manager);await deny('select preview_crm_export($1)',[scopeHome],/无权/);
+await db.exec('reset role');
+await sql("update profiles set active=false where id=$1",[manager]);
+assert.equal((await sql("select private.crm_export_manager_covers($1,'B') as allowed",[manager])).rows[0].allowed,false);checks++;
+await sql("update profiles set active=true,role='sales' where id=$1",[manager]);
+assert.equal((await sql("select private.crm_export_manager_covers($1,'B') as allowed",[manager])).rows[0].allowed,false);checks++;
+
+
+const grantScript=await readFile(new URL('ops/grant-export-manager-teams.sql',root),'utf8');
+await db.exec('reset role');
+await assert.rejects(()=>db.exec(grantScript),/独立复核/);checks++;
+await sql("select set_config('crm.team_scope_review','https://github.com/Wonlyglobal/inquiry-crm-demo/pull/999#pullrequestreview-synthetic',false)");
+await assert.rejects(()=>db.exec(grantScript),/账号不唯一/);checks++;
+await sql("update profiles set role='sales_manager',full_name='凌子学',team='销售部' where id=$1",[otherOwner]);
+await db.exec(grantScript);
+assert.deepEqual((await sql('select team from private.crm_export_manager_teams where manager_id=$1 order by team',[otherOwner])).rows.map(x=>x.team).sort(),['海外业务部','海外工程部'].sort());checks++;
+await assert.rejects(()=>db.exec(grantScript),/已存在明确范围/);checks++;
+
 console.log(`${checks} controlled-export PostgreSQL assertions passed (synthetic only)`);await db.close();

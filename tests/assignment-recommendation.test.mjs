@@ -18,7 +18,7 @@ test('assignment scoring is explainable and uses the required operational eviden
   assert.match(worker,/pendingReplies/);
   assert.match(worker,/30 分钟首响/);
   assert.match(worker,/recommendations:top/);
-  assert.match(worker,/assignment-score-v1/);
+  assert.match(worker,/assignment-territory-v2/);
 });
 
 test('recommendations use the generic audited suggestion workflow',()=>{

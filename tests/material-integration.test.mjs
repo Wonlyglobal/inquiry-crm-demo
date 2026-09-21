@@ -17,6 +17,11 @@ test("sales knowledge shows uploader and safe thumbnails instead of source",()=>
   assert.match(html,/function materialUploaderName\(asset=\{\}\)/);
   assert.match(html,/thumbnailUrl\|\|item\.thumbnail_url\|\|item\.previewUrl/);
   assert.match(html,/className=`knowledge-thumbnail/);
+  assert.match(html,/action:"thumbnail",asset_id:assetId/);
+  assert.match(html,/fillKnowledgePreview\(box,preview\)/);
+  assert.match(edge,/action==="thumbnail"/);
+  assert.match(edge,/\/thumbnail`/);
+  assert.match(edge,/bytes\.length>2\*1024\*1024/);
   assert.match(html,/select\("id,full_name,email"\)\.in\("id",creatorIds\)/);
   assert.match(html,/uploaderName:creatorNames\[item\.created_by\]/);
 });

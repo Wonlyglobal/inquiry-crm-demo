@@ -26,6 +26,18 @@ test("sales knowledge shows uploader and safe thumbnails instead of source",()=>
   assert.match(html,/uploaderName:creatorNames\[item\.created_by\]/);
 });
 
+test("all sales knowledge entries share form category uploader and language filters",()=>{
+  assert.match(html,/id="knowledge-filter-group"/);
+  assert.match(html,/id="knowledge-kind-filter"/);
+  assert.match(html,/id="knowledge-category-filter"/);
+  assert.match(html,/id="knowledge-uploader-filter"/);
+  assert.match(html,/id="knowledge-language-filter"/);
+  assert.match(html,/knowledgeKind:"material"/);
+  assert.match(html,/knowledgeKind:"article"/);
+  assert.match(html,/renderKnowledgeFilters\(mappedRows\)/);
+  assert.match(html,/matchesKnowledge/);
+});
+
 test("mail composer preserves local and material attachments under one limit",()=>{
   assert.match(html,/id="mail-select-material"/);
   assert.match(html,/selectedMaterialAttachments/);

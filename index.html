@@ -5296,7 +5296,7 @@
         const senderEmail = String(intake?.sender_email || "").trim().toLowerCase();
         const senderDomain = senderEmail.includes("@") ? senderEmail.split("@").pop() : "";
         const bodyDomain = String(originalText.match(/https?:\/\/(?:www\.)?([^\s/?#]+)/i)?.[1] || "").toLowerCase();
-        const inferredDomain = senderDomain || bodyDomain;
+        const inferredDomain = inferExternalResearchDomain(senderDomain) || inferExternalResearchDomain(bodyDomain);
         const namedCompany = originalText.match(/\bat\s+([A-Z][A-Za-z0-9&.' -]{1,80}?)\s+(?:in\s+[A-Z]|[,.\n])/i)?.[1]?.trim();
         const domainCompany = inferredDomain ? inferredDomain.split(".")[0].replace(/(^|[-_])([a-z])/g, (_m, prefix, letter) => `${prefix}${letter.toUpperCase()}`) : "";
         $("#detail-research-company").value = company.name || namedCompany || domainCompany;
@@ -7005,6 +7005,12 @@
           $("#open-company-osm").href = safeExternalUrl($("#detail-research-osm-url").value) || data.openstreetmap_search_url || "#";
         } catch { $("#detail-research-map-address").value = "地址自动识别暂时失败，智能体将在下次打开时重试"; }
       }
+      function inferExternalResearchDomain(value) {
+        const domain = String(value || "").trim().toLowerCase()
+          .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
+        // Internal test/forwarding senders are not evidence of the buyer's identity.
+        return domain === "wonlyglobal.com" || domain.endsWith(".wonlyglobal.com") ? "" : domain;
+      }
       function persistAutonomousResearch() {
         const saveButton = $("#save-detail-research");
         if (!currentInquiry || !$("#detail-research-company").value.trim() || saveButton.disabled) return;
@@ -7027,11 +7033,14 @@
           .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
         const normalizeCompanyName = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b(ltda|eireli|sa|s\/a|inc|llc|limited|industria|comercio)\b/g,"").replace(/[^a-z0-9]/g,"");
         const normalizeCountry = (value) => ({brasil:"brazil",br:"brazil",巴西:"brazil",argentina:"argentina",阿根廷:"argentina",china:"china",中国:"china"}[String(value||"").trim().toLowerCase()]||String(value||"").trim().toLowerCase());
-        const candidateDomain = normalizeDomain($("#detail-research-domain").value || intakeEmail);
+        const candidateDomain = normalizeDomain($("#detail-research-domain").value || inferExternalResearchDomain(intakeEmail));
         let domain = publicEmailDomains.has(candidateDomain) ? "" : candidateDomain;
         const companyName = $("#detail-research-company").value.trim() || currentInquiry.companies?.name || "";
         const companyCountry = $("#detail-smart-country").value.trim() || currentInquiry.target_country || "";
-        if (!domain && !companyName) return toast("请先填写公司名称；公共邮箱不能作为公司域名");
+        if (!domain && (!companyName || companyName === "待核实邮件客户")) {
+          $("#detail-research-status").textContent = "背调状态：待补充客户公司名称或官网；内部发件邮箱和公共邮箱不能作为客户公司身份依据";
+          return;
+        }
         autonomousResearchInquiryId = currentInquiry.id;
         button.disabled = true;
         button.textContent = "背调中…";

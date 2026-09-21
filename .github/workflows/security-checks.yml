@@ -25,6 +25,13 @@ jobs:
         run: node scripts/check-browser-syntax.mjs
       - name: Run offline regression tests
         run: node --test tests/*.test.mjs
+      - name: Verify locked mail dependencies
+        run: |
+          npm install --global pnpm@11.19.0 --ignore-scripts
+          pnpm --dir mail-sync install --prod --frozen-lockfile --ignore-scripts
+          node --test mail-sync/tests/*.test.mjs
+      - name: Build mail service image without starting the service
+        run: docker build --tag crm-mail-sync:check mail-sync
       - name: Check whitespace errors
         run: git diff --check HEAD
   secrets:

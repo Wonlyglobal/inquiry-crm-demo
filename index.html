@@ -295,6 +295,8 @@
       .notice-button svg {
         width: 17px;
       }
+      .inquiry-unread-note { display:block; margin-top:8px; font-size:12px; color:#a52720; line-height:1.6; }
+      .inquiry-unread-note b { display:inline-block; padding:1px 7px; border-radius:10px; background:#fee4e2; margin-right:6px; }
       .nav-update-badge { margin-left:auto; display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 5px; border-radius:999px; background:#d92d20; color:#fff; font-size:11px; font-weight:800; flex-shrink:0; line-height:1; }
       .nav-update-badge::before { content:""; width:4px; height:4px; border-radius:50%; background:#fff; margin-right:3px; }
       .nav-update-badge.hidden { display:none; }
@@ -1597,6 +1599,7 @@
           </div>
           <section id="role-guide-live" class="role-guide-live hidden" aria-label="角色指南实时更新"></section>
           <div id="module-insights" class="module-insights hidden"></div>
+          <section id="sales360-quarter-panel" class="card hidden" aria-label="季度业务员评价进度"></section>
           <section id="whatsapp-workspace" class="wa-workspace hidden" aria-label="WhatsApp Business 聊天工作台"></section>
           <section id="inquiry-command" class="inquiry-command hidden">
             <div class="inquiry-command-head"><div><h2>询盘状态总览</h2><p>先定位待处理环节，再进入具体询盘；数字随当前数据权限实时更新。</p></div><span class="tag">点击状态可快速筛选</span></div>
@@ -1606,7 +1609,7 @@
             <div class="table-head"><div class="module-table-heading"><strong id="module-table-title">数据列表</strong><small id="module-table-context">按最新创建时间排列</small></div><span id="module-count" class="tag">0 条</span></div>
             <div id="module-toolbar" class="module-table-toolbar hidden">
               <div class="module-search-wrap"><i data-lucide="search"></i><input id="module-search" class="module-search" type="search" autocomplete="off" placeholder="搜索当前列表"><button id="module-search-clear" class="module-search-clear hidden" type="button" aria-label="清除搜索">×</button></div>
-              <div id="inquiry-filter-group" class="module-filter-group hidden"><select id="inquiry-validity-filter" class="module-filter-select" aria-label="筛选有效性"><option value="">全部有效性</option><option value="pending">待确认</option><option value="valid">有效</option><option value="invalid">无效</option></select><select id="inquiry-source-filter" class="module-filter-select" aria-label="筛选来源"><option value="">全部来源</option></select></div>
+              <div id="inquiry-filter-group" class="module-filter-group hidden"><select id="inquiry-unread-filter" class="module-filter-select" aria-label="筛选未读更新"><option value="">全部询盘</option><option value="unread">只看未读更新</option></select><select id="inquiry-validity-filter" class="module-filter-select" aria-label="筛选有效性"><option value="">全部有效性</option><option value="pending">待确认</option><option value="valid">有效</option><option value="invalid">无效</option></select><select id="inquiry-source-filter" class="module-filter-select" aria-label="筛选来源"><option value="">全部来源</option></select></div>
               <div id="knowledge-filter-group" class="module-filter-group hidden"><select id="knowledge-kind-filter" class="module-filter-select" aria-label="筛选知识形式"><option value="">全部形式</option><option value="material">物料文件</option><option value="article">文字知识</option></select><select id="knowledge-category-filter" class="module-filter-select" aria-label="筛选分类或类型"><option value="">全部分类 / 类型</option></select><select id="knowledge-uploader-filter" class="module-filter-select" aria-label="筛选上传人"><option value="">全部上传人</option></select><select id="knowledge-language-filter" class="module-filter-select" aria-label="筛选语言"><option value="">全部语言</option></select></div>
               <span id="module-filter-summary" class="tag hidden"></span>
               <button id="module-reset-filters" class="table-action hidden" type="button">清除筛选</button>
@@ -2719,6 +2722,7 @@
         initializeDashboardLayout();
         initializeDetailTabsOrder();
         if (startup.some((result) => result.status === "rejected")) toast("部分数据暂时未加载，系统已保留可用页面；可稍后重试");
+        inquiryUnreadItems = new Map();
         paintSidebarBadges({});
         refreshSidebarBadges();
         subscribeNotifications();
@@ -2745,6 +2749,25 @@
         if (/inquiry|invalid|lost|won/.test(type)) return ["inquiries", "sales-today"];
         return ["dashboard"];
       }
+      let inquiryUnreadItems = new Map();
+      function groupInquiryUpdates(items) {
+        const groups = new Map(), seen = new Set();
+        for (const item of items) {
+          if (item.read_at || !item.inquiry_id || seen.has(item.id) || !item.inquiries?.id || item.inquiries.excluded_from_dashboard) continue;
+          seen.add(item.id);
+          if (!groups.has(item.inquiry_id)) groups.set(item.inquiry_id, []);
+          groups.get(item.inquiry_id).push(item);
+        }
+        for (const updates of groups.values()) updates.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+        return groups;
+      }
+      async function acknowledgeInquiryUpdates(id, items, userId) {
+        if (!items.length || profile?.id !== userId) return;
+        const {error} = await supabase.from("notifications").update({read_at:new Date().toISOString()})
+          .eq("recipient_id",userId).eq("inquiry_id",id).is("read_at",null).in("id",items.map(item=>item.id));
+        if (error) return toast("询盘已打开，但未读状态未能保存，请稍后重试");
+        await loadNotifications();
+      }
       function sidebarUnreadCounts(items) {
         const counts = {}, seen = new Set();
         for (const item of items) {
@@ -2752,6 +2775,7 @@
           seen.add(item.id);
           for (const view of sidebarNotificationViews(item)) counts[view] = (counts[view] || 0) + 1;
         }
+        counts.inquiries = groupInquiryUpdates(items).size;
         return counts;
       }
       let sidebarRefreshInFlight = false;
@@ -2762,7 +2786,7 @@
           const count = counts[nav.dataset.view] || 0;
           badge.textContent = count > 99 ? "99+" : String(count);
           badge.classList.toggle("hidden", !count || !canAccessView(nav.dataset.view));
-          const label = `${count} 条${pendingViews.has(nav.dataset.view) ? "待处理" : "未读更新"}`;
+          const label = `${count} 条${pendingViews.has(nav.dataset.view) ? "待处理" : nav.dataset.view === "inquiries" ? "询盘有更新" : "未读更新"}`;
           badge.title = label;
           badge.setAttribute("aria-label", label);
         });
@@ -2772,7 +2796,7 @@
         sidebarRefreshInFlight = true;
         const userId = profile.id, role = profile.role;
         try {
-          const requests = [loadModuleRowsPaged((from,to)=>supabase.from("notifications").select("id,type,read_at").eq("recipient_id",userId).is("read_at",null).order("created_at",{ascending:false}).range(from,to))];
+          const requests = [loadModuleRowsPaged((from,to)=>supabase.from("notifications").select("id,type,title,created_at,inquiry_id,read_at,inquiries(id,excluded_from_dashboard)").eq("recipient_id",userId).is("read_at",null).order("created_at",{ascending:false}).range(from,to))];
           const views = [];
           if (canAccessView("assignment")) { views.push("assignment"); requests.push(supabase.from("inquiries").select("id",{count:"exact",head:true}).eq("excluded_from_dashboard",false).eq("validity","valid").eq("status","pending_assignment")); }
           if (canAccessView("email")) { views.push("email"); requests.push(supabase.from("email_intake").select("id",{count:"exact",head:true}).is("trashed_at",null).is("triage_label",null)); }
@@ -2780,9 +2804,11 @@
           if (profile?.id !== userId || profile?.role !== role) return;
           // Preserve the last known state on errors instead of reporting a false zero.
           if (results.some(result=>result.error)) return;
+          inquiryUnreadItems = groupInquiryUpdates(results[0].data || []);
           const counts = sidebarUnreadCounts(results[0].data || []);
           views.forEach((view,index)=>{ counts[view] = results[index+1].count || 0; });
           paintSidebarBadges(counts, new Set(views));
+          if (["inquiries","assignment"].includes(activeModuleView) && !$("#module-page").classList.contains("hidden")) filterModuleRows();
         } catch (error) { console.warn("侧边栏更新状态暂时无法刷新", error); }
         finally { sidebarRefreshInFlight = false; }
       }
@@ -2883,6 +2909,7 @@
         }
       }
       function filterModuleRows() {
+        const unreadOnly = activeModuleView === "inquiries" && $("#inquiry-unread-filter").value === "unread";
         const query = $("#module-search").value.trim().toLocaleLowerCase();
         const validity = activeModuleView === "inquiries" ? $("#inquiry-validity-filter").value : "";
         const source = activeModuleView === "inquiries" ? $("#inquiry-source-filter").value : "";
@@ -2893,9 +2920,9 @@
           const matchesStage = !activeInquiryScope || activeInquiryScope === "all" || (activeInquiryScope === "open" ? row.meta?.validity === "valid" && !["won","lost"].includes(row.meta?.status) : activeInquiryScope === "risk" ? row.meta?.risk : row.meta?.status === activeInquiryScope);
           const matchesTodayCategory = activeModuleView !== "sales-today" || activeTodayCategory === "all" || row.meta?.category === activeTodayCategory;
           const matchesKnowledge=activeModuleView!=="knowledge"||(!knowledgeKind||row.meta?.knowledgeKind===knowledgeKind)&&(!knowledgeCategory||row.meta?.knowledgeCategory===knowledgeCategory)&&(!knowledgeUploader||row.meta?.knowledgeUploader===knowledgeUploader)&&(!knowledgeLanguage||row.meta?.knowledgeLanguage===knowledgeLanguage);
-          return matchesQuery && matchesStage && matchesTodayCategory && matchesKnowledge && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source);
+          return (!unreadOnly || inquiryUnreadItems.has(row.id)) && matchesQuery && matchesStage && matchesTodayCategory && matchesKnowledge && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source);
         });
-        const hasFilter = Boolean(query || validity || source || knowledgeKind || knowledgeCategory || knowledgeUploader || knowledgeLanguage || (activeInquiryScope && activeInquiryScope !== "all") || (activeModuleView === "sales-today" && activeTodayCategory !== "all"));
+        const hasFilter = Boolean(unreadOnly || query || validity || source || knowledgeKind || knowledgeCategory || knowledgeUploader || knowledgeLanguage || (activeInquiryScope && activeInquiryScope !== "all") || (activeModuleView === "sales-today" && activeTodayCategory !== "all"));
         renderModuleTable(moduleColumns, filteredRows, moduleRowClick, hasFilter);
         $("#module-filter-summary").classList.toggle("hidden", !hasFilter);
         $("#module-reset-filters").classList.toggle("hidden", !hasFilter);
@@ -2957,6 +2984,17 @@
             } else {
               td.textContent = value ?? "—";
               if (activeModuleView === "inquiries" && label === "负责人" && !value) { td.textContent = "待分配"; td.className = "module-owner-unassigned"; }
+            }
+            if (["inquiries","assignment"].includes(activeModuleView) && label === "询盘主题") {
+              const updates = inquiryUnreadItems.get(row.id);
+              if (updates?.length) {
+                const note = document.createElement("span"), badge = document.createElement("b");
+                note.className = "inquiry-unread-note";
+                badge.textContent = updates.some(item=>item.type==="inquiry_created") ? "● 新询盘" : "● 有更新";
+                note.append(badge, document.createTextNode(`${updates[0].title || "询盘更新"} · ${fmtDate(updates[0].created_at)}${updates.length>1 ? ` · 共${updates.length}条` : ""}`));
+                note.title = updates.map(item=>`${item.title || "询盘更新"} · ${fmtDate(item.created_at)}`).join("\n");
+                td.append(note);
+              }
             }
             if (activeModuleView === "assignment" && label === "询盘主题" && ["owner", "sales_manager"].includes(profile?.role)) {
               const action = document.createElement("button");
@@ -3598,6 +3636,34 @@
         openDashboardModal(`锁定并发布 · ${sales360Period(cycle)}`,`<form id="sales360-lock-form"><p class="hint">发布后业务员可查看本人结果并在 3 天内申诉。首期仍是影子运行，不实际影响奖金、晋升或淘汰。</p><div class="field"><label>发布与校准依据 *</label><textarea id="sales360-lock-reason" class="input" rows="5" minlength="8" maxlength="2000" required placeholder="说明已完成的校准检查、异常处理和发布依据"></textarea></div><div class="form-actions"><button class="primary" type="submit">锁定结果并开放申诉</button></div></form>`);
         $("#sales360-lock-form").onsubmit=async event=>{event.preventDefault();const reason=$("#sales360-lock-reason").value.trim();if(reason.length<8)return toast("请填写至少 8 个字的发布依据");const button=event.submitter;button.disabled=true;const {error}=await supabase.rpc("lock_sales_360_cycle",{target_cycle_id:cycle.id,lock_reason:reason});button.disabled=false;if(error)return toast("结果发布失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("影子评分结果已锁定，申诉窗口开放 3 天");await loadModule("performance-360")};
       }
+      let sales360QuarterSelection = "";
+      function sales360QuarterKey(date) {
+        const match = /^(\d{4})-(\d{2})/.exec(String(date || ""));
+        return match ? `${match[1]}-Q${Math.ceil(Number(match[2])/3)}` : "";
+      }
+      function sales360QuarterRows(people, tasks, cycles, quarter) {
+        const [year, q] = quarter.split("-Q"), start = (Number(q)-1)*3+1;
+        return people.map(person=>({person, months:[0,1,2].map(offset=>{
+          const month = `${year}-${String(start+offset).padStart(2,"0")}`;
+          const task = tasks.find(item=>item.subject_id===person.id && String(item.period_start).slice(0,7)===month);
+          const cycle = cycles.find(item=>String(item.period_start).slice(0,7)===month);
+          return {month,task,status:task ? (task.status==="pending"?"待评价":"已提交") : cycle ? "未分配给我" : "未建周期"};
+        })}));
+      }
+      function renderSales360QuarterPanel(workspace, people, cycles) {
+        const panel=$("#sales360-quarter-panel"), tasks=(workspace.tasks||[]).filter(item=>["manager","owner"].includes(item.evaluator_group));
+        const now=new Date(),current=sales360QuarterKey(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
+        const quarters=[...new Set([current,...cycles.map(item=>sales360QuarterKey(item.period_start)),...tasks.map(item=>sales360QuarterKey(item.period_start))])].filter(Boolean).sort().reverse();
+        if(!quarters.includes(sales360QuarterSelection))sales360QuarterSelection=current;
+        const rows=sales360QuarterRows(people,tasks,cycles,sales360QuarterSelection);
+        const pending=rows.reduce((n,row)=>n+row.months.filter(month=>month.status==="待评价").length,0);
+        const done=rows.reduce((n,row)=>n+row.months.filter(month=>month.status==="已提交").length,0);
+        const first=(Number(sales360QuarterSelection.split("Q")[1])-1)*3+1;
+        panel.innerHTML=`<div class="table-head"><div><h3>业务员季度待评价表</h3><p class="hint">保留月度评价，按季度检查三个月进度；展示当前账号可见的在职业务员；仅能提交已分配给我的评价任务。</p></div><select id="sales360-quarter" class="input compact" aria-label="选择评价季度">${quarters.map(value=>`<option value="${esc(value)}" ${value===sales360QuarterSelection?"selected":""}>${esc(value.replace("-Q"," 年 第 "))} 季度</option>`).join("")}</select></div><p class="hint">${people.length} 位业务员 · 待评价 ${pending} 项 · 已提交 ${done} 项</p><div style="overflow-x:auto"><table><thead><tr><th>业务员</th><th>团队</th>${[first,first+1,first+2].map(month=>`<th>${month} 月</th>`).join("")}<th>季度进度</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${esc(row.person.full_name)}</td><td>${esc(row.person.team||"—")}</td>${row.months.map(month=>`<td>${month.status==="待评价"?`<button class="table-action" data-quarter-evaluate="${esc(month.task.assignment_id)}">待评价 · 开始评价</button>${month.task.due_at?`<small class="hint"> 截止 ${esc(fmtDate(month.task.due_at))}</small>`:""}`:esc(month.status)}</td>`).join("")}<td>${row.months.filter(month=>month.status==="已提交").length} / ${row.months.filter(month=>month.task).length} 项已提交</td></tr>`).join("")||'<tr><td colspan="6">当前没有可见业务员或主管评价任务，请核对账号和周期配置。</td></tr>'}</tbody></table></div>`;
+        panel.classList.remove("hidden");
+        $("#sales360-quarter").onchange=event=>{sales360QuarterSelection=event.target.value;renderSales360QuarterPanel(workspace,people,cycles)};
+        panel.querySelectorAll("[data-quarter-evaluate]").forEach(button=>button.onclick=()=>openSales360Evaluation(tasks.find(task=>task.assignment_id===button.dataset.quarterEvaluate)));
+      }
       async function loadSales360Workspace(loadVersion){
         const {data,error}=await supabase.rpc("get_my_sales_360_workspace");
         if(loadVersion!==moduleLoadVersion)return;
@@ -3607,6 +3673,17 @@
         if(loadVersion!==moduleLoadVersion)return;
         if(talentResponse.error&&!/schema cache|could not find the function/i.test(talentResponse.error.message||""))console.warn("360 人才建议加载失败",talentResponse.error);
         const talentRecommendations=(talentResponse.data||[]).filter(item=>item.action_type!=="no_action");
+        if (["owner","sales_manager"].includes(workspace.role)) {
+          let directory=supabase.from("profiles").select("id,full_name,team").eq("active",true).eq("role","sales").order("full_name");
+          const [members,periods]=await Promise.all([directory,supabase.from("sales_360_cycles").select("id,period_start,period_end").order("period_start",{ascending:false})]);
+          if(loadVersion!==moduleLoadVersion)return;
+          if(members.error||periods.error){$("#sales360-quarter-panel").textContent="季度评价进度加载失败，请刷新重试";$("#sales360-quarter-panel").classList.remove("hidden")}
+          else {
+            const people=new Map((members.data||[]).map(person=>[person.id,person]));
+            tasks.filter(task=>["manager","owner"].includes(task.evaluator_group)).forEach(task=>{if(!people.has(task.subject_id))people.set(task.subject_id,{id:task.subject_id,full_name:task.subject_name,team:"已分配评价对象"})});
+            renderSales360QuarterPanel(workspace,[...people.values()],periods.data||[]);
+          }
+        }
         const pending=tasks.filter(item=>item.status==="pending").length,pendingReviews=calibrations.filter(item=>item.status==="pending_owner").length+appeals.filter(item=>workspace.role==="owner"?item.status==="pending_owner":item.status==="pending_manager").length+(workspace.role==="owner"?talentRecommendations.filter(item=>item.status==="pending").length:0);
         const roleMode={owner:"全公司管理",sales_manager:"本团队管理",sales:"本人评分与申诉",marketing:"匿名协作评价"}[workspace.role]||"本人任务";
         $("#module-insights").innerHTML=[["当前角色视图",roleMode],["待完成匿名评价",pending],["待我审核",pendingReviews],[workspace.role==="marketing"?"他人结果权限":"可见评分结果",workspace.role==="marketing"?"不可见":visible.length||own.length]].map(([label,value])=>`<div class="module-insight"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("");
@@ -3722,6 +3799,7 @@
         knowledgeCountState = null;
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
+        $("#sales360-quarter-panel").classList.add("hidden");
         $("#role-guide-live").classList.toggle("hidden",view!=="sop");
         if(view==="sop")renderRoleGuideLive();
         $("#whatsapp-workspace").classList.toggle("hidden",view!=="whatsapp");
@@ -4115,6 +4193,7 @@
       }
       $("#module-search").addEventListener("input", filterModuleRows);
       $("#inquiry-validity-filter").addEventListener("change", filterModuleRows);
+      $("#inquiry-unread-filter").addEventListener("change", filterModuleRows);
       $("#inquiry-source-filter").addEventListener("change", filterModuleRows);
       $$("#knowledge-filter-group select").forEach(select=>select.addEventListener("change",filterModuleRows));
       $("#module-search-clear").addEventListener("click", () => { $("#module-search").value = ""; $("#module-search").focus(); filterModuleRows(); });
@@ -4122,6 +4201,7 @@
         $("#module-search").value = "";
         $("#inquiry-validity-filter").value = "";
         $("#inquiry-source-filter").value = "";
+        $("#inquiry-unread-filter").value = "";
         $("#knowledge-kind-filter").value="";$("#knowledge-category-filter").value="";$("#knowledge-uploader-filter").value="";$("#knowledge-language-filter").value="";
         activeInquiryScope = activeModuleView === "inquiries" ? "all" : "";
         $$("#inquiry-stage-tabs button").forEach((item) => item.classList.toggle("active", item.dataset.scope === "all"));
@@ -5303,6 +5383,7 @@
         }
       }
       async function openInquiryDetailUnsafe(id) {
+        const unreadSnapshot = [...(inquiryUnreadItems.get(id) || [])], unreadUserId = profile?.id;
         detailOriginView = $("#sales-profile-page").classList.contains("hidden")
           ? ($(".nav[data-view].active")?.dataset.view || "dashboard")
           : "sales-profile";
@@ -5570,6 +5651,7 @@
         $("#module-page").classList.add("hidden");
         $("#sales-profile-page").classList.add("hidden");
         $("#detail-modal").classList.remove("hidden");
+        acknowledgeInquiryUpdates(id, unreadSnapshot, unreadUserId).catch(error=>console.warn("更新已读状态失败",error));
         setDetailTab("research");
         const detailHash = `#inquiry/${id}`;
         if (location.hash !== detailHash)

@@ -13,12 +13,11 @@ test('assignment recommendations are manager-only and never perform assignment',
   assert.match(worker,/guardrail:"仅供主管参考，不自动分配"/);
 });
 
-test('assignment scoring is explainable and uses the required operational evidence',()=>{
-  for(const key of ['country','product','capacity','sla','continuity'])assert.match(worker,new RegExp(`${key}:\\{score:`));
-  assert.match(worker,/pendingReplies/);
-  assert.match(worker,/30 分钟首响/);
-  assert.match(worker,/recommendations:top/);
-  assert.match(worker,/assignment-territory-v2/);
+test('recommendations use only configured territories without unsupported scores or history scans',()=>{
+  assert.match(worker,/matchTerritory/);
+  assert.match(worker,/assignment-region-only-v3/);
+  assert.doesNotMatch(worker,/historyResult|reminderResult|capacityScore|slaScore|productScore|continuityScore|limit\(5000\)/);
+  assert.doesNotMatch(html.slice(html.indexOf("async function openDirectAssignment"),html.indexOf("function setActiveNavigation")),/item\.breakdown|item\.score/);
 });
 
 test('recommendations use the generic audited suggestion workflow',()=>{

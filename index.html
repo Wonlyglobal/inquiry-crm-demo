@@ -2741,7 +2741,7 @@
           : data?.error_message||"连接当前业务员的企业邮箱";
         button.setAttribute("aria-disabled",connected?"true":"false");
       }
-      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [], mailAiDraftId = null, mailResponsePlan = null, mailFactCheckState = null, mailFactCheckRunning = false;
+      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, knowledgeCountState = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [], mailAiDraftId = null, mailResponsePlan = null, mailFactCheckState = null, mailFactCheckRunning = false;
       let whatsappRealtimeChannel = null, whatsappRealtimeTimer = null;
       const whatsappWorkspaceState = { connection:null, messages:[], inquiries:[], contacts:[], selectedPhone:"", selectedInquiryId:null, search:"", newChat:false, sending:false };
       const builtinMailTemplates = [
@@ -2825,8 +2825,8 @@
           const matchesKnowledge=activeModuleView!=="knowledge"||(!knowledgeKind||row.meta?.knowledgeKind===knowledgeKind)&&(!knowledgeCategory||row.meta?.knowledgeCategory===knowledgeCategory)&&(!knowledgeUploader||row.meta?.knowledgeUploader===knowledgeUploader)&&(!knowledgeLanguage||row.meta?.knowledgeLanguage===knowledgeLanguage);
           return matchesQuery && matchesStage && matchesTodayCategory && matchesKnowledge && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source);
         });
-        renderModuleTable(moduleColumns, filteredRows, moduleRowClick, true);
         const hasFilter = Boolean(query || validity || source || knowledgeKind || knowledgeCategory || knowledgeUploader || knowledgeLanguage || (activeInquiryScope && activeInquiryScope !== "all") || (activeModuleView === "sales-today" && activeTodayCategory !== "all"));
+        renderModuleTable(moduleColumns, filteredRows, moduleRowClick, hasFilter);
         $("#module-filter-summary").classList.toggle("hidden", !hasFilter);
         $("#module-reset-filters").classList.toggle("hidden", !hasFilter);
         if (hasFilter) $("#module-filter-summary").textContent = `显示 ${filteredRows.length} / ${moduleRows.length} 条`;
@@ -2836,6 +2836,14 @@
       function renderKnowledgeFilters(rows){
         const fill=(selector,label,key)=>{const values=[...new Set(rows.map(row=>row.meta?.[key]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),"zh-CN",{numeric:true}));$(selector).innerHTML=`<option value="">${label}</option>${values.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join("")}`};
         fill("#knowledge-category-filter","全部分类 / 类型","knowledgeCategory");fill("#knowledge-uploader-filter","全部上传人","knowledgeUploader");fill("#knowledge-language-filter","全部语言","knowledgeLanguage");
+      }
+      function moduleCountText(rows,filtered=false){
+        if(activeModuleView!=="knowledge")return `${rows.length} 条`;
+        if(filtered)return `筛选 ${rows.length} 条`;
+        if(!knowledgeCountState)return `${rows.length} 条`;
+        const {materialLoaded=0,materialTotal=null,articleCount=0}=knowledgeCountState;
+        const materialText=Number.isFinite(materialTotal)?`物料 ${materialTotal} 条`:`物料已加载 ${materialLoaded} 条（非总数）`;
+        return `${materialText} · 正式知识 ${articleCount} 条`;
       }
       function renderInquiryCommand(rows) {
         const counts = { all: rows.length, pending_assignment: 0, open: 0, risk: 0 };
@@ -2903,7 +2911,7 @@
           if (onRowClick) { tr.dataset.clickable = "true"; tr.tabIndex = 0; tr.addEventListener("click", () => onRowClick(row)); tr.addEventListener("keydown", (event) => { if (event.key === "Enter") onRowClick(row); }); }
           body.append(tr);
         });
-        $("#module-count").textContent = `${rows.length} 条`;
+        $("#module-count").textContent = moduleCountText(rows,filtered);
         $("#module-toolbar").classList.toggle("hidden", moduleRows.length === 0);
         $("#module-table").classList.toggle("hidden", rows.length === 0);
         $("#module-empty").classList.toggle("hidden", rows.length > 0);
@@ -3589,7 +3597,7 @@
           mailbox: ["我的邮箱", "与个人阿里邮箱双向同步；可直接收件、写信、查看已发送并回复客户", "邮件列表"],
           whatsapp: ["WhatsApp Business", "在 CRM 内实时接收客户消息、查看会话并通过官方 Cloud API 直接回复", "客户会话"],
           templates: ["我的模板", "整理本人常用邮件模板；可新增、编辑、删除，并在写邮件时直接套用", "我的邮件模板"],
-          knowledge: ["销售知识库", "检索产品参数、认证、常见问题、报价规范和成功案例，并一键插入邮件", "知识条目"],
+          knowledge: ["销售知识库", "检索正式销售知识与物料文件，并一键插入邮件或添加附件", "销售知识与物料"],
           sop: ["角色操作指南", "覆盖市场、销售、销售主管和老板的标准操作流程、交付证据与异常处理", "角色 SOP"],
           quotes: ["报价管理", "统一查看待报价、已报价及后续商机；点击进入询盘补充金额、币种和客户反馈", "报价商机"],
           fulfillment: ["履约跟踪", "统一记录样品、订单、回款、交付和售后进度", "样品与订单"],
@@ -3628,6 +3636,7 @@
           }).catch(()=>$("#legacy-project-import").classList.add("hidden"));
         }
         $("#module-filter-summary").classList.add("hidden");
+        knowledgeCountState = null;
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
         $("#role-guide-live").classList.toggle("hidden",view!=="sop");
@@ -3780,11 +3789,13 @@
           mapper=x=>({id:x.id,salesTask:x,meta:{category:x.category,risk:x.priority===1},cells:[x.label,x.priority===1?"紧急":x.priority===2?"优先":"正常",`#${String(x.inquiry_no).padStart(6,"0")} · ${x.title}`,displayCountry(x.target_country),displayInquiryStage(x),x.reason,taskTimeText(x.time)],actions:[{label:x.category==="quote"?"去报价":"立即处理",onClick:()=>openSalesTask(x)}]});clickable=true;
         } else if(view==="knowledge"){
           query=(async()=>{
-            const [articles,materials]=await Promise.all([loadModuleRowsPaged((from,to)=>supabase.from("sales_knowledge_articles").select("id,category,title,summary,content,tags,language,updated_at,created_by").eq("active",true).order("updated_at",{ascending:false}).range(from,to)),supabase.functions.invoke("material-library",{body:{action:"list",limit:500}})]);
+            const materialLimit=500;
+            const [articles,materials]=await Promise.all([loadModuleRowsPaged((from,to)=>supabase.from("sales_knowledge_articles").select("id,category,title,summary,content,tags,language,updated_at,created_by").eq("active",true).order("updated_at",{ascending:false}).range(from,to)),supabase.functions.invoke("material-library",{body:{action:"list",limit:materialLimit}})]);
             if(articles.error)return articles;if(materials.error||materials.data?.error)return {data:null,error:new Error(materials.data?.error||materials.error?.message||"物料库加载失败")};
+            const materialAssets=materials.data?.assets||[],totalCandidates=[materials.data?.total,materials.data?.total_count,materials.data?.totalCount,materials.data?.meta?.total],materialTotal=totalCandidates.map(value=>Number(value)).find(value=>Number.isFinite(value)&&value>=materialAssets.length)??null;
             const creatorIds=[...new Set((articles.data||[]).map(item=>item.created_by).filter(Boolean))],creatorNames={};
             if(creatorIds.length){const creators=await runModuleQuery(supabase.from("profiles").select("id,full_name,email").in("id",creatorIds),2);if(creators.error)console.warn("知识上传人加载失败",creators.error);else(creators.data||[]).forEach(item=>creatorNames[item.id]=item.full_name||item.email||"未提供")}
-            return {data:[...(materials.data?.assets||[]).map(item=>({...item,uploaderName:materialUploaderName(item),knowledgeSource:"material"})),...(articles.data||[]).map(item=>({...item,uploaderName:creatorNames[item.created_by]||(item.created_by===profile.id?profile.full_name:"未提供"),knowledgeSource:"article"}))],error:null};
+            return {data:[...materialAssets.map(item=>({...item,uploaderName:materialUploaderName(item),knowledgeSource:"material"})),...(articles.data||[]).map(item=>({...item,uploaderName:creatorNames[item.created_by]||(item.created_by===profile.id?profile.full_name:"未提供"),knowledgeSource:"article"}))],error:null,knowledgeCount:{materialLoaded:materialAssets.length,materialTotal,articleCount:(articles.data||[]).length,limited:materialTotal===null&&materialAssets.length>=materialLimit}};
           })();
           columns=["缩略图","分类 / 类型","标题","上传人","语言","大小 / 标签","更新时间","操作"];
           mapper=item=>item.knowledgeSource==="material"?({id:item.id,materialAsset:item,preview:knowledgePreview(item),meta:{searchText:`${(item.tags||[]).join(" ")} ${item.uploaderName||""}`,knowledgeKind:"material",knowledgeCategory:item.type||"文件",knowledgeUploader:item.uploaderName||"未提供",knowledgeLanguage:item.language||"—"},cells:[null,item.type||"文件",item.name,item.uploaderName||"未提供",item.language||"—",materialSize(item.sizeBytes),fmtDate(item.updatedAt)],actions:[{label:"查看 / 添加附件",onClick:()=>openMaterialAsset(item)}]}):({id:item.id,knowledgeArticle:item,preview:{kind:"document",alt:`${item.title||"知识条目"}缩略图`,fallback:"知识"},meta:{searchText:`${item.content||""} ${item.uploaderName||""}`,knowledgeKind:"article",knowledgeCategory:knowledgeCategoryNames[item.category]||item.category,knowledgeUploader:item.uploaderName||"未提供",knowledgeLanguage:item.language||"—"},cells:[null,knowledgeCategoryNames[item.category]||item.category,item.title,item.uploaderName||"未提供",item.language||"—",(item.tags||[]).join("、")||"—",fmtDate(item.updated_at)],actions:[{label:"查看并插入",onClick:()=>openKnowledgeArticle(item)}]});
@@ -3948,13 +3959,16 @@
             };
           };
         }
-        const { data, error } = await runModuleQuery(query);
+        const moduleResult = await runModuleQuery(query);
+        const { data, error } = moduleResult;
         if (loadVersion !== moduleLoadVersion || view !== activeModuleView) return;
+        if(view==="knowledge")knowledgeCountState=moduleResult.knowledgeCount||null;
         if (error) {
           const networkFailure = /failed to fetch|networkerror|load failed/i.test(String(error.message || error));
           const detail = networkFailure ? "暂时无法连接数据服务，系统已自动重试。请检查网络后点击重新加载。" : error.message;
           const cached = moduleMemoryCache.get(view);
           if (cached) {
+            if(view==="knowledge")knowledgeCountState=cached.knowledgeCount||null;
             renderModuleTable(cached.columns, cached.rows, cached.onRowClick);
             if (view === "inquiries") { renderInquiryCommand(cached.rows); filterModuleRows(); }
             if(view==="knowledge"){renderKnowledgeFilters(cached.rows);filterModuleRows()}
@@ -3999,7 +4013,7 @@
         const mappedRows = sourceRows.map(mapper);
         const onRowClick = view === "sales-today" ? (row)=>openSalesTask(row.salesTask) : view === "knowledge" ? (row)=>row.materialAsset?openMaterialAsset(row.materialAsset):row.knowledgeArticle&&openKnowledgeArticle(row.knowledgeArticle) : view === "fulfillment" ? (row)=>row.fulfillmentInquiry&&openFulfillmentManager(row.fulfillmentInquiry) : view === "customers" ? (row)=>row.customerCompanyId&&openCustomerRecord(row.customerCompanyId) : view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : view === "mailbox" ? (row)=>row.message&&openMailboxMessage(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);
-        moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, loadedAt:new Date().toISOString() });
+        moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, knowledgeCount:view==="knowledge"?knowledgeCountState:null, loadedAt:new Date().toISOString() });
         $("#module-table-context").textContent = view==="sop"?`当前角色专属流程 · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`:`${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
         if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
         if(view==="knowledge"){renderKnowledgeFilters(mappedRows);filterModuleRows()}

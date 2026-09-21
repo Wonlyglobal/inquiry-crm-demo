@@ -38,6 +38,15 @@ test("all sales knowledge entries share form category uploader and language filt
   assert.match(html,/matchesKnowledge/);
 });
 
+test("knowledge count distinguishes loaded materials from authored knowledge",()=>{
+  assert.match(html,/"销售知识与物料"/);
+  assert.match(html,/function moduleCountText\(rows,filtered=false\)/);
+  assert.match(html,/物料已加载 \$\{materialLoaded\} 条（非总数）/);
+  assert.match(html,/正式知识 \$\{articleCount\} 条/);
+  assert.match(html,/knowledgeCount:\{materialLoaded:materialAssets\.length,materialTotal,articleCount:/);
+  assert.doesNotMatch(html,/knowledge: \["销售知识库"[^\n]+"知识条目"\]/);
+});
+
 test("mail composer preserves local and material attachments under one limit",()=>{
   assert.match(html,/id="mail-select-material"/);
   assert.match(html,/selectedMaterialAttachments/);

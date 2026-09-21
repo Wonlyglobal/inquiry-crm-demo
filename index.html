@@ -3615,6 +3615,7 @@
           toast("当前角色无权进入该功能");
           return switchView("dashboard");
         }
+        const preserveEmailSearch = view === "email" && activeModuleView === "email";
         activeModuleView = view;
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         const loadVersion = ++moduleLoadVersion;
@@ -3625,7 +3626,7 @@
         $("#module-title").textContent = config[0];
         $("#module-subtitle").textContent = config[1];
         $("#module-table-title").textContent = config[2];
-        $("#module-search").value = "";
+        if (!preserveEmailSearch) $("#module-search").value = "";
         $("#module-search").placeholder = `搜索${config[2]}`;
         $("#module-toolbar").classList.add("hidden");
         $("#legacy-project-template").classList.toggle("hidden", view !== "legacy-projects");
@@ -3975,6 +3976,7 @@
             $("#module-stale-text").textContent = `数据服务暂时不可用，显示 ${fmtDate(cached.loadedAt)} 成功加载的数据。`;
             $("#module-stale").classList.remove("hidden");
             $("#module-table-context").textContent = `暂存数据 · 最近成功更新 ${fmtDate(cached.loadedAt)}`;
+            if (view === "email" && $("#module-search").value.trim()) filterModuleRows();
             toast("连接暂时中断，已保留最近一次成功加载的数据");
           } else {
             moduleColumns = columns; moduleRows = []; moduleRowClick = null;
@@ -4015,6 +4017,7 @@
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, knowledgeCount:view==="knowledge"?knowledgeCountState:null, loadedAt:new Date().toISOString() });
         $("#module-table-context").textContent = view==="sop"?`当前角色专属流程 · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`:`${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
+        if (view === "email" && $("#module-search").value.trim()) filterModuleRows();
         if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
         if(view==="knowledge"){renderKnowledgeFilters(mappedRows);filterModuleRows()}
         if (view === "sales-today" && todayTaskCounts) {
@@ -5293,7 +5296,7 @@
         const senderEmail = String(intake?.sender_email || "").trim().toLowerCase();
         const senderDomain = senderEmail.includes("@") ? senderEmail.split("@").pop() : "";
         const bodyDomain = String(originalText.match(/https?:\/\/(?:www\.)?([^\s/?#]+)/i)?.[1] || "").toLowerCase();
-        const inferredDomain = senderDomain || bodyDomain;
+        const inferredDomain = inferExternalResearchDomain(senderDomain) || inferExternalResearchDomain(bodyDomain);
         const namedCompany = originalText.match(/\bat\s+([A-Z][A-Za-z0-9&.' -]{1,80}?)\s+(?:in\s+[A-Z]|[,.\n])/i)?.[1]?.trim();
         const domainCompany = inferredDomain ? inferredDomain.split(".")[0].replace(/(^|[-_])([a-z])/g, (_m, prefix, letter) => `${prefix}${letter.toUpperCase()}`) : "";
         $("#detail-research-company").value = company.name || namedCompany || domainCompany;
@@ -7002,6 +7005,12 @@
           $("#open-company-osm").href = safeExternalUrl($("#detail-research-osm-url").value) || data.openstreetmap_search_url || "#";
         } catch { $("#detail-research-map-address").value = "地址自动识别暂时失败，智能体将在下次打开时重试"; }
       }
+      function inferExternalResearchDomain(value) {
+        const domain = String(value || "").trim().toLowerCase()
+          .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
+        // Internal test/forwarding senders are not evidence of the buyer's identity.
+        return domain === "wonlyglobal.com" || domain.endsWith(".wonlyglobal.com") ? "" : domain;
+      }
       function persistAutonomousResearch() {
         const saveButton = $("#save-detail-research");
         if (!currentInquiry || !$("#detail-research-company").value.trim() || saveButton.disabled) return;
@@ -7024,11 +7033,14 @@
           .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
         const normalizeCompanyName = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b(ltda|eireli|sa|s\/a|inc|llc|limited|industria|comercio)\b/g,"").replace(/[^a-z0-9]/g,"");
         const normalizeCountry = (value) => ({brasil:"brazil",br:"brazil",巴西:"brazil",argentina:"argentina",阿根廷:"argentina",china:"china",中国:"china"}[String(value||"").trim().toLowerCase()]||String(value||"").trim().toLowerCase());
-        const candidateDomain = normalizeDomain($("#detail-research-domain").value || intakeEmail);
+        const candidateDomain = normalizeDomain($("#detail-research-domain").value || inferExternalResearchDomain(intakeEmail));
         let domain = publicEmailDomains.has(candidateDomain) ? "" : candidateDomain;
         const companyName = $("#detail-research-company").value.trim() || currentInquiry.companies?.name || "";
         const companyCountry = $("#detail-smart-country").value.trim() || currentInquiry.target_country || "";
-        if (!domain && !companyName) return toast("请先填写公司名称；公共邮箱不能作为公司域名");
+        if (!domain && (!companyName || companyName === "待核实邮件客户")) {
+          $("#detail-research-status").textContent = "背调状态：待补充客户公司名称或官网；内部发件邮箱和公共邮箱不能作为客户公司身份依据";
+          return;
+        }
         autonomousResearchInquiryId = currentInquiry.id;
         button.disabled = true;
         button.textContent = "背调中…";

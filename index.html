@@ -281,6 +281,7 @@
       .primary,.secondary,.ghost,.table-action { min-height:38px; display:inline-flex; align-items:center; justify-content:center; gap:7px; line-height:1.2; transition:background-color .18s,border-color .18s,color .18s,box-shadow .18s,transform .18s; }
       .primary:not(:disabled):hover { background:#204a3c; box-shadow:0 9px 22px rgba(24,52,43,.2); transform:translateY(-1px); }
       .ghost:not(:disabled):hover { background:#f1f5f2; border-color:#b9cabe; }
+      .assignment-inline-action { display:block; width:max-content; margin-top:10px; min-height:40px; padding:8px 16px; white-space:nowrap; }
       .table-action:disabled { opacity:.48; cursor:not-allowed; }
       .notice-wrap {
         position: relative;
@@ -2957,9 +2958,19 @@
               td.textContent = value ?? "—";
               if (activeModuleView === "inquiries" && label === "负责人" && !value) { td.textContent = "待分配"; td.className = "module-owner-unassigned"; }
             }
+            if (activeModuleView === "assignment" && label === "询盘主题" && ["owner", "sales_manager"].includes(profile?.role)) {
+              const action = document.createElement("button");
+              action.type = "button";
+              action.className = "primary assignment-inline-action";
+              action.textContent = "直接分配";
+              action.setAttribute("aria-label", `直接分配询盘 ${row.cells[0]}`);
+              action.addEventListener("click", event => { event.stopPropagation(); openDirectAssignment(row.id); });
+              action.addEventListener("keydown", event => event.stopPropagation());
+              td.append(action);
+            }
             tr.append(td);
           });
-          const actions = row.actions || (row.action ? [row.action] : []);
+          const actions = activeModuleView === "assignment" ? (row.actions || []).slice(1) : row.actions || (row.action ? [row.action] : []);
           if (actions.length) {
             const td = document.createElement("td");
             td.style.whiteSpace = "nowrap";

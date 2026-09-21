@@ -3615,6 +3615,7 @@
           toast("当前角色无权进入该功能");
           return switchView("dashboard");
         }
+        const preserveEmailSearch = view === "email" && activeModuleView === "email";
         activeModuleView = view;
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         const loadVersion = ++moduleLoadVersion;
@@ -3625,7 +3626,7 @@
         $("#module-title").textContent = config[0];
         $("#module-subtitle").textContent = config[1];
         $("#module-table-title").textContent = config[2];
-        $("#module-search").value = "";
+        if (!preserveEmailSearch) $("#module-search").value = "";
         $("#module-search").placeholder = `搜索${config[2]}`;
         $("#module-toolbar").classList.add("hidden");
         $("#legacy-project-template").classList.toggle("hidden", view !== "legacy-projects");
@@ -3975,6 +3976,7 @@
             $("#module-stale-text").textContent = `数据服务暂时不可用，显示 ${fmtDate(cached.loadedAt)} 成功加载的数据。`;
             $("#module-stale").classList.remove("hidden");
             $("#module-table-context").textContent = `暂存数据 · 最近成功更新 ${fmtDate(cached.loadedAt)}`;
+            if (view === "email" && $("#module-search").value.trim()) filterModuleRows();
             toast("连接暂时中断，已保留最近一次成功加载的数据");
           } else {
             moduleColumns = columns; moduleRows = []; moduleRowClick = null;
@@ -4015,6 +4017,7 @@
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, knowledgeCount:view==="knowledge"?knowledgeCountState:null, loadedAt:new Date().toISOString() });
         $("#module-table-context").textContent = view==="sop"?`当前角色专属流程 · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`:`${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
+        if (view === "email" && $("#module-search").value.trim()) filterModuleRows();
         if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
         if(view==="knowledge"){renderKnowledgeFilters(mappedRows);filterModuleRows()}
         if (view === "sales-today" && todayTaskCounts) {

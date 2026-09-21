@@ -3584,7 +3584,7 @@
           const evidence=$("#sales360-evidence").value.trim();
           if(values.some(input=>[1,2,5].includes(Number(input.value)))&&evidence.length<8)return toast("评分为 1、2 或 5 时，请填写至少 8 个字的事实依据");
           const button=event.submitter;button.disabled=true;
-          const {error}=await supabase.rpc("submit_sales_360_evaluation",{target_assignment_id:task.assignment_id,target_scores:scores,target_summary:$("#sales360-summary").value.trim()||null,target_evidence:evidence||null});
+          const {error}=await supabase.rpc(task.direct ? "submit_direct_sales_360_evaluation" : "submit_sales_360_evaluation",{...(task.direct?{target_sales_id:task.subject_id,target_period_start:task.period_start}:{target_assignment_id:task.assignment_id}),target_scores:scores,target_summary:$("#sales360-summary").value.trim()||null,target_evidence:evidence||null});
           button.disabled=false;
           if(error)return toast("评价提交失败："+error.message);
           $("#dashboard-modal").classList.add("hidden");toast("匿名评价已提交，评价者身份不会向被评价人展示");await loadModule("performance-360");
@@ -3641,33 +3641,38 @@
         const match = /^(\d{4})-(\d{2})/.exec(String(date || ""));
         return match ? `${match[1]}-Q${Math.ceil(Number(match[2])/3)}` : "";
       }
-      function sales360QuarterRows(people, tasks, cycles, quarter) {
+      function sales360QuarterRows(people, tasks, cycles, quarter, actor = {}, currentMonth = new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Shanghai"}).slice(0,7)) {
         const [year, q] = quarter.split("-Q"), start = (Number(q)-1)*3+1;
         return people.map(person=>({person, months:[0,1,2].map(offset=>{
           const month = `${year}-${String(start+offset).padStart(2,"0")}`;
           const task = tasks.find(item=>item.subject_id===person.id && String(item.period_start).slice(0,7)===month);
           const cycle = cycles.find(item=>String(item.period_start).slice(0,7)===month);
-          return {month,task,status:task ? (task.status==="pending"?"待评价":"已提交") : cycle ? "未分配给我" : "未建周期"};
+          const authorized=actor.role==="owner" || (actor.role==="sales_manager" && actor.team && actor.team===person.team);
+          const closed=cycle && (cycle.status!=="collecting" || new Date(cycle.evaluation_due_at)<new Date());
+          const status=task?.status==="submitted"?"已提交":month>=currentMonth?"月份未结束":closed?"已截止 / 已发布":task?.status==="pending"||authorized?"待评价":"非本人评价范围";
+          const directTask=!task && status==="待评价" ? {direct:true,subject_id:person.id,subject_name:person.full_name,period_start:month+"-01",shadow_mode:cycle?.shadow_mode??true,evaluator_group:actor.role==="owner"?"owner":"manager",dimensions:actor.role==="owner"?["performance_contribution","values","responsibility"]:["execution","professionalism","goal_delivery","growth"]} : null;
+          return {month,task:task||directTask,status};
         })}));
       }
       function openSales360PersonEvaluation(row, quarter) {
-        openDashboardModal(`给 ${row.person.full_name} 评分`, `<p class="hint">${esc(quarter.replace("-Q"," 年 第 "))} 季度 · 请选择要评价的月份，评分仍按月独立提交。</p><div class="detail-grid">${row.months.map(month=>`<div class="card"><h4>${esc(month.month)}</h4><p>${esc(month.status)}</p>${month.status==="待评价"?`<button class="primary" data-person-evaluate="${esc(month.task.assignment_id)}">进入评分</button>`:`<p class="hint">${month.status==="未建周期"?"该月尚未创建评分周期，请由老板创建月度周期后评价。":month.status==="未分配给我"?"该月未分配给你，请核对主管评价任务。":"本月评价已提交。"}</p>`}</div>`).join("")}</div>`);
-        $("#dashboard-modal").querySelectorAll("[data-person-evaluate]").forEach(button=>button.onclick=()=>openSales360Evaluation(row.months.find(month=>month.task?.assignment_id===button.dataset.personEvaluate).task));
+        openDashboardModal(`给 ${row.person.full_name} 评分`, `<p class="hint">${esc(quarter.replace("-Q"," 年 第 "))} 季度 · 选择已结束月份即可评分，无需预先创建周期。提交时自动保存月度记录。</p><div class="detail-grid">${row.months.map(month=>`<div class="card"><h4>${esc(month.month)}</h4><p>${esc(month.status)}</p>${month.status==="待评价"?`<button class="primary" data-person-evaluate="${esc(month.month)}">进入评分</button>`:`<p class="hint">${month.status==="月份未结束"?"月末结束后可评价。":month.status==="非本人评价范围"?"当前账号与业务员团队不匹配，且无指定评价任务。":month.status==="已提交"?"本月评价已提交。":"该月份已截止或发布。"}</p>`}</div>`).join("")}</div>`);
+        $("#dashboard-modal").querySelectorAll("[data-person-evaluate]").forEach(button=>button.onclick=()=>openSales360Evaluation(row.months.find(month=>month.month===button.dataset.personEvaluate).task));
       }
       function renderSales360QuarterPanel(workspace, people, cycles) {
         const panel=$("#sales360-quarter-panel"), tasks=(workspace.tasks||[]).filter(item=>["manager","owner"].includes(item.evaluator_group));
         const now=new Date(),current=sales360QuarterKey(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`);
-        const quarters=[...new Set([current,...cycles.map(item=>sales360QuarterKey(item.period_start)),...tasks.map(item=>sales360QuarterKey(item.period_start))])].filter(Boolean).sort().reverse();
+        const recentQuarters=Array.from({length:8},(_,offset)=>{const date=new Date(now.getFullYear(),now.getMonth()-offset*3,1);return sales360QuarterKey(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`)});
+        const quarters=[...new Set([current,...recentQuarters,...cycles.map(item=>sales360QuarterKey(item.period_start)),...tasks.map(item=>sales360QuarterKey(item.period_start))])].filter(Boolean).sort().reverse();
         if(!quarters.includes(sales360QuarterSelection))sales360QuarterSelection=current;
-        const rows=sales360QuarterRows(people,tasks,cycles,sales360QuarterSelection);
+        const rows=sales360QuarterRows(people,tasks,cycles,sales360QuarterSelection,profile);
         const pending=rows.reduce((n,row)=>n+row.months.filter(month=>month.status==="待评价").length,0);
         const done=rows.reduce((n,row)=>n+row.months.filter(month=>month.status==="已提交").length,0);
         const first=(Number(sales360QuarterSelection.split("Q")[1])-1)*3+1;
-        panel.innerHTML=`<div class="table-head"><div><h3>业务员季度待评价表</h3><p class="hint">保留月度评价，按季度检查三个月进度；展示当前账号可见的在职业务员；仅能提交已分配给我的评价任务。</p></div><select id="sales360-quarter" class="input compact" aria-label="选择评价季度">${quarters.map(value=>`<option value="${esc(value)}" ${value===sales360QuarterSelection?"selected":""}>${esc(value.replace("-Q"," 年 第 "))} 季度</option>`).join("")}</select></div><p class="hint">${people.length} 位业务员 · 待评价 ${pending} 项 · 已提交 ${done} 项</p><div style="overflow-x:auto"><table><thead><tr><th>业务员</th><th>团队</th>${[first,first+1,first+2].map(month=>`<th>${month} 月</th>`).join("")}<th>季度进度</th></tr></thead><tbody>${rows.map(row=>`<tr><td><button class="table-action" data-quarter-person="${esc(row.person.id)}" aria-label="给 ${esc(row.person.full_name)} 评分">${esc(row.person.full_name)} · 评分</button></td><td>${esc(row.person.team||"—")}</td>${row.months.map(month=>`<td>${month.status==="待评价"?`<button class="table-action" data-quarter-evaluate="${esc(month.task.assignment_id)}">待评价 · 开始评价</button>${month.task.due_at?`<small class="hint"> 截止 ${esc(fmtDate(month.task.due_at))}</small>`:""}`:esc(month.status)}</td>`).join("")}<td>${row.months.filter(month=>month.status==="已提交").length} / ${row.months.filter(month=>month.task).length} 项已提交</td></tr>`).join("")||'<tr><td colspan="6">当前没有可见业务员或主管评价任务，请核对账号和周期配置。</td></tr>'}</tbody></table></div>`;
+        panel.innerHTML=`<div class="table-head"><div><h3>业务员季度待评价表</h3><p class="hint">保留月度评价，按季度检查三个月进度；展示当前账号可见的在职业务员；直属主管可直接评分，无需老板创建周期。</p></div><select id="sales360-quarter" class="input compact" aria-label="选择评价季度">${quarters.map(value=>`<option value="${esc(value)}" ${value===sales360QuarterSelection?"selected":""}>${esc(value.replace("-Q"," 年 第 "))} 季度</option>`).join("")}</select></div><p class="hint">${people.length} 位业务员 · 待评价 ${pending} 项 · 已提交 ${done} 项</p><div style="overflow-x:auto"><table><thead><tr><th>业务员</th><th>团队</th>${[first,first+1,first+2].map(month=>`<th>${month} 月</th>`).join("")}<th>季度进度</th></tr></thead><tbody>${rows.map(row=>`<tr><td><button class="table-action" data-quarter-person="${esc(row.person.id)}" aria-label="给 ${esc(row.person.full_name)} 评分">${esc(row.person.full_name)} · 评分</button></td><td>${esc(row.person.team||"—")}</td>${row.months.map(month=>`<td>${month.status==="待评价"?`<button class="table-action" data-quarter-evaluate="${esc(row.person.id)}:${esc(month.month)}">待评价 · 开始评价</button>${month.task.due_at?`<small class="hint"> 截止 ${esc(fmtDate(month.task.due_at))}</small>`:""}`:esc(month.status)}</td>`).join("")}<td>${row.months.filter(month=>month.status==="已提交").length} / ${row.months.filter(month=>month.task).length} 项已提交</td></tr>`).join("")||'<tr><td colspan="6">当前没有可见业务员或主管评价任务，请核对账号和周期配置。</td></tr>'}</tbody></table></div>`;
         panel.classList.remove("hidden");
         $("#sales360-quarter").onchange=event=>{sales360QuarterSelection=event.target.value;renderSales360QuarterPanel(workspace,people,cycles)};
         panel.querySelectorAll("[data-quarter-person]").forEach(button=>button.onclick=()=>openSales360PersonEvaluation(rows.find(row=>row.person.id===button.dataset.quarterPerson),sales360QuarterSelection));
-        panel.querySelectorAll("[data-quarter-evaluate]").forEach(button=>button.onclick=()=>openSales360Evaluation(tasks.find(task=>task.assignment_id===button.dataset.quarterEvaluate)));
+        panel.querySelectorAll("[data-quarter-evaluate]").forEach(button=>button.onclick=()=>openSales360Evaluation(rows.flatMap(row=>row.months.map(month=>({key:row.person.id+":"+month.month,task:month.task}))).find(item=>item.key===button.dataset.quarterEvaluate).task));
       }
       async function loadSales360Workspace(loadVersion){
         const {data,error}=await supabase.rpc("get_my_sales_360_workspace");
@@ -3680,7 +3685,7 @@
         const talentRecommendations=(talentResponse.data||[]).filter(item=>item.action_type!=="no_action");
         if (["owner","sales_manager"].includes(workspace.role)) {
           let directory=supabase.from("profiles").select("id,full_name,team").eq("active",true).eq("role","sales").order("full_name");
-          const [members,periods]=await Promise.all([directory,supabase.from("sales_360_cycles").select("id,period_start,period_end").order("period_start",{ascending:false})]);
+          const [members,periods]=await Promise.all([directory,supabase.from("sales_360_cycles").select("id,period_start,period_end,status,evaluation_due_at,shadow_mode").order("period_start",{ascending:false})]);
           if(loadVersion!==moduleLoadVersion)return;
           if(members.error||periods.error){$("#sales360-quarter-panel").textContent="季度评价进度加载失败，请刷新重试";$("#sales360-quarter-panel").classList.remove("hidden")}
           else {

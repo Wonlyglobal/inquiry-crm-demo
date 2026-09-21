@@ -295,6 +295,9 @@
       .notice-button svg {
         width: 17px;
       }
+      .nav-update-badge { margin-left:auto; display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 5px; border-radius:999px; background:#d92d20; color:#fff; font-size:11px; font-weight:800; flex-shrink:0; line-height:1; }
+      .nav-update-badge::before { content:""; width:4px; height:4px; border-radius:50%; background:#fff; margin-right:3px; }
+      .nav-update-badge.hidden { display:none; }
       .notice-count {
         position: absolute;
         right: -5px;
@@ -2716,15 +2719,81 @@
         initializeDashboardLayout();
         initializeDetailTabsOrder();
         if (startup.some((result) => result.status === "rejected")) toast("部分数据暂时未加载，系统已保留可用页面；可稍后重试");
+        paintSidebarBadges({});
+        refreshSidebarBadges();
         subscribeNotifications();
         icons();
       }
+      function sidebarNotificationViews(item) {
+        const type = String(item.type || "");
+        if (/assignment_requested|notify_manager_assignment/.test(type)) return ["assignment"];
+        if (/customer_whatsapp/.test(type)) return ["whatsapp", "communications", "sales-today"];
+        if (/customer_email|mailbox|email_reply/.test(type)) return ["mailbox", "communications", "sales-today"];
+        if (/follow|first_response|retention/.test(type)) return ["follow-calendar", "sales-today", "inquiries"];
+        if (/public_pool/.test(type)) return ["public-pool"];
+        if (/quotation|quote/.test(type)) return ["quotes"];
+        if (/fulfillment|shipment|delivery/.test(type)) return ["fulfillment"];
+        if (/research/.test(type)) return ["research", "marketing-center"];
+        if (/nurture/.test(type)) return ["nurture", "marketing-center"];
+        if (/risk/.test(type)) return ["risk-review"];
+        if (/daily/.test(type)) return ["daily"];
+        if (/score|performance|evaluation/.test(type)) return ["performance-360"];
+        if (/knowledge|material/.test(type)) return ["knowledge"];
+        if (/template/.test(type)) return ["templates"];
+        if (/customer|contact/.test(type)) return ["customers"];
+        if (/legacy/.test(type)) return ["legacy-projects"];
+        if (/inquiry|invalid|lost|won/.test(type)) return ["inquiries", "sales-today"];
+        return ["dashboard"];
+      }
+      function sidebarUnreadCounts(items) {
+        const counts = {}, seen = new Set();
+        for (const item of items) {
+          if (item.read_at || seen.has(item.id)) continue;
+          seen.add(item.id);
+          for (const view of sidebarNotificationViews(item)) counts[view] = (counts[view] || 0) + 1;
+        }
+        return counts;
+      }
+      let sidebarRefreshInFlight = false;
+      function paintSidebarBadges(counts, pendingViews = new Set()) {
+        $$(".nav[data-view]").forEach(nav => {
+          let badge = nav.querySelector(".nav-update-badge");
+          if (!badge) { badge = document.createElement("span"); badge.className = "nav-update-badge hidden"; nav.append(badge); }
+          const count = counts[nav.dataset.view] || 0;
+          badge.textContent = count > 99 ? "99+" : String(count);
+          badge.classList.toggle("hidden", !count || !canAccessView(nav.dataset.view));
+          const label = `${count} 条${pendingViews.has(nav.dataset.view) ? "待处理" : "未读更新"}`;
+          badge.title = label;
+          badge.setAttribute("aria-label", label);
+        });
+      }
+      async function refreshSidebarBadges() {
+        if (!profile?.id || document.visibilityState !== "visible" || sidebarRefreshInFlight) return;
+        sidebarRefreshInFlight = true;
+        const userId = profile.id, role = profile.role;
+        try {
+          const requests = [loadModuleRowsPaged((from,to)=>supabase.from("notifications").select("id,type,read_at").eq("recipient_id",userId).is("read_at",null).order("created_at",{ascending:false}).range(from,to))];
+          const views = [];
+          if (canAccessView("assignment")) { views.push("assignment"); requests.push(supabase.from("inquiries").select("id",{count:"exact",head:true}).eq("excluded_from_dashboard",false).eq("validity","valid").eq("status","pending_assignment")); }
+          if (canAccessView("email")) { views.push("email"); requests.push(supabase.from("email_intake").select("id",{count:"exact",head:true}).is("trashed_at",null).is("triage_label",null)); }
+          const results = await Promise.all(requests);
+          if (profile?.id !== userId || profile?.role !== role) return;
+          // Preserve the last known state on errors instead of reporting a false zero.
+          if (results.some(result=>result.error)) return;
+          const counts = sidebarUnreadCounts(results[0].data || []);
+          views.forEach((view,index)=>{ counts[view] = results[index+1].count || 0; });
+          paintSidebarBadges(counts, new Set(views));
+        } catch (error) { console.warn("侧边栏更新状态暂时无法刷新", error); }
+        finally { sidebarRefreshInFlight = false; }
+      }
+      setInterval(refreshSidebarBadges, 30000);
+      document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refreshSidebarBadges();});
       function subscribeNotifications() {
         if (notificationChannel) supabase.removeChannel(notificationChannel);
         notificationChannel = supabase.channel(`notifications-${profile.id}`)
-          .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `recipient_id=eq.${profile.id}` }, (payload) => {
+          .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `recipient_id=eq.${profile.id}` }, (payload) => {
             loadNotifications();
-            toast(`新消息：${payload.new.title || "收到一项新任务"}`);
+            if(payload.eventType === "INSERT")toast(`新消息：${payload.new.title || "收到一项新任务"}`);
           })
           .subscribe();
       }
@@ -4197,6 +4266,7 @@
         $("#quick-assignment-submit").onclick=async()=>{const owner=$("#quick-assignment-owner").value,reason=$("#quick-assignment-reason").value.trim(),button=$("#quick-assignment-submit");if(!owner)return toast("请选择业务员");if(owner===inquiry.owner_id)return toast("该业务员已经是当前负责人");if(!reason)return toast("请填写分配原因");const territoryMatch=assignmentSuggestion?.proposed_data?.candidate_territories?.find(item=>item.sales_id===owner);if(!territoryMatch||territoryMatch.rank===0){const confirmed=await appConfirm("所选人员的负责区域未匹配或尚未确认，请核对分配原因后继续。",{title:"区域匹配确认",confirmText:"确认人工分配"});if(!confirmed)return;}button.disabled=true;button.textContent="分配中…";const assigned=await supabase.rpc("assign_inquiry_to_sales",{target_inquiry_id:id,target_sales_id:owner,change_reason:reason});if(assigned.error){button.disabled=false;button.textContent="确认分配并转发邮件";return toast("分配失败："+assigned.error.message)}if(assignmentSuggestion?.id){const recommended=assignmentSuggestion.proposed_data?.recommended_sales_id,decision=owner===recommended?"accepted":"modified",selected=sales?.find(x=>x.id===owner);await supabase.rpc("review_ai_suggestion",{target_suggestion_id:assignmentSuggestion.id,target_decision:decision,target_applied_data:decision==="modified"?{selected_sales_id:owner,selected_sales_name:selected?.full_name||""}:null,target_review_note:reason})}let forwardError=null;if(["email","website"].includes(inquiry.source)){const queued=await supabase.rpc("request_original_email_forward",{target_inquiry_id:id});if(queued.error&&!/转发队列|已经转发/.test(queued.error.message||""))forwardError=queued.error;else if(!queued.error){const delivered=await supabase.functions.invoke("email-forward",{body:{inquiry_id:id}});forwardError=delivered.error}}const notice=await supabase.functions.invoke("group-notify",{body:{inquiry_id:id,action:"assigned"}});$("#dashboard-modal").classList.add("hidden");toast(forwardError?"已分配，但原邮件转发失败："+forwardError.message:notice.error?"已分配并转发邮件，但群通知失败："+notice.error.message:"已分配，原邮件已转发给业务员，并发送群通知");await Promise.all([loadInquiries(),loadNotifications()]);if(currentInquiry?.id===id&&!$("#detail-modal").classList.contains("hidden"))await openInquiryDetail(id);if(["assignment","inquiries"].includes(activeModuleView))await loadModule(activeModuleView);};
       }
       function setActiveNavigation(view) {
+        refreshSidebarBadges();
         $$(".nav[data-view]").forEach((nav) => {
           const active = nav.dataset.view === view;
           nav.classList.toggle("active", active);
@@ -4335,6 +4405,7 @@
         $("#notice-count").textContent = unread;
         $("#notice-count").classList.toggle("hidden", unread === 0);
         renderNotifications();
+        refreshSidebarBadges();
       }
       function renderNotifications(){
         const list = $("#notice-list");

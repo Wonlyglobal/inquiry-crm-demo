@@ -21,7 +21,7 @@ test('knowledge changes preserve authorship and produce durable audit evidence',
 
 test('knowledge UI searches complete persisted content and inserts it into the composer',()=>{
   assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("sales_knowledge_articles"\)/);
-  assert.match(html,/meta:\{searchText:`\$\{item\.content\|\|""\} \$\{item\.uploaderName\|\|""\}`\}/);
+  assert.match(html,/meta:\{searchText:`\$\{item\.content\|\|""\} \$\{item\.uploaderName\|\|""\}`,[^}]*knowledgeKind:"article"/);
   assert.match(html,/id="knowledge-insert-mail"/);
   assert.match(html,/body\.value=`\$\{body\.value\}\$\{separator\}\$\{article\.content\}`/);
   assert.match(html,/view==="knowledge"&&!\['owner','marketing'\]\.includes\(profile\.role\)/);

@@ -29,6 +29,15 @@ Deno.serve(withReadOnlyGuard(async request=>{
       if(!response.ok)throw new Error(payload.error||"物料库暂时不可用");
       return new Response(JSON.stringify(payload),{headers:{...cors,"Cache-Control":"private, max-age=15"}});
     }
+    if(action==="thumbnail"){
+      const assetId=clean(input.asset_id,100);if(!assetId)throw new Error("未选择物料");
+      const response=await fetch(`${serviceUrl}/api/integrations/crm/assets/${encodeURIComponent(assetId)}/thumbnail`,{headers:{Authorization:`Bearer ${integrationSecret}`},signal:AbortSignal.timeout(15000)});
+      if(response.status===404)return new Response(JSON.stringify({id:assetId,available:false}),{headers:{...cors,"Cache-Control":"private, max-age=60"}});
+      if(!response.ok)throw new Error("物料缩略图读取失败");
+      const bytes=new Uint8Array(await response.arrayBuffer()),mimeType=clean(response.headers.get("content-type"),100)||"image/jpeg";
+      if(!mimeType.startsWith("image/")||!bytes.length||bytes.length>2*1024*1024)throw new Error("物料缩略图格式或大小无效");
+      return new Response(JSON.stringify({id:assetId,available:true,mimeType,base64:bytesToBase64(bytes)}),{headers:{...cors,"Cache-Control":"private, max-age=300"}});
+    }
     if(action==="download"){
       const assetId=clean(input.asset_id,100);if(!assetId)throw new Error("未选择物料");
       const response=await fetch(`${serviceUrl}/api/integrations/crm/assets/${encodeURIComponent(assetId)}/download`,{headers:{Authorization:`Bearer ${integrationSecret}`,"X-CRM-User-ID":user.id},signal:AbortSignal.timeout(30000)});

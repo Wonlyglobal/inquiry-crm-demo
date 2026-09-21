@@ -2861,7 +2861,7 @@
             if(label==="选择"){const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=selectedEmailIntakeIds.has(row.selectionId);checkbox.setAttribute("aria-label","选择邮件");checkbox.onclick=event=>event.stopPropagation();checkbox.onchange=()=>{if(checkbox.checked)selectedEmailIntakeIds.add(row.selectionId);else selectedEmailIntakeIds.delete(row.selectionId);$("#email-selected-count").textContent="已选 "+selectedEmailIntakeIds.size+" 条"};td.append(checkbox);tr.append(td);return}
             if(activeModuleView==="knowledge"&&label==="缩略图"){
               const preview=row.preview||{},box=document.createElement("div");box.className=`knowledge-thumbnail ${preview.kind||"document"}`;box.setAttribute("aria-label",preview.alt||"文件缩略图");
-              if(preview.url){const img=document.createElement("img");img.src=preview.url;img.alt=preview.alt||"文件缩略图";img.loading="lazy";img.referrerPolicy="no-referrer";img.addEventListener("error",()=>{box.textContent=preview.fallback||"文件"});box.append(img)}else box.textContent=preview.fallback||"文件";
+              fillKnowledgePreview(box,preview);
               td.append(box);tr.append(td);return;
             }
             if (activeModuleView === "inquiries" && label === "询盘主题") td.className = "module-cell-primary";
@@ -3351,6 +3351,7 @@
       }
       const knowledgeCategoryNames={product:"产品参数",certification:"认证资料",faq:"常见问题",quotation:"报价规范",case:"成功案例"};
       const MAIL_ATTACHMENT_LIMIT_BYTES=50*1024*1024,MAIL_ATTACHMENT_COUNT_LIMIT=100;
+      const materialThumbnailCache=new Map();
       const materialSize=bytes=>Number(bytes)>=1048576?`${(Number(bytes)/1048576).toFixed(1)} MB`:`${Math.max(1,Math.round(Number(bytes)/1024))} KB`;
       function materialUploaderName(asset={}){
         const nested=asset.uploadedBy||asset.uploader||asset.createdBy||asset.owner;
@@ -3362,12 +3363,25 @@
         const name=String(item.name||item.title||""),type=String(item.mimeType||item.mime_type||item.type||"").toLowerCase(),signature=`${type} ${name}`.toLowerCase();
         const rawUrl=item.thumbnailUrl||item.thumbnail_url||item.previewUrl||item.preview_url||item.coverUrl||item.cover_url||"",url=safeExternalUrl(rawUrl);
         const kind=/video|视频|\.mp4$|\.mov$|\.webm$/.test(signature)?"video":/image|图片|图像|\.png$|\.jpe?g$|\.webp$|\.gif$/.test(signature)?"image":"document";
-        return {url,kind,alt:`${name||"文件"}缩略图`,fallback:kind==="video"?"视频":kind==="image"?"图片":"文档"};
+        return {url,kind,assetId:item.id||"",canLoadThumbnail:Boolean(item.id&&item.hasThumbnail!==false),alt:`${name||"文件"}缩略图`,fallback:kind==="video"?"视频":kind==="image"?"图片":"文档"};
+      }
+      async function materialThumbnailDataUrl(assetId){
+        if(!assetId)return "";
+        if(materialThumbnailCache.has(assetId))return await materialThumbnailCache.get(assetId);
+        const pending=(async()=>{const {data,error}=await supabase.functions.invoke("material-library",{body:{action:"thumbnail",asset_id:assetId}});if(error||data?.error||!data?.available||!data?.base64)return "";const mime=String(data.mimeType||"image/jpeg");return mime.startsWith("image/")?`data:${mime};base64,${data.base64}`:""})();
+        materialThumbnailCache.set(assetId,pending);const url=await pending;materialThumbnailCache.set(assetId,url);return url;
+      }
+      function fillKnowledgePreview(box,preview={}){
+        const mount=url=>{box.replaceChildren();if(!url){box.textContent=preview.fallback||"文件";return}const img=document.createElement("img");img.src=url;img.alt=preview.alt||"文件缩略图";img.loading="lazy";img.referrerPolicy="no-referrer";img.addEventListener("error",()=>{box.textContent=preview.fallback||"文件"});box.append(img)};
+        if(preview.url)return mount(preview.url);
+        box.textContent=preview.fallback||"文件";
+        if(preview.canLoadThumbnail&&preview.assetId)void materialThumbnailDataUrl(preview.assetId).then(mount);
       }
       function knowledgePreviewMarkup(item={}){
         const preview=knowledgePreview(item);
-        return `<div class="knowledge-thumbnail ${preview.kind}" aria-label="${esc(preview.alt)}">${preview.url?`<img src="${esc(preview.url)}" alt="${esc(preview.alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(document.createTextNode('${esc(preview.fallback)}'))">`:esc(preview.fallback)}</div>`;
+        return `<div class="knowledge-thumbnail ${preview.kind}" aria-label="${esc(preview.alt)}" data-material-thumbnail="${esc(preview.assetId)}">${preview.url?`<img src="${esc(preview.url)}" alt="${esc(preview.alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(document.createTextNode('${esc(preview.fallback)}'))">`:esc(preview.fallback)}</div>`;
       }
+      function hydrateMaterialThumbnailElements(root=document){root.querySelectorAll("[data-material-thumbnail]").forEach(box=>fillKnowledgePreview(box,knowledgePreview({id:box.dataset.materialThumbnail,name:box.getAttribute("aria-label"),hasThumbnail:true})));}
       function renderSelectedMaterialAttachments(){
         const wrap=$("#mail-material-attachments");if(!wrap)return;
         wrap.innerHTML=selectedMaterialAttachments.map(item=>`<span class="tag" style="display:inline-flex;align-items:center;gap:6px">${esc(item.name)} · ${esc(materialSize(item.sizeBytes))}<button type="button" data-remove-material="${item.id}" aria-label="移除附件 ${esc(item.name)}" style="border:0;background:none;cursor:pointer;font-size:18px;line-height:1">×</button></span>`).join("");
@@ -3383,6 +3397,7 @@
       }
       function openMaterialAsset(asset){
         openDashboardModal(asset.name,`<div style="margin-bottom:16px">${knowledgePreviewMarkup(asset)}</div><div class="legacy-detail-grid"><div class="legacy-detail-item"><span>上传人</span><div>${esc(materialUploaderName(asset))}</div></div><div class="legacy-detail-item"><span>类型</span><div>${esc(asset.type||"文件")}</div></div><div class="legacy-detail-item"><span>语言 / 地区</span><div>${esc(asset.language||"—")} / ${esc(asset.region||"—")}</div></div><div class="legacy-detail-item"><span>文件大小</span><div>${esc(materialSize(asset.sizeBytes))}</div></div><div class="legacy-detail-item"><span>版本</span><div>${esc(asset.versionLabel||"当前版本")}</div></div><div class="legacy-detail-item"><span>更新时间</span><div>${esc(fmtDate(asset.updatedAt))}</div></div></div><div class="form-actions"><button id="material-add-mail" class="primary" type="button">作为附件添加到邮件</button></div>`);
+        hydrateMaterialThumbnailElements($("#dashboard-modal"));
         $("#material-add-mail").onclick=async()=>{$("#dashboard-modal").classList.add("hidden");if($("#mail-compose-modal").classList.contains("hidden"))await openMailComposer();await addMaterialAttachment(asset)};
       }
       async function chooseMaterialForMail(){

@@ -2592,7 +2592,7 @@
       ];
       function sidebarGroupStorageKey(){return `wonly_sidebar_groups_v1_${profile?.id||"anonymous"}`}
       function syncSidebarGroupBadges(){
-        $$(".nav-group").forEach(group=>{const total=$$(".nav-update-badge:not(.hidden)",group).reduce((sum,badge)=>sum+(badge.textContent==="99+"?100:Number(badge.textContent)||0),0),badge=group.querySelector(".nav-group-count");if(!badge)return;badge.textContent=total>99?"99+":String(total);badge.classList.toggle("visible",total>0);badge.setAttribute("aria-label",`${total} 条待处理更新`)})
+        $$(".nav-group").forEach(group=>{const total=[...group.querySelectorAll(".nav-update-badge:not(.hidden)")].reduce((sum,badge)=>sum+(badge.textContent==="99+"?100:Number(badge.textContent)||0),0),badge=group.querySelector(".nav-group-count");if(!badge)return;badge.textContent=total>99?"99+":String(total);badge.classList.toggle("visible",total>0);badge.setAttribute("aria-label",`${total} 条待处理更新`)})
       }
       function setSidebarGroupOpen(group,open,persist=true){
         if(!group)return;group.classList.toggle("open",open);group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded",String(open));

@@ -1600,6 +1600,20 @@
           </div>
           <section id="role-guide-live" class="role-guide-live hidden" aria-label="角色指南实时更新"></section>
           <div id="module-insights" class="module-insights hidden"></div>
+          <section id="sales360-framework" class="card hidden" style="padding:20px;margin-bottom:20px" aria-label="360评价体系">
+            <details><summary style="cursor:pointer"><strong>360评价体系 · 选择题 + 简答题</strong><p class="hint">每月评价、季度汇总；从任务或成员姓名进入对应问卷。</p></summary>
+              <p>CRM客观数据60% + 多方评价40%。评价关注工作行为、具体事例和改进计划。</p>
+              <div style="overflow-x:auto"><table><thead><tr><th>评价来源</th><th>关注内容</th><th>问卷</th><th>总分权重</th></tr></thead><tbody>
+                <tr><td>老板</td><td>业绩贡献、价值观、责任担当</td><td>9道选择 + 4道简答</td><td>12%</td></tr>
+                <tr><td>主管</td><td>执行力、专业能力、目标达成、成长改进</td><td>12道选择 + 4道简答</td><td>14%</td></tr>
+                <tr><td>同组同事</td><td>协作配合、响应效率、知识分享</td><td>9道选择 + 4道简答</td><td>6%</td></tr>
+                <tr><td>市场部</td><td>线索反馈、交接协同、退回依据</td><td>9道选择 + 4道简答</td><td>5%</td></tr>
+                <tr><td>本人自评</td><td>目标复盘、问题识别、改进计划</td><td>9道选择 + 4道简答</td><td>3%</td></tr>
+              </tbody></table></div>
+              <p class="hint">选择题按1—5分行为量表填写；每维度至少2题有观察，“未观察”不计分。1、2、5分逐题填写依据。各维度等权计算本次评价分；简答不自动计分。同事或市场样本不足时沿用既有权重转移规则。</p>
+              <p class="hint">流程：月度评价 → 数据核算 → 异常校准 → 老板确认发布 → 本人查看与申诉 → 辅导改进 → 下月复盘。首期影子运行；奖金、晋升和淘汰保留人工确认。客户评价暂不纳入。</p>
+            </details>
+          </section>
           <section id="sales360-quarter-panel" class="card hidden" aria-label="季度业务员评价进度"></section>
           <section id="whatsapp-workspace" class="wa-workspace hidden" aria-label="WhatsApp Business 聊天工作台"></section>
           <section id="inquiry-command" class="inquiry-command hidden">
@@ -3574,21 +3588,50 @@
       const sales360TalentLabels={recognition:"优秀认可",promotion_candidate:"晋升候选",training:"培训改进",coaching:"重点辅导",elimination_observation:"淘汰观察",elimination_review:"淘汰评审",no_action:"暂无专项建议"};
       const sales360DecisionLabels={pending:"待老板确认",confirmed:"老板已确认",rejected:"老板已驳回"};
       function sales360Period(item){return `${String(item.period_start||"").slice(0,7)}${item.shadow_mode?" · 影子运行":""}`}
-      function openSales360Evaluation(task){
-        const dimensions=(task.dimensions||[]).map(key=>`<div class="field"><label>${esc(sales360DimensionLabels[key]||key)} *</label><select class="input" data-sales360-score="${esc(key)}" required><option value="">请选择</option><option value="5">5 · 明显超出要求</option><option value="4">4 · 超出要求</option><option value="3">3 · 达到要求</option><option value="2">2 · 部分未达要求</option><option value="1">1 · 明显未达要求</option></select></div>`).join("");
-        openDashboardModal(`匿名评价 · ${task.subject_name}`,`<form id="sales360-evaluation-form"><p class="hint">${esc(sales360Period(task))} · ${esc(sales360GroupLabels[task.evaluator_group]||task.evaluator_group)}。被评价人看不到评价者身份；1、2 或 5 分必须填写事实依据。</p><div class="detail-grid">${dimensions}</div><div class="field"><label>评价摘要</label><textarea id="sales360-summary" class="input" rows="3" maxlength="1000" placeholder="概括优势、风险与建议"></textarea></div><div class="field"><label>事实依据</label><textarea id="sales360-evidence" class="input" rows="4" maxlength="2000" placeholder="引用具体任务、客户、时间或交付事实；极端评分必填"></textarea></div><div class="form-actions"><button class="primary" type="submit">匿名提交评价</button></div></form>`);
-        $("#sales360-evaluation-form").onsubmit=async event=>{
+      let sales360QuestionnairePromise;
+      async function loadSales360Questionnaire(){
+        if(!sales360QuestionnairePromise)sales360QuestionnairePromise=fetch('./data/sales360-questionnaire-v2.json').then(response=>{if(!response.ok)throw new Error('题库加载失败');return response.json()}).catch(error=>{sales360QuestionnairePromise=null;throw error});
+        return sales360QuestionnairePromise;
+      }
+      async function openSales360Evaluation(task){
+        let bank;try{bank=await loadSales360Questionnaire()}catch(error){return toast('问卷加载失败，请重试：'+error.message)}
+        const questions=bank.groups[task.evaluator_group];
+        if(!questions?.length)return toast('当前评价类型尚无问卷');
+        const dimensions=[...new Set(questions.map(q=>q.dimension))];
+        const choices=dimensions.map(dimension=>`<fieldset style="border:1px solid var(--line,#dde3e1);border-radius:16px;padding:16px;margin:16px 0"><legend><strong>${esc(sales360DimensionLabels[dimension]||dimension)}</strong></legend>${questions.filter(q=>q.dimension===dimension).map(q=>`<div class="field" style="margin-bottom:20px"><label for="q-${esc(q.id)}">${questions.indexOf(q)+1}. ${esc(q.text)} *</label><select id="q-${esc(q.id)}" class="input" data-sales360-choice="${esc(q.id)}" required><option value="">请选择实际观察到的表现</option>${bank.scale.map(option=>`<option value="${esc(option.value)}">${esc(option.value==='na'?'':option.value+'分 · ')}${esc(option.label)}</option>`).join('')}</select><div data-sales360-evidence-wrap="${esc(q.id)}" hidden><label for="e-${esc(q.id)}">具体事例（1、2或5分必填）</label><textarea id="e-${esc(q.id)}" class="input" data-sales360-evidence="${esc(q.id)}" rows="2" maxlength="500" placeholder="至少8字，说明时间、行为及结果；不填无关隐私"></textarea></div></div>`).join('')}</fieldset>`).join('');
+        const shortQuestions=bank.short_questions.map((q,i)=>`<div class="field" style="margin-bottom:20px"><label for="short-${esc(q.id)}">${i+1}. ${esc(q.text)} ${q.required?'*':'（选填）'}</label><textarea id="short-${esc(q.id)}" class="input" data-sales360-short="${esc(q.id)}" rows="3" maxlength="1000" ${q.required?'required minlength="8"':''} placeholder="${q.required?'至少8字，请填写可核实的事实和可执行的建议':'可选填写支持需求'}"></textarea></div>`).join('');
+        openDashboardModal(`360评价 · ${task.subject_name}`,`<form id="sales360-evaluation-form"><p class="hint">${esc(sales360Period(task))} · ${esc(sales360GroupLabels[task.evaluator_group]||task.evaluator_group)} · ${questions.length}道选择题 + ${bank.short_questions.length}道简答题</p><p class="hint">仅评价本月可观察的工作行为。每个维度至少2题有实际观察；“不了解／未观察”不计分。被评价人看不到评价者身份，事实描述也请避免无关隐私。提交后不能直接修改。</p><h3>一、选择题 · 行为表现</h3>${choices}<h3>二、简答题 · 事实与改进</h3><p class="hint">简答题用于复盘和辅导，不自动折算分数。</p>${shortQuestions}<p class="hint" id="sales360-answer-progress" aria-live="polite"></p><div class="form-actions"><button class="primary" type="submit">提交完整评价</button></div></form>`);
+        const form=$('#sales360-evaluation-form');
+        const updateProgress=()=>{
+          let completed=0;
+          form.querySelectorAll('[data-sales360-choice]').forEach(input=>{
+            if(input.value)completed++;
+            const extreme=['1','2','5'].includes(input.value);
+            const id=input.dataset.sales360Choice;
+            form.querySelector(`[data-sales360-evidence-wrap="${id}"]`).hidden=!extreme;
+            const evidence=form.querySelector(`[data-sales360-evidence="${id}"]`);evidence.required=extreme;evidence.minLength=extreme?8:0;
+          });
+          const shortCount=bank.short_questions.filter(q=>q.required&&form.querySelector(`[data-sales360-short="${q.id}"]`).value.trim().length>=8).length;
+          $('#sales360-answer-progress').textContent=`已选 ${completed}/${questions.length} 题；必填简答 ${shortCount}/3 题`;
+        };
+        form.addEventListener('input',updateProgress);form.addEventListener('change',updateProgress);updateProgress();
+        form.onsubmit=async event=>{
           event.preventDefault();
-          const scores={},values=[...$$('[data-sales360-score]')];
-          values.forEach(input=>{scores[input.dataset.sales360Score]=Number(input.value)});
-          if(values.some(input=>!input.value))return toast("请完成全部维度评分");
-          const evidence=$("#sales360-evidence").value.trim();
-          if(values.some(input=>[1,2,5].includes(Number(input.value)))&&evidence.length<8)return toast("评分为 1、2 或 5 时，请填写至少 8 个字的事实依据");
+          const payload={version:bank.version,choices:{},short_answers:{}};
+          for(const question of questions){
+            const input=form.querySelector(`[data-sales360-choice="${question.id}"]`),evidence=form.querySelector(`[data-sales360-evidence="${question.id}"]`).value.trim();
+            if(!input.value)return toast('请完成全部选择题');
+            if(['1','2','5'].includes(input.value)&&evidence.length<8)return toast('1、2或5分需要至少8字的逐题事例');
+            payload.choices[question.id]={value:input.value==='na'?'na':Number(input.value),evidence:['1','2','5'].includes(input.value)?evidence:''};
+          }
+          for(const dimension of dimensions){if(questions.filter(q=>q.dimension===dimension&&payload.choices[q.id].value!=='na').length<2)return toast(`${sales360DimensionLabels[dimension]}至少需要2题有实际观察；暂无法评价时请补充观察后再提交`)}
+          for(const question of bank.short_questions){const answer=form.querySelector(`[data-sales360-short="${question.id}"]`).value.trim();if(question.required&&answer.length<8)return toast('请完整填写必填简答题（至少8字）');payload.short_answers[question.id]=answer;}
           const button=event.submitter;button.disabled=true;
-          const {error}=await supabase.rpc(task.direct ? "submit_direct_sales_360_evaluation" : "submit_sales_360_evaluation",{...(task.direct?{target_sales_id:task.subject_id,target_period_start:task.period_start}:{target_assignment_id:task.assignment_id}),target_scores:scores,target_summary:$("#sales360-summary").value.trim()||null,target_evidence:evidence||null});
-          button.disabled=false;
-          if(error)return toast("评价提交失败："+error.message);
-          $("#dashboard-modal").classList.add("hidden");toast("匿名评价已提交，评价者身份不会向被评价人展示");await loadModule("performance-360");
+          try{
+            const {error}=await supabase.rpc(task.direct?'submit_direct_sales_360_evaluation':'submit_sales_360_evaluation',{...(task.direct?{target_sales_id:task.subject_id,target_period_start:task.period_start}:{target_assignment_id:task.assignment_id}),target_scores:{_questionnaire:payload},target_summary:null,target_evidence:null});
+            if(error)throw error;
+            $('#dashboard-modal').classList.add('hidden');toast('完整评价已提交，评价者身份不会向被评价人展示');await loadModule('performance-360');
+          }catch(error){toast('评价提交失败：'+error.message)}finally{button.disabled=false}
         };
       }
       function openSales360CycleForm(){
@@ -3833,6 +3876,7 @@
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
         $("#sales360-quarter-panel").classList.add("hidden");
+        $("#sales360-framework").classList.toggle("hidden",view!=="performance-360");
         $("#role-guide-live").classList.toggle("hidden",view!=="sop");
         if(view==="sop")renderRoleGuideLive();
         $("#whatsapp-workspace").classList.toggle("hidden",view!=="whatsapp");

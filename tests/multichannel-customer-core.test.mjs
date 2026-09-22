@@ -36,6 +36,22 @@ test('customer management presents company contact and opportunity layers',()=>{
   assert.match(html,/\+ 新建客户 \/ 商机/);
 });
 
+test('customer core stays usable with hundreds of companies',()=>{
+  assert.match(html,/const pageSize=10,relatedLimit=8/);
+  assert.match(html,/filtered\.slice\(pageStart,pageStart\+pageSize\)/);
+  assert.match(html,/id="customer-core-search"/);
+  assert.match(html,/id="customer-core-sort"/);
+  assert.match(html,/id="customer-core-prev"/);
+  assert.match(html,/id="customer-core-next"/);
+  assert.match(html,/filter\(item=>String\(item\.company_id\)===String\(selectedCompanyId\)\)/);
+  assert.match(html,/data-customer-core-select/);
+});
+
+test('self-addressed inbox messages are clearly identified without rewriting envelope data',()=>{
+  assert.match(html,/selfSent=Boolean\(selfAddress&&senderAddress===selfAddress&&recipientAddresses\.includes\(selfAddress\)\)/);
+  assert.match(html,/本人自发自收/);
+});
+
 test('inquiry pipeline expands in the list instead of using a deep detail tab',()=>{
   assert.match(html,/function toggleInquiryPipelinePreview/);
   assert.match(html,/label:"展开流水线"/);

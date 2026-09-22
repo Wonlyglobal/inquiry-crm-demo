@@ -103,6 +103,7 @@
         border-color: #74917e;
         box-shadow: 0 0 0 3px #edf2ee;
       }
+      .sr-only { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; }
       .password-input-wrap { position: relative; }
       .password-input-wrap .input { padding-right: 48px; }
       .password-visibility {
@@ -630,15 +631,27 @@
       .module-table-heading { min-width:0; }
       .module-table-heading strong { display:block; font-size:15px; }
       .module-table-heading small { display:block; margin-top:4px; color:var(--muted); font-size:10px; font-weight:500; }
-      .customer-core { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+      .customer-core { display:grid; grid-template-columns:minmax(300px,1.08fr) repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+      .customer-core-toolbar { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.88); box-shadow:var(--shadow-soft); }
+      .customer-core-search { display:flex; align-items:center; gap:9px; width:min(520px,100%); }
+      .customer-core-search .input { min-width:0; }
+      .customer-core-sort { width:auto; min-width:132px; }
       .customer-core-card { min-width:0; padding:18px; border:1px solid var(--line); border-radius:22px; background:rgba(255,255,255,.86); box-shadow:var(--shadow-soft); }
       .customer-core-card header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
       .customer-core-card h3 { margin:0; font-size:17px; }
       .customer-core-card p { margin:4px 0 0; color:var(--muted); font-size:12px; }
-      .customer-core-list { display:grid; gap:8px; }
-      .customer-core-item { width:100%; min-width:0; padding:10px 12px; border:1px solid #dfe8e2; border-radius:14px; background:#f8fbf9; color:var(--ink); text-align:left; }
+      .customer-core-list { display:grid; gap:8px; align-content:start; }
+      .customer-core-item { width:100%; min-width:0; padding:10px 12px; border:1px solid #dfe8e2; border-radius:14px; background:#f8fbf9; color:var(--ink); text-align:left; cursor:pointer; }
+      .customer-core-item:hover { border-color:#9db4a5; background:#fff; }
+      .customer-core-item.active { border-color:var(--green); background:var(--soft); box-shadow:inset 0 0 0 1px var(--green); }
       .customer-core-item b,.customer-core-item small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .customer-core-item small { margin-top:3px; color:var(--muted); }
+      .customer-core-pagination { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+      .customer-core-pagination small { color:var(--muted); }
+      .customer-core-pagination div { display:flex; gap:6px; }
+      .customer-core-pagination button { min-width:34px; min-height:34px; padding:6px 9px; }
+      .customer-core-open { margin-top:12px; width:100%; }
+      .customer-core-overflow { margin:10px 2px 0; color:var(--muted); font-size:11px; }
       .pipeline-dropdown-row td { padding:0!important; background:#f5f9f6; }
       .pipeline-inline { padding:16px 18px 18px; border-top:1px solid var(--line); }
       .pipeline-inline-head { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; }
@@ -1320,6 +1333,9 @@
         .heading-actions { flex-wrap:wrap; justify-content:flex-end; }
         .module-table-toolbar { align-items:stretch; flex-direction:column; }
         .customer-core { grid-template-columns:1fr; }
+        .customer-core-toolbar { grid-column:1; align-items:stretch; flex-direction:column; }
+        .customer-core-search { width:100%; }
+        .customer-core-sort { width:100%; }
         .module-search-wrap { max-width:none; }
         #module-filter-summary { align-self:flex-start; }
         .module-insights { grid-template-columns:1fr 1fr; }
@@ -3947,13 +3963,28 @@
       }
       function renderCustomerCore(companies=[],contacts=[],inquiries=[]){
         const box=$("#customer-core");if(!box)return;
-        const recentCompanies=companies.slice(0,5),recentContacts=[...contacts].sort((a,b)=>String(b.updated_at||b.created_at||"").localeCompare(String(a.updated_at||a.created_at||""))).slice(0,5),recentOpportunities=[...inquiries].sort((a,b)=>String(b.updated_at||b.created_at||"").localeCompare(String(a.updated_at||a.created_at||""))).slice(0,5);
-        const companyItem=item=>`<button class="customer-core-item" type="button" data-customer-core-company="${esc(item.id)}"><b>${esc(item.company?.name||"未命名公司")}</b><small>${esc(displayCountry(item.company?.country))} · ${item.inquiries.length} 个商机</small></button>`;
-        const contactItem=item=>`<button class="customer-core-item" type="button" data-customer-core-company="${esc(item.company_id)}"><b>${esc(item.full_name||item.email||item.phone||item.whatsapp||"未命名联系人")}</b><small>${esc(item.email||item.phone||item.whatsapp||"联系方式待补充")}</small></button>`;
+        const pageSize=10,relatedLimit=8;
+        let query="",sortMode="recent",page=1,selectedCompanyId=companies[0]?.id||null;
+        const companySearchText=item=>[item.company?.name,item.company?.domain,item.company?.country,...item.inquiries.map(inquiry=>`${inquiry.title||""} ${inquiry.product_category||""}`)].filter(Boolean).join(" ").toLocaleLowerCase();
+        const companyItem=item=>`<button class="customer-core-item ${String(item.id)===String(selectedCompanyId)?"active":""}" type="button" data-customer-core-select="${esc(item.id)}" aria-pressed="${String(item.id)===String(selectedCompanyId)}"><b>${esc(item.company?.name||"未命名公司")}</b><small>${esc(displayCountry(item.company?.country))} · ${item.inquiries.length} 个商机</small></button>`;
+        const contactItem=item=>`<button class="customer-core-item" type="button" data-customer-core-open="${esc(item.company_id)}"><b>${esc(item.full_name||item.email||item.phone||item.whatsapp||"未命名联系人")}</b><small>${esc(item.email||item.phone||item.whatsapp||"联系方式待补充")}</small></button>`;
         const opportunityItem=item=>`<button class="customer-core-item" type="button" data-customer-core-inquiry="${esc(item.id)}"><b>#${String(item.inquiry_no||"").padStart(6,"0")} · ${esc(item.title||"未命名商机")}</b><small>${esc(displayInquiryStage(item))} · ${esc(sourceNames[item.source]||item.source||"来源待补充")}</small></button>`;
-        box.innerHTML=`<article class="customer-core-card"><header><div><h3>公司</h3><p>客户主档与归属范围</p></div><span class="tag">${companies.length}</span></header><div class="customer-core-list">${recentCompanies.map(companyItem).join("")||'<small class="hint">暂无可见公司</small>'}</div></article><article class="customer-core-card"><header><div><h3>联系人</h3><p>统一联系方式与角色</p></div><span class="tag">${contacts.length}</span></header><div class="customer-core-list">${recentContacts.map(contactItem).join("")||'<small class="hint">暂无可见联系人</small>'}</div></article><article class="customer-core-card"><header><div><h3>商机</h3><p>需求、阶段与下一步</p></div><span class="tag">${inquiries.length}</span></header><div class="customer-core-list">${recentOpportunities.map(opportunityItem).join("")||'<small class="hint">暂无可见商机</small>'}</div></article>`;
-        $$('[data-customer-core-company]').forEach(button=>button.addEventListener("click",()=>openCustomerRecord(button.dataset.customerCoreCompany)));
-        $$('[data-customer-core-inquiry]').forEach(button=>button.addEventListener("click",()=>openInquiryDetail(button.dataset.customerCoreInquiry)));
+        const render=()=>{
+          const needle=query.trim().toLocaleLowerCase(),filtered=companies.filter(item=>!needle||companySearchText(item).includes(needle)).sort((a,b)=>sortMode==="name"?String(a.company?.name||"").localeCompare(String(b.company?.name||""),"zh-CN"):new Date(b.lastAt||0)-new Date(a.lastAt||0));
+          const pageCount=Math.max(1,Math.ceil(filtered.length/pageSize));page=Math.min(page,pageCount);
+          const pageStart=(page-1)*pageSize,pageCompanies=filtered.slice(pageStart,pageStart+pageSize);
+          if(!pageCompanies.some(item=>String(item.id)===String(selectedCompanyId)))selectedCompanyId=pageCompanies[0]?.id||null;
+          const selected=companies.find(item=>String(item.id)===String(selectedCompanyId)),selectedContacts=[...contacts].filter(item=>String(item.company_id)===String(selectedCompanyId)).sort((a,b)=>String(b.updated_at||b.created_at||"").localeCompare(String(a.updated_at||a.created_at||""))),selectedOpportunities=[...inquiries].filter(item=>String(item.company_id)===String(selectedCompanyId)).sort((a,b)=>String(b.updated_at||b.created_at||"").localeCompare(String(a.updated_at||a.created_at||"")));
+          const rangeStart=filtered.length?pageStart+1:0,rangeEnd=Math.min(pageStart+pageSize,filtered.length),selectedName=selected?.company?.name||"请先选择公司";
+          box.innerHTML=`<div class="customer-core-toolbar"><label class="customer-core-search"><span class="sr-only">搜索公司</span><input id="customer-core-search" class="input" type="search" value="${esc(query)}" placeholder="搜索公司、国家、域名、产品或商机" autocomplete="off"><span class="tag" aria-live="polite">${filtered.length} 家</span></label><select id="customer-core-sort" class="input customer-core-sort" aria-label="公司排序"><option value="recent" ${sortMode==="recent"?"selected":""}>最近更新</option><option value="name" ${sortMode==="name"?"selected":""}>公司名称</option></select></div><article class="customer-core-card"><header><div><h3>公司</h3><p>每页 ${pageSize} 家，选择后查看关联资料</p></div><span class="tag">${companies.length}</span></header><div class="customer-core-list">${pageCompanies.map(companyItem).join("")||'<small class="hint">没有匹配的公司</small>'}</div><div class="customer-core-pagination"><small>${rangeStart}–${rangeEnd} / ${filtered.length}</small><div><button id="customer-core-prev" class="ghost" type="button" aria-label="上一页" ${page<=1?"disabled":""}>←</button><button id="customer-core-next" class="ghost" type="button" aria-label="下一页" ${page>=pageCount?"disabled":""}>→</button></div></div></article><article class="customer-core-card"><header><div><h3>联系人</h3><p title="${esc(selectedName)}">${esc(selectedName)}</p></div><span class="tag">${selectedContacts.length}</span></header><div class="customer-core-list">${selectedContacts.slice(0,relatedLimit).map(contactItem).join("")||'<small class="hint">该公司暂无联系人</small>'}</div>${selectedContacts.length>relatedLimit?`<p class="customer-core-overflow">另有 ${selectedContacts.length-relatedLimit} 位联系人，请进入客户详情查看</p>`:""}${selected?`<button class="ghost customer-core-open" type="button" data-customer-core-open="${esc(selected.id)}">查看客户详情</button>`:""}</article><article class="customer-core-card"><header><div><h3>商机</h3><p title="${esc(selectedName)}">${esc(selectedName)}</p></div><span class="tag">${selectedOpportunities.length}</span></header><div class="customer-core-list">${selectedOpportunities.slice(0,relatedLimit).map(opportunityItem).join("")||'<small class="hint">该公司暂无商机</small>'}</div>${selectedOpportunities.length>relatedLimit?`<p class="customer-core-overflow">另有 ${selectedOpportunities.length-relatedLimit} 个商机，请进入客户详情查看</p>`:""}</article>`;
+          $("#customer-core-search").addEventListener("input",event=>{query=event.target.value;page=1;render();const input=$("#customer-core-search");input.focus();input.setSelectionRange(input.value.length,input.value.length)});
+          $("#customer-core-sort").addEventListener("change",event=>{sortMode=event.target.value;page=1;render()});
+          $("#customer-core-prev").addEventListener("click",()=>{page-=1;render()});$("#customer-core-next").addEventListener("click",()=>{page+=1;render()});
+          $$('[data-customer-core-select]').forEach(button=>button.addEventListener("click",()=>{selectedCompanyId=button.dataset.customerCoreSelect;render()}));
+          $$('[data-customer-core-open]').forEach(button=>button.addEventListener("click",()=>openCustomerRecord(button.dataset.customerCoreOpen)));
+          $$('[data-customer-core-inquiry]').forEach(button=>button.addEventListener("click",()=>openInquiryDetail(button.dataset.customerCoreInquiry)));
+        };
+        render();
       }
       const customerImportColumns=["公司名称","联系人","客户邮箱","电话","WhatsApp","国家/地区","来源渠道","渠道明细","需求摘要","产品品类","数量","商机标题","预计金额","币种","预计采购日期"];
       const customerImportKeys={"公司名称":"company","company":"company","联系人":"contact","contact":"contact","客户邮箱":"email","email":"email","电话":"phone","phone":"phone","WhatsApp":"whatsapp","whatsapp":"whatsapp","国家/地区":"country","country":"country","来源渠道":"source","source":"source","渠道明细":"source_detail","source_detail":"source_detail","需求摘要":"demand","demand":"demand","产品品类":"product","product":"product","数量":"quantity","quantity":"quantity","商机标题":"title","title":"title","预计金额":"estimated_value","estimated_value":"estimated_value","币种":"currency","currency":"currency","预计采购日期":"expected_purchase_date","expected_purchase_date":"expected_purchase_date"};
@@ -4326,7 +4357,7 @@
             $("#module-table-context").textContent=`${connection.email} · 最近同步 ${connection.last_synced_at?fmtDate(connection.last_synced_at):"等待首次同步"}`;
           }
           columns=mailboxTemplateView?["模板名称","分类","语言","邮件主题","正文预览","最后修改","操作"]:mailboxScheduledView?["计划发送","收件人","主题","所属询盘","状态","操作"]:["时间","文件夹","状态","发件人","收件人","主题","所属询盘","附件"];
-          mapper=mailboxTemplateView?(x)=>({id:x.id,cells:[x.name,mailTemplateCategoryNames[x.category]||x.category,x.language,x.subject||"使用时填写",String(x.body_text||"").slice(0,100)+(String(x.body_text||"").length>100?"…":""),fmtDate(x.updated_at||x.created_at)],actions:[{label:"编辑",onClick:()=>openMailTemplateEditor(x)},{label:"删除",onClick:()=>deleteMailTemplate(x)}]}):mailboxScheduledView?(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,status={pending:"等待发送",sending:"发送中",sent:"已发送",failed:"发送失败",cancelled:"已取消"}[x.status]||x.status,statusDetail=x.status==="failed"&&x.last_error?`${status}：${x.last_error}`:status;return{id:x.id,cells:[fmtDate(x.next_attempt_at),x.recipient_email,x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"未关联询盘",statusDetail],actions:x.status==="pending"?[{label:"取消发送",onClick:()=>cancelScheduledMail(x.id)}]:[]}}:(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;return{id:x.id,message:x,meta:{risk:x.awaitingReply&&Date.now()-new Date(x.received_at||x.created_at).getTime()>=24*3600000},cells:[fmtDate(x.received_at||x.sent_at||x.created_at),x.direction==="inbound"?"收件箱":"已发送",mailboxMessageState(x),x.sender_email||"—",(x.recipient_emails||[]).join(", ")||"—",x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"待关联",x.attachment_count?`${x.attachment_count} 个`:"—"]}};
+          mapper=mailboxTemplateView?(x)=>({id:x.id,cells:[x.name,mailTemplateCategoryNames[x.category]||x.category,x.language,x.subject||"使用时填写",String(x.body_text||"").slice(0,100)+(String(x.body_text||"").length>100?"…":""),fmtDate(x.updated_at||x.created_at)],actions:[{label:"编辑",onClick:()=>openMailTemplateEditor(x)},{label:"删除",onClick:()=>deleteMailTemplate(x)}]}):mailboxScheduledView?(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,status={pending:"等待发送",sending:"发送中",sent:"已发送",failed:"发送失败",cancelled:"已取消"}[x.status]||x.status,statusDetail=x.status==="failed"&&x.last_error?`${status}：${x.last_error}`:status;return{id:x.id,cells:[fmtDate(x.next_attempt_at),x.recipient_email,x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"未关联询盘",statusDetail],actions:x.status==="pending"?[{label:"取消发送",onClick:()=>cancelScheduledMail(x.id)}]:[]}}:(x)=>{const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries,selfAddress=String(connection?.email||"").trim().toLowerCase(),senderAddress=String(x.sender_email||"").trim().toLowerCase(),recipientAddresses=(x.recipient_emails||[]).map(value=>String(value).trim().toLowerCase()),selfSent=Boolean(selfAddress&&senderAddress===selfAddress&&recipientAddresses.includes(selfAddress)),senderLabel=selfSent?`${x.sender_email}（本人自发自收）`:x.sender_email||"—";return{id:x.id,message:x,meta:{risk:x.awaitingReply&&Date.now()-new Date(x.received_at||x.created_at).getTime()>=24*3600000},cells:[fmtDate(x.received_at||x.sent_at||x.created_at),x.direction==="inbound"?"收件箱":"已发送",mailboxMessageState(x),senderLabel,(x.recipient_emails||[]).join(", ")||"—",x.subject||"无主题",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title||"询盘"}`:"待关联",x.attachment_count?`${x.attachment_count} 个`:"—"]}};
           clickable=!mailboxTemplateView;
         } else if (view === "research") {
           const linked=await loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("company_id").eq("excluded_from_dashboard",false).not("company_id","is",null).range(from,to));

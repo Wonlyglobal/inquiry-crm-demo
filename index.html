@@ -3817,6 +3817,13 @@
         $("#module-table-context").textContent=`${data?.role==="owner"?"全公司风险":"本团队业务风险"} · 确定性规则 · 不使用 AI 自动定责`;
         if(!rows.length)setModuleState("empty","当前没有可见风险案件，可运行确定性扫描");
       }
+      function personalMailboxSettingsLabel(connection,error){
+        if(error)return "我的邮箱 · 状态加载失败";
+        if(connection?.status==="connected")return "我的邮箱 · 已连接";
+        if(connection?.status==="error")return "我的邮箱 · 连接异常";
+        if(connection?.status==="disabled")return "我的邮箱 · 已停用";
+        return "连接我的邮箱";
+      }
       async function loadModule(view, options = {}) {
         if (view !== "inquiries") activeInquiryScope = "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
@@ -3920,7 +3927,7 @@
         }
         $("#inquiry-definitions").classList.toggle("hidden",view!=="inquiries");
         $("#add-member").classList.toggle("hidden", view !== "settings" || profile.role !== "owner");
-        if (view === "settings") { modulePrimary.textContent = profile.role === "owner" ? "连接业务员邮箱" : "连接我的邮箱"; $("#module-subtitle").textContent = profile.role === "owner" ? "成员、角色与首次登录状态" : "查看权限范围内的成员资料与负责区域；管理自己的邮箱连接"; }
+        if (view === "settings") { modulePrimary.textContent = profile.role === "owner" ? "连接业务员邮箱" : "连接我的邮箱"; $("#module-subtitle").textContent = profile.role === "owner" ? "成员、角色与首次登录状态" : "查看全部正式成员的基本资料与负责区域；管理自己的邮箱连接"; }
         if (view === "communications") modulePrimary.textContent = "测试我的邮箱收发";
         if (view === "mailbox") modulePrimary.textContent = "+ 写邮件";
         if (view === "whatsapp") modulePrimary.textContent = "配置 WhatsApp 通道";
@@ -4181,18 +4188,19 @@
           columns = ["旧 ID", "国家/地区", "合作方", "项目名称", "产品", "分类", "项目状态", "负责人", "下一节点", "合同金额（万元）", "操作"];
           mapper = (x) => ({ cells: [x.legacy_project_id, x.country, x.partner_name, x.project_name, x.product_type, x.funnel_bucket, x.project_status, x.legacy_owner_name === "石舒" ? "石奕舒" : x.legacy_owner_name, x.next_milestone_at || "—", x.contract_amount_wan ?? "—"], actions: [{ label: "查看", onClick: () => openLegacyProject(x) }] });
         } else if(view==="settings" && profile.role!=="owner") {
+          modulePrimary.textContent="正在读取邮箱状态…";
           query=(async()=>{
-            const [members,regions]=await Promise.all([
-              supabase.from("profiles").select("id,full_name,email,role,team,job_title,active").order("full_name"),
-              supabase.from("sales_target_people").select("profile_id,sales_region")
+            const [members,mailbox]=await Promise.all([
+              supabase.rpc("get_crm_member_directory"),
+              supabase.from("mailbox_connections").select("status").eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle()
             ]);
-            if(members.error)return members;if(regions.error)return regions;
-            const byId=new Map((regions.data||[]).map(item=>[item.profile_id,item.sales_region]));
-            return {data:(members.data||[]).map(member=>({...member,sales_region:byId.get(member.id)||"—"})),error:null};
+            const label=personalMailboxSettingsLabel(mailbox.data,mailbox.error);
+            if(loadVersion===moduleLoadVersion&&activeModuleView==="settings")modulePrimary.textContent=label;
+            return {...members,data:(members.data||[]).map(member=>({...member,own_mailbox_label:member.id===profile.id?label:null}))};
           })();
           columns=["姓名","邮箱","职称","部门","CRM 权限角色","负责区域","状态","操作"];
-          mapper=x=>({cells:[x.full_name,x.email,x.job_title,x.team,roleNames[x.role]||x.role,x.sales_region,x.active?"启用":"已停用"],actions:x.id===profile.id&&x.active?[{label:"连接我的邮箱",onClick:()=>openMailboxBinding(profile.id,true)}]:[]});
-          $("#module-table-context").textContent="成员范围由现有权限控制；账号新增、停用和角色变更由老板管理";
+          mapper=x=>({cells:[x.full_name,x.email,x.job_title,x.team,roleNames[x.role]||x.role,x.sales_region,x.active?"启用":"已停用"],actions:x.id===profile.id&&x.active?[{label:x.own_mailbox_label||"我的邮箱设置",onClick:()=>openMailboxBinding(profile.id,true)}]:[]});
+          $("#module-table-context").textContent="全部正式成员（含已停用）；账号新增、停用和角色变更由老板管理";
         } else {
           query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,disabled_reason_type,disabled_reason,disabled_at,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,error_message)").order("created_at", { ascending: true });
           columns = ["姓名", "邮箱", "职称", "部门", "CRM 权限角色", "状态", "邮箱连接", "最后测试", "操作"];

@@ -2733,6 +2733,8 @@
         applyReadOnlyControls();
         setMemberAvatar($("#avatar"), profile, "王");
         const role = profile.role;
+        const roleGuideNav=$('.nav[data-view="sop"]');
+        if(roleGuideNav)roleGuideNav.parentElement.appendChild(roleGuideNav);
         $$(".nav[data-view]").forEach(nav => nav.classList.toggle("hidden", !canAccessView(nav.dataset.view, role)));
         $("#assignment-action-head").classList.toggle(
           "hidden",
@@ -4077,11 +4079,12 @@
           query=(async()=>{
             const materialLimit=500;
             const [articles,materials]=await Promise.all([loadModuleRowsPaged((from,to)=>supabase.from("sales_knowledge_articles").select("id,category,title,summary,content,tags,language,updated_at,created_by").eq("active",true).order("updated_at",{ascending:false}).range(from,to)),supabase.functions.invoke("material-library",{body:{action:"list",limit:materialLimit}})]);
-            if(articles.error)return articles;if(materials.error||materials.data?.error)return {data:null,error:new Error(materials.data?.error||materials.error?.message||"物料库加载失败")};
-            const materialAssets=materials.data?.assets||[],totalCandidates=[materials.data?.total,materials.data?.total_count,materials.data?.totalCount,materials.data?.meta?.total],materialTotal=totalCandidates.map(value=>Number(value)).find(value=>Number.isFinite(value)&&value>=materialAssets.length)??null;
+            if(articles.error)return articles;
+            const materialError=materials.error||materials.data?.error,materialAssets=materialError?[]:(materials.data?.assets||[]),totalCandidates=[materials.data?.total,materials.data?.total_count,materials.data?.totalCount,materials.data?.meta?.total],materialTotal=materialError?null:(totalCandidates.map(value=>Number(value)).find(value=>Number.isFinite(value)&&value>=materialAssets.length)??null);
+            if(materialError){console.warn("实时物料库加载失败，继续显示 CRM 销售知识",materialError);$("#module-table-context").textContent="CRM 销售知识已加载 · 实时物料库暂时不可用，可稍后重试"}
             const creatorIds=[...new Set((articles.data||[]).map(item=>item.created_by).filter(Boolean))],creatorNames={};
             if(creatorIds.length){const creators=await runModuleQuery(supabase.from("profiles").select("id,full_name,email").in("id",creatorIds),2);if(creators.error)console.warn("知识上传人加载失败",creators.error);else(creators.data||[]).forEach(item=>creatorNames[item.id]=item.full_name||item.email||"未提供")}
-            return {data:[...materialAssets.map(item=>({...item,uploaderName:materialUploaderName(item),knowledgeSource:"material"})),...(articles.data||[]).map(item=>({...item,uploaderName:creatorNames[item.created_by]||(item.created_by===profile.id?profile.full_name:"未提供"),knowledgeSource:"article"}))],error:null,knowledgeCount:{materialLoaded:materialAssets.length,materialTotal,articleCount:(articles.data||[]).length,limited:materialTotal===null&&materialAssets.length>=materialLimit}};
+            return {data:[...materialAssets.map(item=>({...item,uploaderName:materialUploaderName(item),knowledgeSource:"material"})),...(articles.data||[]).map(item=>({...item,uploaderName:creatorNames[item.created_by]||(item.created_by===profile.id?profile.full_name:"未提供"),knowledgeSource:"article"}))],error:null,knowledgeCount:{materialLoaded:materialAssets.length,materialTotal,articleCount:(articles.data||[]).length,limited:!materialError&&materialTotal===null&&materialAssets.length>=materialLimit}};
           })();
           columns=["缩略图","分类 / 类型","标题","上传人","语言","大小 / 标签","更新时间","操作"];
           mapper=item=>item.knowledgeSource==="material"?({id:item.id,materialAsset:item,preview:knowledgePreview(item),meta:{searchText:`${(item.tags||[]).join(" ")} ${item.uploaderName||""}`,knowledgeKind:"material",knowledgeCategory:item.type||"文件",knowledgeUploader:item.uploaderName||"未提供",knowledgeLanguage:item.language||"—"},cells:[null,item.type||"文件",item.name,item.uploaderName||"未提供",item.language||"—",materialSize(item.sizeBytes),fmtDate(item.updatedAt)],actions:[{label:"查看 / 添加附件",onClick:()=>openMaterialAsset(item)}]}):({id:item.id,knowledgeArticle:item,preview:{kind:"document",alt:`${item.title||"知识条目"}缩略图`,fallback:"知识"},meta:{searchText:`${item.content||""} ${item.uploaderName||""}`,knowledgeKind:"article",knowledgeCategory:knowledgeCategoryNames[item.category]||item.category,knowledgeUploader:item.uploaderName||"未提供",knowledgeLanguage:item.language||"—"},cells:[null,knowledgeCategoryNames[item.category]||item.category,item.title,item.uploaderName||"未提供",item.language||"—",(item.tags||[]).join("、")||"—",fmtDate(item.updated_at)],actions:[{label:"查看并插入",onClick:()=>openKnowledgeArticle(item)}]});

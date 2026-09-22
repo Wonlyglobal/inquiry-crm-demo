@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 test('all application bulk export buttons enter the governed workflow',()=>{
- for(const id of ['dashboard-export-csv','dashboard-export-pdf','ai-export-csv','ai-export-pdf'])
+ for(const id of ['ai-export-csv','ai-export-pdf'])
   assert.ok(html.includes(`$("#${id}").addEventListener("click",openControlledExportCenter)`));
+ for(const id of ['dashboard-export-csv','dashboard-export-pdf'])
+  assert.doesNotMatch(html,new RegExp(`id=["']${id}["']`));
  assert.doesNotMatch(html,/function exportAiCsv|function printAiResult/);
 });
 test('export renderer only saves server-generated content and fails closed',()=>{

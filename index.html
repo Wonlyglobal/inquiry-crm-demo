@@ -1453,7 +1453,6 @@
           <div class="heading">
             <div>
               <h1>经营看板</h1>
-              <p id="dashboard-subtitle">询盘效率、销售转化、渠道 ROI 与风险预警</p>
             </div>
             <div class="heading-actions"><button id="dashboard-layout-toggle" class="ghost" type="button">调整布局</button><button id="dashboard-layout-reset" class="ghost hidden" type="button">恢复默认</button><button id="new-inquiry" class="primary">+ 新建询盘</button></div>
           </div>
@@ -1466,7 +1465,6 @@
                 <input id="dashboard-start" class="input compact hidden" type="date" />
                 <input id="dashboard-end" class="input compact hidden" type="date" />
               </div>
-              <div class="dashboard-actions"><button id="dashboard-targets" class="ghost">设置目标</button><button id="dashboard-export-csv" class="ghost">申请导出清单</button><button id="dashboard-export-pdf" class="ghost">导出审批记录</button></div>
             </div>
             <div class="dashboard-toolbar-secondary">
             <div class="dashboard-filter-group">
@@ -2760,9 +2758,8 @@
         $("#manager-workbench").classList.toggle("hidden",!managerView);
         $("#marketing-workbench").classList.toggle("hidden",!marketingView);
         $("#hero-sales-label").textContent=salesView?"我的销售额":"团队总销售额";
-        $("#dashboard-subtitle").textContent="询盘效率、销售转化、渠道 ROI 与风险预警";
-        ["#dashboard-team","#dashboard-sales","#dashboard-data-scope","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
-        ["#dashboard-team","#dashboard-sales","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
+        ["#dashboard-team","#dashboard-sales","#dashboard-data-scope"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
+        ["#dashboard-team","#dashboard-sales"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
         const startup = await Promise.allSettled([loadInquiries(), loadNotifications(), refreshPersonalMailboxEntry(), loadDashboardPreferences(),loadMyRiskControls()]);
         initializeDashboardLayout();
         initializeDetailTabsOrder();
@@ -8425,7 +8422,6 @@
       $("#sales-profile-back").addEventListener("click",()=>switchView("dashboard"));
       $("#dashboard-data-scope").addEventListener("change",event=>{const period=$("#dashboard-period");if(event.target.value==="legacy")period.value="all";else if(period.value==="all")period.value="month";$$(".period-tab[data-period]").forEach(button=>button.classList.toggle("active",button.dataset.period===period.value));renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)});
       $("#dashboard-apply").addEventListener("click", () => renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups));
-      $("#dashboard-targets").addEventListener("click", openTargetEditor);
       $("#dashboard-channel-cost").addEventListener("click", openChannelCostEditor);
       $("#dashboard-modal-close").addEventListener("click",()=>$("#dashboard-modal").classList.add("hidden"));
       $("#inquiry-definitions").addEventListener("click",openInquiryDefinitions);
@@ -8445,8 +8441,6 @@
         if(fallbackReason){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",fallbackReason);answer+=`\n\n⚠️ DeepSeek 暂未生效，本次使用 CRM 本地统计：${fallbackReason}`;}
         submit.disabled=false;submit.textContent="提问";addAiMessage("assistant",answer);aiConversation.push({role:"user",content:question},{role:"assistant",content:answer});
       });
-      $("#dashboard-export-csv").addEventListener("click",openControlledExportCenter);
-      $("#dashboard-export-pdf").addEventListener("click",openControlledExportCenter);
       bindMetricHelp();
       const openRecoveryPassword = () => {
         passwordChangeMode = "recovery";

@@ -32,10 +32,17 @@ test('person scoring entry opens month choices and only offers assigned pending 
 });
 
 test('manager can open same-team completed months without a cycle, but not another team or current month',()=>{
- const result=rows([{id:'a',team:'A'},{id:'b',team:'B'}],[],[],'2026-Q3',{role:'sales_manager',team:'A'},'2026-09');
+ const result=rows([{id:'a',team:'A'},{id:'b',team:'B'}],[],[],'2026-Q3',{role:'sales_manager',team:'销售部',managedTeams:['A']},'2026-09');
  assert.equal(result[0].months[0].status,'待评价');
  assert.equal(result[0].months[0].task.direct,true);
  assert.equal(result[0].months[0].task.evaluator_group,'manager');
  assert.equal(result[0].months[2].status,'月份未结束');
  assert.equal(result[1].months[0].status,'非本人评价范围');
+});
+
+test('manager quarterly rows use explicit multiple teams and fail closed without scope',()=>{
+ const people=[{id:'a',team:'A'},{id:'b',team:'B'},{id:'c',team:'C'}];
+ const result=rows(people,[],[],'2026-Q3',{role:'sales_manager',team:'销售部',managedTeams:['A','B']},'2026-09');
+ assert.deepEqual(Array.from(result,row=>row.months[0].status),['待评价','待评价','非本人评价范围']);
+ assert.equal(rows(people,[],[],'2026-Q3',{role:'sales_manager',team:'A'},'2026-09')[0].months[0].status,'非本人评价范围');
 });

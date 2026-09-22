@@ -1944,7 +1944,7 @@
       <div class="modal">
         <div class="modal-head">
           <h3 id="detail-title">询盘详情</h3>
-          <div class="heading-actions"><button id="detail-direct-assignment" class="primary hidden" type="button">分配业务员</button><button id="detail-tabs-order-toggle" class="ghost" type="button">调整页签</button><button id="detail-tabs-order-reset" class="ghost hidden" type="button">恢复默认</button><button id="close-detail" class="ghost">← 返回询盘</button></div>
+          <div class="heading-actions"><button id="detail-review-quotes" class="ghost hidden" type="button">报价审核</button><button id="detail-direct-assignment" class="primary hidden" type="button">分配业务员</button><button id="detail-tabs-order-toggle" class="ghost" type="button">调整页签</button><button id="detail-tabs-order-reset" class="ghost hidden" type="button">恢复默认</button><button id="close-detail" class="ghost">← 返回询盘</button></div>
         </div>
         <div class="detail-kpis">
           <div class="detail-kpi"><span>当前阶段</span><b id="detail-kpi-stage">—</b></div>
@@ -3356,8 +3356,8 @@
       }
       async function openQuoteManager(inquiry){
         const {data:versions,error}=await supabase.from("quotation_versions").select("*").eq("inquiry_id",inquiry.id).order("version_no",{ascending:false});if(error)return toast("报价记录加载失败："+error.message);
-        const canCreate=inquiry.owner_id===profile.id||["owner","sales_manager"].includes(profile.role),canReview=["owner","sales_manager"].includes(profile.role);
-        const quoteActions=q=>`${["draft","rejected"].includes(q.status)&&(q.created_by===profile.id||inquiry.owner_id===profile.id)?`<button class="table-action" data-quote-submit="${q.id}">${q.status==="rejected"?"重新提交":"提交审核"}</button>`:""}${q.status==="pending_approval"&&canReview?`<button class="table-action" data-quote-approve="${q.id}">批准</button><button class="table-action" data-quote-reject="${q.id}">驳回</button>`:""}<button class="table-action" data-quote-view="${q.id}">查看明细</button>${q.status==="approved"?`<button class="table-action" data-quote-send="${q.id}">发送客户</button>`:""}`;
+        const canCreate=profile.role==="owner"||(profile.role==="sales"&&inquiry.owner_id===profile.id),canReview=["owner","sales_manager"].includes(profile.role);
+        const quoteActions=q=>`${["draft","rejected"].includes(q.status)&&(q.created_by===profile.id||inquiry.owner_id===profile.id)?`<button class="table-action" data-quote-submit="${q.id}">${q.status==="rejected"?"重新提交":"提交审核"}</button>`:""}${q.status==="pending_approval"&&canReview&&q.created_by!==profile.id?`<button class="table-action" data-quote-approve="${q.id}">批准</button><button class="table-action" data-quote-reject="${q.id}">驳回</button>`:""}<button class="table-action" data-quote-view="${q.id}">查看明细</button>${q.status==="approved"&&canCreate?`<button class="table-action" data-quote-send="${q.id}">发送客户</button>`:""}`;
         const quoteStatus=q=>q.customer_replied_at?`客户已回复 · ${fmtDate(q.customer_replied_at)}`:q.status==="sent"?`已发送${q.sent_at?` · ${fmtDate(q.sent_at)}`:""}`:({draft:"草稿",pending_approval:"待审核",approved:"已批准",rejected:"已驳回"}[q.status]||q.status);
         const quoteLineRow=()=>`<div class="quote-line" style="display:grid;grid-template-columns:1.3fr 1.7fr .65fr .8fr auto;gap:10px;align-items:end;margin-bottom:10px"><div class="field"><label>产品/型号</label><input class="input quote-product" required /></div><div class="field"><label>规格说明</label><input class="input quote-spec" /></div><div class="field"><label>数量</label><input class="input quote-qty" type="number" min="0.01" step="0.01" required /></div><div class="field"><label>单价</label><input class="input quote-unit-price" type="number" min="0" step="0.01" required /></div><button class="secondary quote-remove" type="button" aria-label="删除此明细">删除</button></div>`;
         openDashboardModal(`报价管理 · #${String(inquiry.inquiry_no).padStart(6,"0")}`,`<div class="dashboard-table-scroll"><table><thead><tr><th>报价编号</th><th>主题</th><th>金额</th><th>有效期</th><th>状态</th><th>操作</th></tr></thead><tbody>${(versions||[]).map(q=>`<tr><td>${esc(q.quote_no||`V${q.version_no}`)}</td><td>${esc(q.subject)}${q.review_note?`<small style="display:block;margin-top:5px">审核意见：${esc(q.review_note)}</small>`:""}</td><td>${esc(q.currency)} ${Number(q.total_amount).toLocaleString()}</td><td>${q.validity_until||"—"}</td><td>${esc(quoteStatus(q))}</td><td>${quoteActions(q)}</td></tr>`).join("")||'<tr><td colspan="6">暂无报价版本</td></tr>'}</tbody></table></div>${canCreate?`<form id="quote-create-form" style="margin-top:18px"><h4>新建报价版本</h4><div class="detail-grid"><div class="field"><label>报价主题</label><input id="quote-subject" class="input" required value="${esc(inquiry.title)}" /></div><div class="field"><label>币种</label><select id="quote-currency" class="input"><option>USD</option><option>CNY</option><option>EUR</option></select></div></div><div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 8px"><strong>报价明细</strong><button id="quote-add-line" class="secondary" type="button">＋ 添加产品</button></div><div id="quote-lines">${quoteLineRow()}</div><div style="text-align:right;font-weight:700;margin:8px 0 16px">预计总额：<span id="quote-total">USD 0.00</span></div><div class="detail-grid"><div class="field"><label>有效期</label><input id="quote-valid" class="input" type="date" /></div><div class="field"><label>贸易条款</label><input id="quote-terms" class="input" placeholder="FOB / CIF / EXW 等" /></div></div><div class="field"><label>备注</label><textarea id="quote-notes" class="input" rows="3"></textarea></div><div class="form-actions"><button class="primary" type="submit">保存新版本</button></div></form>`:""}`);
@@ -3647,7 +3647,7 @@
           const month = `${year}-${String(start+offset).padStart(2,"0")}`;
           const task = tasks.find(item=>item.subject_id===person.id && String(item.period_start).slice(0,7)===month);
           const cycle = cycles.find(item=>String(item.period_start).slice(0,7)===month);
-          const authorized=actor.role==="owner" || (actor.role==="sales_manager" && actor.team && actor.team===person.team);
+          const authorized=actor.role==="owner" || (actor.role==="sales_manager" && Array.isArray(actor.managedTeams) && actor.managedTeams.includes(person.team));
           const closed=cycle && (cycle.status!=="collecting" || new Date(cycle.evaluation_due_at)<new Date());
           const status=task?.status==="submitted"?"已提交":month>=currentMonth?"月份未结束":closed?"已截止 / 已发布":task?.status==="pending"||authorized?"待评价":"非本人评价范围";
           const directTask=!task && status==="待评价" ? {direct:true,subject_id:person.id,subject_name:person.full_name,period_start:month+"-01",shadow_mode:cycle?.shadow_mode??true,evaluator_group:actor.role==="owner"?"owner":"manager",dimensions:actor.role==="owner"?["performance_contribution","values","responsibility"]:["execution","professionalism","goal_delivery","growth"]} : null;
@@ -3655,7 +3655,7 @@
         })}));
       }
       function openSales360PersonEvaluation(row, quarter) {
-        openDashboardModal(`给 ${row.person.full_name} 评分`, `<p class="hint">${esc(quarter.replace("-Q"," 年 第 "))} 季度 · 选择已结束月份即可评分，无需预先创建周期。提交时自动保存月度记录。</p><div class="detail-grid">${row.months.map(month=>`<div class="card"><h4>${esc(month.month)}</h4><p>${esc(month.status)}</p>${month.status==="待评价"?`<button class="primary" data-person-evaluate="${esc(month.month)}">进入评分</button>`:`<p class="hint">${month.status==="月份未结束"?"月末结束后可评价。":month.status==="非本人评价范围"?"当前账号与业务员团队不匹配，且无指定评价任务。":month.status==="已提交"?"本月评价已提交。":"该月份已截止或发布。"}</p>`}</div>`).join("")}</div>`);
+        openDashboardModal(`给 ${row.person.full_name} 评分`, `<p class="hint">${esc(quarter.replace("-Q"," 年 第 "))} 季度 · 选择已结束月份即可评分，无需预先创建周期。提交时自动保存月度记录。</p><div class="detail-grid">${row.months.map(month=>`<div class="card"><h4>${esc(month.month)}</h4><p>${esc(month.status)}</p>${month.status==="待评价"?`<button class="primary" data-person-evaluate="${esc(month.month)}">进入评分</button>`:`<p class="hint">${month.status==="月份未结束"?"月末结束后可评价。":month.status==="非本人评价范围"?"该业务员不在当前账号获授权的管理团队中。":month.status==="已提交"?"本月评价已提交。":"该月份已截止或发布。"}</p>`}</div>`).join("")}</div>`);
         $("#dashboard-modal").querySelectorAll("[data-person-evaluate]").forEach(button=>button.onclick=()=>openSales360Evaluation(row.months.find(month=>month.month===button.dataset.personEvaluate).task));
       }
       function renderSales360QuarterPanel(workspace, people, cycles) {
@@ -3664,11 +3664,11 @@
         const recentQuarters=Array.from({length:8},(_,offset)=>{const date=new Date(now.getFullYear(),now.getMonth()-offset*3,1);return sales360QuarterKey(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`)});
         const quarters=[...new Set([current,...recentQuarters,...cycles.map(item=>sales360QuarterKey(item.period_start)),...tasks.map(item=>sales360QuarterKey(item.period_start))])].filter(Boolean).sort().reverse();
         if(!quarters.includes(sales360QuarterSelection))sales360QuarterSelection=current;
-        const rows=sales360QuarterRows(people,tasks,cycles,sales360QuarterSelection,profile);
+        const rows=sales360QuarterRows(people,tasks,cycles,sales360QuarterSelection,{...profile,managedTeams:workspace.management_scope?.teams||[]});
         const pending=rows.reduce((n,row)=>n+row.months.filter(month=>month.status==="待评价").length,0);
         const done=rows.reduce((n,row)=>n+row.months.filter(month=>month.status==="已提交").length,0);
         const first=(Number(sales360QuarterSelection.split("Q")[1])-1)*3+1;
-        panel.innerHTML=`<div class="table-head"><div><h3>业务员季度待评价表</h3><p class="hint">保留月度评价，按季度检查三个月进度；展示当前账号可见的在职业务员；直属主管可直接评分，无需老板创建周期。</p></div><select id="sales360-quarter" class="input compact" aria-label="选择评价季度">${quarters.map(value=>`<option value="${esc(value)}" ${value===sales360QuarterSelection?"selected":""}>${esc(value.replace("-Q"," 年 第 "))} 季度</option>`).join("")}</select></div><p class="hint">${people.length} 位业务员 · 待评价 ${pending} 项 · 已提交 ${done} 项</p><div style="overflow-x:auto"><table><thead><tr><th>业务员</th><th>团队</th>${[first,first+1,first+2].map(month=>`<th>${month} 月</th>`).join("")}<th>季度进度</th></tr></thead><tbody>${rows.map(row=>`<tr><td><button class="table-action" data-quarter-person="${esc(row.person.id)}" aria-label="给 ${esc(row.person.full_name)} 评分">${esc(row.person.full_name)} · 评分</button></td><td>${esc(row.person.team||"—")}</td>${row.months.map(month=>`<td>${month.status==="待评价"?`<button class="table-action" data-quarter-evaluate="${esc(row.person.id)}:${esc(month.month)}">待评价 · 开始评价</button>${month.task.due_at?`<small class="hint"> 截止 ${esc(fmtDate(month.task.due_at))}</small>`:""}`:esc(month.status)}</td>`).join("")}<td>${row.months.filter(month=>month.status==="已提交").length} / ${row.months.filter(month=>month.task).length} 项已提交</td></tr>`).join("")||'<tr><td colspan="6">当前没有可见业务员或主管评价任务，请核对账号和周期配置。</td></tr>'}</tbody></table></div>`;
+        panel.innerHTML=`<div class="table-head"><div><h3>业务员季度待评价表</h3><p class="hint">保留月度评价，按季度检查三个月进度；展示当前账号可见的在职业务员；直属主管可直接评分，无需老板创建周期。管理范围：${esc((workspace.management_scope?.teams||[]).join("、")||"未配置团队")}。</p></div><select id="sales360-quarter" class="input compact" aria-label="选择评价季度">${quarters.map(value=>`<option value="${esc(value)}" ${value===sales360QuarterSelection?"selected":""}>${esc(value.replace("-Q"," 年 第 "))} 季度</option>`).join("")}</select></div><p class="hint">${people.length} 位业务员 · 待评价 ${pending} 项 · 已提交 ${done} 项</p><div style="overflow-x:auto"><table><thead><tr><th>业务员</th><th>团队</th>${[first,first+1,first+2].map(month=>`<th>${month} 月</th>`).join("")}<th>季度进度</th></tr></thead><tbody>${rows.map(row=>`<tr><td><button class="table-action" data-quarter-person="${esc(row.person.id)}" aria-label="给 ${esc(row.person.full_name)} 评分">${esc(row.person.full_name)} · 评分</button></td><td>${esc(row.person.team||"—")}</td>${row.months.map(month=>`<td>${month.status==="待评价"?`<button class="table-action" data-quarter-evaluate="${esc(row.person.id)}:${esc(month.month)}">待评价 · 开始评价</button>${month.task.due_at?`<small class="hint"> 截止 ${esc(fmtDate(month.task.due_at))}</small>`:""}`:esc(month.status)}</td>`).join("")}<td>${row.months.filter(month=>month.status==="已提交").length} / ${row.months.filter(month=>month.task).length} 项已提交</td></tr>`).join("")||'<tr><td colspan="6">当前没有可见业务员或主管评价任务，请核对账号和周期配置。</td></tr>'}</tbody></table></div>`;
         panel.classList.remove("hidden");
         $("#sales360-quarter").onchange=event=>{sales360QuarterSelection=event.target.value;renderSales360QuarterPanel(workspace,people,cycles)};
         panel.querySelectorAll("[data-quarter-person]").forEach(button=>button.onclick=()=>openSales360PersonEvaluation(rows.find(row=>row.person.id===button.dataset.quarterPerson),sales360QuarterSelection));
@@ -3684,7 +3684,9 @@
         if(talentResponse.error&&!/schema cache|could not find the function/i.test(talentResponse.error.message||""))console.warn("360 人才建议加载失败",talentResponse.error);
         const talentRecommendations=(talentResponse.data||[]).filter(item=>item.action_type!=="no_action");
         if (["owner","sales_manager"].includes(workspace.role)) {
-          let directory=supabase.from("profiles").select("id,full_name,team").eq("active",true).eq("role","sales").order("full_name");
+          const scopeResponse=await supabase.rpc("get_my_management_scope");
+          workspace.management_scope=scopeResponse.data||{teams:[],people:[]};
+          const directory=Promise.resolve({data:workspace.management_scope.people,error:scopeResponse.error});
           const [members,periods]=await Promise.all([directory,supabase.from("sales_360_cycles").select("id,period_start,period_end,status,evaluation_due_at,shadow_mode").order("period_start",{ascending:false})]);
           if(loadVersion!==moduleLoadVersion)return;
           if(members.error||periods.error){$("#sales360-quarter-panel").textContent="季度评价进度加载失败，请刷新重试";$("#sales360-quarter-panel").classList.remove("hidden")}
@@ -4345,6 +4347,9 @@
         if(error)return toast("询盘加载失败："+error.message);
         if(territoryError)return toast("负责区域加载失败，请重试："+territoryError.message);
         const territoryById=new Map((territories||[]).map(item=>[item.profile_id,item]));
+        const quoteReviewButton=$("#detail-review-quotes");
+        quoteReviewButton.classList.toggle("hidden",!["owner","sales_manager"].includes(profile.role));
+        quoteReviewButton.onclick=()=>openQuoteManager(inquiry);
         const assignmentState = directAssignmentState(profile.role, inquiry);
         if(assignmentState.disabled)return toast(assignmentState.reason || "无分配权限");
         openDashboardModal("分配询盘 #"+String(inquiry.inquiry_no).padStart(6,"0"),'<p><b>'+esc(inquiry.title)+'</b></p><p>询盘国家/地区：'+esc(inquiry.target_country||"未填写")+'</p><section id="assignment-recommendation" style="margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--soft)"><b>智能分配推荐</b><p class="hint">正在匹配询盘国家与业务员负责区域…</p></section><div class="field"><label>分配给业务员 *</label><select id="quick-assignment-owner" class="input"><option value="">请选择业务员</option>'+((sales||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.full_name)+" "+esc(x.english_name||"")+" · "+esc(territoryById.get(x.id)?.sales_region||"负责区域未设置")+" · "+esc(x.email)+'</option>').join(""))+'</select></div><div class="field"><label>分配原因 *</label><input id="quick-assignment-reason" class="input" value="销售主管分配新询盘" /></div><div class="form-actions"><button id="quick-assignment-submit" class="primary" type="button">确认分配并转发邮件</button></div><p class="hint">推荐仅供参考，不会自动分配。确认后仍走原有权限、邮件转发和群通知流程。</p>');
@@ -5615,6 +5620,9 @@
         }
         assessResearchQuality();
         if (latestDraft?.body) evaluateOutreachDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body, company.name || "", company.domain || "");
+        const quoteReviewButton=$("#detail-review-quotes");
+        quoteReviewButton.classList.toggle("hidden",!["owner","sales_manager"].includes(profile.role));
+        quoteReviewButton.onclick=()=>openQuoteManager(inquiry);
         const assignmentState = directAssignmentState(profile.role, inquiry);
         const assignmentButton = $("#detail-direct-assignment");
         assignmentButton.classList.toggle("hidden", !assignmentState.visible);
@@ -6132,12 +6140,8 @@
         $("#manager-daily-view").classList.toggle("hidden", !isManager);
         $("#daily-date-toolbar").classList.toggle("hidden",profile.role==="sales"&&dailySection==="history");
         if (isManager) {
-          const [{ data: sales }, { data: reports }] = await Promise.all([
-            supabase
-              .from("profiles")
-              .select("id,full_name")
-              .eq("role", "sales")
-              .eq("active", true),
+          const [{ data: scope, error: scopeError }, { data: reports, error: reportError }] = await Promise.all([
+            supabase.rpc("get_my_management_scope"),
             supabase
               .from("daily_sales_reports")
               .select(
@@ -6146,6 +6150,8 @@
               .eq("report_date", selectedDate)
               .order("submitted_at", { ascending: false }),
           ]);
+          if(scopeError||reportError){$("#daily-report-body").replaceChildren();$("#daily-summary").textContent="管理范围或日报加载失败，请重试";toast((scopeError||reportError).message);return}
+          const sales=scope?.people||[];
           const totalSales=sales?.length||0,totalReports=reports?.length||0;
           $("#daily-summary").textContent =
             `${totalReports}/${totalSales} 已提交`;

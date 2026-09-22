@@ -319,3 +319,13 @@
 - 发布：`Wonlyglobal` 提交，`chloe19980401` 独立批准 PR #30；两项必需检查通过，正常合并为 `c35f1c6e29d837f73ef0ae1159dc628dae67cddf`。生产安全检查 `35675368030` 与 Pages 发布 `35675367786` 均成功。
 - 生产核验：`origin/main:index.html` 与 `https://crm.foreverdoodle.com/` 的 SHA-256 均为 `0fd6159db1ad6b46393a90e9b1beb31770e28adcb9c600d1037e2b1e20ff5b89`。浏览器登录会话在发布后已失效，因此未把未登录页面目视检查冒充登录态验收。
 - 回滚：通过受保护 PR revert `c35f1c6`；本次不含数据库迁移，无数据库回滚。剩余风险仅为需在有效登录会话中复核用户原截图对应宽度。
+
+## 2026-09-22T10:17:43+08:00 — 侧边栏真实待办计数（生产迁移已应用，页面待合并）
+
+- 授权人：用户明确要求“修改”并随后要求“发布”；执行人：Codex；目标：Supabase 生产项目 `plhverjihjilnuhlhlxi` 与 `Wonlyglobal/inquiry-crm-demo` PR #36。
+- 原因与前态：历史通知累计使“今日工作台”和“我的邮箱”显示 `99+`，与邮箱列表 6 条及真实待办不一致；前端缺少按当前账号实时业务状态计算的权威口径。
+- 数据库后态：已创建只读 `public.get_my_sidebar_actionable_counts()`，仅为当前活动账号返回个人邮箱未读入站数、去重待办数和计算时间；不返回客户内容。`authenticated` 可执行，`anon` 不可执行。
+- 生产验证：SQL Editor 执行成功；独立权限回读结果为 `function_exists=true`、`authenticated_execute=true`、`anon_execute=false`。迁移未修改客户、邮件、通知、询盘或已读数据。
+- 代码验证：341/341 Node 回归及 `git diff --check` 通过；PR #36 的 Secret scan 与 CRM regression 均通过。
+- 发布状态：数据库迁移已生效；页面变更正在通过受保护 PR 合并，Pages 结果与生产登录态显示仍需在合并后核验。
+- 回滚：优先 revert 页面调用；确认无客户端调用后再通过受控迁移撤销该只读函数。不得删除邮件已读记录或任何业务数据。剩余风险为不同角色真实账号的视觉计数仍需登录态验收。

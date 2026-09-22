@@ -23,13 +23,15 @@ Deno.serve(withReadOnlyGuard(async req=>{
     if(inquiryError||!inquiry)return json({error:"询盘不存在或无权查看"},404);
     if(inquiry.validity!=="valid"||inquiry.owner_id||inquiry.status!=="pending_assignment")return json({error:"仅可为有效且待分配的询盘生成推荐"},400);
 
-    const [salesResult,territoryResult]=await Promise.all([
+    const [salesResult,territoryResult,settingsResult]=await Promise.all([
       userDb.from("profiles").select("id,full_name,english_name,email,team,job_title").eq("role","sales").eq("active",true).order("full_name"),
       userDb.from("sales_target_people").select("profile_id,sales_region,job_title"),
+      userDb.rpc("get_crm_operational_settings"),
     ]);
-    if(salesResult.error||territoryResult.error)throw salesResult.error||territoryResult.error;
+    if(salesResult.error||territoryResult.error||settingsResult.error)throw salesResult.error||territoryResult.error||settingsResult.error;
+    const pausedIds=new Set((settingsResult.data||[]).filter((x:{paused:boolean})=>x.paused).map((x:{profile_id:string})=>x.profile_id));
     const territoryRows=territoryResult.data||[];
-    const candidates=(salesResult.data||[]).map(person=>{
+    const candidates=(salesResult.data||[]).filter(person=>!pausedIds.has(person.id)).map(person=>{
       const configured=territoryRows.find(row=>row.profile_id===person.id);
       const territory=matchTerritory(inquiry.target_country,configured?.sales_region);
       return {sales_id:person.id,name:person.full_name,english_name:person.english_name||"",sales_region:configured?.sales_region||"",territory};

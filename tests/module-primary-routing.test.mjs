@@ -6,11 +6,11 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const start=html.indexOf('      $("#module-primary").addEventListener("click", async () => {');
 const handler=html.slice(start,html.indexOf('      $("#calendar-generate-daily")',start));
 const direct=html.match(/modulePrimary\.onclick = [^\n]+/)[0];
-async function click(view){
+async function click(view,role="owner"){
  const calls=[];let listener;
  const button={addEventListener:(_,fn)=>listener=fn};
- const context={activeModuleView:view,view,modulePrimary:button,$:()=>button,
- openMailboxBinding:()=>calls.push('mailbox'),runRiskScan:()=>calls.push('scan'),
+ const context={activeModuleView:view,view,profile:{id:"me",role},modulePrimary:button,$:()=>button,
+ openMailboxBinding:(id,self)=>calls.push(self?'own-mailbox':'mailbox'),runRiskScan:()=>calls.push('scan'),
  openSales360CycleForm:()=>calls.push('cycle'),openWhatsAppConnectionForm:()=>calls.push('whatsapp'),
  openDailyPlanEditor:()=>calls.push('daily'),openKnowledgeEditor:()=>calls.push('knowledge'),
  openMailTemplateEditor:()=>calls.push('template'),appConfirm:async()=>{calls.push('confirm-mail');return false}};
@@ -25,4 +25,8 @@ test('risk scan and scoring primary actions fire once without mailbox fallthroug
 test('only settings opens general mailbox setup; other modules retain their actions',async()=>{
  for(const [view,expected] of [['settings','mailbox'],['follow-calendar','daily'],['knowledge','knowledge'],['templates','template'],['communications','confirm-mail']])assert.deepEqual(await click(view),[expected]);
  assert.deepEqual(await click('unknown'),[]);
+});
+
+test('manager and marketing settings can only open their own mailbox',async()=>{
+ for(const role of ['sales_manager','marketing'])assert.deepEqual(await click('settings',role),['own-mailbox']);
 });

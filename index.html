@@ -1610,7 +1610,7 @@
                 <tr><td>市场部</td><td>线索反馈、交接协同、退回依据</td><td>9道选择 + 4道简答</td><td>5%</td></tr>
                 <tr><td>本人自评</td><td>目标复盘、问题识别、改进计划</td><td>9道选择 + 4道简答</td><td>3%</td></tr>
               </tbody></table></div>
-              <p class="hint">选择题按1—5分行为量表填写；每维度至少2题有观察，“未观察”不计分。1、2、5分逐题填写依据。各维度等权计算本次评价分；简答不自动计分。同事或市场样本不足时沿用既有权重转移规则。</p>
+              <p class="hint">选择题按NRS 0—10分行为量表填写；每维度至少2题有观察，“未观察”不计分。0—4分或9—10分逐题填写依据。各维度等权计算本次NRS评价分；综合计分按满分占比换算（8/10等同旧4/5）；简答不自动计分。同事或市场样本不足时沿用既有权重转移规则。</p>
               <p class="hint">流程：月度评价 → 数据核算 → 异常校准 → 老板确认发布 → 本人查看与申诉 → 辅导改进 → 下月复盘。首期影子运行；奖金、晋升和淘汰保留人工确认。客户评价暂不纳入。</p>
             </details>
           </section>
@@ -3590,7 +3590,7 @@
       function sales360Period(item){return `${String(item.period_start||"").slice(0,7)}${item.shadow_mode?" · 影子运行":""}`}
       let sales360QuestionnairePromise;
       async function loadSales360Questionnaire(){
-        if(!sales360QuestionnairePromise)sales360QuestionnairePromise=fetch('./data/sales360-questionnaire-v2.json').then(response=>{if(!response.ok)throw new Error('题库加载失败');return response.json()}).catch(error=>{sales360QuestionnairePromise=null;throw error});
+        if(!sales360QuestionnairePromise)sales360QuestionnairePromise=fetch('./data/sales360-questionnaire-nrs-v3.json').then(response=>{if(!response.ok)throw new Error('题库加载失败');return response.json()}).catch(error=>{sales360QuestionnairePromise=null;throw error});
         return sales360QuestionnairePromise;
       }
       async function openSales360Evaluation(task){
@@ -3598,15 +3598,15 @@
         const questions=bank.groups[task.evaluator_group];
         if(!questions?.length)return toast('当前评价类型尚无问卷');
         const dimensions=[...new Set(questions.map(q=>q.dimension))];
-        const choices=dimensions.map(dimension=>`<fieldset style="border:1px solid var(--line,#dde3e1);border-radius:16px;padding:16px;margin:16px 0"><legend><strong>${esc(sales360DimensionLabels[dimension]||dimension)}</strong></legend>${questions.filter(q=>q.dimension===dimension).map(q=>`<div class="field" style="margin-bottom:20px"><label for="q-${esc(q.id)}">${questions.indexOf(q)+1}. ${esc(q.text)} *</label><select id="q-${esc(q.id)}" class="input" data-sales360-choice="${esc(q.id)}" required><option value="">请选择实际观察到的表现</option>${bank.scale.map(option=>`<option value="${esc(option.value)}">${esc(option.value==='na'?'':option.value+'分 · ')}${esc(option.label)}</option>`).join('')}</select><div data-sales360-evidence-wrap="${esc(q.id)}" hidden><label for="e-${esc(q.id)}">具体事例（1、2或5分必填）</label><textarea id="e-${esc(q.id)}" class="input" data-sales360-evidence="${esc(q.id)}" rows="2" maxlength="500" placeholder="至少8字，说明时间、行为及结果；不填无关隐私"></textarea></div></div>`).join('')}</fieldset>`).join('');
+        const choices=dimensions.map(dimension=>`<fieldset style="border:1px solid var(--line,#dde3e1);border-radius:16px;padding:16px;margin:16px 0"><legend><strong>${esc(sales360DimensionLabels[dimension]||dimension)}</strong></legend>${questions.filter(q=>q.dimension===dimension).map(q=>`<div class="field" style="margin-bottom:20px"><label for="q-${esc(q.id)}">${questions.indexOf(q)+1}. ${esc(q.text)} *</label><select id="q-${esc(q.id)}" class="input" data-sales360-choice="${esc(q.id)}" required><option value="">请选择实际观察到的表现</option>${bank.scale.map(option=>`<option value="${esc(option.value)}">${esc(option.value==='na'?'':option.value+'分 · ')}${esc(option.label)}</option>`).join('')}</select><div data-sales360-evidence-wrap="${esc(q.id)}" hidden><label for="e-${esc(q.id)}">具体事例（0—4分或9—10分必填）</label><textarea id="e-${esc(q.id)}" class="input" data-sales360-evidence="${esc(q.id)}" rows="2" maxlength="500" placeholder="至少8字，说明时间、行为及结果；不填无关隐私"></textarea></div></div>`).join('')}</fieldset>`).join('');
         const shortQuestions=bank.short_questions.map((q,i)=>`<div class="field" style="margin-bottom:20px"><label for="short-${esc(q.id)}">${i+1}. ${esc(q.text)} ${q.required?'*':'（选填）'}</label><textarea id="short-${esc(q.id)}" class="input" data-sales360-short="${esc(q.id)}" rows="3" maxlength="1000" ${q.required?'required minlength="8"':''} placeholder="${q.required?'至少8字，请填写可核实的事实和可执行的建议':'可选填写支持需求'}"></textarea></div>`).join('');
-        openDashboardModal(`360评价 · ${task.subject_name}`,`<form id="sales360-evaluation-form"><p class="hint">${esc(sales360Period(task))} · ${esc(sales360GroupLabels[task.evaluator_group]||task.evaluator_group)} · ${questions.length}道选择题 + ${bank.short_questions.length}道简答题</p><p class="hint">仅评价本月可观察的工作行为。每个维度至少2题有实际观察；“不了解／未观察”不计分。被评价人看不到评价者身份，事实描述也请避免无关隐私。提交后不能直接修改。</p><h3>一、选择题 · 行为表现</h3>${choices}<h3>二、简答题 · 事实与改进</h3><p class="hint">简答题用于复盘和辅导，不自动折算分数。</p>${shortQuestions}<p class="hint" id="sales360-answer-progress" aria-live="polite"></p><div class="form-actions"><button class="primary" type="submit">提交完整评价</button></div></form>`);
+        openDashboardModal(`360评价 · ${task.subject_name}`,`<form id="sales360-evaluation-form"><p class="hint">${esc(sales360Period(task))} · ${esc(sales360GroupLabels[task.evaluator_group]||task.evaluator_group)} · ${questions.length}道选择题 + ${bank.short_questions.length}道简答题</p><p class="hint">采用NRS 0—10分：0分严重未达要求，6分基本达到要求，10分持续显著超出要求。仅评价本月可观察的工作行为。每个维度至少2题有实际观察；“不了解／未观察”不计分。被评价人看不到评价者身份，事实描述也请避免无关隐私。提交后不能直接修改。</p><h3>一、选择题 · NRS 0—10分</h3>${choices}<h3>二、简答题 · 事实与改进</h3><p class="hint">简答题用于复盘和辅导，不自动折算分数。</p>${shortQuestions}<p class="hint" id="sales360-answer-progress" aria-live="polite"></p><div class="form-actions"><button class="primary" type="submit">提交完整评价</button></div></form>`);
         const form=$('#sales360-evaluation-form');
         const updateProgress=()=>{
           let completed=0;
           form.querySelectorAll('[data-sales360-choice]').forEach(input=>{
             if(input.value)completed++;
-            const extreme=['1','2','5'].includes(input.value);
+            const extreme=['0','1','2','3','4','9','10'].includes(input.value);
             const id=input.dataset.sales360Choice;
             form.querySelector(`[data-sales360-evidence-wrap="${id}"]`).hidden=!extreme;
             const evidence=form.querySelector(`[data-sales360-evidence="${id}"]`);evidence.required=extreme;evidence.minLength=extreme?8:0;
@@ -3621,8 +3621,8 @@
           for(const question of questions){
             const input=form.querySelector(`[data-sales360-choice="${question.id}"]`),evidence=form.querySelector(`[data-sales360-evidence="${question.id}"]`).value.trim();
             if(!input.value)return toast('请完成全部选择题');
-            if(['1','2','5'].includes(input.value)&&evidence.length<8)return toast('1、2或5分需要至少8字的逐题事例');
-            payload.choices[question.id]={value:input.value==='na'?'na':Number(input.value),evidence:['1','2','5'].includes(input.value)?evidence:''};
+            if(['0','1','2','3','4','9','10'].includes(input.value)&&evidence.length<8)return toast('0—4分或9—10分需要至少8字的逐题事例');
+            payload.choices[question.id]={value:input.value==='na'?'na':Number(input.value),evidence:['0','1','2','3','4','9','10'].includes(input.value)?evidence:''};
           }
           for(const dimension of dimensions){if(questions.filter(q=>q.dimension===dimension&&payload.choices[q.id].value!=='na').length<2)return toast(`${sales360DimensionLabels[dimension]}至少需要2题有实际观察；暂无法评价时请补充观察后再提交`)}
           for(const question of bank.short_questions){const answer=form.querySelector(`[data-sales360-short="${question.id}"]`).value.trim();if(question.required&&answer.length<8)return toast('请完整填写必填简答题（至少8字）');payload.short_answers[question.id]=answer;}

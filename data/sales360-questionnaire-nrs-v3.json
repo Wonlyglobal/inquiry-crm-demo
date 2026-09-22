@@ -1,0 +1,327 @@
+{
+  "version": "360-nrs-v3",
+  "scale": [
+    {
+      "value": 0,
+      "label": "严重未达到要求，有明确事实依据"
+    },
+    {
+      "value": 1,
+      "label": "绝大多数情况下未达到要求"
+    },
+    {
+      "value": 2,
+      "label": "明显未达到要求"
+    },
+    {
+      "value": 3,
+      "label": "多次未达到要求"
+    },
+    {
+      "value": 4,
+      "label": "部分达到，仍需明显改进"
+    },
+    {
+      "value": 5,
+      "label": "接近要求，表现尚不稳定"
+    },
+    {
+      "value": 6,
+      "label": "基本达到岗位要求"
+    },
+    {
+      "value": 7,
+      "label": "稳定达到岗位要求"
+    },
+    {
+      "value": 8,
+      "label": "达到并经常超出要求"
+    },
+    {
+      "value": 9,
+      "label": "明显超出要求，有可核实案例"
+    },
+    {
+      "value": 10,
+      "label": "持续显著超出要求，有可核实案例"
+    },
+    {
+      "value": "na",
+      "label": "不了解／本月未观察（不计分）"
+    }
+  ],
+  "groups": {
+    "owner": [
+      {
+        "id": "performance_contribution_1",
+        "dimension": "performance_contribution",
+        "text": "能围绕重点客户和商机投入精力，推动有价值的业务进展。"
+      },
+      {
+        "id": "performance_contribution_2",
+        "dimension": "performance_contribution",
+        "text": "能在追求成交的同时考虑利润、回款和履约质量。"
+      },
+      {
+        "id": "performance_contribution_3",
+        "dimension": "performance_contribution",
+        "text": "能把个人经验沉淀为团队可复用的方法或资料。"
+      },
+      {
+        "id": "values_1",
+        "dimension": "values",
+        "text": "向团队如实说明客户进展、风险和失误，不隐瞒关键事实。"
+      },
+      {
+        "id": "values_2",
+        "dimension": "values",
+        "text": "遵守客户资料、报价授权和商业信息保护要求。"
+      },
+      {
+        "id": "values_3",
+        "dimension": "values",
+        "text": "面对短期利益与公司承诺冲突时，能按规则处理并及时报告。"
+      },
+      {
+        "id": "responsibility_1",
+        "dimension": "responsibility",
+        "text": "对承诺的交付负责，遇到困难主动寻求解决方案。"
+      },
+      {
+        "id": "responsibility_2",
+        "dimension": "responsibility",
+        "text": "对跨部门问题明确责任、推动处理并反馈结果。"
+      },
+      {
+        "id": "responsibility_3",
+        "dimension": "responsibility",
+        "text": "发现重大业务风险后及时上报并持续跟踪。"
+      }
+    ],
+    "manager": [
+      {
+        "id": "execution_1",
+        "dimension": "execution",
+        "text": "能将本月重点任务拆分为明确的行动、责任和时间节点。"
+      },
+      {
+        "id": "execution_2",
+        "dimension": "execution",
+        "text": "按约定完成客户响应和跟进，遇到延期提前说明并补救。"
+      },
+      {
+        "id": "execution_3",
+        "dimension": "execution",
+        "text": "及时记录沟通结果、下一步行动和跟进时间，让工作可追溯。"
+      },
+      {
+        "id": "professionalism_1",
+        "dimension": "professionalism",
+        "text": "能准确理解客户的应用场景、产品规格和关键需求。"
+      },
+      {
+        "id": "professionalism_2",
+        "dimension": "professionalism",
+        "text": "能清楚说明产品价值，并在报价或技术承诺前核实依据。"
+      },
+      {
+        "id": "professionalism_3",
+        "dimension": "professionalism",
+        "text": "能针对客户异议提出有依据的回应，必要时协调技术或工程支持。"
+      },
+      {
+        "id": "goal_delivery_1",
+        "dimension": "goal_delivery",
+        "text": "能依据月度目标明确重点客户、商机及推进计划。"
+      },
+      {
+        "id": "goal_delivery_2",
+        "dimension": "goal_delivery",
+        "text": "能识别商机卡点，采取具体行动推动阶段进展。"
+      },
+      {
+        "id": "goal_delivery_3",
+        "dimension": "goal_delivery",
+        "text": "能客观复盘目标差距，区分资源限制与自身可改进事项。"
+      },
+      {
+        "id": "growth_1",
+        "dimension": "growth",
+        "text": "能把主管或同事的反馈转化为可观察的行为改进。"
+      },
+      {
+        "id": "growth_2",
+        "dimension": "growth",
+        "text": "能主动学习产品、市场或销售知识并在工作中应用。"
+      },
+      {
+        "id": "growth_3",
+        "dimension": "growth",
+        "text": "能复盘成功与失败案例，形成可复用的方法并检验效果。"
+      }
+    ],
+    "peer": [
+      {
+        "id": "collaboration_1",
+        "dimension": "collaboration",
+        "text": "交接工作时提供完整背景、明确责任和约定时间。"
+      },
+      {
+        "id": "collaboration_2",
+        "dimension": "collaboration",
+        "text": "在需要共同推进的事项中主动配合，避免推诿或重复劳动。"
+      },
+      {
+        "id": "collaboration_3",
+        "dimension": "collaboration",
+        "text": "意见不一致时围绕事实沟通并落实双方确认的方案。"
+      },
+      {
+        "id": "responsiveness_1",
+        "dimension": "responsiveness",
+        "text": "对协作请求及时确认，说明是否承接及预计完成时间。"
+      },
+      {
+        "id": "responsiveness_2",
+        "dimension": "responsiveness",
+        "text": "出现延期或阻碍时提前通知相关人员，不让对方反复催问。"
+      },
+      {
+        "id": "responsiveness_3",
+        "dimension": "responsiveness",
+        "text": "完成协作事项后反馈结果，确保对方能继续开展工作。"
+      },
+      {
+        "id": "knowledge_sharing_1",
+        "dimension": "knowledge_sharing",
+        "text": "愿意分享可复用的产品资料、客户问题解决方法或经验。"
+      },
+      {
+        "id": "knowledge_sharing_2",
+        "dimension": "knowledge_sharing",
+        "text": "能把经验整理清楚，便于同事理解和实际使用。"
+      },
+      {
+        "id": "knowledge_sharing_3",
+        "dimension": "knowledge_sharing",
+        "text": "发现共享资料过时或错误时主动提出并协助更新。"
+      }
+    ],
+    "marketing": [
+      {
+        "id": "lead_feedback_quality_1",
+        "dimension": "lead_feedback_quality",
+        "text": "能及时反馈询盘是否匹配、客户需求和后续处理方向。"
+      },
+      {
+        "id": "lead_feedback_quality_2",
+        "dimension": "lead_feedback_quality",
+        "text": "能清楚说明线索质量判断的事实依据，而非仅给出结论。"
+      },
+      {
+        "id": "lead_feedback_quality_3",
+        "dimension": "lead_feedback_quality",
+        "text": "能反馈渠道或推广内容与实际需求的偏差，帮助市场改进。"
+      },
+      {
+        "id": "handoff_collaboration_1",
+        "dimension": "handoff_collaboration",
+        "text": "接收线索后主动确认关键信息和跟进责任。"
+      },
+      {
+        "id": "handoff_collaboration_2",
+        "dimension": "handoff_collaboration",
+        "text": "发现交接信息缺失时一次性说明，配合市场补齐。"
+      },
+      {
+        "id": "handoff_collaboration_3",
+        "dimension": "handoff_collaboration",
+        "text": "对需要继续培育或联合推进的线索明确下一步和责任人。"
+      },
+      {
+        "id": "recycle_evidence_1",
+        "dimension": "recycle_evidence",
+        "text": "退回或判定线索不适合时说明原因及已进行的核实。"
+      },
+      {
+        "id": "recycle_evidence_2",
+        "dimension": "recycle_evidence",
+        "text": "能区分暂未回复、需求不匹配和无效线索，避免简单放弃。"
+      },
+      {
+        "id": "recycle_evidence_3",
+        "dimension": "recycle_evidence",
+        "text": "退回线索时提供可用于再次培育的建议或条件。"
+      }
+    ],
+    "self": [
+      {
+        "id": "goal_review_1",
+        "dimension": "goal_review",
+        "text": "我能用具体工作结果复盘本月目标的完成情况。"
+      },
+      {
+        "id": "goal_review_2",
+        "dimension": "goal_review",
+        "text": "我能说明目标差距的原因，并区分外部因素与自身责任。"
+      },
+      {
+        "id": "goal_review_3",
+        "dimension": "goal_review",
+        "text": "我能识别真正推动商机进展的行动，并总结经验。"
+      },
+      {
+        "id": "problem_identification_1",
+        "dimension": "problem_identification",
+        "text": "我能主动识别客户跟进、专业能力或协作中的不足。"
+      },
+      {
+        "id": "problem_identification_2",
+        "dimension": "problem_identification",
+        "text": "我能依据记录和反馈分析问题原因，避免只描述表面现象。"
+      },
+      {
+        "id": "problem_identification_3",
+        "dimension": "problem_identification",
+        "text": "我能及时暴露风险并寻求帮助，而不是等问题扩大。"
+      },
+      {
+        "id": "improvement_plan_1",
+        "dimension": "improvement_plan",
+        "text": "我为关键问题制定了明确、可执行的改进行动。"
+      },
+      {
+        "id": "improvement_plan_2",
+        "dimension": "improvement_plan",
+        "text": "我的改进计划包含完成时间和可验证的结果。"
+      },
+      {
+        "id": "improvement_plan_3",
+        "dimension": "improvement_plan",
+        "text": "我会持续检查改进效果，并根据结果调整行动。"
+      }
+    ]
+  },
+  "short_questions": [
+    {
+      "id": "strength",
+      "text": "本月最值得肯定的表现是什么？请说明一个具体事例及结果。",
+      "required": true
+    },
+    {
+      "id": "improvement",
+      "text": "最需要改进的一项工作是什么？请说明具体情境、影响和建议；如暂无问题，请说明已观察的表现。",
+      "required": true
+    },
+    {
+      "id": "action",
+      "text": "建议下月采取什么行动？请写明行动、完成时间和验证标准。",
+      "required": true
+    },
+    {
+      "id": "support",
+      "text": "需要主管、团队或其他部门提供哪些支持？没有额外需求可填“暂无”。",
+      "required": false
+    }
+  ]
+}

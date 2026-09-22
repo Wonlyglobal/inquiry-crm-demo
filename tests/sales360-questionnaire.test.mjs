@@ -19,3 +19,11 @@ test('questionnaire covers all five roles without changing dimension groups',()=
  assert.equal(bank.short_questions.length,4);
  assert.equal(bank.scale.some(s=>s.value==='na'),true);
 });
+
+test('NRS bank keeps role questions and provides all eleven scores plus unobserved',()=>{
+ const nrs=JSON.parse(readFileSync(new URL('../data/sales360-questionnaire-nrs-v3.json',import.meta.url),'utf8'));
+ const sql=readFileSync(new URL('../supabase/migrations/20260922123000_sales360_nrs.sql',import.meta.url),'utf8');
+ assert.deepEqual(nrs,JSON.parse(sql.split('$json$')[1]));
+ assert.deepEqual(nrs.groups,bank.groups);assert.deepEqual(nrs.short_questions,bank.short_questions);
+ assert.deepEqual(nrs.scale.map(x=>x.value),[0,1,2,3,4,5,6,7,8,9,10,'na']);
+});

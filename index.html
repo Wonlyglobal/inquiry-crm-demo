@@ -3191,13 +3191,14 @@
         const attachments=await emailAttachmentMarkup(message.id);
         openDashboardModal(`邮件详情 · ${message.subject||"无主题"}`,`<div class="legacy-detail-grid"><div class="legacy-detail-item"><span>方向</span><div>${message.direction==="inbound"?"客户来信":"业务员发信"}</div></div><div class="legacy-detail-item"><span>时间</span><div>${esc(fmtDate(message.received_at||message.sent_at||message.created_at))}</div></div><div class="legacy-detail-item"><span>发件人</span><div>${esc(message.sender_email||"—")}</div></div><div class="legacy-detail-item"><span>收件人</span><div>${esc(recipients)}</div></div><div class="legacy-detail-item"><span>关联状态</span><div>${message.inquiry_id?"已关联询盘":"待关联客户"}</div></div><div class="legacy-detail-item"><span>关联方式</span><div>${esc(message.association_method||"—")}</div></div></div><div style="margin-top:16px"><b>邮件正文</b><pre class="mail-directional" dir="auto" style="margin-top:10px;padding:16px;max-height:45vh;overflow:auto;white-space:pre-wrap;border:1px solid var(--line);border-radius:14px;background:var(--soft);font:inherit">${esc(message.body_text||"（无纯文本正文）")}</pre></div>${attachments}`);bindEmailAttachmentDownloads();
       }
+      function sortMailTemplates(items){return [...items].sort((a,b)=>String(a.name||"未命名").localeCompare(String(b.name||"未命名"),"zh-CN",{numeric:true})||String(a.id||"").localeCompare(String(b.id||"")));}
       async function loadMailTemplates(){
         const select=$("#mail-template-select");if(!select)return;
         mailTemplateItems=new Map(builtinMailTemplates.map(item=>[`builtin:${item.id}`,item]));
         const {data,error}=await supabase.from("email_templates").select("id,name,subject,body_text,language,category").eq("owner_id",profile.id).order("updated_at",{ascending:false});
         if(!error)(data||[]).forEach(item=>mailTemplateItems.set(`personal:${item.id}`,{...item,body:item.body_text}));
         const builtins=builtinMailTemplates.map(item=>`<option value="builtin:${item.id}">${esc(item.name)}</option>`).join("");
-        const personal=(data||[]).map(item=>`<option value="personal:${item.id}">${esc(item.name)}</option>`).join("");
+        const personal=sortMailTemplates(data||[]).map(item=>`<option value="personal:${item.id}">${esc(item.name)}</option>`).join("");
         select.innerHTML=`<option value="">选择模板（不会自动发送）</option><optgroup label="系统常用模板">${builtins}</optgroup>${personal?`<optgroup label="我的模板">${personal}</optgroup>`:""}`;
       }
       function applySelectedMailTemplate(){
@@ -4456,6 +4457,7 @@
           $("#email-convert-inquiry").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
           $("#email-mark-warmup").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
         }
+        if(view==="templates")sourceRows=sortMailTemplates(sourceRows);
         const mappedRows = sourceRows.map(mapper);
         const onRowClick = view === "sales-today" ? (row)=>openSalesTask(row.salesTask) : view === "knowledge" ? (row)=>row.materialAsset?openMaterialAsset(row.materialAsset):row.knowledgeArticle&&openKnowledgeArticle(row.knowledgeArticle) : view === "fulfillment" ? (row)=>row.fulfillmentInquiry&&openFulfillmentManager(row.fulfillmentInquiry) : view === "customers" ? (row)=>row.customerCompanyId&&openCustomerRecord(row.customerCompanyId) : view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : view === "mailbox" ? (row)=>row.message&&openMailboxMessage(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);

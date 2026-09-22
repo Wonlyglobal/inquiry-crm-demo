@@ -110,6 +110,12 @@ test('dashboard widgets support per-user collapse state and remain expandable',(
   assert.match(html,/个人看板配置云端保存失败，已保留本机配置/);
 });
 
+test('dashboard collapse control reserves header space without covering trend tabs',()=>{
+  assert.match(html,/\.dashboard-collapse-header \{ box-sizing:border-box; padding-right:58px !important;/);
+  assert.match(html,/\.trend-toolbar\.dashboard-collapse-header \{ flex-wrap:wrap; \}/);
+  assert.match(html,/\.trend-tabs \{ display:flex; flex-wrap:wrap; gap:5px; max-width:100%; \}/);
+});
+
 test('customer reply queue only shows durable open reply reminders',()=>{
   assert.match(html,/from\("email_reply_reminders"\).*eq\("owner_id",profile\.id\)\.eq\("status","open"\)/);
   assert.match(html,/from\("whatsapp_reply_reminders"\).*eq\("owner_id",profile\.id\)\.eq\("status","open"\)/);

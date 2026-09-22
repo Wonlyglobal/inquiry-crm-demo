@@ -24,28 +24,27 @@ begin
     sales_id,report_date,new_leads_count,follow_up_count,key_progress,blockers,tomorrow_plan,
     status,draft_saved_at,submitted_at,updated_at,is_simulated,simulation_batch
   )
-  select p.id,d.day,0,0,
-    case extract(day from d.day)::int%4
+  select p.id,g.report_day::date,0,0,
+    case extract(day from g.report_day)::int%4
       when 0 then '整理当日客户信息，完成重点项目资料核对。'
       when 1 then '复盘在手项目进度，补充下一步沟通要点。'
       when 2 then '更新客户需求记录，核对报价与技术资料准备情况。'
       else '梳理待推进事项，完成客户资料与项目阶段更新。' end,
-    case extract(day from d.day)::int%3
+    case extract(day from g.report_day)::int%3
       when 0 then '部分项目资料仍待客户确认，需要继续跟进。'
       when 1 then '暂无新增困难，按计划推进。'
       else '个别需求信息不完整，需补充确认规格与时间。' end,
-    case extract(day from d.day)::int%4
+    case extract(day from g.report_day)::int%4
       when 0 then '继续核实重点项目需求并更新 CRM 记录。'
       when 1 then '跟进待确认事项，准备所需产品资料。'
       when 2 then '复盘客户反馈并安排下一步沟通。'
       else '检查在手项目状态，补齐信息与行动计划。' end,
-    'submitted',(d.day::timestamp+time '17:30') at time zone 'Asia/Shanghai',(d.day::timestamp+time '17:30') at time zone 'Asia/Shanghai',(d.day::timestamp+time '17:30') at time zone 'Asia/Shanghai',true,batch
+    'submitted',(g.report_day::date::timestamp+time '17:30') at time zone 'Asia/Shanghai',(g.report_day::date::timestamp+time '17:30') at time zone 'Asia/Shanghai',(g.report_day::date::timestamp+time '17:30') at time zone 'Asia/Shanghai',true,batch
   from (values(chloe),(shiyishu)) p(id)
-  cross join generate_series(date '2026-09-01',date '2026-09-22',interval '1 day') g(day)
-  cross join lateral (select g.day::date day) d
+  cross join generate_series(date '2026-09-01',date '2026-09-22',interval '1 day') as g(report_day)
   where not exists(
     select 1 from public.daily_sales_reports r
-    where r.sales_id=p.id and r.report_date=d.day and not r.is_simulated
+    where r.sales_id=p.id and r.report_date=g.report_day::date and not r.is_simulated
   )
   on conflict(sales_id,report_date) do nothing;
   get diagnostics inserted_count=row_count;

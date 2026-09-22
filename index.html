@@ -1253,6 +1253,15 @@
       .rail{height:calc(100vh - 28px);top:14px;border:1px solid rgba(205,216,216,.92);border-radius:24px;background:rgba(246,249,249,.8);color:var(--ink);padding:18px 13px;box-shadow:0 20px 60px rgba(36,61,55,.08);backdrop-filter:blur(18px)}
       .logo{font-size:15px;margin-bottom:20px}.logo>i{background:var(--brand);color:#fff;border-radius:50%}
       .nav{height:44px;color:#5f6e68;border-radius:999px;padding:0 14px;font-size:12px}.nav:hover{background:#e5edeb;color:var(--ink)}.nav.active{background:var(--brand);color:#fff;box-shadow:0 7px 18px rgba(24,52,43,.18)}
+      .nav-groups{display:flex;min-height:0;flex:1;flex-direction:column;gap:5px;overflow-y:auto;overflow-x:hidden;padding:0 1px 8px;scrollbar-width:thin;scrollbar-color:#c8d4cf transparent}
+      .nav-group{display:grid;gap:3px}
+      .nav-group-toggle{width:100%;min-height:36px;display:flex;align-items:center;gap:9px;padding:0 11px;border:0;border-radius:11px;background:transparent;color:#718079;font-size:11px;font-weight:800;text-align:left;cursor:pointer}
+      .nav-group-toggle:hover,.nav-group.open>.nav-group-toggle{background:rgba(225,236,231,.72);color:var(--brand)}
+      .nav-group-toggle>svg{width:16px;height:16px;flex:0 0 auto}.nav-group-label{flex:1}.nav-group-chevron{width:14px!important;height:14px!important;transition:transform .18s ease}.nav-group.open .nav-group-chevron{transform:rotate(180deg)}
+      .nav-group-count{display:none;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#d92d20;color:#fff;font-size:10px;line-height:1}.nav-group-count.visible{display:inline-flex}
+      .nav-group-items{display:none;gap:3px;padding-left:7px}.nav-group.open .nav-group-items{display:grid}
+      .nav-group-items .nav{width:100%;height:40px;padding-left:12px}.nav-group-items .nav svg{width:17px;height:17px}
+      .nav.bottom{flex:0 0 auto;margin-top:6px;border-top:1px solid rgba(199,211,206,.75);border-radius:0;padding-top:7px;height:48px}
       .main{padding:0 18px 34px}.top{height:70px;border:0;padding:0 8px}.top h2{font-size:14px}.user{background:rgba(255,255,255,.62);border:1px solid rgba(214,223,222,.9);border-radius:999px;padding:6px 7px 6px 9px;box-shadow:0 8px 25px rgba(36,61,55,.06)}
       .avatar{border-radius:50%;width:38px;height:38px;background:linear-gradient(145deg,#dbe8e3,#f8fbfa);color:var(--brand)}
       .ghost,.primary,.secondary,.table-action,.module-filter-select,.input{border-radius:999px}.primary{background:var(--brand);box-shadow:0 7px 18px rgba(24,52,43,.14)}.ghost{background:rgba(255,255,255,.76)}
@@ -1318,9 +1327,12 @@
           align-items: center;
         }
         .logo b,
-        .nav span {
+        .nav span,
+        .nav-group-label,
+        .nav-group-chevron {
           display: none;
         }
+        .nav-groups{width:46px;align-items:center}.nav-group{width:44px}.nav-group-toggle{width:44px;padding:0;justify-content:center}.nav-group.open .nav-group-items{display:grid;padding-left:0}.nav-group:not(.open) .nav-group-items{display:none}.nav-group-items .nav{width:44px;padding:0;justify-content:center}.nav-group-count{position:absolute;margin-left:28px;margin-top:-24px;min-width:17px;height:17px;padding:0 4px;font-size:9px}
         .logo,
         .nav {
           width: 44px;
@@ -2071,7 +2083,6 @@
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
-          <button class="detail-tab" type="button" data-detail-tab="qualification">资格核验</button>
           <button class="detail-tab" type="button" data-detail-tab="attribution">营销归因</button>
           <button class="detail-tab" type="button" data-detail-tab="journey">用户路径</button>
           <button class="detail-tab" type="button" data-detail-tab="events">公司大事件</button>
@@ -2572,6 +2583,31 @@
         marketing: new Set(["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
         sales: new Set(["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
+      const sidebarNavigationGroups = [
+        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","sales-today","follow-calendar","marketing-center","daily"]},
+        {key:"customers",label:"客户与商机",icon:"briefcase-business",views:["inquiries","customers","assignment","nurture","public-pool","research"]},
+        {key:"communication",label:"沟通协作",icon:"messages-square",views:["mailbox","whatsapp","email","communications"]},
+        {key:"sales-support",label:"销售支持",icon:"library-big",views:["templates","knowledge","quotes","fulfillment","legacy-projects"]},
+        {key:"management",label:"管理治理",icon:"settings-2",views:["performance-360","risk-review","settings"]},
+      ];
+      function sidebarGroupStorageKey(){return `wonly_sidebar_groups_v1_${profile?.id||"anonymous"}`}
+      function syncSidebarGroupBadges(){
+        $$(".nav-group").forEach(group=>{const total=$$(".nav-update-badge:not(.hidden)",group).reduce((sum,badge)=>sum+(badge.textContent==="99+"?100:Number(badge.textContent)||0),0),badge=group.querySelector(".nav-group-count");if(!badge)return;badge.textContent=total>99?"99+":String(total);badge.classList.toggle("visible",total>0);badge.setAttribute("aria-label",`${total} 条待处理更新`)})
+      }
+      function setSidebarGroupOpen(group,open,persist=true){
+        if(!group)return;group.classList.toggle("open",open);group.querySelector(".nav-group-toggle")?.setAttribute("aria-expanded",String(open));
+        if(persist&&profile)try{localStorage.setItem(sidebarGroupStorageKey(),JSON.stringify(Object.fromEntries($$(".nav-group").map(item=>[item.dataset.sidebarGroup,item.classList.contains("open")]))))}catch{}
+      }
+      function openSidebarGroupForView(view){const group=$(`.nav-group [data-view="${view}"]`)?.closest(".nav-group");if(group&&!group.classList.contains("open"))setSidebarGroupOpen(group,true)}
+      function initializeSidebarNavigation(){
+        const rail=$(".rail");if(!rail||rail.querySelector(".nav-groups"))return;
+        const groups=document.createElement("div");groups.className="nav-groups";groups.setAttribute("aria-label","主导航分组");
+        let saved={};try{saved=JSON.parse(localStorage.getItem(sidebarGroupStorageKey())||"{}")||{}}catch{}
+        sidebarNavigationGroups.forEach((definition,index)=>{const section=document.createElement("section");section.className="nav-group";section.dataset.sidebarGroup=definition.key;const toggle=document.createElement("button");toggle.type="button";toggle.className="nav-group-toggle";toggle.innerHTML=`<i data-lucide="${definition.icon}"></i><span class="nav-group-label">${definition.label}</span><span class="nav-group-count">0</span><i class="nav-group-chevron" data-lucide="chevron-down"></i>`;const items=document.createElement("div");items.className="nav-group-items";items.id=`sidebar-group-${definition.key}`;toggle.setAttribute("aria-controls",items.id);definition.views.forEach(view=>{const nav=rail.querySelector(`.nav[data-view="${view}"]`);if(nav)items.append(nav)});section.append(toggle,items);groups.append(section);const hasActive=Boolean(items.querySelector(".nav.active")),open=hasActive||(definition.key in saved?Boolean(saved[definition.key]):index===0);setSidebarGroupOpen(section,open,false);toggle.addEventListener("click",()=>setSidebarGroupOpen(section,!section.classList.contains("open")))});
+        rail.insertBefore(groups,rail.querySelector('.nav[data-view="sop"]'));
+        $$(".nav-group").forEach(group=>group.classList.toggle("hidden",!group.querySelector(".nav[data-view]:not(.hidden)")));
+        syncSidebarGroupBadges();
+      }
       const roleGuideViewNames = {
         dashboard:"经营看板","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
@@ -2809,9 +2845,10 @@
         applyReadOnlyControls();
         setMemberAvatar($("#avatar"), profile, "王");
         const role = profile.role;
+        $$(".nav[data-view]").forEach(nav => nav.classList.toggle("hidden", !canAccessView(nav.dataset.view, role)));
+        initializeSidebarNavigation();
         const roleGuideNav=$('.nav[data-view="sop"]');
         if(roleGuideNav)roleGuideNav.parentElement.appendChild(roleGuideNav);
-        $$(".nav[data-view]").forEach(nav => nav.classList.toggle("hidden", !canAccessView(nav.dataset.view, role)));
         $("#assignment-action-head").classList.toggle(
           "hidden",
           !["owner", "sales_manager", "marketing"].includes(role),
@@ -2897,6 +2934,7 @@
           badge.title = label;
           badge.setAttribute("aria-label", label);
         });
+        syncSidebarGroupBadges();
       }
       async function refreshSidebarBadges() {
         if (!profile?.id || document.visibilityState !== "visible" || sidebarRefreshInFlight) return;
@@ -4650,6 +4688,7 @@
           if (active) nav.setAttribute("aria-current", "page");
           else nav.removeAttribute("aria-current");
         });
+        openSidebarGroupForView(view);
       }
       const dashboardInitialOrder=$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
       const dashboardCurrentOrder=()=>$$("#dashboard-widgets > [data-dashboard-widget]").map(item=>item.dataset.dashboardWidget);
@@ -5620,6 +5659,11 @@
         const syncedRates=await syncDailyExchangeRates(rows,exchangeRates||[]);
         const primaryTouchByInquiry=new Map();for(const touch of marketingTouches||[]){if(touch.is_primary&&!primaryTouchByInquiry.has(touch.inquiry_id))primaryTouchByInquiry.set(touch.inquiry_id,touch)}rows.forEach(x=>{x.primary_marketing_touch=primaryTouchByInquiry.get(x.id)||null});
         dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.whatsappMessages=dashboardWhatsAppMessages||[];dashboardState.replyReminders=replyReminders||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.historicalOrders=historicalOrders||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
+        if(profile?.role==="owner"&&(historicalOrders||[]).length&&$("#dashboard-data-scope")?.value==="current"){
+          $("#dashboard-data-scope").value="combined";
+          $("#dashboard-period").value="year";
+          $$(".period-tab[data-period]").forEach(button=>button.classList.toggle("active",button.dataset.period==="year"));
+        }
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         if($(".nav[data-view=\"marketing-center\"]")?.classList.contains("active"))renderMarketingWorkbench(rows);
         const latestByInquiry = new Map();

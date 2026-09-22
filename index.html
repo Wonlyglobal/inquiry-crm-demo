@@ -756,10 +756,12 @@
       }
       #detail-modal .modal-head h3 { max-width:min(980px,calc(100% - 150px)); font-size:clamp(20px,2vw,28px); line-height:1.35; overflow-wrap:anywhere; }
       #detail-modal .modal-head > .ghost { min-height:44px; padding:0 18px; }
-      #daily-modal { position:static; inset:auto; display:block; overflow:visible; padding:24px 0 48px; background:transparent; z-index:auto; }
+      #daily-modal { position:static; inset:auto; display:block; min-width:0; max-width:100%; overflow:visible; padding:24px 0 48px; background:transparent; z-index:auto; }
       #daily-modal.hidden { display:none; }
-      #daily-modal .modal { width:100%; max-width:none; max-height:none; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
-      #daily-modal .modal-head { padding:0 0 18px; }
+      #daily-modal .modal { width:100%; min-width:0; max-width:100%; max-height:none; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
+      #daily-modal .modal-head { box-sizing:border-box; min-width:0; max-width:100%; padding:0 0 18px; flex-wrap:wrap; gap:12px; }
+      #daily-modal .modal-head > div { flex:1 1 320px; min-width:0; }
+      #daily-modal .modal-head > #close-daily { max-width:100%; margin-left:auto; }
       #daily-modal .modal-head h3 { font-size:25px; }
       #daily-modal .form-body { padding:0; }
       .daily-toolbar { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:14px; padding:14px 16px; }
@@ -1304,6 +1306,8 @@
         .dashboard-actions { justify-content:flex-start; }
         .dashboard-kpis { grid-template-columns:1fr 1fr; }
         .daily-toolbar { align-items:flex-start; flex-direction:column; }
+        #daily-modal .modal-head { align-items:flex-start; }
+        #daily-modal .modal-head > #close-daily { margin-left:0; }
         .daily-lead-head { align-items:flex-start; flex-direction:column; }
         .daily-history-toolbar { align-items:flex-start; flex-direction:column; }
         .daily-history-kpis { grid-template-columns:1fr 1fr; }
@@ -6076,27 +6080,56 @@
           box.append(item);
         });
       }
+      function formatLoginError(error) {
+        const code = String(error?.code || "").toLowerCase();
+        const message = String(error?.message || "").toLowerCase();
+        const status = Number(error?.status || 0);
+        if (/api key|apikey/.test(message)) return "系统连接配置失效，请联系管理员";
+        if (code === "invalid_credentials" || /invalid login credentials/.test(message)) return "邮箱或密码不正确";
+        if (code === "email_not_confirmed" || /email not confirmed/.test(message)) return "邮箱尚未验证，请先完成邮箱验证";
+        if (status === 429 || /rate limit|too many requests/.test(message)) return "登录尝试过于频繁，请稍后再试";
+        if (/failed to fetch|network|timeout|timed out/.test(message)) return "认证服务暂时无法连接，请检查网络后重试";
+        return "登录失败，请稍后重试；如持续出现请联系管理员";
+      }
+      ["login-email", "login-password"].forEach((id) => {
+        $("#" + id).addEventListener("input", () => {
+          const errorBox = $("#login-error");
+          errorBox.textContent = "";
+          errorBox.style.removeProperty("color");
+        });
+      });
       $("#login-form").addEventListener("submit", async (e) => {
         e.preventDefault();
         const btn = e.submitter;
         btn.disabled = true;
-        $("#login-error").textContent = "";
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: $("#login-email").value.trim(),
-          password: $("#login-password").value,
-        });
-        btn.disabled = false;
-        if (error) {
-          $("#login-error").textContent = /api key/i.test(error.message)
-            ? "系统连接配置失效，请联系管理员"
-            : "邮箱或密码不正确";
-          return;
-        }
+        const errorBox = $("#login-error");
+        errorBox.textContent = "";
+        errorBox.style.removeProperty("color");
+        let data;
         try {
-          await loadProfile(data.user);
+          const result = await supabase.auth.signInWithPassword({
+            email: $("#login-email").value.trim(),
+            password: $("#login-password").value,
+          });
+          if (result.error) {
+            errorBox.textContent = formatLoginError(result.error);
+            return;
+          }
+          data = result.data;
+          await loadProfileWithRetry(data.user);
         } catch (err) {
-          $("#login-error").textContent = "账号档案未配置：" + err.message;
-          await supabase.auth.signOut();
+          const hasAuthenticatedUser = Boolean(data?.user);
+          if (!hasAuthenticatedUser) {
+            errorBox.textContent = formatLoginError(err);
+          } else {
+            const permanentProfileFailure = /管理员禁用|PGRST116|0 rows/i.test(String(err?.message || err));
+            errorBox.textContent = permanentProfileFailure
+              ? "账号档案未配置：" + err.message
+              : "账号档案暂时无法加载，登录状态已保留，请刷新或稍后重试";
+            if (permanentProfileFailure) await supabase.auth.signOut();
+          }
+        } finally {
+          btn.disabled = false;
         }
       });
       document.addEventListener("click", (event) => {

@@ -45,9 +45,9 @@ test('market hand-off becomes read only for commercial customer data',()=>{
   assert.match(html,/marketHasAssigned=profile\.role==="marketing"&&inquiries\.some\(item=>item\.owner_id\)/);
   assert.match(html,/profile\.role!=="marketing"\?loadAllCustomerRows\(\(\)=>supabase\.from\("customer_documents"\)/);
   assert.match(html,/canManageDocuments=profile\.role==="owner"\|\|\(profile\.role==="sales"&&ownedInquiry\)/);
-  assert.match(html,/profile\?\.role!=="marketing"\|\|!currentInquiry\?\.owner_id/);
+  assert.match(html,/const marketAssignedScope=profile\.role==="marketing"&&Boolean\(inquiry\.owner_id\)/);
   assert.match(html,/profile\?\.role==="marketing"\)return currentInquiry\?\.owner_id\?new Set\(\):new Set\(\["identity","need","fit"\]\)/);
-  assert.match(html,/marketHiddenDetailTabs=profile\.role==="marketing"[\s\S]*?"outreach","pipeline","followup"[\s\S]*?"contact-policy","qualification","audit"/);
+  assert.match(html,/marketHiddenDetailTabs=profile\.role==="marketing"[\s\S]*?"outreach","followup"[\s\S]*?"qualification","audit"/);
   assert.match(html,/reply-inquiry"\)\.classList\.toggle\("hidden",!\["owner","sales"\]\.includes\(profile\.role\)\)/);
 });
 

@@ -46,3 +46,10 @@ test('opening an inquiry acknowledges only the captured IDs for the current reci
  await acknowledge('a',[{id:'old-1'}],'another-user');
  assert.equal(calls.length,length);
 });
+
+test('sidebar refresh replaces raw notification totals with server-calculated actionable counts',()=>{
+ assert.match(html,/supabase\.rpc\("get_my_sidebar_actionable_counts"\)/);
+ assert.match(html,/counts\.mailbox=Number\(actionable\.mailbox_unread\)\|\|0/);
+ assert.match(html,/counts\["sales-today"\]=Number\(actionable\.today_tasks\)\|\|0/);
+ assert.match(html,/new Set\(\[\.\.\.views,"mailbox","sales-today"\]\)/);
+});

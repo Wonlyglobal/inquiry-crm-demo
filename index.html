@@ -5250,16 +5250,26 @@
       }
       async function loadWhatsAppWorkspace(loadVersion=moduleLoadVersion){
         const box=$("#whatsapp-workspace");box.innerHTML='<div class="wa-chat-empty" style="grid-column:1/-1"><div class="wa-chat-empty-inner"><div class="boot-spinner" style="margin:0 auto 14px"></div><p>正在加载 WhatsApp 会话…</p></div></div>';
-        const [connectionResult,inquiriesResult]=await Promise.all([runModuleQuery(supabase.from("whatsapp_connections").select("id,provider,status,business_account_id,display_phone_number,display_name,phone_number_id,webhook_verified_at,updated_at").eq("status","connected").order("updated_at",{ascending:false}).limit(1).maybeSingle(),2),loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,contact_name,company_id").eq("validity","valid").not("status","in","(won,lost)").order("updated_at",{ascending:false}).range(from,to))]);
-        if(loadVersion!==moduleLoadVersion||activeModuleView!=="whatsapp")return;if(connectionResult.error)return box.innerHTML=`<div class="wa-list-empty" style="grid-column:1/-1">通道加载失败：${esc(connectionResult.error.message||"未知错误")}</div>`;
+        try {
+        const [connectionResult,inquiriesResult]=await withTimeout(Promise.all([runModuleQuery(supabase.from("whatsapp_connections").select("id,provider,status,business_account_id,display_phone_number,display_name,phone_number_id,webhook_verified_at,updated_at").eq("status","connected").order("updated_at",{ascending:false}).limit(1).maybeSingle(),2),loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,contact_name,company_id").eq("validity","valid").not("status","in","(won,lost)").order("updated_at",{ascending:false}).range(from,to))]),20000,"会话资料加载超时，请重试");
+        if(loadVersion!==moduleLoadVersion||activeModuleView!=="whatsapp")return;
+        if(connectionResult.error)throw connectionResult.error;
+        if(inquiriesResult.error)throw inquiriesResult.error;
         const connection=connectionResult.data||null,inquiries=inquiriesResult.data||[];
         const modulePrimary=$("#module-primary");if(modulePrimary){modulePrimary.textContent=connection?"WhatsApp 通道 · 已配置":"配置 WhatsApp 通道";modulePrimary.title=connection?"通道已配置，点击查看或修改":"配置 WhatsApp Business 企业通道"}
-        if(connection&&["owner","sales_manager"].includes(profile?.role)){const subscription=await supabase.functions.invoke("whatsapp-connection-admin",{body:{action:"ensure_subscription",connection_id:connection.id}});if(subscription.error||subscription.data?.error){const reason=await edgeFunctionErrorMessage(subscription);console.warn("WhatsApp WABA 自动订阅失败",reason);toast("WhatsApp 实时消息订阅失败："+reason)}else connection.webhook_verified_at=new Date().toISOString()}
-        const [messagesResult,contactsResult]=await Promise.all([connection?loadModuleRowsPaged((from,to)=>supabase.from("whatsapp_messages").select("id,connection_id,inquiry_id,direction,sender_phone,recipient_phone,body_text,message_type,delivery_status,association_status,occurred_at,translation_zh,translation_en,detected_language,inquiries(id,inquiry_no,title,contact_name)").eq("connection_id",connection.id).order("occurred_at",{ascending:true}).range(from,to)):Promise.resolve({data:[],error:null}),loadModuleRowsPaged((from,to)=>supabase.from("contacts").select("id,company_id,full_name,phone,whatsapp,avatar_url").order("updated_at",{ascending:false}).range(from,to))]);
-        if(messagesResult.error)return box.innerHTML=`<div class="wa-list-empty" style="grid-column:1/-1">消息加载失败：${esc(messagesResult.error.message||"未知错误")}</div>`;
+        // Provision WABA subscription only when saving channel configuration.
+        const [messagesResult,contactsResult]=await withTimeout(Promise.all([connection?loadModuleRowsPaged((from,to)=>supabase.from("whatsapp_messages").select("id,connection_id,inquiry_id,direction,sender_phone,recipient_phone,body_text,message_type,delivery_status,association_status,occurred_at,translation_zh,translation_en,detected_language,inquiries(id,inquiry_no,title,contact_name)").eq("connection_id",connection.id).order("occurred_at",{ascending:true}).range(from,to)):Promise.resolve({data:[],error:null}),loadModuleRowsPaged((from,to)=>supabase.from("contacts").select("id,company_id,full_name,phone,whatsapp,avatar_url").order("updated_at",{ascending:false}).range(from,to))]),20000,"消息加载超时，请重试");
+        if(loadVersion!==moduleLoadVersion||activeModuleView!=="whatsapp")return;
+        if(messagesResult.error)throw messagesResult.error;
+        if(contactsResult.error)throw contactsResult.error;
         const inquiryByCompany=new Map(inquiries.map(item=>[item.company_id,item]));whatsappWorkspaceState.connection=connection;whatsappWorkspaceState.messages=messagesResult.data||[];whatsappWorkspaceState.inquiries=inquiries;whatsappWorkspaceState.contacts=(contactsResult.data||[]).map(item=>({...item,inquiry:inquiryByCompany.get(item.company_id)||null}));
         const conversations=whatsappConversations();if(!whatsappWorkspaceState.selectedPhone&&conversations.length){whatsappWorkspaceState.selectedPhone=conversations[0].phone;whatsappWorkspaceState.selectedInquiryId=conversations[0].inquiryId||null}const selectedConversation=conversations.find(item=>item.phone===whatsappWorkspaceState.selectedPhone);if(selectedConversation&&!whatsappWorkspaceState.selectedInquiryId)whatsappWorkspaceState.selectedInquiryId=selectedConversation.inquiryId||null;
         renderWhatsAppWorkspace();subscribeWhatsAppWorkspace();requestAnimationFrame(()=>{const stream=$("#wa-message-stream");if(stream)stream.scrollTop=stream.scrollHeight});
+        } catch(error) {
+          if(loadVersion!==moduleLoadVersion||activeModuleView!=="whatsapp")return;
+          box.innerHTML=`<div class="wa-list-empty" style="grid-column:1/-1"><p>WhatsApp 会话暂时无法加载：${esc(error?.message||"网络请求失败")}</p><button id="wa-load-retry" class="ghost" type="button">重新加载会话</button></div>`;
+          $("#wa-load-retry").onclick=()=>loadModule("whatsapp");
+        }
       }
       async function openWhatsAppMessages(connectionId){
         openDashboardModal("WhatsApp 消息记录",`<p class="hint">正在加载该企业通道的收发消息与询盘关联…</p>`);

@@ -8074,7 +8074,8 @@
           return connection?.status==="connected"?openMailComposer():openMailboxBinding(profile.id,true);
         }
         if(activeModuleView==="whatsapp") return; // Handled by the module's direct onclick binding.
-        if(activeModuleView!=="communications")return openMailboxBinding();
+        if(activeModuleView==="settings")return openMailboxBinding();
+        if(activeModuleView!=="communications")return; // Other modules own their primary action; never fall through to mailbox setup.
         if(!await appConfirm("确认从当前登录业务员的已连接邮箱发送内部测试邮件到 inquiry@wonlyglobal.com？该邮件只用于验证收发和同步。",{title:"测试邮箱收发",confirmText:"确认发送"}))return;
         const button=$("#module-primary");button.disabled=true;button.textContent="正在发送测试邮件…";
         const {data,error}=await supabase.functions.invoke("mailbox-test-send",{body:{}});

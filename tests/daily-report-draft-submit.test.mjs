@@ -28,6 +28,8 @@ test('manager list labels simulations and excludes them from official KPIs',()=>
   assert.match(seed,/2026-09-01/);
   assert.match(seed,/2026-09-22/);
   assert.match(seed,/is_simulated boolean not null default false/);
+  assert.match(seed,/as g\(report_day\)/);
+  assert.doesNotMatch(seed,/lateral/);
 });
 
 test('server workflow owns counts, status, role checks and audit',()=>{

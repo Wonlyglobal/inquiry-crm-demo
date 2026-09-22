@@ -60,6 +60,22 @@ test("mail composer preserves local and material attachments under one limit",()
   assert.match(html,/disabled title=/);
 });
 
+test("material picker supports visible multi-select and closes after confirmation",()=>{
+  assert.match(html,/支持多选。<\/strong>先选择所需物料，再点击底部“确认添加”/);
+  assert.match(html,/id="material-selection-status"/);
+  assert.match(html,/已选择 \$\{count\} 个 · \$\{materialSize\(bytes\)\}，请确认添加/);
+  assert.match(html,/pending\.set\(asset\.id,asset\)/);
+  assert.match(html,/selectedMaterialAttachments\.push\(\.\.\.pending\.values\(\)\)/);
+  assert.match(html,/\$\("#dashboard-modal"\)\.classList\.add\("hidden"\);toast\(`已添加 \$\{count\} 个物料附件`\)/);
+});
+
+test("all native selects receive one modern high-contrast visual treatment",()=>{
+  assert.match(html,/select\.input,select\.module-filter-select \{ appearance:none/);
+  assert.match(html,/select\.input:hover,select\.module-filter-select:hover,select\.input:focus,select\.module-filter-select:focus/);
+  assert.match(html,/select\.input option,select\.module-filter-select option/);
+  assert.match(html,/\.notice-filter:not\(\.active\),\.notice-mark-all \{ color:#243a32/);
+});
+
 test("邮件发送函数在服务端读取实时物料附件",async()=>{
   const send=await readFile(new URL("../supabase/functions/mailbox-compose-send/index.ts",import.meta.url),"utf8");
   assert.match(send,/loadMaterialAttachment/);

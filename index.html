@@ -1647,6 +1647,9 @@
               <button id="legacy-project-template" class="ghost hidden" type="button">下载导入模板</button>
               <button id="legacy-project-import" class="primary hidden" type="button">导入 Excel</button>
               <input id="legacy-project-import-file" class="hidden" type="file" accept=".xlsx,.xls,.csv" />
+              <button id="customer-import-template" class="ghost hidden" type="button">下载客户模板</button>
+              <button id="customer-import" class="ghost hidden" type="button">导入现有客户</button>
+              <input id="customer-import-file" class="hidden" type="file" accept=".csv,text/csv" />
               <button id="operations-settings" class="ghost hidden">区域与分配规则</button><button id="followup-settings" class="ghost hidden">我的跟进默认值</button>
               <button id="module-primary" class="primary hidden"></button>
             </div>
@@ -3951,6 +3954,28 @@
         $$('[data-customer-core-company]').forEach(button=>button.addEventListener("click",()=>openCustomerRecord(button.dataset.customerCoreCompany)));
         $$('[data-customer-core-inquiry]').forEach(button=>button.addEventListener("click",()=>openInquiryDetail(button.dataset.customerCoreInquiry)));
       }
+      const customerImportColumns=["公司名称","联系人","客户邮箱","电话","WhatsApp","国家/地区","来源渠道","渠道明细","需求摘要","产品品类","数量","商机标题","预计金额","币种","预计采购日期"];
+      const customerImportKeys={"公司名称":"company","company":"company","联系人":"contact","contact":"contact","客户邮箱":"email","email":"email","电话":"phone","phone":"phone","WhatsApp":"whatsapp","whatsapp":"whatsapp","国家/地区":"country","country":"country","来源渠道":"source","source":"source","渠道明细":"source_detail","source_detail":"source_detail","需求摘要":"demand","demand":"demand","产品品类":"product","product":"product","数量":"quantity","quantity":"quantity","商机标题":"title","title":"title","预计金额":"estimated_value","estimated_value":"estimated_value","币种":"currency","currency":"currency","预计采购日期":"expected_purchase_date","expected_purchase_date":"expected_purchase_date"};
+      function parseCustomerCsv(text){
+        const rows=[];let row=[],cell="",quoted=false;
+        for(let i=0;i<text.length;i+=1){const char=text[i],next=text[i+1];if(char==='"'&&quoted&&next==='"'){cell+='"';i+=1}else if(char==='"'){quoted=!quoted}else if(char===','&&!quoted){row.push(cell.trim());cell=""}else if((char==='\n'||char==='\r')&&!quoted){if(char==='\r'&&next==='\n')i+=1;row.push(cell.trim());if(row.some(Boolean))rows.push(row);row=[];cell=""}else cell+=char}
+        row.push(cell.trim());if(row.some(Boolean))rows.push(row);if(rows.length<2)throw new Error("文件没有可导入的数据行");
+        const headers=rows[0].map(value=>String(value).replace(/^\uFEFF/,"").trim()),mapped=headers.map(value=>customerImportKeys[value]);
+        if(mapped.some(value=>!value))throw new Error(`存在不支持的表头：${headers.filter((_,index)=>!mapped[index]).join("、")}`);
+        const required=["country","source","demand"],missing=required.filter(key=>!mapped.includes(key));if(missing.length)throw new Error("模板缺少国家/地区、来源渠道或需求摘要列");
+        const data=rows.slice(1).map((values,rowIndex)=>{const item={row_number:rowIndex+2};mapped.forEach((key,index)=>item[key]=String(values[index]||"").trim());return item;});
+        if(data.length>500)throw new Error("单次最多导入 500 行，请拆分文件");return data;
+      }
+      function downloadCustomerImportTemplate(){
+        const example=["示例酒店集团","Maria Garcia","maria@example.com","+34910000000","+34910000000","西班牙","exhibition","2026 Madrid 展会","酒店翻新项目，需要核对防火门五金配置","防火门五金","120 套","Madrid 酒店翻新项目","85000","USD","2026-12-15"];
+        const csv=`\uFEFF${customerImportColumns.join(",")}\n${example.map(value=>`"${String(value).replaceAll('"','""')}"`).join(",")}\n`;const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));link.download="CRM客户导入模板.csv";link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+      }
+      async function previewCustomerImport(file){
+        if(!file)return;if(file.size>2*1024*1024)return toast("客户导入文件不能超过 2MB");
+        try{const rows=parseCustomerCsv(await file.text()),preview=rows.slice(0,10),confirmed=await appConfirm(`文件：${file.name}\n共 ${rows.length} 行。\n\n前 ${preview.length} 行预览：\n${preview.map(row=>`${row.row_number}. ${row.company||row.contact||"未命名客户"}｜${row.country}｜${row.source}｜${row.demand}`).join("\n")}\n\n确认后将整批校验并写入；任一行失败会全部回滚。`,{title:"确认导入现有客户",confirmText:`确认导入 ${rows.length} 行`});if(!confirmed)return;
+          const button=$("#customer-import");button.disabled=true;button.textContent="正在安全导入…";const {data,error}=await supabase.rpc("import_customer_opportunities",{import_rows:rows,source_file:file.name});button.disabled=false;button.textContent="导入现有客户";if(error)return toast("导入失败，未写入任何数据："+error.message);toast(`导入完成：新建 ${Number(data?.created_count||0)} 条，幂等复用 ${Number(data?.deduplicated_count||0)} 条`);await loadModule("customers");
+        }catch(error){toast("导入失败："+error.message)}finally{$("#customer-import-file").value="";$("#customer-import").disabled=false;$("#customer-import").textContent="导入现有客户"}
+      }
       async function loadModule(view, options = {}) {
         if (view !== "inquiries") activeInquiryScope = "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
@@ -4000,6 +4025,8 @@
         $("#module-toolbar").classList.add("hidden");
         $("#legacy-project-template").classList.toggle("hidden", view !== "legacy-projects");
         $("#legacy-project-import").classList.toggle("hidden", view !== "legacy-projects" || profile?.role!=="owner");
+        $("#customer-import-template").classList.toggle("hidden",view!=="customers");
+        $("#customer-import").classList.toggle("hidden",view!=="customers"||!["owner","marketing","sales"].includes(profile.role));
         if(view === "legacy-projects" && profile?.role==="owner"){
           supabase.rpc("import_legacy_engineering_projects",{p_rows:[],p_source_file:"capability-check"}).then(({error})=>{
             if(error)$("#legacy-project-import").classList.add("hidden");
@@ -8198,6 +8225,9 @@
       }
       $("#operations-settings").onclick=openOperationalSettings;
       $("#followup-settings").onclick=openFollowupPreferences;
+      $("#customer-import-template").onclick=downloadCustomerImportTemplate;
+      $("#customer-import").onclick=()=>$("#customer-import-file").click();
+      $("#customer-import-file").addEventListener("change",event=>previewCustomerImport(event.target.files?.[0]));
       $("#edit-followup-defaults").onclick=openFollowupPreferences;
       $("#apply-followup-defaults").onclick=applyFollowupPreferences;
       $("#module-primary").addEventListener("click", async () => {

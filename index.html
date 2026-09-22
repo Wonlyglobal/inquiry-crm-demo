@@ -1596,6 +1596,7 @@
               <button id="legacy-project-template" class="ghost hidden" type="button">下载导入模板</button>
               <button id="legacy-project-import" class="primary hidden" type="button">导入 Excel</button>
               <input id="legacy-project-import-file" class="hidden" type="file" accept=".xlsx,.xls,.csv" />
+              <button id="operations-settings" class="ghost hidden">区域与分配规则</button><button id="followup-settings" class="ghost hidden">我的跟进默认值</button>
               <button id="module-primary" class="primary hidden"></button>
             </div>
           </div>
@@ -2293,7 +2294,7 @@
             </div>
             <div class="field">
               <label>下次跟进时间</label
-              ><input id="follow-next" class="input" type="datetime-local" />
+              ><input id="follow-next" class="input" type="datetime-local" /><button id="apply-followup-defaults" class="ghost" type="button">使用默认计划</button><button id="edit-followup-defaults" class="ghost" type="button">设置默认值</button>
             </div>
             <div class="field">
               <label>优先级</label><select id="follow-priority" class="input"><option value="high">高</option><option value="normal" selected>普通</option><option value="low">低</option></select>
@@ -3835,6 +3836,33 @@
         $("#module-table-context").textContent=`${data?.role==="owner"?"全公司风险":"本团队业务风险"} · 确定性规则 · 不使用 AI 自动定责`;
         if(!rows.length)setModuleState("empty","当前没有可见风险案件，可运行确定性扫描");
       }
+      async function openOperationalSettings(){
+        const {data,error}=await supabase.rpc("get_crm_operational_settings");
+        if(error)return toast("业务设置读取失败："+error.message);
+        openDashboardModal("成员负责区域与分配规则",`<p>按询盘国家匹配负责区域，分区负责人优先于大区覆盖，同区域按姓名排列，主管最终确认分配。</p><p class="hint">暂停推荐后，该成员不再进入智能推荐；主管仍可人工指定。只可维护本人管理范围内业务员。区域变更同时影响目标看板的区域汇总，不更改客户归属或账号权限。</p><div style="overflow:auto"><table><thead><tr><th>成员</th><th>部门</th><th>负责区域</th><th>推荐接单</th><th>操作</th></tr></thead><tbody>${(data||[]).filter(x=>x.role==="sales").map(x=>`<tr><td>${esc(x.full_name)}</td><td>${esc(x.team||"—")}</td><td>${esc(x.sales_region||"未设置")}</td><td>${x.paused?"暂停推荐":"正常"}</td><td>${x.can_edit?`<button type="button" class="ghost" data-edit-routing="${esc(x.profile_id)}">编辑</button>`:"只读"}</td></tr>`).join("")}</tbody></table></div>`);
+        $$("[data-edit-routing]").forEach(b=>b.onclick=()=>editOperationalMember(data.find(x=>x.profile_id===b.dataset.editRouting)));
+      }
+      function editOperationalMember(member){
+        const regions=["中东非大区","中东非大区-中东","中东非大区-非洲","中亚大区","美洲大区","欧洲大区","东南亚大区-东南亚","东南亚大区-南亚"];
+        openDashboardModal(`业务设置 · ${member.full_name}`,`<form id="routing-form"><div class="field"><label for="routing-region">负责区域</label><select class="input" id="routing-region" required><option value="">请选择</option>${regions.map(r=>`<option value="${esc(r)}" ${r===member.sales_region?"selected":""}>${esc(r)}</option>`).join("")}</select></div><div class="field"><label for="routing-paused">推荐接单状态</label><select class="input" id="routing-paused"><option value="false" ${!member.paused?"selected":""}>正常参与区域推荐</option><option value="true" ${member.paused?"selected":""}>暂停进入推荐名单</option></select></div><div class="field"><label for="routing-reason">修改原因</label><textarea class="input" id="routing-reason" required minlength="3" maxlength="500"></textarea></div><p class="hint">不会移动已分配客户。暂停仅影响智能推荐，人工分配仍须主管确认。</p><button class="primary" type="submit">保存设置</button><p id="routing-status" role="status"></p></form>`);
+        $("#routing-form").onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]');button.disabled=true;
+          try{const {error}=await supabase.rpc("save_crm_assignment_settings",{target_profile:member.profile_id,target_region:$("#routing-region").value,target_paused:$("#routing-paused").value==="true",expected_revision:member.revision,change_reason:$("#routing-reason").value.trim()});if(error)throw error;toast("业务设置已保存，修改已留痕");await openOperationalSettings();if(activeModuleView==="settings")await loadModule("settings");}
+          catch(error){form.querySelector("#routing-status").textContent=error.message||String(error);button.disabled=false;}};
+      }
+      async function openFollowupPreferences(){
+        const {data,error}=await supabase.rpc("get_my_followup_preferences");if(error)return toast("跟进设置读取失败："+error.message);
+        openDashboardModal("我的跟进默认值",`<form id="followup-preferences-form"><p>保存后，在询盘跟进表单点击“使用默认计划”即可填入，可按客户情况修改。已有计划不变。</p><div class="field"><label for="pref-days">下次跟进间隔（天）</label><input class="input" id="pref-days" type="number" min="1" max="90" required value="${Number(data.interval_days)}"></div><div class="field"><label for="pref-minutes">提前提醒（分钟，0为到点提醒）</label><input class="input" id="pref-minutes" type="number" min="0" max="1440" required value="${Number(data.reminder_minutes)}"></div><div class="field"><label for="pref-priority">默认优先级</label><select class="input" id="pref-priority">${[["normal","普通"],["high","高"],["low","低"]].map(([v,t])=>`<option value="${v}" ${data.priority===v?"selected":""}>${t}</option>`).join("")}</select></div><p class="hint">首次有效联系30分钟、报价后7天提醒等现行业务规则不受个人默认值影响。</p><button class="primary" type="submit">保存默认值</button><p id="pref-status" role="status"></p></form>`);
+        $("#followup-preferences-form").onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('button[type="submit"]');button.disabled=true;try{const {error}=await supabase.rpc("save_my_followup_preferences",{target_days:Number($("#pref-days").value),target_minutes:Number($("#pref-minutes").value),target_priority:$("#pref-priority").value});if(error)throw error;form.querySelector("#pref-status").textContent="默认值已保存。";}catch(error){form.querySelector("#pref-status").textContent=error.message||String(error)}finally{button.disabled=false}};
+      }
+      async function applyFollowupPreferences(){
+        if(!currentInquiry||$("#follow-next").disabled)return toast("请在可编辑的询盘跟进表单使用");
+        const inquiryId=currentInquiry.id;
+        if($("#follow-next").value||$("#follow-remind").value)return toast("已有计划时间，请先清空后再使用默认计划");
+        const {data,error}=await supabase.rpc("get_my_followup_preferences");if(error)return toast("读取默认值失败："+error.message);
+        if(currentInquiry?.id!==inquiryId||$("#follow-next").disabled||$("#follow-next").value||$("#follow-remind").value)return;
+        const next=new Date();next.setDate(next.getDate()+data.interval_days);
+        $("#follow-next").value=localDateTimeInputValue(next.toISOString());$("#follow-remind").value=localDateTimeInputValue(new Date(next.getTime()-data.reminder_minutes*60000).toISOString());$("#follow-priority").value=data.priority;toast("已填入默认计划，保存跟进后生效");
+      }
       function memberMailboxStatusLabel(status){
         return {connected:"已连接",not_connected:"未连接",error:"连接异常",disabled:"已停用",pending:"连接中"}[status]||"状态未知";
       }
@@ -3903,6 +3931,8 @@
         knowledgeCountState = null;
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
+        $("#operations-settings").classList.toggle("hidden",view!=="settings");
+        $("#followup-settings").classList.toggle("hidden",view!=="settings");
         $("#sales360-quarter-panel").classList.add("hidden");
         $("#sales360-framework").classList.toggle("hidden",view!=="performance-360");
         $("#role-guide-live").classList.toggle("hidden",view!=="sop");
@@ -4211,28 +4241,30 @@
         } else if(view==="settings" && profile.role!=="owner") {
           modulePrimary.textContent="正在读取邮箱状态…";
           query=(async()=>{
-            const [members,mailbox,statuses]=await Promise.all([
+            const [members,mailbox,statuses,operations]=await Promise.all([
               supabase.rpc("get_crm_member_directory"),
               supabase.from("mailbox_connections").select("status").eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle(),
-              supabase.rpc("get_crm_member_mailbox_status")
+              supabase.rpc("get_crm_member_mailbox_status"),
+              supabase.rpc("get_crm_operational_settings")
             ]);
             const label=personalMailboxSettingsLabel(mailbox.data,mailbox.error);
             if(loadVersion===moduleLoadVersion&&activeModuleView==="settings")modulePrimary.textContent=label;
+            const operationsById=new Map((operations.data||[]).map(item=>[item.profile_id,item]));
             const states=new Map((statuses.data||[]).map(item=>[item.profile_id,item.connection_status]));
-            return {...members,data:(members.data||[]).map(member=>({...member,mailbox_status_label:statuses.error?"状态加载失败":memberMailboxStatusLabel(states.get(member.id)),own_mailbox_label:member.id===profile.id?label:null}))};
+            return {...members,data:(members.data||[]).map(member=>({...member,sync_label:operations.error?"读取失败":operationsById.get(member.id)?.last_synced_at?fmtDate(operationsById.get(member.id).last_synced_at):"尚未同步",test_label:operations.error?"读取失败":operationsById.get(member.id)?.last_tested_at?fmtDate(operationsById.get(member.id).last_tested_at):"尚未测试",mailbox_status_label:statuses.error?"状态加载失败":memberMailboxStatusLabel(states.get(member.id)),own_mailbox_label:member.id===profile.id?label:null}))};
           })();
-          columns=["姓名","邮箱","职称","部门","CRM 权限角色","负责区域","状态","邮箱连接","操作"];
-          mapper=x=>({cells:[x.full_name,x.email,x.job_title,x.team,roleNames[x.role]||x.role,x.sales_region,x.active?"启用":"已停用",x.mailbox_status_label],actions:x.id===profile.id&&x.active?[{label:x.own_mailbox_label||"我的邮箱设置",onClick:()=>openMailboxBinding(profile.id,true)}]:[]});
+          columns=["姓名","邮箱","职称","部门","CRM 权限角色","负责区域","状态","邮箱连接","最近同步","最近测试","操作"];
+          mapper=x=>({cells:[x.full_name,x.email,x.job_title,x.team,roleNames[x.role]||x.role,x.sales_region,x.active?"启用":"已停用",x.mailbox_status_label,x.sync_label,x.test_label],actions:x.id===profile.id&&x.active?[{label:x.own_mailbox_label||"我的邮箱设置",onClick:()=>openMailboxBinding(profile.id,true)}]:[]});
           $("#module-table-context").textContent="全部正式成员（含已停用）；账号新增、停用和角色变更由老板管理";
         } else {
-          query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,disabled_reason_type,disabled_reason,disabled_at,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,error_message)").order("created_at", { ascending: true });
-          columns = ["姓名", "邮箱", "职称", "部门", "CRM 权限角色", "状态", "邮箱连接", "最后测试", "操作"];
+          query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,disabled_reason_type,disabled_reason,disabled_at,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,last_synced_at,error_message)").order("created_at", { ascending: true });
+          columns = ["姓名", "邮箱", "职称", "部门", "CRM 权限角色", "状态", "邮箱连接", "最后测试", "最近同步", "操作"];
           mapper = (x) => {
             const mailbox = Array.isArray(x.mailbox_connections) ? x.mailbox_connections[0] : x.mailbox_connections;
             const connected = mailbox?.status === "connected";
             const mailboxStateHidden = !mailbox && profile.role !== "owner" && x.id !== profile.id;
             return {
-              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : mailbox?.status === "disabled" ? "已停用" : mailboxStateHidden ? "状态仅本人/老板可见" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—"],
+              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : mailbox?.status === "disabled" ? "已停用" : mailboxStateHidden ? "状态仅本人/老板可见" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—",mailbox?.last_synced_at ? fmtDate(mailbox.last_synced_at) : "尚未同步"],
               actions: x.active ? [
                 ...(x.role === "sales" ? [{ label: "业务主页", onClick: () => openSalesProfilePage(x.id) }] : []),
                 { label: connected ? "重新连接" : mailboxStateHidden ? "连接 / 更新" : "连接", onClick: () => openMailboxBinding(x.id) },
@@ -8110,6 +8142,10 @@
           $("#mailbox-email").value = value;
         });
       }
+      $("#operations-settings").onclick=openOperationalSettings;
+      $("#followup-settings").onclick=openFollowupPreferences;
+      $("#edit-followup-defaults").onclick=openFollowupPreferences;
+      $("#apply-followup-defaults").onclick=applyFollowupPreferences;
       $("#module-primary").addEventListener("click", async () => {
         if(activeModuleView==="follow-calendar")return openDailyPlanEditor();
         if(activeModuleView==="knowledge")return openKnowledgeEditor();

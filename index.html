@@ -443,7 +443,7 @@
       #dashboard-widgets.layout-editing .dashboard-collapse-toggle { visibility:hidden; }
       .dashboard-collapse-toggle { position:absolute; z-index:8; top:10px; right:10px; width:28px; height:28px; border:1px solid var(--line); border-radius:50%; background:rgba(255,255,255,.96); color:var(--brand); cursor:pointer; font-weight:800; box-shadow:0 4px 12px rgba(32,61,49,.1); }
       .dashboard-collapse-toggle:hover { background:var(--soft); }
-      .dashboard-collapse-header { cursor:pointer; user-select:none; }
+      .dashboard-collapse-header { box-sizing:border-box; padding-right:58px !important; cursor:pointer; user-select:none; }
       .dashboard-collapse-header:hover { background:var(--soft); }
       .dashboard-collapse-header:focus-visible { outline:3px solid rgba(198,95,19,.3); outline-offset:-3px; }
       #dashboard-widgets.layout-editing > [data-dashboard-widget]:not(.hidden) { outline:2px dashed #79a08d; outline-offset:4px; cursor:grab; }
@@ -477,7 +477,8 @@
       .legacy-dashboard-panels { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
       .trend-panel { margin-bottom:14px; }
       .trend-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line); }
-      .trend-tabs { display:flex; gap:5px; }
+      .trend-toolbar.dashboard-collapse-header { flex-wrap:wrap; }
+      .trend-tabs { display:flex; flex-wrap:wrap; gap:5px; max-width:100%; }
       .trend-tab { border:1px solid var(--line); background:#fff; color:var(--muted); padding:7px 12px; border-radius:9px; font-weight:700; cursor:pointer; }
       .trend-tab.active { background:var(--green); border-color:var(--green); color:#fff; }
       .trend-charts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:14px; }

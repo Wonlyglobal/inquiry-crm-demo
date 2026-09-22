@@ -34,15 +34,15 @@ begin
   end if;
 
   update public.profiles
-  set role='owner',team='运营部',job_title='运营管理员',updated_at=clock_timestamp()
+  set role='owner',team='运营部',job_title='运营经理',updated_at=clock_timestamp()
   where id=target_user;
 
   insert into public.audit_logs(actor_id,entity_type,entity_id,action,before_data,after_data,reason)
   values(
     target_user,'profile',target_user,'operations_admin_access_granted',
     jsonb_build_object('role',before_profile->>'role','team',before_profile->>'team','job_title',before_profile->>'job_title'),
-    jsonb_build_object('role','owner','team','运营部','job_title','运营管理员','scope','all_business_edit'),
-    '项目负责人确认李铧燕为运营管理员并拥有全部编辑权限；保留测试/无效询盘隔离'
+    jsonb_build_object('role','owner','team','运营部','job_title','运营经理','scope','all_business_edit'),
+    '项目负责人确认李铧燕拥有全部编辑权限，界面职务显示运营经理；保留测试/无效询盘隔离'
   );
 
   select count(*) into isolated_after

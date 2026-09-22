@@ -7,7 +7,7 @@ const sql=fs.readFileSync(new URL("../supabase/migrations/20260922180000_operati
 test("operations admin migration targets the approved production profile",()=>{
   assert.match(sql,/c43bd3c2-6e3a-4228-99c7-dc95f33643f2/);
   assert.match(sql,/lower\(p\.email\)='chloelee@wonlyglobal\.com'/);
-  assert.match(sql,/set role='owner',team='运营部',job_title='运营管理员'/);
+  assert.match(sql,/set role='owner',team='运营部',job_title='运营经理'/);
   assert.match(sql,/operations_admin_access_granted/);
 });
 

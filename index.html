@@ -1860,9 +1860,8 @@
           <div id="sales-daily-form">
             <div class="daily-section-tabs"><button type="button" class="daily-section-tab active" data-daily-section="report">今日工作日报</button><button type="button" class="daily-section-tab" data-daily-section="history">历史客户线索看板</button></div>
             <div id="daily-report-panel">
-            <section class="card daily-content-card"><p class="hint">新增线索和跟进次数均来自 CRM 真实记录，无需手工填数字；日报只需补充关键进展、所需支持和明日计划。</p>
+            <section class="card daily-content-card"><p class="hint">新增线索来自 CRM 真实记录，无需手工填数字；日报只需补充关键进展、所需支持和明日计划。</p>
             <input id="daily-new-leads" type="hidden" value="0" />
-            <input id="daily-followups" type="hidden" value="0" />
             <div class="daily-lead-section">
               <div class="daily-lead-head">
                 <div><h4>今日新增客户线索</h4><p>展示你在所选日期亲自新建的客户线索，点击任意一行可查看询盘详情。</p></div>
@@ -1876,7 +1875,6 @@
                 <div id="daily-lead-empty" class="empty">所选日期暂无新增客户线索</div>
               </div>
             </div>
-            <div class="daily-auto-metric"><div><b>今日跟进次数</b><br /><span>根据跟进记录自动统计</span></div><b id="daily-followup-count">0</b></div>
             <div class="field">
               <label>关键进展</label
               ><textarea id="daily-progress" class="input" rows="3"></textarea>
@@ -1890,7 +1888,9 @@
               ><textarea id="daily-plan" class="input" rows="2"></textarea>
             </div>
             <div class="form-actions">
-              <button id="submit-daily" class="primary">保存日报</button>
+              <span id="daily-save-state" class="tag" style="margin-right:auto">未保存</span>
+              <button id="save-daily-draft" class="ghost" type="button">保存草稿</button>
+              <button id="submit-daily" class="primary" type="button">提交日报</button>
             </div>
             </section>
             </div>
@@ -1902,7 +1902,7 @@
             </div>
           </div>
           <div id="manager-daily-view" class="hidden">
-            <div class="daily-summary-kpis"><div class="card"><span>应提交成员</span><b id="daily-kpi-total">0</b></div><div class="card"><span>已提交</span><b id="daily-kpi-submitted">0</b></div><div class="card"><span>新增线索</span><b id="daily-kpi-leads">0</b></div><div class="card"><span>跟进次数</span><b id="daily-kpi-followups">0</b></div></div>
+            <div class="daily-summary-kpis"><div class="card"><span>应提交成员</span><b id="daily-kpi-total">0</b></div><div class="card"><span>已提交</span><b id="daily-kpi-submitted">0</b></div><div class="card"><span>新增线索</span><b id="daily-kpi-leads">0</b></div></div>
             <div class="table-wrap daily-report-table">
               <div class="table-head">
                 <span>团队日报明细</span
@@ -1912,8 +1912,8 @@
                 <thead>
                   <tr>
                     <th>销售</th>
+                    <th>数据类型</th>
                     <th>新增线索</th>
-                    <th>跟进</th>
                     <th>关键进展</th>
                     <th>困难与支持</th>
                     <th>明日计划</th>
@@ -6326,20 +6326,21 @@
             supabase
               .from("daily_sales_reports")
               .select(
-                "sales_id,new_leads_count,follow_up_count,key_progress,blockers,tomorrow_plan,submitted_at,profiles(full_name)",
+                "sales_id,new_leads_count,key_progress,blockers,tomorrow_plan,submitted_at,is_simulated,profiles(full_name)",
               )
               .eq("report_date", selectedDate)
+              .eq("status", "submitted")
               .order("submitted_at", { ascending: false }),
           ]);
           if(scopeError||reportError){$("#daily-report-body").replaceChildren();$("#daily-summary").textContent="管理范围或日报加载失败，请重试";toast((scopeError||reportError).message);return}
           const sales=scope?.people||[];
-          const totalSales=sales?.length||0,totalReports=reports?.length||0;
+          const realReports=(reports||[]).filter(x=>!x.is_simulated);
+          const totalSales=sales?.length||0,totalReports=realReports.length;
           $("#daily-summary").textContent =
             `${totalReports}/${totalSales} 已提交`;
           $("#daily-kpi-total").textContent=totalSales;
           $("#daily-kpi-submitted").textContent=totalReports;
-          $("#daily-kpi-leads").textContent=(reports||[]).reduce((s,x)=>s+(Number(x.new_leads_count)||0),0);
-          $("#daily-kpi-followups").textContent=(reports||[]).reduce((s,x)=>s+(Number(x.follow_up_count)||0),0);
+          $("#daily-kpi-leads").textContent=realReports.reduce((s,x)=>s+(Number(x.new_leads_count)||0),0);
           const body = $("#daily-report-body");
           body.replaceChildren();
           $("#daily-empty").classList.toggle(
@@ -6350,8 +6351,8 @@
             const tr = document.createElement("tr");
             [
               x.profiles?.full_name || "—",
+              x.is_simulated?"模拟数据":"正式日报",
               x.new_leads_count,
-              x.follow_up_count,
               x.key_progress || "—",
               x.blockers || "—",
               x.tomorrow_plan || "—",
@@ -6368,17 +6369,14 @@
           const start = `${date}T00:00:00+08:00`;
           const nextDate = new Date(`${date}T00:00:00+08:00`);
           nextDate.setDate(nextDate.getDate() + 1);
-          const [{count},{data:existing},{data:dailyLeads,error:leadError}]=await Promise.all([
-            supabase.from("follow_ups").select("id",{count:"exact",head:true}).eq("author_id",profile.id).gte("created_at",start).lt("created_at",nextDate.toISOString()),
-            supabase.from("daily_sales_reports").select("new_leads_count,follow_up_count,key_progress,blockers,tomorrow_plan").eq("sales_id",profile.id).eq("report_date",date).maybeSingle(),
+          const [{data:existing},{data:dailyLeads,error:leadError}]=await Promise.all([
+            supabase.from("daily_sales_reports").select("new_leads_count,key_progress,blockers,tomorrow_plan,status,draft_saved_at,submitted_at").eq("sales_id",profile.id).eq("report_date",date).maybeSingle(),
             supabase.from("inquiries").select("id,inquiry_no,title,target_country,source,status,created_at,companies(name),contacts(full_name,email)").eq("created_by",profile.id).eq("excluded_from_dashboard",false).gte("created_at",start).lt("created_at",nextDate.toISOString()).order("created_at",{ascending:false}),
           ]);
           if(leadError) throw leadError;
           const leadRows=dailyLeads||[];
           $("#daily-new-leads").value=leadRows.length;
-          $("#daily-followups").value = count || 0;
           $("#daily-lead-count").textContent=`${leadRows.length} 条`;
-          $("#daily-followup-count").textContent=count||0;
           const leadBody=$("#daily-lead-body");
           leadBody.replaceChildren();
           $("#daily-lead-empty").classList.toggle("hidden",Boolean(leadRows.length));
@@ -6397,6 +6395,9 @@
           $("#daily-progress").value=existing?.key_progress||"";
           $("#daily-blockers").value=existing?.blockers||"";
           $("#daily-plan").value=existing?.tomorrow_plan||"";
+          const submitted=existing?.status==="submitted";
+          $("#daily-save-state").textContent=submitted?`已提交 · ${fmtDate(existing.submitted_at)}`:existing?`草稿已保存 · ${fmtDate(existing.draft_saved_at)}`:"未保存";
+          ["#daily-progress","#daily-blockers","#daily-plan","#save-daily-draft","#submit-daily"].forEach(selector=>$(selector).disabled=submitted);
         }
       }
       $$(".nav[data-view]").forEach((item) =>
@@ -6418,27 +6419,26 @@
         $("#daily-modal").classList.add("hidden");
         $("#new-inquiry").click();
       });
-      $("#submit-daily").addEventListener("click", async () => {
-        const payload = {
-          sales_id: profile.id,
-          report_date: $("#daily-date").value || chinaDate(),
-          new_leads_count: Number($("#daily-new-leads").value) || 0,
-          follow_up_count: Number($("#daily-followups").value) || 0,
-          key_progress: $("#daily-progress").value.trim() || null,
-          blockers: $("#daily-blockers").value.trim() || null,
-          tomorrow_plan: $("#daily-plan").value.trim() || null,
-          updated_at: new Date().toISOString(),
-        };
-        const { error } = await supabase
-          .from("daily_sales_reports")
-          .upsert(payload, { onConflict: "sales_id,report_date" });
+      async function persistDailyReport(submitReport){
+        if(submitReport&&!await appConfirm("确认提交这份日报？\n\n提交后将同步给主管，且不能再修改。",{title:"提交日报",confirmText:"确认提交"}))return;
+        const button=$(submitReport?"#submit-daily":"#save-daily-draft");button.disabled=true;
+        const { error } = await supabase.rpc("save_or_submit_daily_report", {
+          target_date: $("#daily-date").value || chinaDate(),
+          key_progress_text: $("#daily-progress").value.trim() || null,
+          blockers_text: $("#daily-blockers").value.trim() || null,
+          tomorrow_plan_text: $("#daily-plan").value.trim() || null,
+          submit_report: submitReport,
+        });
+        button.disabled=false;
         if (error) {
-          toast("日报提交失败：" + error.message);
+          toast((submitReport?"日报提交失败：":"草稿保存失败：") + error.message);
           return;
         }
-        toast("日报已保存并同步给主管");
+        toast(submitReport?"日报已提交并同步给主管":"日报草稿已保存");
         await openDailyReport();
-      });
+      }
+      $("#save-daily-draft").addEventListener("click",()=>persistDailyReport(false));
+      $("#submit-daily").addEventListener("click",()=>persistDailyReport(true));
       function localDateTimeValue(date = new Date()) {
         const offset = date.getTimezoneOffset() * 60000;
         return new Date(date.getTime() - offset).toISOString().slice(0, 16);

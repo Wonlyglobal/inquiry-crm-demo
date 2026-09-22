@@ -1350,6 +1350,7 @@
         </div>
         <button class="primary" type="submit">登录</button>
         <button id="forgot-password" class="ghost" type="button" style="width:100%;margin-top:10px">忘记密码</button>
+        <button id="session-retry" class="primary hidden" type="button" style="width:100%;margin-top:10px">重新加载账号</button>
         <div id="login-error" class="error"></div>
       </form>
     </section>
@@ -2698,6 +2699,18 @@
           return;
         }
         showApp();
+      }
+      async function loadProfileWithRetry(user, attempts = 3) {
+        let lastError;
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          try { return await withTimeout(loadProfile(user), 15000, "用户资料加载超时"); }
+          catch (error) {
+            lastError = error;
+            if (/管理员禁用|PGRST116|0 rows/i.test(String(error?.message || error))) throw error;
+            if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, attempt * 600));
+          }
+        }
+        throw lastError;
       }
       async function loadMyRiskControls(){
         const {data,error}=await supabase.rpc("get_my_risk_controls");
@@ -6110,6 +6123,7 @@
         $("#forgot-password-modal").classList.remove("hidden");
       }
       $("#forgot-password").addEventListener("click", () => openPasswordResetRequest("login"));
+      $("#session-retry").addEventListener("click", () => location.reload());
       $("#change-password").addEventListener("click", () => openPasswordResetRequest("account"));
       $("#close-forgot-password").addEventListener("click", () => {
         $("#forgot-password-modal").classList.add("hidden");
@@ -8403,6 +8417,7 @@
       });
       let session = null;
       let sessionError = null;
+      let preservedSessionFailure = false;
       try {
         const sessionResult = await Promise.race([
           supabase.auth.getSession(),
@@ -8418,14 +8433,25 @@
         openRecoveryPassword();
       } else if (session) {
         try {
-          await withTimeout(loadProfile(session.user), 15000, "用户资料加载超时");
+          await loadProfileWithRetry(session.user);
           sessionReady = true;
-        } catch {
-          try { await withTimeout(supabase.auth.signOut(), 5000, "登录状态清理超时"); } catch (signOutError) { console.warn("登录状态清理失败", signOutError); }
+        } catch (error) {
+          sessionError = error;
+          const permanentProfileFailure = /管理员禁用|PGRST116|0 rows/i.test(String(error?.message || error));
+          if (permanentProfileFailure) {
+            try { await withTimeout(supabase.auth.signOut(), 5000, "登录状态清理超时"); } catch (signOutError) { console.warn("登录状态清理失败", signOutError); }
+          } else {
+            preservedSessionFailure = true;
+            $("#login-email").value = session.user.email || "";
+          }
         }
       }
       $("#boot").classList.add("hidden");
-      if (sessionError) $("#login-error").textContent = "数据服务暂时无法连接，请检查网络后重试";
+      if (preservedSessionFailure) {
+        $("#login-error").textContent = "登录状态仍保留，账号资料暂时加载失败。请点击重新加载，无需再次输入密码。";
+        $("#login-form").querySelectorAll(".field, button[type='submit'], #forgot-password").forEach((element) => element.classList.add("hidden"));
+        $("#session-retry").classList.remove("hidden");
+      } else if (sessionError) $("#login-error").textContent = "数据服务暂时无法连接，请检查网络后重试";
       if (!sessionReady && !recoveryActive) $("#login").classList.remove("hidden");
       const initialInquiry = location.hash.match(/^#inquiry\/(.+)$/);
       if (sessionReady && initialInquiry)

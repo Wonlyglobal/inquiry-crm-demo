@@ -2815,6 +2815,8 @@
           const views = [];
           if (canAccessView("assignment")) { views.push("assignment"); requests.push(supabase.from("inquiries").select("id",{count:"exact",head:true}).eq("excluded_from_dashboard",false).eq("validity","valid").eq("status","pending_assignment")); }
           if (canAccessView("email")) { views.push("email"); requests.push(supabase.from("email_intake").select("id",{count:"exact",head:true}).is("trashed_at",null).is("triage_label",null)); }
+          const actionableIndex=requests.length;
+          requests.push(supabase.rpc("get_my_sidebar_actionable_counts"));
           const results = await Promise.all(requests);
           if (profile?.id !== userId || profile?.role !== role) return;
           // Preserve the last known state on errors instead of reporting a false zero.
@@ -2822,7 +2824,10 @@
           inquiryUnreadItems = groupInquiryUpdates(results[0].data || []);
           const counts = sidebarUnreadCounts(results[0].data || []);
           views.forEach((view,index)=>{ counts[view] = results[index+1].count || 0; });
-          paintSidebarBadges(counts, new Set(views));
+          const actionable=results[actionableIndex].data||{};
+          counts.mailbox=Number(actionable.mailbox_unread)||0;
+          counts["sales-today"]=Number(actionable.today_tasks)||0;
+          paintSidebarBadges(counts, new Set([...views,"mailbox","sales-today"]));
           if (["inquiries","assignment"].includes(activeModuleView) && !$("#module-page").classList.contains("hidden")) filterModuleRows();
         } catch (error) { console.warn("侧边栏更新状态暂时无法刷新", error); }
         finally { sidebarRefreshInFlight = false; }

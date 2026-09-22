@@ -630,6 +630,24 @@
       .module-table-heading { min-width:0; }
       .module-table-heading strong { display:block; font-size:15px; }
       .module-table-heading small { display:block; margin-top:4px; color:var(--muted); font-size:10px; font-weight:500; }
+      .customer-core { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+      .customer-core-card { min-width:0; padding:18px; border:1px solid var(--line); border-radius:22px; background:rgba(255,255,255,.86); box-shadow:var(--shadow-soft); }
+      .customer-core-card header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+      .customer-core-card h3 { margin:0; font-size:17px; }
+      .customer-core-card p { margin:4px 0 0; color:var(--muted); font-size:12px; }
+      .customer-core-list { display:grid; gap:8px; }
+      .customer-core-item { width:100%; min-width:0; padding:10px 12px; border:1px solid #dfe8e2; border-radius:14px; background:#f8fbf9; color:var(--ink); text-align:left; }
+      .customer-core-item b,.customer-core-item small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .customer-core-item small { margin-top:3px; color:var(--muted); }
+      .pipeline-dropdown-row td { padding:0!important; background:#f5f9f6; }
+      .pipeline-inline { padding:16px 18px 18px; border-top:1px solid var(--line); }
+      .pipeline-inline-head { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; }
+      .pipeline-inline-stages { display:grid; grid-template-columns:repeat(9,minmax(92px,1fr)); gap:7px; overflow:auto; padding-bottom:4px; }
+      .pipeline-inline-stage { min-width:92px; padding:10px; border:1px solid #dfe7e2; border-radius:12px; background:#fff; color:var(--muted); }
+      .pipeline-inline-stage b,.pipeline-inline-stage small { display:block; }
+      .pipeline-inline-stage small { margin-top:4px; font-size:10px; }
+      .pipeline-inline-stage.passed { border-color:#9ab6a5; background:#eef6f0; color:#315c4c; }
+      .pipeline-inline-stage.current { border-color:var(--brand); background:var(--brand); color:#fff; }
       .module-filter-group { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
       .module-filter-select { height:38px; min-width:126px; padding:0 31px 0 11px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font:inherit; }
       .module-refresh { display:inline-flex; align-items:center; gap:6px; height:38px; }
@@ -759,15 +777,32 @@
       #daily-modal { position:static; inset:auto; display:block; min-width:0; max-width:100%; overflow:visible; padding:24px 0 48px; background:transparent; z-index:auto; }
       #daily-modal.hidden { display:none; }
       #daily-modal .modal { width:100%; min-width:0; max-width:100%; max-height:none; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
-      #daily-modal .modal-head { box-sizing:border-box; min-width:0; max-width:100%; padding:0 0 18px; flex-wrap:wrap; gap:12px; }
+      #daily-modal .modal-head { box-sizing:border-box; min-width:0; max-width:100%; margin-bottom:14px; padding:18px 20px; flex-wrap:wrap; gap:12px; border:1px solid var(--line); border-radius:22px; background:rgba(255,255,255,.82); box-shadow:0 14px 34px rgba(20,52,43,.055); }
       #daily-modal .modal-head > div { flex:1 1 320px; min-width:0; }
       #daily-modal .modal-head > #close-daily { max-width:100%; margin-left:auto; }
       #daily-modal .modal-head h3 { font-size:25px; }
       #daily-modal .form-body { padding:0; }
-      .daily-toolbar { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:14px; padding:14px 16px; }
-      .daily-toolbar p { margin:4px 0 0; color:var(--muted); font-size:11px; }
-      .daily-date-control { display:flex; align-items:center; gap:8px; }
-      .daily-date-control label { color:var(--muted); font-size:11px; font-weight:700; }
+      .daily-toolbar { position:relative; display:flex; justify-content:space-between; align-items:center; gap:18px; margin-bottom:14px; padding:18px 20px; }
+      .daily-toolbar p { margin:5px 0 0; color:var(--muted); font-size:12px; }
+      .daily-date-control { position:relative; display:flex; align-items:center; gap:10px; }
+      .daily-date-control > label { color:var(--muted); font-size:12px; font-weight:750; white-space:nowrap; }
+      .date-picker-trigger { min-width:196px; height:48px; padding:0 16px; border:1px solid var(--line); border-radius:16px; background:#fff; color:var(--ink); display:flex; align-items:center; justify-content:space-between; gap:18px; font:inherit; font-size:16px; font-weight:760; cursor:pointer; box-shadow:0 5px 14px rgba(20,52,43,.04); }
+      .date-picker-trigger:hover,.date-picker-trigger[aria-expanded="true"] { border-color:var(--green); box-shadow:0 0 0 3px rgba(21,58,49,.08); }
+      .date-picker-trigger svg { width:19px; height:19px; color:var(--green); }
+      .date-picker-popover { position:absolute; z-index:80; top:calc(100% + 10px); right:0; width:320px; padding:16px; border:1px solid var(--line); border-radius:20px; background:#fff; box-shadow:0 22px 55px rgba(20,52,43,.18); }
+      .date-picker-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:14px; }
+      .date-picker-head strong { font-size:15px; }
+      .date-picker-nav { width:38px; height:38px; border:0; border-radius:12px; background:var(--soft); color:var(--ink); cursor:pointer; font-size:20px; line-height:1; }
+      .date-picker-nav:hover { background:var(--green); color:#fff; }
+      .date-picker-week,.date-picker-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+      .date-picker-week { margin-bottom:5px; color:var(--muted); font-size:11px; font-weight:750; text-align:center; }
+      .date-picker-day { aspect-ratio:1; border:0; border-radius:11px; background:transparent; color:var(--ink); font:inherit; font-size:13px; cursor:pointer; }
+      .date-picker-day:hover { background:var(--soft); }
+      .date-picker-day.other-month { color:#a6b0ac; }
+      .date-picker-day.today { box-shadow:inset 0 0 0 1px var(--green); }
+      .date-picker-day.selected { background:var(--green); color:#fff; font-weight:800; box-shadow:none; }
+      .date-picker-foot { display:flex; justify-content:space-between; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+      .date-picker-foot button { border:0; background:transparent; color:var(--orange); font-weight:750; cursor:pointer; }
       .daily-summary-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
       .daily-summary-kpis .card { padding:15px; }
       .daily-summary-kpis span { display:block; color:var(--muted); font-size:11px; margin-bottom:8px; }
@@ -1284,6 +1319,7 @@
         .heading h1 { font-size:23px; }
         .heading-actions { flex-wrap:wrap; justify-content:flex-end; }
         .module-table-toolbar { align-items:stretch; flex-direction:column; }
+        .customer-core { grid-template-columns:1fr; }
         .module-search-wrap { max-width:none; }
         #module-filter-summary { align-self:flex-start; }
         .module-insights { grid-template-columns:1fr 1fr; }
@@ -1305,7 +1341,10 @@
         .dashboard-toolbar { align-items:flex-start; flex-direction:column; }
         .dashboard-actions { justify-content:flex-start; }
         .dashboard-kpis { grid-template-columns:1fr 1fr; }
-        .daily-toolbar { align-items:flex-start; flex-direction:column; }
+        .daily-toolbar { align-items:stretch; flex-direction:column; }
+        .daily-date-control { justify-content:space-between; }
+        .date-picker-trigger { min-width:0; flex:1; }
+        .date-picker-popover { left:0; right:0; width:auto; }
         #daily-modal .modal-head { align-items:flex-start; }
         #daily-modal .modal-head > #close-daily { margin-left:0; }
         .daily-lead-head { align-items:flex-start; flex-direction:column; }
@@ -1384,7 +1423,7 @@
         ><button class="nav" data-view="inquiries">
           <i data-lucide="contact-round"></i><span>询盘商机</span></button
         ><button class="nav" data-view="customers">
-          <i data-lucide="building-2"></i><span>客户资料库</span></button
+          <i data-lucide="building-2"></i><span>客户管理</span></button
         ><button class="nav" data-view="mailbox">
           <i data-lucide="mail"></i><span>我的邮箱</span></button
         ><button class="nav" data-view="whatsapp">
@@ -1453,9 +1492,8 @@
           <div class="heading">
             <div>
               <h1>经营看板</h1>
-              <p id="dashboard-subtitle">询盘效率、销售转化、渠道 ROI 与风险预警</p>
             </div>
-            <div class="heading-actions"><button id="dashboard-layout-toggle" class="ghost" type="button">调整布局</button><button id="dashboard-layout-reset" class="ghost hidden" type="button">恢复默认</button><button id="new-inquiry" class="primary">+ 新建询盘</button></div>
+            <div class="heading-actions"><button id="dashboard-layout-toggle" class="ghost" type="button">调整布局</button><button id="dashboard-layout-reset" class="ghost hidden" type="button">恢复默认</button><button id="new-inquiry" class="primary">+ 新建客户 / 商机</button></div>
           </div>
           <div class="dashboard-toolbar card">
             <div class="dashboard-toolbar-primary">
@@ -1466,7 +1504,6 @@
                 <input id="dashboard-start" class="input compact hidden" type="date" />
                 <input id="dashboard-end" class="input compact hidden" type="date" />
               </div>
-              <div class="dashboard-actions"><button id="dashboard-targets" class="ghost">设置目标</button><button id="dashboard-export-csv" class="ghost">申请导出清单</button><button id="dashboard-export-pdf" class="ghost">导出审批记录</button></div>
             </div>
             <div class="dashboard-toolbar-secondary">
             <div class="dashboard-filter-group">
@@ -1610,6 +1647,9 @@
               <button id="legacy-project-template" class="ghost hidden" type="button">下载导入模板</button>
               <button id="legacy-project-import" class="primary hidden" type="button">导入 Excel</button>
               <input id="legacy-project-import-file" class="hidden" type="file" accept=".xlsx,.xls,.csv" />
+              <button id="customer-import-template" class="ghost hidden" type="button">下载客户模板</button>
+              <button id="customer-import" class="ghost hidden" type="button">导入现有客户</button>
+              <input id="customer-import-file" class="hidden" type="file" accept=".csv,text/csv" />
               <button id="operations-settings" class="ghost hidden">区域与分配规则</button><button id="followup-settings" class="ghost hidden">我的跟进默认值</button>
               <button id="module-primary" class="primary hidden"></button>
             </div>
@@ -1632,6 +1672,7 @@
           </section>
           <section id="sales360-quarter-panel" class="card hidden" aria-label="季度业务员评价进度"></section>
           <section id="whatsapp-workspace" class="wa-workspace hidden" aria-label="WhatsApp Business 聊天工作台"></section>
+          <section id="customer-core" class="customer-core hidden" aria-label="公司联系人商机总览"></section>
           <section id="inquiry-command" class="inquiry-command hidden">
             <div class="inquiry-command-head"><div><h2>询盘状态总览</h2><p>先定位待处理环节，再进入具体询盘；数字随当前数据权限实时更新。</p></div><span class="tag">点击状态可快速筛选</span></div>
             <div id="inquiry-stage-tabs" class="inquiry-stage-tabs"></div>
@@ -1757,7 +1798,7 @@
     <div id="inquiry-modal" class="modal-backdrop hidden">
       <div class="modal">
         <div class="modal-head">
-          <h3>新建询盘</h3>
+          <h3>新建客户 / 商机</h3>
           <button id="close-modal" class="close">×</button>
         </div>
         <div class="tabs">
@@ -1765,45 +1806,57 @@
           ><button class="tab" data-tab="email">从客户邮件生成</button>
         </div>
         <form id="manual-form" class="form-body">
-          <p class="hint">适用于展会、LinkedIn、Google Ads、Meta Ads、SEO 自然搜索、转介绍、销售自主开发及其他非邮箱渠道；选择来源后补充具体活动或入口。</p>
+          <p class="hint">统一登记 WhatsApp、微信、电话、展会、社媒、拜访和转介绍客户。销售创建后归属本人；市场创建后提交主管分配。</p>
           <div class="grid2">
             <div class="field">
-              <label>客户邮箱 *</label
-              ><input name="email" class="input" type="email" required />
+              <label>客户邮箱</label
+              ><input name="email" class="input" type="email" autocomplete="email" />
             </div>
             <div class="field">
               <label>联系人</label><input name="contact" class="input" />
             </div>
             <div class="field">
-              <label>公司名称 *</label
-              ><input name="company" class="input" required />
+              <label>公司名称</label
+              ><input name="company" class="input" />
             </div>
             <div class="field">
-              <label>国家/地区</label><input name="country" class="input" />
+              <label>国家/地区 *</label><input name="country" class="input" required />
             </div>
             <div class="field">
-              <label>产品品类 *</label
+              <label>电话</label><input name="phone" class="input" autocomplete="tel" placeholder="含国家区号" />
+            </div>
+            <div class="field">
+              <label>WhatsApp</label><input name="whatsapp" class="input" autocomplete="tel" placeholder="含国家区号" />
+            </div>
+            <div class="field">
+              <label>产品品类</label
               ><input
                 name="product"
                 class="input"
                 placeholder="如：智能锁、防盗门"
-                required
               />
             </div>
             <div class="field">
               <label>数量</label><input name="quantity" class="input" />
             </div>
             <div class="field">
-              <label>来源渠道 *</label><select name="source" class="input" required><option value="outbound">销售自主开发</option><option value="website">官网表单</option><option value="email">企业邮箱</option><option value="google_ads">Google Ads</option><option value="meta_ads">Meta Ads</option><option value="linkedin">LinkedIn</option><option value="exhibition">展会</option><option value="referral">经销商/客户转介绍</option><option value="other">其他</option></select>
+              <label>来源渠道 *</label><select name="source" class="input" required><option value="whatsapp">WhatsApp</option><option value="wechat">微信</option><option value="phone">电话</option><option value="exhibition">展会</option><option value="website">官网表单</option><option value="email">企业邮箱</option><option value="social_media">社媒</option><option value="offline_visit">线下拜访</option><option value="dealer_referral">经销商转介绍</option><option value="customer_referral">客户转介绍</option><option value="internal_referral">其他部门 / 国内外团队转介绍</option><option value="outbound">销售自主开发</option><option value="other">其他</option></select>
             </div>
             <div class="field">
               <label>渠道明细 / 活动名称</label><input name="source_detail" class="input" placeholder="例如：2026 Madrid 展会 / LinkedIn 私信" />
             </div>
           </div>
           <div class="field">
-            <label>需求说明</label
-            ><textarea name="message" class="input" rows="4"></textarea>
+            <label>需求摘要 *</label
+            ><textarea name="message" class="input" rows="4" minlength="4" required placeholder="客户需要什么、预计用途及下一步"></textarea>
           </div>
+          <div class="grid2">
+            <div class="field"><label>预计金额</label><input name="estimated_value" class="input" type="number" min="0" step="0.01" /></div>
+            <div class="field"><label>币种</label><select name="estimated_currency" class="input"><option value="USD">USD</option><option value="CNY">CNY</option><option value="EUR">EUR</option></select></div>
+            <div class="field"><label>预计采购日期</label><input name="expected_purchase_date" class="input" type="date" /></div>
+            <div class="field"><label>商机标题</label><input name="opportunity_title" class="input" placeholder="留空时按公司和产品自动生成" /></div>
+          </div>
+          <p class="hint">公司或联系人至少填写一项；邮箱、电话、WhatsApp 至少填写一项。系统会检查重复客户，不会自动改变已有归属。</p>
           <p id="manual-self-owner-hint" class="hint hidden">该线索将自动归属你本人，无需销售主管再次分配。</p>
           <label id="manual-assignment-notify" class="checkline"
             ><input name="notify" type="checkbox" checked />
@@ -1812,7 +1865,7 @@
           <div class="duplicate-warning hidden" data-duplicate-warning></div>
           <div class="form-actions">
             <button type="button" class="ghost cancel-modal">取消</button
-            ><button class="primary" type="submit">创建询盘</button>
+            ><button id="manual-create-submit" class="primary" type="submit">创建客户与商机</button>
           </div>
         </form>
         <form id="email-form" class="form-body hidden">
@@ -1826,6 +1879,9 @@
             </div>
             <div class="field">
               <label>邮件主题</label><input name="subject" class="input" />
+            </div>
+            <div class="field">
+              <label>国家/地区 *</label><input name="country" class="input" required />
             </div>
           </div>
           <div class="field">
@@ -1856,7 +1912,7 @@
           <button id="close-daily" class="ghost">← 返回看板</button>
         </div>
         <div class="form-body">
-          <section id="daily-date-toolbar" class="daily-toolbar card"><div><b>日报日期</b><p>按中国自然日统计，历史日报可通过日期查看。</p></div><div class="daily-date-control"><label for="daily-date">选择日期</label><input id="daily-date" class="input compact" type="date" /></div></section>
+          <section id="daily-date-toolbar" class="daily-toolbar card"><div><b>日报日期</b><p>按中国自然日统计，历史日报可通过日期查看。</p></div><div class="daily-date-control"><label id="daily-date-label">选择日期</label><input id="daily-date" type="hidden" /><button id="daily-date-trigger" class="date-picker-trigger" type="button" aria-labelledby="daily-date-label daily-date-text" aria-haspopup="dialog" aria-expanded="false"><span id="daily-date-text">选择日期</span><i data-lucide="calendar-days"></i></button><div id="daily-date-popover" class="date-picker-popover hidden" role="dialog" aria-label="选择日报日期"><div class="date-picker-head"><button id="daily-date-prev" class="date-picker-nav" type="button" aria-label="上个月">‹</button><strong id="daily-date-month"></strong><button id="daily-date-next" class="date-picker-nav" type="button" aria-label="下个月">›</button></div><div class="date-picker-week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div><div id="daily-date-grid" class="date-picker-grid"></div><div class="date-picker-foot"><button id="daily-date-today" type="button">回到今天</button><button id="daily-date-close" type="button">完成</button></div></div></div></section>
           <div id="sales-daily-form">
             <div class="daily-section-tabs"><button type="button" class="daily-section-tab active" data-daily-section="report">今日工作日报</button><button type="button" class="daily-section-tab" data-daily-section="history">历史客户线索看板</button></div>
             <div id="daily-report-panel">
@@ -1988,8 +2044,6 @@
         <nav class="detail-tabs" aria-label="询盘详情分区">
           <button class="detail-tab active" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
-          <button class="detail-tab" type="button" data-detail-tab="contact-policy">触达规则</button>
-          <button class="detail-tab" type="button" data-detail-tab="pipeline">流水线</button>
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
@@ -2154,22 +2208,6 @@
             <div id="outreach-quality-panel" class="quality-panel"><div class="quality-panel-head"><b>发送前质检</b><span id="outreach-quality-badge" class="tag">待质检</span></div><div id="outreach-quality-checks" class="quality-checks"></div></div>
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button></div>
           </div>
-        </div>
-        <div class="form-body detail-section hidden" data-detail-section="contact-policy">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-            <div><h4 style="margin:0">客户触达规则</h4><p class="hint" style="margin:8px 0 0">用于判断是否可以发送首次开发信或新一轮主动邮件；客户已来信后的正常回复不受此页的主动触达限制。</p></div>
-            <span id="contact-policy-badge" class="tag">尚未配置</span>
-          </div>
-          <div id="contact-policy-status" class="notice" style="margin-top:16px">尚未配置：主动开发信会被安全策略阻止，直到联系依据已核实。</div>
-          <div class="detail-grid" style="margin-top:18px">
-            <div class="field"><label>联系依据 *</label><select id="contact-policy-consent" class="input"><option value="unknown">待核实</option><option value="legitimate_interest">合法利益 / 已有业务关系</option><option value="opted_in">客户明确同意</option><option value="opted_out">客户已退订</option></select></div>
-            <div class="field"><label>最小联系间隔（天）*</label><input id="contact-policy-interval" class="input" type="number" min="1" max="90" step="1" value="7" /></div>
-            <div class="field"><label>下次最早可联系时间</label><input id="contact-policy-next-at" class="input" type="datetime-local" /></div>
-            <div class="field"><label style="display:flex;align-items:center;gap:9px"><input id="contact-policy-do-not-contact" type="checkbox" /> 禁止主动联系</label><small class="hint">客户退订、投诉或明确要求停止联系时勾选。</small></div>
-          </div>
-          <div class="field"><label>政策备注</label><textarea id="contact-policy-note" class="input" rows="3" placeholder="例如：客户在展会留下名片，同意接收产品资料"></textarea></div>
-          <div class="field"><label>本次修改原因 *</label><input id="contact-policy-reason" class="input" maxlength="500" placeholder="说明同意、退订或频率调整的来源，系统将完整留痕" /></div>
-          <div class="form-actions"><button id="save-contact-policy" class="primary" type="button">保存触达规则</button></div>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="validity">
           <div class="validity-quick">
@@ -2511,7 +2549,7 @@
         sales: new Set(["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
       const roleGuideViewNames = {
-        dashboard:"经营看板","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户资料库",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
+        dashboard:"经营看板","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
         {at:"2026-09-20 10:15",title:"新增风险审查中心第一阶段",detail:"老板可查看全公司、主管可查看本团队业务风险；确定性规则识别无人负责、首响逾期和跟进逾期，处置、解除和关闭均留不可删除事件记录。",roles:["owner","sales_manager"]},
@@ -2553,7 +2591,7 @@
         if(inquiry.validity==="valid"&&!inquiry.owner_id&&!['won','lost'].includes(inquiry.status))return "待主管分配";
         return statusNames[inquiry.status]||inquiry.status||"—";
       }
-      const sourceNames = { email: "企业邮箱", manual: "手工录入（待补充渠道）", website: "官网表单", feishu: "飞书", google_ads: "Google Ads", meta_ads: "Meta Ads", linkedin: "LinkedIn", exhibition: "展会", outbound: "销售自主开发", referral: "经销商/客户转介绍", other: "其他" };
+      const sourceNames = { email:"企业邮箱",manual:"手工录入（待补充渠道）",website:"官网表单",whatsapp:"WhatsApp",wechat:"微信",phone:"电话",social_media:"社媒",offline_visit:"线下拜访",dealer_referral:"经销商转介绍",customer_referral:"客户转介绍",internal_referral:"部门 / 团队转介绍",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",outbound:"销售自主开发",referral:"经销商/客户转介绍",other:"其他" };
       const countryBilingualNames = {
         brasil:["巴西","Brazil"],brazil:["巴西","Brazil"],巴西:["巴西","Brazil"],
         argentina:["阿根廷","Argentina"],阿根廷:["阿根廷","Argentina"],
@@ -2755,14 +2793,14 @@
           !["owner", "sales_manager", "marketing"].includes(role),
         );
         const salesView=role==="sales",managerView=role==="sales_manager",marketingView=role==="marketing";
+        $("#new-inquiry").classList.toggle("hidden",!['owner','marketing','sales'].includes(role));
         $("#dashboard-page").classList.toggle("sales-role-view",salesView);
         $("#sales-workbench").classList.toggle("hidden",!salesView);
         $("#manager-workbench").classList.toggle("hidden",!managerView);
         $("#marketing-workbench").classList.toggle("hidden",!marketingView);
         $("#hero-sales-label").textContent=salesView?"我的销售额":"团队总销售额";
-        $("#dashboard-subtitle").textContent="询盘效率、销售转化、渠道 ROI 与风险预警";
-        ["#dashboard-team","#dashboard-sales","#dashboard-data-scope","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
-        ["#dashboard-team","#dashboard-sales","#dashboard-targets","#dashboard-export-csv","#dashboard-export-pdf"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
+        ["#dashboard-team","#dashboard-sales","#dashboard-data-scope"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
+        ["#dashboard-team","#dashboard-sales"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
         const startup = await Promise.allSettled([loadInquiries(), loadNotifications(), refreshPersonalMailboxEntry(), loadDashboardPreferences(),loadMyRiskControls()]);
         initializeDashboardLayout();
         initializeDetailTabsOrder();
@@ -3011,6 +3049,20 @@
         sourceSelect.innerHTML = `<option value="">全部来源</option>${sources.map((value) => `<option value="${esc(value)}">${esc(sourceNames[value] || value)}</option>`).join("")}`;
         sourceSelect.value = sources.includes(selected) ? selected : "";
       }
+      async function toggleInquiryPipelinePreview(inquiry,button,parentRow){
+        const existing=parentRow.nextElementSibling;
+        if(existing?.classList.contains("pipeline-dropdown-row")){existing.remove();button.textContent="展开流水线";button.setAttribute("aria-expanded","false");return}
+        $("#module-body").querySelectorAll(".pipeline-dropdown-row").forEach(row=>row.remove());
+        $("#module-body").querySelectorAll('[data-pipeline-toggle="true"]').forEach(item=>{item.textContent="展开流水线";item.setAttribute("aria-expanded","false")});
+        button.dataset.pipelineToggle="true";button.textContent="收起流水线";button.setAttribute("aria-expanded","true");
+        const detail=document.createElement("tr");detail.className="pipeline-dropdown-row";const cell=document.createElement("td");cell.colSpan=Math.max(moduleColumns.length,1);cell.innerHTML='<div class="pipeline-inline"><div class="pipeline-inline-head"><b>商机流水线</b><span class="hint">正在加载阶段记录…</span></div></div>';detail.append(cell);parentRow.after(detail);
+        const {data,error}=await supabase.from("inquiry_stage_history").select("to_status,entered_at").eq("inquiry_id",inquiry.id).order("entered_at",{ascending:true});
+        if(!detail.isConnected)return;
+        const stages=["pending_assignment","received","qualified","contacted","quoted","sample_sent","negotiating","won","lost"],history=new Map();(data||[]).forEach(item=>{if(!history.has(item.to_status))history.set(item.to_status,item.entered_at)});const currentIndex=stages.indexOf(inquiry.status);
+        const cards=stages.map((status,index)=>{const current=status===inquiry.status,passed=history.has(status)||(currentIndex>=0&&index<currentIndex&&!(inquiry.status==="lost"&&status==="won")),time=history.get(status);return `<div class="pipeline-inline-stage ${passed?"passed":""} ${current?"current":""}"><b>${esc(statusNames[status]||status)}</b><small>${current?"当前阶段":time?fmtDate(time):passed?"已通过":"尚未进入"}</small></div>`}).join("");
+        cell.innerHTML=`<div class="pipeline-inline"><div class="pipeline-inline-head"><div><b>商机流水线</b><p class="hint" style="margin:4px 0 0">负责人：${esc(dashboardState.profiles.find(item=>item.id===inquiry.owner_id)?.full_name||"待分配")} · 最近更新：${esc(fmtDate(inquiry.updated_at||inquiry.created_at))}</p></div><button class="table-action" type="button" data-open-pipeline-detail>查看完整详情</button></div>${error?`<p class="error-text">阶段记录加载失败：${esc(error.message)}</p>`:`<div class="pipeline-inline-stages">${cards}</div>`}</div>`;
+        cell.querySelector("[data-open-pipeline-detail]").addEventListener("click",()=>openInquiryDetail(inquiry.id));
+      }
       function renderModuleTable(columns, rows, onRowClick, filtered = false) {
         if (!filtered) { moduleColumns = columns; moduleRows = rows; moduleRowClick = onRowClick; }
         const head = $("#module-head"), body = $("#module-body");
@@ -3072,7 +3124,7 @@
               button.title = action.title || "";
               button.addEventListener("click", (event) => {
                 event.stopPropagation();
-                action.onClick();
+                action.onClick(button,tr);
               });
               td.append(button);
             });
@@ -3892,14 +3944,46 @@
         if(connection?.status==="disabled")return "我的邮箱 · 已停用";
         return "连接我的邮箱";
       }
+      function renderCustomerCore(companies=[],contacts=[],inquiries=[]){
+        const box=$("#customer-core");if(!box)return;
+        const recentCompanies=companies.slice(0,5),recentContacts=[...contacts].sort((a,b)=>String(b.updated_at||b.created_at||"").localeCompare(String(a.updated_at||a.created_at||""))).slice(0,5),recentOpportunities=[...inquiries].sort((a,b)=>String(b.updated_at||b.created_at||"").localeCompare(String(a.updated_at||a.created_at||""))).slice(0,5);
+        const companyItem=item=>`<button class="customer-core-item" type="button" data-customer-core-company="${esc(item.id)}"><b>${esc(item.company?.name||"未命名公司")}</b><small>${esc(displayCountry(item.company?.country))} · ${item.inquiries.length} 个商机</small></button>`;
+        const contactItem=item=>`<button class="customer-core-item" type="button" data-customer-core-company="${esc(item.company_id)}"><b>${esc(item.full_name||item.email||item.phone||item.whatsapp||"未命名联系人")}</b><small>${esc(item.email||item.phone||item.whatsapp||"联系方式待补充")}</small></button>`;
+        const opportunityItem=item=>`<button class="customer-core-item" type="button" data-customer-core-inquiry="${esc(item.id)}"><b>#${String(item.inquiry_no||"").padStart(6,"0")} · ${esc(item.title||"未命名商机")}</b><small>${esc(displayInquiryStage(item))} · ${esc(sourceNames[item.source]||item.source||"来源待补充")}</small></button>`;
+        box.innerHTML=`<article class="customer-core-card"><header><div><h3>公司</h3><p>客户主档与归属范围</p></div><span class="tag">${companies.length}</span></header><div class="customer-core-list">${recentCompanies.map(companyItem).join("")||'<small class="hint">暂无可见公司</small>'}</div></article><article class="customer-core-card"><header><div><h3>联系人</h3><p>统一联系方式与角色</p></div><span class="tag">${contacts.length}</span></header><div class="customer-core-list">${recentContacts.map(contactItem).join("")||'<small class="hint">暂无可见联系人</small>'}</div></article><article class="customer-core-card"><header><div><h3>商机</h3><p>需求、阶段与下一步</p></div><span class="tag">${inquiries.length}</span></header><div class="customer-core-list">${recentOpportunities.map(opportunityItem).join("")||'<small class="hint">暂无可见商机</small>'}</div></article>`;
+        $$('[data-customer-core-company]').forEach(button=>button.addEventListener("click",()=>openCustomerRecord(button.dataset.customerCoreCompany)));
+        $$('[data-customer-core-inquiry]').forEach(button=>button.addEventListener("click",()=>openInquiryDetail(button.dataset.customerCoreInquiry)));
+      }
+      const customerImportColumns=["公司名称","联系人","客户邮箱","电话","WhatsApp","国家/地区","来源渠道","渠道明细","需求摘要","产品品类","数量","商机标题","预计金额","币种","预计采购日期"];
+      const customerImportKeys={"公司名称":"company","company":"company","联系人":"contact","contact":"contact","客户邮箱":"email","email":"email","电话":"phone","phone":"phone","WhatsApp":"whatsapp","whatsapp":"whatsapp","国家/地区":"country","country":"country","来源渠道":"source","source":"source","渠道明细":"source_detail","source_detail":"source_detail","需求摘要":"demand","demand":"demand","产品品类":"product","product":"product","数量":"quantity","quantity":"quantity","商机标题":"title","title":"title","预计金额":"estimated_value","estimated_value":"estimated_value","币种":"currency","currency":"currency","预计采购日期":"expected_purchase_date","expected_purchase_date":"expected_purchase_date"};
+      function parseCustomerCsv(text){
+        const rows=[];let row=[],cell="",quoted=false;
+        for(let i=0;i<text.length;i+=1){const char=text[i],next=text[i+1];if(char==='"'&&quoted&&next==='"'){cell+='"';i+=1}else if(char==='"'){quoted=!quoted}else if(char===','&&!quoted){row.push(cell.trim());cell=""}else if((char==='\n'||char==='\r')&&!quoted){if(char==='\r'&&next==='\n')i+=1;row.push(cell.trim());if(row.some(Boolean))rows.push(row);row=[];cell=""}else cell+=char}
+        row.push(cell.trim());if(row.some(Boolean))rows.push(row);if(rows.length<2)throw new Error("文件没有可导入的数据行");
+        const headers=rows[0].map(value=>String(value).replace(/^\uFEFF/,"").trim()),mapped=headers.map(value=>customerImportKeys[value]);
+        if(mapped.some(value=>!value))throw new Error(`存在不支持的表头：${headers.filter((_,index)=>!mapped[index]).join("、")}`);
+        const required=["country","source","demand"],missing=required.filter(key=>!mapped.includes(key));if(missing.length)throw new Error("模板缺少国家/地区、来源渠道或需求摘要列");
+        const data=rows.slice(1).map((values,rowIndex)=>{const item={row_number:rowIndex+2};mapped.forEach((key,index)=>item[key]=String(values[index]||"").trim());return item;});
+        if(data.length>500)throw new Error("单次最多导入 500 行，请拆分文件");return data;
+      }
+      function downloadCustomerImportTemplate(){
+        const example=["示例酒店集团","Maria Garcia","maria@example.com","+34910000000","+34910000000","西班牙","exhibition","2026 Madrid 展会","酒店翻新项目，需要核对防火门五金配置","防火门五金","120 套","Madrid 酒店翻新项目","85000","USD","2026-12-15"];
+        const csv=`\uFEFF${customerImportColumns.join(",")}\n${example.map(value=>`"${String(value).replaceAll('"','""')}"`).join(",")}\n`;const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));link.download="CRM客户导入模板.csv";link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+      }
+      async function previewCustomerImport(file){
+        if(!file)return;if(file.size>2*1024*1024)return toast("客户导入文件不能超过 2MB");
+        try{const rows=parseCustomerCsv(await file.text()),preview=rows.slice(0,10),confirmed=await appConfirm(`文件：${file.name}\n共 ${rows.length} 行。\n\n前 ${preview.length} 行预览：\n${preview.map(row=>`${row.row_number}. ${row.company||row.contact||"未命名客户"}｜${row.country}｜${row.source}｜${row.demand}`).join("\n")}\n\n确认后将整批校验并写入；任一行失败会全部回滚。`,{title:"确认导入现有客户",confirmText:`确认导入 ${rows.length} 行`});if(!confirmed)return;
+          const button=$("#customer-import");button.disabled=true;button.textContent="正在安全导入…";const {data,error}=await supabase.rpc("import_customer_opportunities",{import_rows:rows,source_file:file.name});button.disabled=false;button.textContent="导入现有客户";if(error)return toast("导入失败，未写入任何数据："+error.message);toast(`导入完成：新建 ${Number(data?.created_count||0)} 条，幂等复用 ${Number(data?.deduplicated_count||0)} 条`);await loadModule("customers");
+        }catch(error){toast("导入失败："+error.message)}finally{$("#customer-import-file").value="";$("#customer-import").disabled=false;$("#customer-import").textContent="导入现有客户"}
+      }
       async function loadModule(view, options = {}) {
         if (view !== "inquiries") activeInquiryScope = "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
         const config = {
           inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
           customers: profile.role === "sales"
-            ? ["客户资料库", "查看本人负责客户的公司、联系人、采购偏好、询盘、邮件和成交记录", "本人客户"]
-            : ["客户资料库", "查看权限范围内客户的公司、联系人、采购偏好、询盘、邮件和成交记录", "可见客户"],
+            ? ["客户管理", "统一管理本人负责的公司、联系人、商机和全部渠道跟进", "本人客户"]
+            : ["客户管理", "按权限统一查看公司、联系人、商机及跨渠道客户记录", "可见客户"],
           "sales-today": ["今日工作台", "仅展示主管分配的询盘，以及已关联询盘的真实客户新回复", "销售任务"],
           "follow-calendar": ["跟进日历", "按周、月查看本人计划跟进任务，逾期任务单独汇总", "跟进计划"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
@@ -3941,6 +4025,8 @@
         $("#module-toolbar").classList.add("hidden");
         $("#legacy-project-template").classList.toggle("hidden", view !== "legacy-projects");
         $("#legacy-project-import").classList.toggle("hidden", view !== "legacy-projects" || profile?.role!=="owner");
+        $("#customer-import-template").classList.toggle("hidden",view!=="customers");
+        $("#customer-import").classList.toggle("hidden",view!=="customers"||!["owner","marketing","sales"].includes(profile.role));
         if(view === "legacy-projects" && profile?.role==="owner"){
           supabase.rpc("import_legacy_engineering_projects",{p_rows:[],p_source_file:"capability-check"}).then(({error})=>{
             if(error)$("#legacy-project-import").classList.add("hidden");
@@ -3957,6 +4043,8 @@
         $("#role-guide-live").classList.toggle("hidden",view!=="sop");
         if(view==="sop")renderRoleGuideLive();
         $("#whatsapp-workspace").classList.toggle("hidden",view!=="whatsapp");
+        $("#customer-core").classList.toggle("hidden",view!=="customers");
+        if(view==="customers")$("#customer-core").innerHTML='<article class="customer-core-card"><h3>正在加载客户主档…</h3><p>按当前账号权限读取公司、联系人和商机。</p></article>';
         $("#module-table-wrap").classList.toggle("hidden",view==="whatsapp");
         $("#inquiry-command").classList.toggle("hidden", view !== "inquiries");
         $("#email-triage-actions").classList.toggle("hidden",view!=="email");
@@ -3973,8 +4061,9 @@
         setModuleState("loading");
         const modulePrimary = $("#module-primary");
         modulePrimary.disabled = false;
-        modulePrimary.onclick = view === "whatsapp" ? () => openWhatsAppConnectionForm() : view === "performance-360" ? () => openSales360CycleForm() : view === "risk-review" ? () => runRiskScan() : null;
-        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","whatsapp","templates","knowledge","follow-calendar","performance-360","risk-review"].includes(view) || (view==="knowledge"&&!['owner','marketing'].includes(profile.role)) || (view==="whatsapp"&&!['owner','sales_manager'].includes(profile.role)) || (view==="performance-360"&&profile.role!=="owner"));
+        modulePrimary.onclick = view === "customers" ? () => $("#new-inquiry").click() : view === "whatsapp" ? () => openWhatsAppConnectionForm() : view === "performance-360" ? () => openSales360CycleForm() : view === "risk-review" ? () => runRiskScan() : null;
+        if(view==="customers")modulePrimary.textContent="+ 新建客户 / 商机";
+        modulePrimary.classList.toggle("hidden", !["settings","communications","mailbox","customers","whatsapp","templates","knowledge","follow-calendar","performance-360","risk-review"].includes(view) || (view==="customers"&&!['owner','marketing','sales'].includes(profile.role)) || (view==="knowledge"&&!['owner','marketing'].includes(profile.role)) || (view==="whatsapp"&&!['owner','sales_manager'].includes(profile.role)) || (view==="performance-360"&&profile.role!=="owner"));
         $("#calendar-generate-daily").classList.toggle("hidden",view!=="follow-calendar"||profile.role!=="sales");
         const canManageSharedInquiry = profile.role === "owner";
         const sharedInquiryButton = $("#connect-shared-inquiry");
@@ -4112,11 +4201,12 @@
         } else if(view==="customers"){
           const inquiryResult=await loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,company_id,target_country,product_category,created_at,updated_at,won_amount,won_currency,won_at,companies(id,name,domain,country,company_type,main_business,value_grade,purchase_likelihood,risk_level)").not("company_id","is",null).eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).range(from,to));
           if(inquiryResult.error)query=Promise.resolve(inquiryResult);else{
-            const inquiries=inquiryResult.data||[],companyIds=[...new Set(inquiries.map(item=>item.company_id).filter(Boolean))],contactResult=companyIds.length?await loadModuleRowsPaged((from,to)=>supabase.from("contacts").select("id,company_id").in("company_id",companyIds).range(from,to)):({data:[],error:null});
+            const inquiries=inquiryResult.data||[],companyIds=[...new Set(inquiries.map(item=>item.company_id).filter(Boolean))],contactResult=companyIds.length?await loadModuleRowsPaged((from,to)=>supabase.from("contacts").select("id,company_id,full_name,email,phone,whatsapp,created_at,updated_at").in("company_id",companyIds).range(from,to)):({data:[],error:null});
             if(contactResult.error)query=Promise.resolve(contactResult);else{
               const contactCounts=new Map();(contactResult.data||[]).forEach(item=>contactCounts.set(item.company_id,(contactCounts.get(item.company_id)||0)+1));
               const grouped=new Map();inquiries.forEach(item=>{const company=Array.isArray(item.companies)?item.companies[0]:item.companies;if(!company)return;let record=grouped.get(company.id);if(!record){record={id:company.id,company,inquiries:[],products:new Set(),lastAt:item.updated_at||item.created_at};grouped.set(company.id,record)}record.inquiries.push(item);if(item.product_category)record.products.add(item.product_category);if(new Date(item.updated_at||item.created_at)>new Date(record.lastAt))record.lastAt=item.updated_at||item.created_at});
-              query=Promise.resolve({data:[...grouped.values()].sort((a,b)=>new Date(b.lastAt)-new Date(a.lastAt)),error:null});
+              const companyRecords=[...grouped.values()].sort((a,b)=>new Date(b.lastAt)-new Date(a.lastAt));renderCustomerCore(companyRecords,contactResult.data||[],inquiries);
+              query=Promise.resolve({data:companyRecords,error:null});
               columns=["客户公司","国家/地区","客户类型","采购偏好","联系人","历史询盘","成交","客户等级","最近更新","操作"];
               mapper=record=>({id:record.id,customerCompanyId:record.id,meta:{risk:["high","critical"].includes(record.company.risk_level)},cells:[record.company.name,displayCountry(record.company.country),record.company.company_type||"—",[...record.products].join("、")||"待补充",`${contactCounts.get(record.id)||0} 人`,`${record.inquiries.length} 条`,`${record.inquiries.filter(item=>item.status==="won").length} 条`,record.company.value_grade||"—",fmtDate(record.lastAt)],actions:[{label:"查看客户",onClick:()=>openCustomerRecord(record.id)}]});
               clickable=true;
@@ -4161,8 +4251,8 @@
             $("#module-filter-summary").textContent = "已筛选：未成交、未丢单的进行中询盘";
             $("#module-filter-summary").classList.remove("hidden");
           }
-          columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : view === "nurture" ? ["编号","询盘主题","国家/地区","优先级","成熟度","退回原因","建议复联","培育状态","操作"] : view === "quotes" ? ["编号","客户/询盘","阶段","报价金额","报价时间","下次跟进","操作"] : view === "assignment" ? ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间", "操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间"];
-          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写",requests=publicPoolRequests.filter(r=>r.inquiry_id===x.id),mine=requests.find(r=>r.requested_by===profile.id&&r.request_type==="claim"),actions=[];if(profile.role==="sales")actions.push(mine?{label:"领取申请待审核",onClick:()=>toast("该客户的领取申请正在等待主管审核")}:{label:"申请领取",onClick:()=>requestPublicPoolAction(x.id,"claim")});else{const pending=requests[0];if(pending&&["owner","sales_manager"].includes(profile.role))actions.push({label:`审核${pending.request_type==="claim"?"领取":"释放"}`,onClick:()=>reviewPublicPoolRequest(pending)});actions.push({label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)})}return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : view === "quotes" ? (x)=>({id:x.id,quoteInquiry:x,meta:{status:x.status,validity:x.validity,risk:x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryStage(x),x.estimated_amount?`${x.currency||""} ${Number(x.estimated_amount).toLocaleString()}`:"待填写",x.quoted_at?fmtDate(x.quoted_at):"待报价",x.next_follow_up_at?fmtDate(x.next_follow_up_at):"待安排"],actions:[{label:"报价单",onClick:()=>openQuoteManager(x)},{label:"询盘详情",onClick:()=>openInquiryDetail(x.id)}]}) : view === "assignment" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,source:x.source},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),ownerNames[x.owner_id]||"待主管分配",displayInquiryStage(x),{pending:"待确认",valid:"有效",invalid:"无效"}[x.validity]||x.validity,sourceNames[x.source]||x.source,fmtDate(x.created_at)],actions:[{label:"智能分配",onClick:()=>openDirectAssignment(x.id)},{label:"查看详情",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)], actions: directAssignmentActions(x) });
+          columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : view === "nurture" ? ["编号","询盘主题","国家/地区","优先级","成熟度","退回原因","建议复联","培育状态","操作"] : view === "quotes" ? ["编号","客户/询盘","阶段","报价金额","报价时间","下次跟进","操作"] : view === "assignment" ? ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间", "操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间", "操作"];
+          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写",requests=publicPoolRequests.filter(r=>r.inquiry_id===x.id),mine=requests.find(r=>r.requested_by===profile.id&&r.request_type==="claim"),actions=[];if(profile.role==="sales")actions.push(mine?{label:"领取申请待审核",onClick:()=>toast("该客户的领取申请正在等待主管审核")}:{label:"申请领取",onClick:()=>requestPublicPoolAction(x.id,"claim")});else{const pending=requests[0];if(pending&&["owner","sales_manager"].includes(profile.role))actions.push({label:`审核${pending.request_type==="claim"?"领取":"释放"}`,onClick:()=>reviewPublicPoolRequest(pending)});actions.push({label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)})}return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : view === "quotes" ? (x)=>({id:x.id,quoteInquiry:x,meta:{status:x.status,validity:x.validity,risk:x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryStage(x),x.estimated_amount?`${x.currency||""} ${Number(x.estimated_amount).toLocaleString()}`:"待填写",x.quoted_at?fmtDate(x.quoted_at):"待报价",x.next_follow_up_at?fmtDate(x.next_follow_up_at):"待安排"],actions:[{label:"报价单",onClick:()=>openQuoteManager(x)},{label:"询盘详情",onClick:()=>openInquiryDetail(x.id)}]}) : view === "assignment" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,source:x.source},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),ownerNames[x.owner_id]||"待主管分配",displayInquiryStage(x),{pending:"待确认",valid:"有效",invalid:"无效"}[x.validity]||x.validity,sourceNames[x.source]||x.source,fmtDate(x.created_at)],actions:[{label:"智能分配",onClick:()=>openDirectAssignment(x.id)},{label:"查看详情",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)], actions: [{label:"展开流水线",onClick:(button,row)=>toggleInquiryPipelinePreview(x,button,row)},...directAssignmentActions(x)] });
           clickable = true;
         } else if (view === "email") {
           query = loadModuleRowsPaged((from,to)=>supabase.from("email_intake").select("id,sender_email,subject,processing_status,triage_label,received_at,created_at,inquiry_id,trashed_at,trashed_by").order("created_at", { ascending: false }).range(from,to));
@@ -4582,7 +4672,7 @@
       function detailTabsStorageKey(){return `wonly_detail_tabs_order_${profile?.id||"anonymous"}`}
       function applyDetailTabsOrder(order){
         const container=$(".detail-tabs"),tabs=new Map(detailTabsInitialOrder.map(key=>[key,container.querySelector(`[data-detail-tab="${key}"]`)]));
-        const priority=["research","outreach","contact-policy"];
+        const priority=["research","outreach"];
         [...new Set([...priority,...(Array.isArray(order)?order:[]),...detailTabsInitialOrder])].filter(key=>tabs.has(key)).forEach(key=>container.append(tabs.get(key)));
       }
       function storedDetailTabsOrder(){
@@ -5563,7 +5653,7 @@
         detailOriginView = $("#sales-profile-page").classList.contains("hidden")
           ? ($(".nav[data-view].active")?.dataset.view || "dashboard")
           : "sales-profile";
-        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: draftHistory }, { data: retentionRequest }, { data: marketingTouches }, { data: journeyEvents }, { data: lostRequest }, { data: wonRequest }, { data: contactPolicy }] = await Promise.all([
+        const [{ data: inquiry, error }, { data: owners }, { data: intake }, { data: draftHistory }, { data: retentionRequest }, { data: marketingTouches }, { data: journeyEvents }, { data: lostRequest }, { data: wonRequest }] = await Promise.all([
           supabase
             .from("inquiries")
             .select(
@@ -5589,7 +5679,6 @@
           supabase.from("inquiry_user_journey_events").select("id,session_ref,event_name,event_at,sequence_no,page_path,page_title,cta_name,section_name,language,product_context,error_type,created_at").eq("inquiry_id",id).order("sequence_no",{ascending:true}),
           supabase.from("inquiry_lost_requests").select("id,inquiry_id,requested_by,loss_reason,status,reviewed_by,review_note,reviewed_at,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
           supabase.from("inquiry_won_requests").select("id,inquiry_id,requested_by,won_amount,won_currency,evidence_bucket,evidence_path,evidence_name,request_reason,status,reviewed_by,review_note,reviewed_at,locked_exchange_rate,created_at").eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
-          supabase.from("inquiry_contact_policies").select("inquiry_id,consent_status,do_not_contact,min_interval_days,next_allowed_at,last_contact_at,policy_note,updated_by,updated_at").eq("inquiry_id",id).maybeSingle(),
         ]);
         if (error) {
           toast("详情加载失败：" + error.message);
@@ -5599,7 +5688,7 @@
         currentQualificationAiSuggestion = null;
         const marketAssignedScope=profile.role==="marketing"&&Boolean(inquiry.owner_id);
         const marketHiddenDetailTabs=profile.role==="marketing"
-          ? new Set(["outreach","pipeline","followup",...(marketAssignedScope?["contact-policy","qualification","audit"]:[])])
+          ? new Set(["outreach","followup",...(marketAssignedScope?["qualification","audit"]:[])])
           : new Set();
         $$(".detail-tab[data-detail-tab]").forEach(tab=>tab.classList.toggle("hidden",marketHiddenDetailTabs.has(tab.dataset.detailTab)));
         renderOutreachGuidanceOptions();
@@ -5611,7 +5700,6 @@
         currentInquiry.journeyEvents = journeyEvents || [];
         currentInquiry.lostRequest = lostRequest || null;
         currentInquiry.wonRequest = wonRequest || null;
-        currentInquiry.contactPolicy = contactPolicy || null;
         $("#detail-title").textContent =
           `询盘 #${String(inquiry.inquiry_no).padStart(6, "0")} · ${inquiry.title}`;
         $("#detail-status").value = inquiry.status;
@@ -5656,7 +5744,6 @@
         $("#marketing-touch-at").value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
         const canAttribute=["owner","marketing"].includes(profile.role);
         $("#marketing-touch-form").classList.toggle("hidden",!canAttribute);
-        populateContactPolicyForm(currentInquiry.contactPolicy);
         renderUserJourney(currentInquiry.journeyEvents);
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
@@ -6279,6 +6366,43 @@
           day: "2-digit",
         }).format(new Date());
       }
+      let dailyCalendarMonth=null;
+      function dailyDateLabel(value){
+        if(!value)return "选择日期";
+        const [year,month,day]=value.split("-").map(Number);
+        return `${year}年${month}月${day}日`;
+      }
+      function closeDailyDatePicker(){
+        $("#daily-date-popover").classList.add("hidden");
+        $("#daily-date-trigger").setAttribute("aria-expanded","false");
+      }
+      function renderDailyDatePicker(){
+        const selected=$("#daily-date").value||chinaDate();
+        const [selectedYear,selectedMonth]=selected.split("-").map(Number);
+        if(!dailyCalendarMonth)dailyCalendarMonth=new Date(selectedYear,selectedMonth-1,1);
+        const year=dailyCalendarMonth.getFullYear(),month=dailyCalendarMonth.getMonth();
+        $("#daily-date-month").textContent=`${year}年${month+1}月`;
+        $("#daily-date-text").textContent=dailyDateLabel(selected);
+        const grid=$("#daily-date-grid");grid.replaceChildren();
+        const first=new Date(year,month,1),start=new Date(year,month,1-first.getDay());
+        for(let offset=0;offset<42;offset+=1){
+          const date=new Date(start);date.setDate(start.getDate()+offset);
+          const value=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+          const button=document.createElement("button");button.type="button";button.className="date-picker-day";button.textContent=date.getDate();button.dataset.date=value;
+          if(date.getMonth()!==month)button.classList.add("other-month");
+          if(value===chinaDate())button.classList.add("today");
+          if(value===selected)button.classList.add("selected");
+          button.setAttribute("aria-label",dailyDateLabel(value));
+          button.onclick=()=>{dailyCalendarMonth=new Date(date.getFullYear(),date.getMonth(),1);$("#daily-date").value=value;renderDailyDatePicker();closeDailyDatePicker();$("#daily-date").dispatchEvent(new Event("change"));};
+          grid.append(button);
+        }
+      }
+      $("#daily-date-trigger").addEventListener("click",()=>{const popover=$("#daily-date-popover"),opening=popover.classList.contains("hidden");if(opening){const selected=$("#daily-date").value||chinaDate(),[year,month]=selected.split("-").map(Number);dailyCalendarMonth=new Date(year,month-1,1);renderDailyDatePicker();popover.classList.remove("hidden");$("#daily-date-trigger").setAttribute("aria-expanded","true");}else closeDailyDatePicker();});
+      $("#daily-date-prev").addEventListener("click",()=>{dailyCalendarMonth.setMonth(dailyCalendarMonth.getMonth()-1);renderDailyDatePicker();});
+      $("#daily-date-next").addEventListener("click",()=>{dailyCalendarMonth.setMonth(dailyCalendarMonth.getMonth()+1);renderDailyDatePicker();});
+      $("#daily-date-today").addEventListener("click",()=>{const today=chinaDate(),[year,month]=today.split("-").map(Number);dailyCalendarMonth=new Date(year,month-1,1);$("#daily-date").value=today;renderDailyDatePicker();closeDailyDatePicker();$("#daily-date").dispatchEvent(new Event("change"));});
+      $("#daily-date-close").addEventListener("click",closeDailyDatePicker);
+      document.addEventListener("click",event=>{if(!event.target.closest(".daily-date-control"))closeDailyDatePicker();});
       function dailyHistoryStart(period){
         if(period==="all")return null;
         const [year,month]=chinaDate().split("-").map(Number);
@@ -6322,6 +6446,7 @@
       async function openDailyReport() {
         $("#daily-modal").classList.remove("hidden");
         if (!$("#daily-date").value) $("#daily-date").value = chinaDate();
+        $("#daily-date-text").textContent=dailyDateLabel($("#daily-date").value);
         const selectedDate = $("#daily-date").value;
         const isManager = ["owner", "sales_manager"].includes(profile.role);
         $("#sales-daily-form").classList.toggle(
@@ -6461,6 +6586,7 @@
         $("#email-assignment-notify").classList.toggle("hidden",selfOwned);
         $("#manual-self-owner-hint").classList.toggle("hidden",!selfOwned);
         $("#email-self-owner-hint").classList.toggle("hidden",!selfOwned);
+        $("#manual-create-submit").textContent=selfOwned?"创建并归属本人":"提交主管分配";
         $("#inquiry-modal").classList.remove("hidden");
       });
       function closeInquiryCreateModal(){
@@ -6552,6 +6678,8 @@
       async function createInquiry({
         email,
         contact,
+        phone,
+        whatsapp,
         company,
         country,
         product,
@@ -6561,96 +6689,20 @@
         sourceDetail,
         subject,
         notify,
+        estimatedValue,
+        estimatedCurrency,
+        expectedPurchaseDate,
       }) {
-        const domain = domainOf(email);
-        let companyRow = null;
-        if (domain) {
-          const q = await supabase
-            .from("companies")
-            .select("id,name")
-            .eq("domain", domain)
-            .maybeSingle();
-          companyRow = q.data;
-        }
-        if (!companyRow) {
-          const q = await supabase
-            .from("companies")
-            .insert({
-              name: company,
-              domain,
-              country: country || null,
-              created_by: profile.id,
-            })
-            .select()
-            .single();
-          if (q.error) throw q.error;
-          companyRow = q.data;
-        }
-        let contactRow = (
-          await supabase
-            .from("contacts")
-            .select("id")
-            .ilike("email", email)
-            .maybeSingle()
-        ).data;
-        if (!contactRow) {
-          const q = await supabase
-            .from("contacts")
-            .insert({
-              company_id: companyRow.id,
-              full_name: contact || null,
-              email,
-              created_by: profile.id,
-            })
-            .select()
-            .single();
-          if (q.error) throw q.error;
-          contactRow = q.data;
-        }
-        const title =
-            subject || `${companyRow.name} · ${product || "待确认产品"}`,
-          q = await supabase
-            .from("inquiries")
-            .insert({
-              company_id: companyRow.id,
-              contact_id: contactRow.id,
-              title,
-              product_category: product || null,
-              quantity: quantity || null,
-              target_country: country || null,
-              source,
-              source_detail: sourceDetail || null,
-              original_message: message || null,
-              owner_id: profile.role === "sales" ? profile.id : null,
-              status: profile.role === "sales" ? "received" : "pending_assignment",
-              created_by: profile.id,
-            })
-            .select()
-            .single();
-        if (q.error) throw q.error;
-        if (notify && profile.role !== "sales") {
-          const { data: managers, error: managerError } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("role", "sales_manager")
-            .eq("active", true);
-          if (managerError) throw managerError;
-          if (managers?.length) {
-            const { error: notifyError } = await supabase
-              .from("notifications")
-              .insert(
-                managers.map((manager) => ({
-                  recipient_id: manager.id,
-                  inquiry_id: q.data.id,
-                  type: "assignment_requested",
-                  title: "新询盘待分配",
-                  body: title,
-                })),
-              );
-            if (notifyError) throw notifyError;
-          }
-        }
-        return q.data;
+        const {data,error}=await supabase.rpc("create_customer_opportunity",{
+          company_name:company||null,contact_name:contact||null,contact_email:email||null,
+          contact_phone:phone||null,contact_whatsapp:whatsapp||null,country_name:country||null,
+          source_channel:source,source_detail_text:sourceDetail||null,demand_text:message||subject||"客户邮件询盘",
+          product_text:product||null,quantity_text:quantity||null,opportunity_title:subject||null,
+          estimated_value:estimatedValue||null,estimated_currency:estimatedValue?estimatedCurrency||"USD":null,
+          expected_purchase_date:expectedPurchaseDate||null,notify_manager:notify!==false,
+        });
+        if(error)throw error;
+        return {id:data.inquiry_id,...data};
       }
       $("#manual-form").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -6659,11 +6711,12 @@
           btn = e.submitter;
         btn.disabled = true;
         try {
-          if(!await ensureDuplicateConfirmed(form,fd.get("email").trim(),fd.get("company"))){btn.disabled=false;return}
+          const email=String(fd.get("email")||"").trim(),phone=String(fd.get("phone")||"").trim(),whatsapp=String(fd.get("whatsapp")||"").trim(),contact=String(fd.get("contact")||"").trim(),company=String(fd.get("company")||"").trim();
+          if(!company&&!contact)throw new Error("请至少填写公司名称或联系人");
+          if(!email&&!phone&&!whatsapp)throw new Error("请至少填写邮箱、电话或 WhatsApp 中的一项联系方式");
+          if(email&&!await ensureDuplicateConfirmed(form,email,company)){btn.disabled=false;return}
           await createInquiry({
-            email: fd.get("email").trim(),
-            contact: fd.get("contact"),
-            company: fd.get("company"),
+            email,phone,whatsapp,contact,company,
             country: fd.get("country"),
             product: fd.get("product"),
             quantity: fd.get("quantity"),
@@ -6671,11 +6724,15 @@
             source: fd.get("source") || "outbound",
             sourceDetail: fd.get("source_detail"),
             notify: fd.get("notify") === "on",
+            estimatedValue:Number(fd.get("estimated_value"))||null,
+            estimatedCurrency:fd.get("estimated_currency"),
+            expectedPurchaseDate:fd.get("expected_purchase_date"),
+            subject:fd.get("opportunity_title"),
           });
           form.reset();
           form.querySelector("[data-duplicate-warning]")?.classList.add("hidden");
           $("#inquiry-modal").classList.add("hidden");
-          toast(profile.role==="sales"?"线索已创建并自动归属你本人":"询盘已创建并进入待分配池");
+          toast(profile.role==="sales"?"客户与商机已创建并归属你本人":"客户与商机已提交主管分配");
           if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;await openDailyReport();}else await loadInquiries();
         } catch (err) {
           toast("创建失败：" + err.message);
@@ -6721,6 +6778,7 @@
           const inquiry = await createInquiry({
             email,
             company: companyFromEmail(email),
+            country: fd.get("country"),
             product: parsed.product,
             quantity: parsed.quantity,
             message: body,
@@ -6883,32 +6941,6 @@
         $("#marketing-touch-list").innerHTML=touches.length?touches.map(x=>{const utm=[x.utm_source&&`来源 ${x.utm_source}`,x.utm_medium&&`媒介 ${x.utm_medium}`,x.utm_campaign&&`活动 ${x.utm_campaign}`,x.utm_content&&`素材 ${x.utm_content}`,x.utm_term&&`关键词 ${x.utm_term}`].filter(Boolean);return `<div class="evidence-item"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><b>${x.is_primary?"★ 主触点 · ":""}${esc(channelLabels[x.channel]||x.channel)}</b><span class="hint">${fmtDate(x.touch_at)}</span></div><p style="margin:8px 0 4px">${esc([x.program_name,x.campaign_name,x.tactic_name,x.offer_name].filter(Boolean).join(" → ")||"未填写活动层级")}</p>${utm.length?`<p class="hint">${esc(utm.join(" · "))}</p>`:""}${x.evidence_note?`<small>${esc(x.evidence_note)}</small>`:""}${x.landing_page?`<div><a href="${esc(x.landing_page)}" target="_blank" rel="noopener noreferrer">查看落地页/证据</a></div>`:""}${x.referrer_url?`<small class="hint">来源页：${esc(x.referrer_url)}</small>`:""}<small class="hint">记录人：${esc(x.profiles?.full_name||"系统自动接入")}</small></div>`}).join(""):'<div class="evidence-item">暂无营销触点</div>';
       }
       function localDateTimeInputValue(value){if(!value)return "";const d=new Date(value);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
-      const contactConsentNames={unknown:"联系依据待核实",legitimate_interest:"已核实合法利益 / 业务关系",opted_in:"客户已明确同意",opted_out:"客户已退订"};
-      function canEditContactPolicy(){return ["owner","marketing","sales"].includes(profile?.role)&&(profile?.role!=="sales"||currentInquiry?.owner_id===profile.id)&&(profile?.role!=="marketing"||!currentInquiry?.owner_id)}
-      function renderContactPolicyStatus(policy){
-        const badge=$("#contact-policy-badge"),status=$("#contact-policy-status"),now=Date.now(),nextAt=policy?.next_allowed_at?new Date(policy.next_allowed_at):null;
-        let label="尚未配置",message="尚未配置：主动开发信会被安全策略阻止，直到联系依据已核实。",blocked=true;
-        if(policy){
-          if(policy.do_not_contact||policy.consent_status==="opted_out"){label="禁止主动联系";message=`${contactConsentNames[policy.consent_status]||"已设置禁联"}；新一轮主动邮件会被阻止。`;}
-          else if(policy.consent_status==="unknown"){label="待核实";message="联系依据尚未核实，主动开发信会被阻止。";}
-          else if(nextAt&&nextAt.getTime()>now){label="频控中";message=`${contactConsentNames[policy.consent_status]}；最早可在 ${fmtDate(nextAt.toISOString())} 再次主动联系。`;}
-          else{label="允许主动联系";message=`${contactConsentNames[policy.consent_status]}；已满足当前触达条件，发送时仍会由服务端再次校验。`;blocked=false;}
-        }
-        badge.textContent=label;badge.classList.toggle("danger-text",blocked);status.textContent=message;
-      }
-      function populateContactPolicyForm(policy){
-        $("#contact-policy-consent").value=policy?.consent_status||"unknown";$("#contact-policy-do-not-contact").checked=Boolean(policy?.do_not_contact);$("#contact-policy-interval").value=policy?.min_interval_days||7;$("#contact-policy-next-at").value=localDateTimeInputValue(policy?.next_allowed_at);$("#contact-policy-note").value=policy?.policy_note||"";$("#contact-policy-reason").value="";
-        const editable=canEditContactPolicy();["contact-policy-consent","contact-policy-do-not-contact","contact-policy-interval","contact-policy-next-at","contact-policy-note","contact-policy-reason","save-contact-policy"].forEach(id=>{$("#"+id).disabled=!editable});renderContactPolicyStatus(policy);
-      }
-      $("#contact-policy-consent").addEventListener("change",()=>{if($("#contact-policy-consent").value==="opted_out")$("#contact-policy-do-not-contact").checked=true});
-      $("#save-contact-policy").addEventListener("click",async()=>{
-        if(!currentInquiry)return;const reason=$("#contact-policy-reason").value.trim(),interval=Number($("#contact-policy-interval").value),nextValue=$("#contact-policy-next-at").value;if(!reason)return toast("请填写本次触达规则的修改原因");if(!Number.isInteger(interval)||interval<1||interval>90)return toast("最小联系间隔必须是 1–90 天的整数");
-        const button=$("#save-contact-policy");button.disabled=true;
-        try{
-          const {error}=await supabase.rpc("save_inquiry_contact_policy",{target_inquiry_id:currentInquiry.id,consent:$("#contact-policy-consent").value,suppress_contact:$("#contact-policy-do-not-contact").checked,interval_days:interval,next_contact_at:nextValue?new Date(nextValue).toISOString():null,note:$("#contact-policy-note").value.trim()||null,change_reason:reason});if(error)throw error;
-          const {data:policy,error:reloadError}=await supabase.from("inquiry_contact_policies").select("inquiry_id,consent_status,do_not_contact,min_interval_days,next_allowed_at,last_contact_at,policy_note,updated_by,updated_at").eq("inquiry_id",currentInquiry.id).maybeSingle();if(reloadError)throw reloadError;currentInquiry.contactPolicy=policy||null;populateContactPolicyForm(currentInquiry.contactPolicy);toast("触达规则已保存并留痕");await loadTimeline(currentInquiry.id);
-        }catch(error){toast("触达规则保存失败："+error.message)}finally{button.disabled=!canEditContactPolicy()}
-      });
       qualificationFieldIds.forEach(key=>$("#qualification-"+key).addEventListener("input",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value,qualification_manager_confirmed_at:null})));
       $("#qualification-priority").addEventListener("change",()=>renderQualificationSummary({...currentInquiry,qualification_score:qualificationScoreFromForm(),lead_priority:$("#qualification-priority").value,qualification_manager_confirmed_at:null}));
       $("#qualification-ai-prefill").addEventListener("click",generateQualificationAiSuggestion);
@@ -8193,6 +8225,9 @@
       }
       $("#operations-settings").onclick=openOperationalSettings;
       $("#followup-settings").onclick=openFollowupPreferences;
+      $("#customer-import-template").onclick=downloadCustomerImportTemplate;
+      $("#customer-import").onclick=()=>$("#customer-import-file").click();
+      $("#customer-import-file").addEventListener("change",event=>previewCustomerImport(event.target.files?.[0]));
       $("#edit-followup-defaults").onclick=openFollowupPreferences;
       $("#apply-followup-defaults").onclick=applyFollowupPreferences;
       $("#module-primary").addEventListener("click", async () => {
@@ -8425,7 +8460,6 @@
       $("#sales-profile-back").addEventListener("click",()=>switchView("dashboard"));
       $("#dashboard-data-scope").addEventListener("change",event=>{const period=$("#dashboard-period");if(event.target.value==="legacy")period.value="all";else if(period.value==="all")period.value="month";$$(".period-tab[data-period]").forEach(button=>button.classList.toggle("active",button.dataset.period===period.value));renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups)});
       $("#dashboard-apply").addEventListener("click", () => renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups));
-      $("#dashboard-targets").addEventListener("click", openTargetEditor);
       $("#dashboard-channel-cost").addEventListener("click", openChannelCostEditor);
       $("#dashboard-modal-close").addEventListener("click",()=>$("#dashboard-modal").classList.add("hidden"));
       $("#inquiry-definitions").addEventListener("click",openInquiryDefinitions);
@@ -8445,8 +8479,6 @@
         if(fallbackReason){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",fallbackReason);answer+=`\n\n⚠️ DeepSeek 暂未生效，本次使用 CRM 本地统计：${fallbackReason}`;}
         submit.disabled=false;submit.textContent="提问";addAiMessage("assistant",answer);aiConversation.push({role:"user",content:question},{role:"assistant",content:answer});
       });
-      $("#dashboard-export-csv").addEventListener("click",openControlledExportCenter);
-      $("#dashboard-export-pdf").addEventListener("click",openControlledExportCenter);
       bindMetricHelp();
       const openRecoveryPassword = () => {
         passwordChangeMode = "recovery";

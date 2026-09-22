@@ -16,4 +16,13 @@ for(const i of [1,2,3]){await actor(i);const rows=(await db.query('select * from
 for(const i of [null,4,5,6,7]){await actor(i);await assert.rejects(()=>db.query('select * from get_crm_member_directory()'),/无权/);}
 await db.exec('reset role');await db.exec('update profiles set active=false where role=\'marketing\'');await actor(3);await assert.rejects(()=>db.query('select * from get_crm_member_directory()'),/无权/);
 assert.equal((await db.query("select has_function_privilege('anon','get_crm_member_directory()','execute') ok")).rows[0].ok,false);
+await db.exec("create table mailbox_connections(user_id uuid,mailbox_kind text,status text,secret text)");
+await db.exec("insert into mailbox_connections select id,'personal','connected','do-not-return' from profiles where role='sales_manager'; insert into mailbox_connections select id,'shared_inquiry','connected','do-not-return' from profiles where role='owner'");
+await db.exec(await readFile(new URL('../supabase/migrations/20260922140000_member_mailbox_status.sql',import.meta.url),'utf8'));
+await actor(2);const states=(await db.query('select * from get_crm_member_mailbox_status()')).rows;
+assert.equal(states.length,5);assert.deepEqual(Object.keys(states[0]),['profile_id','connection_status']);
+assert.equal(states.filter(x=>x.connection_status==='connected').length,1);
+assert.equal(states.find(x=>x.profile_id.endsWith('000001')).connection_status,'not_connected');
+for(const i of [null,3,4,5,6,7]){await actor(i);await assert.rejects(()=>db.query('select * from get_crm_member_mailbox_status()'),/无权/);}
+assert.equal((await db.query("select has_function_privilege('anon','get_crm_member_mailbox_status()','execute') ok")).rows[0].ok,false);
 await db.close();console.log('Directory SQL passed: authorized roles see formal active/inactive directory; test/staging excluded; inactive/anonymous/sales denied; base RLS unchanged.');

@@ -1,0 +1,35 @@
+const {chromium}=await import(process.env.CRM_PLAYWRIGHT_MODULE || 'playwright');
+import {readFile,writeFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const root=new URL('../',import.meta.url).pathname;
+const html=await readFile(root+'index.html','utf8');
+const bank=JSON.parse(await readFile(root+'data/sales360-questionnaire-v2.json','utf8'));
+const source=html.slice(html.indexOf('      const sales360DimensionLabels='),html.indexOf('      function openSales360CycleForm('));
+const browser=await chromium.launch({headless:true,...(process.env.CRM_CHROME_PATH?{executablePath:process.env.CRM_CHROME_PATH}:{})});const page=await browser.newPage({viewport:{width:1200,height:900}});
+await page.setContent('<html><head>'+html.match(/<style>[\s\S]*?<\/style>/)[0]+'</head><body><div id="dashboard-modal" style="max-width:860px;padding:24px;margin:20px auto;background:white"></div></body></html>');
+await page.evaluate(({bank,source})=>{
+ window.bank=bank;window.$=s=>document.querySelector(s);window.esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ window.toast=s=>window.lastToast=s;window.rpcCalls=[];window.supabase={rpc:async (...args)=>{window.rpcCalls.push(args);return {error:null}}};window.loadModule=async()=>{};
+ window.openDashboardModal=(title,body)=>{$('#dashboard-modal').classList.remove('hidden');$('#dashboard-modal').innerHTML='<h2>'+esc(title)+'</h2>'+body};window.fetch=async()=>({ok:true,json:async()=>bank});
+ (0,eval)(source+';window.openTest=openSales360Evaluation;');
+}, {bank,source});
+const task={direct:true,subject_id:'demo',subject_name:'演示成员',period_start:'2026-07-01',evaluator_group:'manager'};
+await page.evaluate(task=>openTest(task),task);
+assert.equal(await page.locator('[data-sales360-choice]').count(),12);assert.equal(await page.locator('[data-sales360-short]').count(),4);
+await page.screenshot({path:'/private/tmp/crm360-questionnaire-top.png'});
+await page.locator('[data-sales360-choice="execution_1"]').selectOption('5');
+assert.equal(await page.locator('[data-sales360-evidence="execution_1"]').isVisible(),true);
+assert.equal(await page.locator('[data-sales360-evidence="execution_1"]').getAttribute('required'),'');
+await page.locator('[data-sales360-choice="execution_1"]').selectOption('3');
+assert.equal(await page.locator('[data-sales360-evidence="execution_1"]').isVisible(),false);
+for(const input of await page.locator('[data-sales360-choice]').all())await input.selectOption('3');
+for(const input of await page.locator('[data-sales360-short][required]').all())await input.fill('本月按期完成交接，下月月底复盘并检查结果');
+await page.locator('[data-sales360-choice="execution_1"]').selectOption('na');await page.locator('[data-sales360-choice="execution_2"]').selectOption('na');
+await page.getByRole('button',{name:'提交完整评价'}).click();assert.match(await page.evaluate(()=>lastToast),/至少需要2题/);assert.equal(await page.evaluate(()=>rpcCalls.length),0);
+await page.locator('[data-sales360-choice="execution_2"]').selectOption('4');await page.getByRole('button',{name:'提交完整评价'}).click();assert.equal(await page.evaluate(()=>rpcCalls.length),1);
+assert.equal(await page.evaluate(()=>rpcCalls[0][1].target_scores._questionnaire.choices.execution_1.value),'na');
+for(const role of ['owner','peer','marketing','self']){await page.evaluate(task=>openTest(task),{...task,direct:false,evaluator_group:role,assignment_id:'test'});assert.equal(await page.locator('[data-sales360-choice]').count(),9)}
+await page.evaluate(task=>openTest(task),task);await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/private/tmp/crm360-questionnaire-mobile.png'});
+assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+console.log('Real browser synthetic form verified: all role layouts, evidence visibility, N/A validation, RPC payload, mobile overflow. No real CRM data or submissions.');
+await browser.close();

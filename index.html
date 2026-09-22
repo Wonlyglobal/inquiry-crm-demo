@@ -2490,8 +2490,8 @@
       };
       const roleViewAccess = {
         owner: new Set(["dashboard","sales-today","follow-calendar","marketing-center","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","risk-review","settings"]),
-        sales_manager: new Set(["dashboard","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review"]),
-        marketing: new Set(["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360"]),
+        sales_manager: new Set(["dashboard","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"]),
+        marketing: new Set(["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
         sales: new Set(["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
       const roleGuideViewNames = {
@@ -3920,7 +3920,7 @@
         }
         $("#inquiry-definitions").classList.toggle("hidden",view!=="inquiries");
         $("#add-member").classList.toggle("hidden", view !== "settings" || profile.role !== "owner");
-        if (view === "settings") modulePrimary.textContent = "连接业务员邮箱";
+        if (view === "settings") { modulePrimary.textContent = profile.role === "owner" ? "连接业务员邮箱" : "连接我的邮箱"; $("#module-subtitle").textContent = profile.role === "owner" ? "成员、角色与首次登录状态" : "查看权限范围内的成员资料与负责区域；管理自己的邮箱连接"; }
         if (view === "communications") modulePrimary.textContent = "测试我的邮箱收发";
         if (view === "mailbox") modulePrimary.textContent = "+ 写邮件";
         if (view === "whatsapp") modulePrimary.textContent = "配置 WhatsApp 通道";
@@ -4180,6 +4180,19 @@
           query = (async()=>{const pageSize=500,all=[];for(let from=0;;from+=pageSize){const result=await supabase.from("legacy_engineering_projects").select("legacy_project_id,country,partner_name,partner_province,partner_city,customer_type,project_name,product_type,funnel_bucket,factory_price_amount,contract_no,contract_quantity,contract_amount_wan,website,project_status,next_milestone_at,project_total_quantity,lead_source,follow_up_status,contact_name,contact_details,contact_title,lost_reason,lost_reason_description,legacy_owner_name,legacy_creator_name,source_created_at,legacy_modifier_name,source_updated_at,department").order("legacy_project_id",{ascending:false}).range(from,from+pageSize-1);if(result.error)return result;all.push(...(result.data||[]));if((result.data||[]).length<pageSize)return {data:all,error:null}}})();
           columns = ["旧 ID", "国家/地区", "合作方", "项目名称", "产品", "分类", "项目状态", "负责人", "下一节点", "合同金额（万元）", "操作"];
           mapper = (x) => ({ cells: [x.legacy_project_id, x.country, x.partner_name, x.project_name, x.product_type, x.funnel_bucket, x.project_status, x.legacy_owner_name === "石舒" ? "石奕舒" : x.legacy_owner_name, x.next_milestone_at || "—", x.contract_amount_wan ?? "—"], actions: [{ label: "查看", onClick: () => openLegacyProject(x) }] });
+        } else if(view==="settings" && profile.role!=="owner") {
+          query=(async()=>{
+            const [members,regions]=await Promise.all([
+              supabase.from("profiles").select("id,full_name,email,role,team,job_title,active").order("full_name"),
+              supabase.from("sales_target_people").select("profile_id,sales_region")
+            ]);
+            if(members.error)return members;if(regions.error)return regions;
+            const byId=new Map((regions.data||[]).map(item=>[item.profile_id,item.sales_region]));
+            return {data:(members.data||[]).map(member=>({...member,sales_region:byId.get(member.id)||"—"})),error:null};
+          })();
+          columns=["姓名","邮箱","职称","部门","CRM 权限角色","负责区域","状态","操作"];
+          mapper=x=>({cells:[x.full_name,x.email,x.job_title,x.team,roleNames[x.role]||x.role,x.sales_region,x.active?"启用":"已停用"],actions:x.id===profile.id&&x.active?[{label:"连接我的邮箱",onClick:()=>openMailboxBinding(profile.id,true)}]:[]});
+          $("#module-table-context").textContent="成员范围由现有权限控制；账号新增、停用和角色变更由老板管理";
         } else {
           query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,disabled_reason_type,disabled_reason,disabled_at,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,error_message)").order("created_at", { ascending: true });
           columns = ["姓名", "邮箱", "职称", "部门", "CRM 权限角色", "状态", "邮箱连接", "最后测试", "操作"];
@@ -8074,7 +8087,7 @@
           return connection?.status==="connected"?openMailComposer():openMailboxBinding(profile.id,true);
         }
         if(activeModuleView==="whatsapp") return; // Handled by the module's direct onclick binding.
-        if(activeModuleView==="settings")return openMailboxBinding();
+        if(activeModuleView==="settings")return profile.role==="owner"?openMailboxBinding():openMailboxBinding(profile.id,true);
         if(activeModuleView!=="communications")return; // Other modules own their primary action; never fall through to mailbox setup.
         if(!await appConfirm("确认从当前登录业务员的已连接邮箱发送内部测试邮件到 inquiry@wonlyglobal.com？该邮件只用于验证收发和同步。",{title:"测试邮箱收发",confirmText:"确认发送"}))return;
         const button=$("#module-primary");button.disabled=true;button.textContent="正在发送测试邮件…";

@@ -1516,7 +1516,7 @@
               <div class="dashboard-scope-group">
                 <div class="period-tabs" role="group" aria-label="统计周期"><button class="period-tab" data-period="today">今日</button><button class="period-tab" data-period="week">本周</button><button class="period-tab active" data-period="month">本月</button><button class="period-tab" data-period="quarter">本季度</button><button class="period-tab" data-period="year">本年度</button></div>
                 <select id="dashboard-period" class="input compact hidden"><option value="today">今日</option><option value="week">本周</option><option value="month" selected>本月</option><option value="quarter">本季度</option><option value="year">本年度</option><option value="all">全部历史</option><option value="custom">自定义</option></select>
-                <select id="dashboard-data-scope" class="input compact"><option value="current">当前 CRM</option><option value="legacy">历史工程</option><option value="combined">综合视图</option></select>
+                <select id="dashboard-data-scope" class="input compact"><option value="current">当前 CRM</option><option value="legacy">历史工程 / 订单</option><option value="combined">综合视图</option></select>
                 <input id="dashboard-start" class="input compact hidden" type="date" />
                 <input id="dashboard-end" class="input compact hidden" type="date" />
               </div>
@@ -1551,6 +1551,14 @@
             <div class="legacy-dashboard-panels">
               <section class="dashboard-panel"><div class="panel-title"><b>历史负责人合同额排名</b><button class="metric-help" data-metric="legacy_amount">?</button></div><div id="legacy-owner-ranking" class="dashboard-table-scroll"></div></section>
               <section class="dashboard-panel"><div class="panel-title"><b>国家与产品分布</b><button class="metric-help" data-metric="legacy_distribution">?</button></div><div id="legacy-distribution" class="dashboard-table-scroll"></div></section>
+            </div>
+          </section>
+          <section id="historical-orders-dashboard" class="hidden" data-dashboard-widget="historical-orders">
+            <div class="table-head"><span>历史订单经营概览</span><span class="dashboard-scope-note">订单数按订单号去重，金额按全部明细累计；不影响询盘成交率与响应率</span></div>
+            <div id="historical-orders-kpis" class="legacy-dashboard-grid"></div>
+            <div class="legacy-dashboard-panels">
+              <section class="dashboard-panel"><div class="panel-title"><b>原业务员订单额</b><button class="metric-help" data-metric="historical_order_amount">?</button></div><div id="historical-orders-owner-ranking" class="dashboard-table-scroll"></div></section>
+              <section class="dashboard-panel"><div class="panel-title"><b>订单金额趋势</b><button class="metric-help" data-metric="historical_order_trend">?</button></div><div id="historical-orders-trend" class="dashboard-table-scroll"></div></section>
             </div>
           </section>
           <nav class="dashboard-core-tabs current-dashboard-block" role="tablist" aria-label="核心经营看板">
@@ -4861,8 +4869,10 @@
         annual_target_plan:["年度目标计划","用户提供的 2026 海外事业部月度目标；签约额统一以人民币万元计，客户开发和 CRM 信息收集以条数计。","签约额实际完成值=成交额人民币折算值÷10,000。个人只看本人；主管、市场和老板可看全部。源表中的大区合计由个人目标动态汇总。"],
         legacy_amount:["历史工程合同额","旧 CRM 原表合同总金额汇总，单位为人民币万元。","仅用于历史工程分析，不等同于新 CRM 的已确认成交额。"],
         legacy_distribution:["历史工程分布","按旧 CRM 的国家/地区与产品类型统计项目数。","空值保留为未填写；历史项目不参与当前询盘转化指标。"]
+        ,historical_order_amount:["历史订单金额","发货汇总源文件中订单明细金额的合计，单位为人民币万元。","同一订单号的多行物料明细只计一个订单，但金额按所有明细行累计；与当前 CRM 审批成交额分开留痕。"]
+        ,historical_order_trend:["历史订单趋势","按下单日期汇总唯一订单数与明细金额。","来源文件没有国家字段，不推断国家；未匹配正式账号的原业务员仅保留姓名。"]
       };
-      let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], whatsappMessages:[], replyReminders:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], whatsappMessages:[], replyReminders:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], historicalOrders:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
       function dashboardRange() {
         const now = new Date(), type = $("#dashboard-period")?.value || "month";
         let start = new Date(now), end = new Date(now);
@@ -4910,6 +4920,7 @@
         for(let i=count-1;i>=0;i--){const d=new Date(now);if(grain==="day")d.setDate(now.getDate()-i);else if(grain==="month")d.setMonth(now.getMonth()-i,1);else d.setFullYear(now.getFullYear()-i,0,1);buckets.push({key:keyFor(d),label:grain==="day"?`${d.getMonth()+1}/${d.getDate()}`:grain==="month"?`${d.getFullYear()}/${d.getMonth()+1}`:`${d.getFullYear()}`,inquiries:0,assigned:0,fast:0,sales:0})}
         const map=new Map(buckets.map(x=>[x.key,x]));
         rows.forEach(x=>{const created=map.get(keyFor(x.created_at));if(created)created.inquiries++;const assigned=map.get(keyFor(x.assigned_at));if(x.validity==="valid"&&assigned&&x.assigned_at){assigned.assigned++;if(x.first_valid_contact_at&&new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000)assigned.fast++}const won=map.get(keyFor(x.won_at||x.created_at));if(won&&x.status==="won")won.sales+=amountCny(x,true)||0});
+        if($("#dashboard-data-scope")?.value==="combined") historicalOrdersForFilters().forEach(order=>{const bucket=order.ordered_at&&map.get(keyFor(order.ordered_at));if(bucket)bucket.sales+=Number(order.amount_wan||0)*10000});
         const charts=[{title:"新增询盘",unit:"条",values:buckets.map(x=>x.inquiries),format:v=>`${Math.round(v)} 条`},{title:"首次响应率",unit:"%",values:buckets.map(x=>x.assigned?x.fast/x.assigned*100:0),format:v=>`${v.toFixed(1)}%`},{title:"成交额",unit:"CNY",values:buckets.map(x=>x.sales),format:v=>money(v,"CNY")}];
         const chartHtml=chart=>{const w=420,h=150,p=12,max=Math.max(...chart.values,1),points=chart.values.map((v,i)=>({x:p+(w-p*2)*(chart.values.length===1?0:i/(chart.values.length-1)),y:h-p-(h-p*2)*v/max,v})),line=points.map(q=>`${q.x},${q.y}`).join(" "),area=`${p},${h-p} ${line} ${w-p},${h-p}`,latest=chart.values.at(-1)||0,labels=[buckets[0]?.label,buckets[Math.floor((buckets.length-1)/2)]?.label,buckets.at(-1)?.label];return `<div class="trend-chart"><div class="trend-chart-head"><b>${chart.title}</b><span>最新 ${chart.format(latest)}</span></div><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${chart.title}趋势"><line class="trend-axis" x1="${p}" y1="${h-p}" x2="${w-p}" y2="${h-p}"/><polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${line}"/>${points.map(q=>`<circle class="trend-dot" cx="${q.x}" cy="${q.y}" r="3"><title>${chart.format(q.v)}</title></circle>`).join("")}</svg><div class="trend-labels"><span>${labels[0]||""}</span><span>${labels[1]||""}</span><span>${labels[2]||""}</span></div></div>`};
         $("#dashboard-trend-charts").innerHTML=charts.map(chartHtml).join("");
@@ -5015,6 +5026,22 @@
         $("#legacy-distribution").innerHTML=`<table><thead><tr><th>国家/地区</th><th>项目数</th><th>产品品类</th><th>项目数</th></tr></thead><tbody>${Array.from({length:max},(_,i)=>`<tr><td>${esc(countries[i]?.[0]||"—")}</td><td>${countries[i]?.[1]||"—"}</td><td>${esc(products[i]?.[0]||"—")}</td><td>${products[i]?.[1]||"—"}</td></tr>`).join("")||'<tr><td colspan="4">当前周期暂无历史项目</td></tr>'}</tbody></table>`;
         bindMetricHelp();
       }
+      function historicalOrdersForFilters(){
+        const team=$("#dashboard-team")?.value||"",sales=$("#dashboard-sales")?.value||"",people=(dashboardState.profiles||[]).filter(p=>(!team||p.team===team)&&(!sales||p.id===sales)),ids=new Set(people.map(p=>p.id));
+        return (dashboardState.historicalOrders||[]).filter(x=>(!sales&&!team)||(x.owner_id&&ids.has(x.owner_id)));
+      }
+      function renderHistoricalOrdersDashboard(){
+        const scope=$("#dashboard-data-scope")?.value||"current",panel=$("#historical-orders-dashboard");
+        panel.classList.toggle("hidden",scope==="current");
+        if(scope==="current")return;
+        const {start,end}=dashboardRange(),rows=historicalOrdersForFilters().filter(x=>x.ordered_at&&inRange(x.ordered_at,start,end)),orders=new Set(rows.map(x=>x.order_no)).size,amount=rows.reduce((sum,x)=>sum+Number(x.amount_wan||0),0),owners=new Set(rows.map(x=>x.legacy_owner_name).filter(Boolean)).size,unmapped=rows.filter(x=>!x.owner_id).length;
+        $("#historical-orders-kpis").innerHTML=[["唯一订单",orders],["原始明细",rows.length],["订单金额（万元）",amount.toLocaleString("zh-CN",{maximumFractionDigits:2})],["原业务员",owners],["待账号映射明细",unmapped]].map(([l,v])=>`<div class="card"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div></div>`).join("");
+        const byOwner=new Map();rows.forEach(x=>{const key=x.legacy_owner_name||"未填写",value=byOwner.get(key)||{orders:new Set(),lines:0,amount:0};value.orders.add(x.order_no);value.lines++;value.amount+=Number(x.amount_wan||0);byOwner.set(key,value)});
+        $("#historical-orders-owner-ranking").innerHTML=`<table><thead><tr><th>原业务员</th><th>订单</th><th>明细</th><th>金额（万元）</th></tr></thead><tbody>${[...byOwner].sort((a,b)=>b[1].amount-a[1].amount).map(([name,v])=>`<tr><td>${esc(name)}</td><td>${v.orders.size}</td><td>${v.lines}</td><td>${v.amount.toLocaleString("zh-CN",{maximumFractionDigits:2})}</td></tr>`).join("")||'<tr><td colspan="4">当前周期暂无历史订单</td></tr>'}</tbody></table>`;
+        const byMonth=new Map();rows.forEach(x=>{const key=String(x.ordered_at).slice(0,7),value=byMonth.get(key)||{orders:new Set(),amount:0};value.orders.add(x.order_no);value.amount+=Number(x.amount_wan||0);byMonth.set(key,value)});
+        $("#historical-orders-trend").innerHTML=`<table><thead><tr><th>月份</th><th>订单</th><th>金额（万元）</th></tr></thead><tbody>${[...byMonth].sort((a,b)=>a[0].localeCompare(b[0])).map(([month,v])=>`<tr><td>${esc(month)}</td><td>${v.orders.size}</td><td>${v.amount.toLocaleString("zh-CN",{maximumFractionDigits:2})}</td></tr>`).join("")||'<tr><td colspan="3">当前周期暂无历史订单</td></tr>'}</tbody></table>`;
+        bindMetricHelp();
+      }
       async function syncDailyExchangeRates(rows,currentRates){
         if(!["owner","sales_manager","marketing"].includes(profile?.role))return currentRates||[];
         const today=new Date().toISOString().slice(0,10),currencies=[...new Set(["USD",...rows.flatMap(x=>[x.currency,x.won_currency]).filter(Boolean).map(x=>x.toUpperCase())])].filter(x=>x!=="CNY");
@@ -5096,7 +5123,8 @@
         $("#kpi-avg-response").textContent=mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN);
         $("#kpi-conversion").textContent=pct(won.length,closed.length);
         const validPeriod=periodRows.filter(x=>x.validity==="valid"),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]);$("#kpi-quote-rate").textContent=pct(validPeriod.filter(x=>quotedStages.has(x.status)).length,validPeriod.length);
-        const wonCny=sumWonCny(won),usdCny=fxToCny("USD")||0;
+        const historicalCny=$("#dashboard-data-scope")?.value==="combined"?historicalOrdersForFilters().filter(x=>x.ordered_at&&inRange(x.ordered_at,start,end)).reduce((sum,x)=>sum+Number(x.amount_wan||0)*10000,0):0,wonCny=sumWonCny(won)+historicalCny,usdCny=fxToCny("USD")||0;
+        $("#hero-sales-label").textContent=historicalCny?"综合销售额（CRM成交＋历史订单）":"团队总销售额";
         $("#kpi-won-cny").textContent=money(wonCny,"CNY"); $("#kpi-won-usd").textContent=usdCny?money(wonCny/usdCny,"USD"):"汇率待更新";
         $("#hero-sales-cny").textContent=money(wonCny,"CNY"); $("#hero-sales-usd").textContent=usdCny?money(wonCny/usdCny,"USD"):"汇率待更新";
         $("#hero-sales-period").textContent={today:"今日",week:"本周",month:"本月",quarter:"本季度",year:"本年度",all:"全部历史",custom:"自定义周期"}[type]||"当前周期";
@@ -5159,6 +5187,7 @@
         bindMetricHelp();
         $$("[data-sales-detail]").forEach(row=>row.addEventListener("click",()=>openSalesDashboardDetail(row.dataset.salesDetail)));
         renderLegacyDashboard();
+        renderHistoricalOrdersDashboard();
         if(dashboardLayoutEditing)ensureDashboardWidgetHandles();
       }
       function bindMetricHelp(){ $$(".metric-help").forEach(b=>{b.title=dashboardMetricDefinitions[b.dataset.metric]?.[1]||"查看指标定义"; b.onclick=()=>{const d=dashboardMetricDefinitions[b.dataset.metric]; if(d) appConfirm(`${d[0]}\n\n${d[1]}\n\n口径：${d[2]}\n更新时间：${new Date().toLocaleString('zh-CN',{hour12:false})}`,{title:"指标口径",confirmText:"知道了",showCancel:false})}}); }
@@ -5557,7 +5586,7 @@
           supabase.from("exchange_rates").select("*").order("rate_date", { ascending: false }).limit(500),
         ]);
         renderSalesAmountRankingEarly(rows, earlyProfiles || [], earlyTargetPeople || [], earlyRates || []);
-        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: dashboardEmailMessages }, { data: dashboardWhatsAppMessages }, { data: replyReminders }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }, { data: retentionRequests }, { data: marketingTouches }] = await Promise.all([
+        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: dashboardEmailMessages }, { data: dashboardWhatsAppMessages }, { data: replyReminders }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: historicalOrders }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }, { data: retentionRequests }, { data: marketingTouches }] = await Promise.all([
           supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active,avatar_url").eq("active", true),
           loadAllDashboardFollowups(),
           loadAllDashboardEmailMessages(),
@@ -5570,6 +5599,7 @@
           loadModuleRowsPaged((from,to)=>supabase.from("audit_logs").select("id,entity_id,actor_id,action,reason,before_data,after_data,created_at").eq("entity_type","inquiry").order("created_at",{ascending:false}).range(from,to)),
           supabase.from("exchange_rates").select("*").order("rate_date",{ascending:false}).limit(500),
           loadModuleRowsPaged((from,to)=>supabase.from("legacy_engineering_projects").select("legacy_project_id,country,partner_name,product_type,project_status,next_milestone_at,contract_amount_wan,legacy_owner_name,owner_id,source_created_at").range(from,to)),
+          profile?.role==="owner"?loadModuleRowsPaged((from,to)=>supabase.from("historical_sales_order_lines").select("source_row,source_month,legacy_owner_name,owner_id,order_no,contract_name,order_quantity,amount_wan,ordered_at,target_stock_at,expected_stock_at,status_code").order("ordered_at",{ascending:false}).range(from,to)):Promise.resolve({data:[],error:null}),
           loadModuleRowsPaged((from,to)=>supabase.from("daily_sales_reports").select("sales_id,report_date,submitted_at").eq("report_date",chinaDate()).range(from,to)),
           loadModuleRowsPaged((from,to)=>supabase.from("email_intake").select("id,inquiry_id,sender_email,subject,processing_status,received_at,created_at").order("created_at",{ascending:false}).range(from,to)),
           loadModuleRowsPaged((from,to)=>supabase.from("companies").select("id,name,research_status,updated_at").order("updated_at",{ascending:false}).range(from,to)),
@@ -5589,7 +5619,7 @@
         if(productSelect&&productSelect.options.length===1)[...new Set([...rows.map(x=>x.product_category),...(legacyProjects||[]).map(x=>x.product_type)].filter(Boolean))].sort().forEach(v=>productSelect.add(new Option(v,v)));
         const syncedRates=await syncDailyExchangeRates(rows,exchangeRates||[]);
         const primaryTouchByInquiry=new Map();for(const touch of marketingTouches||[]){if(touch.is_primary&&!primaryTouchByInquiry.has(touch.inquiry_id))primaryTouchByInquiry.set(touch.inquiry_id,touch)}rows.forEach(x=>{x.primary_marketing_touch=primaryTouchByInquiry.get(x.id)||null});
-        dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.whatsappMessages=dashboardWhatsAppMessages||[];dashboardState.replyReminders=replyReminders||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
+        dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.whatsappMessages=dashboardWhatsAppMessages||[];dashboardState.replyReminders=replyReminders||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.historicalOrders=historicalOrders||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         if($(".nav[data-view=\"marketing-center\"]")?.classList.contains("active"))renderMarketingWorkbench(rows);
         const latestByInquiry = new Map();

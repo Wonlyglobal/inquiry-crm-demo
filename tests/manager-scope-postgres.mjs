@@ -105,4 +105,31 @@ await db.query("update private.crm_manager_teams set active=true where manager_i
 
 await actor(null);await assert.rejects(()=>db.query('select get_my_management_scope()'),/仅管理角色/);
 console.log('Manager scope PostgreSQL: dual-team roster, RLS, null/test exclusions, audit immutability, revoke, direct scores, assignment and quote denials passed');
+if(process.env.CRM_TEST_SALES360_Q3==='1'){
+ const chloe='c43bd3c2-6e3a-4228-99c7-dc95f33643f2';
+ await db.query("insert into profiles(id,full_name,role,active,team,is_test_data,data_environment) values($1,'李铧燕','sales_manager',true,'市场部',false,'production')",[chloe]);
+ await db.exec(await read('supabase/migrations/20260922093000_sales360_start_and_evaluator_scope.sql'));
+ await actor(chloe);
+ assert.equal((await db.query('select get_my_sales360_scope() as s')).rows[0].s.people.length,2);
+ assert.equal((await db.query('select get_my_management_scope() as s')).rows[0].s.people.length,0);
+ await db.exec('set role authenticated');
+ assert.equal((await db.query('select id from inquiries')).rows.length,0);
+ assert.equal((await db.query('select sales_id from daily_sales_reports')).rows.length,0);
+ await db.exec('reset role');
+ await assert.rejects(()=>db.query("select submit_direct_sales_360_evaluation($1,'2026-06-01',$2,null,null)",[a,scores]),/第三季度/);
+ await actor(owner);await assert.rejects(()=>db.query("select create_sales_360_cycle('2026-06-01',true)"),/第三季度/);
+ await actor(ling);
+ assert.equal((await db.query("select submit_direct_sales_360_evaluation($1,'2026-07-01',$2,null,null) as r",[b,scores])).rows[0].r.status,'submitted');
+ await actor(chloe);
+ assert.equal((await db.query("select submit_direct_sales_360_evaluation($1,'2026-07-01',$2,null,null) as r",[b,scores])).rows[0].r.status,'submitted');
+ await assert.rejects(()=>db.query("select submit_direct_sales_360_evaluation($1,'2026-07-01',$2,null,null)",[other,scores]),/直属主管/);
+ const w=(await db.query('select get_my_sales_360_workspace() as w')).rows[0].w;
+ assert.equal(w.tasks.length,1);assert.equal(w.visible_results.length,0);assert.equal(w.appeals.length,0);
+ const result=(await db.query("select r.id from sales_360_results r join sales_360_cycles c on c.id=r.cycle_id where r.sales_id=$1 and c.period_start='2026-07-01'",[b])).rows[0].id;
+ await assert.rejects(()=>db.query('select set_sales_360_goal($1,100,100,false,null)',[result]),/团队/);
+ await db.query('update private.sales360_evaluator_teams set active=false where evaluator_id=$1',[chloe]);
+ assert.equal((await db.query('select get_my_sales360_scope() as s')).rows[0].s.people.length,0);
+ assert.equal((await db.query('select get_my_sales_360_workspace() as w')).rows[0].w.tasks.length,0);
+ console.log('Q3 evaluation-only scope: date floor, separate roster, no customer/report/result/goal grant, co-evaluator non-overwrite, revocation passed');
+}
 await db.close();

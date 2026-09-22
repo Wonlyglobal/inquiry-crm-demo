@@ -1469,7 +1469,7 @@
           </div>
           <div id="dashboard-widgets">
           <section id="sales-workbench" class="dashboard-panel sales-workbench hidden" data-dashboard-widget="sales-tasks">
-            <div class="sales-workbench-head"><div><b>我的任务中心</b><p>统一处理客户新回复、首次响应、计划跟进和风险事项</p></div><div class="sales-workbench-actions"><button id="sales-connect-mailbox" class="ghost">连接我的邮箱</button><button id="sales-open-profile" class="ghost">个人业务主页</button><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
+            <div class="sales-workbench-head"><div><b>我的任务中心</b><p>仅处理主管分配的询盘，以及已关联询盘的真实客户新回复</p></div><div class="sales-workbench-actions"><button id="sales-connect-mailbox" class="ghost">连接我的邮箱</button><button id="sales-open-profile" class="ghost">个人业务主页</button><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
             <div id="sales-workbench-kpis" class="sales-workbench-kpis"></div>
             <div id="sales-task-list" class="sales-task-list"></div>
           </section>
@@ -3881,7 +3881,7 @@
           customers: profile.role === "sales"
             ? ["客户资料库", "查看本人负责客户的公司、联系人、采购偏好、询盘、邮件和成交记录", "本人客户"]
             : ["客户资料库", "查看权限范围内客户的公司、联系人、采购偏好、询盘、邮件和成交记录", "可见客户"],
-          "sales-today": ["今日工作台", "集中处理客户回复、首次响应、今日跟进、逾期任务和报价后跟进", "今日销售任务"],
+          "sales-today": ["今日工作台", "仅展示主管分配的询盘，以及已关联询盘的真实客户新回复", "销售任务"],
           "follow-calendar": ["跟进日历", "按周、月查看本人计划跟进任务，逾期任务单独汇总", "跟进计划"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
           communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
@@ -4028,7 +4028,7 @@
             ["市场部","3. 客户背调","确认真实商机后","核验公司官网、国家、主营业务、联系人、需求信号、风险与证据链接","背调有来源、日期和可信度，不把推测写成事实"],
             ["市场部","4. 提交分配","有效且背调达到可交付标准后","检查联系人、国家、产品、需求摘要，提交销售主管分配","进入待分配池并通知主管"],
             ["市场部","5. 培育回收","销售退回或暂不成熟时","记录退回原因、成熟度和下次复联时间，按计划持续培育","复联日期明确；成熟后重新提交"],
-            ["销售","1. 今日接单","每天登录后","先看今日工作台：新分配、客户新回复、待跟进、逾期、待报价和即将失效","紧急任务优先处理且不遗漏"],
+            ["销售","1. 销售任务","每天登录后","查看主管新分配的询盘，以及本人邮箱中已关联询盘的真实客户新回复","只有这两类进入销售任务；其他跟进计划在日历和对应模块处理"],
             ["销售","2. 首次响应","收到分配后 30 分钟内","阅读原文和背调，在我的邮箱生成或编写回复，人工核对后发送","系统记录首次有效联系时间和完整邮件"],
             ["销售","3. 资格确认","首次沟通后","确认联系人角色、预算价值、采购时间、异议和明确下一步；设置优先级与预计成交日","待确认字段均有结论或明确提问计划"],
             ["销售","4. 跟进计划","每次沟通结束前","记录沟通内容、客户反馈、下次联系时间、事项和优先级","任务进入日历；未完成自动顺延并显示逾期"],
@@ -4053,32 +4053,22 @@
           $("#module-table-title").textContent=`${currentRoleName}操作流程`;
           query=Promise.resolve({data:visibleSteps,error:null});columns=["角色","流程节点","触发时机","标准操作","完成标准"];mapper=x=>({meta:{searchText:x.join(" ")},cells:x});
         } else if(view==="sales-today"){
-          const qualityRefresh=await runModuleQuery(supabase.rpc("refresh_my_data_quality_alerts"),2);
-          if(qualityRefresh.error)console.warn("数据质量提醒刷新失败",qualityRefresh.error);
-          const [inquiriesResult,followupsResult,messagesResult,replyRemindersResult,whatsappMessagesResult,whatsappReplyRemindersResult,quotesResult,qualityResult]=await Promise.all([
+          const [inquiriesResult,messagesResult,replyRemindersResult,whatsappMessagesResult,whatsappReplyRemindersResult]=await Promise.all([
             loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,assigned_at,first_contact_due_at,first_valid_contact_at,retained_until,created_at,updated_at").eq("owner_id",profile.id).eq("validity","valid").not("status","in","(won,lost)").eq("excluded_from_dashboard",false).range(from,to)),
-            loadModuleRowsPaged((from,to)=>supabase.from("follow_ups").select("id,inquiry_id,content,next_follow_up_at,completed_at,created_at,priority,remind_at,rollover_count").eq("author_id",profile.id).is("completed_at",null).not("next_follow_up_at","is",null).range(from,to)),
             loadModuleRowsPaged((from,to)=>supabase.from("email_messages").select("id,inquiry_id,direction,subject,received_at,sent_at,created_at").order("created_at",{ascending:false}).range(from,to)),
             loadModuleRowsPaged((from,to)=>supabase.from("email_reply_reminders").select("inquiry_id,inbound_message_id,received_at,status").eq("owner_id",profile.id).eq("status","open").order("received_at",{ascending:false}).range(from,to)),
             loadModuleRowsPaged((from,to)=>supabase.from("whatsapp_messages").select("id,inquiry_id,direction,message_type,body_text,occurred_at").order("occurred_at",{ascending:false}).range(from,to)),
             loadModuleRowsPaged((from,to)=>supabase.from("whatsapp_reply_reminders").select("inquiry_id,inbound_message_id,received_at,status").eq("owner_id",profile.id).eq("status","open").order("received_at",{ascending:false}).range(from,to)),
-            loadModuleRowsPaged((from,to)=>supabase.from("quotation_versions").select("inquiry_id,status,created_at").order("created_at",{ascending:false}).range(from,to)),
-            loadModuleRowsPaged((from,to)=>supabase.from("data_quality_alerts").select("inquiry_id,alert_key,severity,message,detected_at").eq("owner_id",profile.id).is("resolved_at",null).order("severity",{ascending:true}).order("detected_at",{ascending:true}).range(from,to)),
           ]);
-          const firstError=[inquiriesResult,followupsResult,messagesResult,replyRemindersResult,whatsappMessagesResult,whatsappReplyRemindersResult,quotesResult,qualityResult].find(x=>x.error)?.error;
+          const firstError=[inquiriesResult,messagesResult,replyRemindersResult,whatsappMessagesResult,whatsappReplyRemindersResult].find(x=>x.error)?.error;
           if(firstError)query=Promise.resolve({data:null,error:firstError});else{
-            const inquiries=inquiriesResult.data||[],byId=new Map(inquiries.map(x=>[x.id,x])),now=new Date(),today=chinaDate(),messagesById=new Map((messagesResult.data||[]).map(x=>[x.id,x])),whatsappMessagesById=new Map((whatsappMessagesResult.data||[]).map(x=>[x.id,x])),latestQuote=new Map(),tasks=[];
-            (quotesResult.data||[]).forEach(x=>{if(x.inquiry_id&&byId.has(x.inquiry_id)&&!latestQuote.has(x.inquiry_id))latestQuote.set(x.inquiry_id,x)});
+            const inquiries=inquiriesResult.data||[],byId=new Map(inquiries.map(x=>[x.id,x])),now=new Date(),messagesById=new Map((messagesResult.data||[]).map(x=>[x.id,x])),whatsappMessagesById=new Map((whatsappMessagesResult.data||[]).map(x=>[x.id,x])),tasks=[];
             const add=(category,priority,inquiry,reason,time,label,source={})=>tasks.push({category,priority,...inquiry,reason,time,label,...source});
-            inquiries.filter(x=>x.assigned_at&&!x.first_valid_contact_at).forEach(x=>{const assignedAt=new Date(x.assigned_at),dueAt=x.first_contact_due_at?new Date(x.first_contact_due_at):new Date(assignedAt.getTime()+30*60000);if(dueAt<now)add("overdue",1,x,`首次响应已逾期，请立即阅读原文和背调并联系客户`,dueAt.toISOString(),"首响已逾期");else if(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(assignedAt)===today)add("assigned",1,x,"今日新分配，请核对客户需求并在首响时限内联系客户",x.assigned_at,"新分配")});
+            inquiries.filter(x=>x.assigned_at&&!x.first_valid_contact_at).forEach(x=>{const assignedAt=new Date(x.assigned_at),dueAt=x.first_contact_due_at?new Date(x.first_contact_due_at):new Date(assignedAt.getTime()+30*60000),overdue=dueAt<now;add("assigned",overdue?1:2,x,overdue?"主管分配后尚未完成首次有效联系，已超过首响时限":"主管新分配的询盘，请核对需求并联系客户",overdue?dueAt.toISOString():x.assigned_at,overdue?"分配待处理 · 已逾期":"主管分配")});
             (replyRemindersResult.data||[]).forEach(reminder=>{const x=byId.get(reminder.inquiry_id),mail=messagesById.get(reminder.inbound_message_id);if(x)add("reply",1,x,`客户新回复：${mail?.subject||"无主题"}`,reminder.received_at||mail?.received_at||mail?.created_at,"客户新回复",{messageId:reminder.inbound_message_id})});
             (whatsappReplyRemindersResult.data||[]).forEach(reminder=>{const x=byId.get(reminder.inquiry_id),message=whatsappMessagesById.get(reminder.inbound_message_id),preview=String(message?.body_text||`[${message?.message_type||"消息"}]`).slice(0,80);if(x)add("reply",1,x,`WhatsApp 客户新回复：${preview}`,reminder.received_at||message?.occurred_at,"WhatsApp 新回复")});
-            (followupsResult.data||[]).forEach(f=>{const x=byId.get(f.inquiry_id);if(!x)return;const due=new Date(f.next_follow_up_at),category=due<now?"overdue":new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai"}).format(due)===today?"followup":null;if(category){const p=f.priority==="high"?1:f.priority==="low"?4:3,rolled=f.rollover_count?` · 已自动顺延 ${f.rollover_count} 次`:"";add(category,category==="overdue"?1:p,x,(f.content||"按计划联系客户")+rolled,f.next_follow_up_at,category==="overdue"?"已逾期":f.priority==="high"?"今日跟进 · 高":"今日跟进",{followupId:f.id})}});
-            inquiries.filter(x=>["qualified","contacted"].includes(x.status)).forEach(x=>{const quote=latestQuote.get(x.id),status=quote?.status;if(status==="pending_approval"||status==="sent")return;if(status==="draft")add("quote",2,x,"报价草稿尚未提交主管审批",quote.created_at,"待完善报价");else if(status==="approved")add("quote",1,x,"报价已获主管批准，等待发送客户",quote.created_at,"待发送报价");else add("quote",2,x,"客户已进入可报价阶段，尚未创建报价单",x.updated_at,"待创建报价")});
-            inquiries.filter(x=>x.retained_until).forEach(x=>{const expiresAt=new Date(`${x.retained_until}T23:59:59+08:00`),remaining=expiresAt-now;if(remaining<0)add("overdue",1,x,`客户保留期已于 ${x.retained_until} 到期`,expiresAt.toISOString(),"保留已过期");else if(remaining<=7*86400000)add("expiring",2,x,`客户保留期将在 ${x.retained_until} 到期`,expiresAt.toISOString(),"即将失效")});
-            (qualityResult.data||[]).forEach(alert=>{const x=byId.get(alert.inquiry_id);if(x)add("quality",alert.severity==="high"?1:3,x,alert.message,alert.detected_at,alert.severity==="high"?"数据缺失 · 高":"数据缺失")});
             tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
-            todayTaskCounts={all:tasks.length,assigned:tasks.filter(x=>x.category==="assigned").length,reply:tasks.filter(x=>x.category==="reply").length,followup:tasks.filter(x=>x.category==="followup").length,overdue:tasks.filter(x=>x.category==="overdue").length,quote:tasks.filter(x=>x.category==="quote").length,expiring:tasks.filter(x=>x.category==="expiring").length,quality:tasks.filter(x=>x.category==="quality").length};
+            todayTaskCounts={all:tasks.length,assigned:tasks.filter(x=>x.category==="assigned").length,reply:tasks.filter(x=>x.category==="reply").length};
             query=Promise.resolve({data:tasks,error:null});
           }
           columns=["类型","优先级","询盘","国家/地区","当前阶段","任务原因","时间","操作"];
@@ -4334,7 +4324,7 @@
         if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
         if(view==="knowledge"){renderKnowledgeFilters(mappedRows);filterModuleRows()}
         if (view === "sales-today" && todayTaskCounts) {
-          const categories=[["all","全部任务"],["assigned","新分配询盘"],["reply","客户新回复"],["followup","今日待跟进"],["overdue","逾期任务"],["quote","待报价"],["expiring","即将失效"],["quality","数据质量"]];
+          const categories=[["all","全部任务"],["assigned","主管分配询盘"],["reply","客户新回复"]];
           $("#module-insights").innerHTML=categories.map(([key,label])=>`<button class="module-insight ${activeTodayCategory===key?"active":""}" type="button" data-today-category="${key}"><span>${label}</span><b>${todayTaskCounts[key]||0}</b></button>`).join("");
           $("#module-insights").classList.remove("hidden");
           $$("#module-insights [data-today-category]").forEach(button=>button.addEventListener("click",()=>{activeTodayCategory=button.dataset.todayCategory;$$("#module-insights [data-today-category]").forEach(item=>item.classList.toggle("active",item===button));filterModuleRows()}));

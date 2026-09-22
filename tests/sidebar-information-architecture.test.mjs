@@ -12,4 +12,6 @@ test("sidebar groups the primary navigation into clear information architecture"
   assert.match(html,/initializeSidebarNavigation\(\)/);
   assert.match(html,/openSidebarGroupForView\(view\)/);
   assert.match(html,/syncSidebarGroupBadges\(\)/);
+  assert.match(html,/group\.querySelectorAll\("\.nav-update-badge:not\(\.hidden\)"\)/);
+  assert.doesNotMatch(html,/\$\$\("\.nav-update-badge:not\(\.hidden\)",group\)/);
 });

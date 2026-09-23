@@ -2921,6 +2921,7 @@
         refreshSidebarBadges();
         subscribeNotifications();
         icons();
+        restoreAgentLocation();
       }
       function sidebarNotificationViews(item) {
         const type = String(item.type || "");
@@ -4875,6 +4876,18 @@
       async function saveAdvisorFeedback(id,decision){
         const labels={accepted:"采纳",modified:"修改后采纳",ignored:"忽略",invalid:"无效"},audited=await recordAdvisorAudit(id,decision);if(!audited)return toast("反馈未完成审计，系统未保存本次选择");advisorFeedback[id]={decision:labels[decision],at:new Date().toISOString()};localStorage.setItem("wonly_advisor_feedback_v1",JSON.stringify(advisorFeedback));toast(`已记录“${labels[decision]}”，用于后续评估建议效果`);renderAdvisor();
       }
+      function saveAgentLocation(room=null){
+        if(!canUseAgentWorld(profile,currentAuthUser))return;
+        try{sessionStorage.setItem('wonly_agent_location_'+profile.id,JSON.stringify({world:true,room:['Grace','Brian','Jay'].includes(room)?room:null}))}catch{}
+      }
+      function restoreAgentLocation(){
+        if(!canUseAgentWorld(profile,currentAuthUser))return;
+        try{const saved=JSON.parse(sessionStorage.getItem('wonly_agent_location_'+profile.id)||'null');
+          if(saved?.world!==true)return;
+          switchView('agent-world');
+          if(['Grace','Brian','Jay'].includes(saved.room))$('#agent-world-page [data-advisor="'+saved.room+'"]').click();
+        }catch{}
+      }
       let worldController=null,worldPersona=null,worldIntelligence=null;
       let agentDataRefreshFailed=false,worldModel=null;
       const assistantHome=document.createComment('AI assistant home');$('#ai-assistant-panel').before(assistantHome);
@@ -4902,12 +4915,12 @@
         if(!worldController)worldController=mountAgentWorld($('#agent-world-page'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),onSelect:(name,slot)=>{
           if(!canUseAgentWorld(profile,currentAuthUser))return;
           if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后再切换');return false;}
-          switchWorldConversation(name);worldIntelligence?.select(name);advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';
+          saveAgentLocation(name);switchWorldConversation(name);worldIntelligence?.select(name);advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';
           $('#ai-advisor-page').classList.add('hidden');slot.append($('#ai-assistant-panel'));openAiAssistant();
           $('#ai-assistant-panel').querySelector('.ai-panel-head strong').textContent=name+' · '+({Grace:'营销增长智能体',Brian:'销售智能体',Jay:'经营决策智能体'}[name]);
           $('#ai-assistant-input').value={Grace:'汇报当前海外市场与竞品情报',Brian:'汇报当前销售商机与跟进风险',Jay:'汇报营销和销售经营简报'}[name];
           worldModel?.enter();
-        },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
+        },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}saveAgentLocation();worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
           onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
@@ -4929,7 +4942,8 @@
           view = "dashboard";
           options = {};
         }
-        if(view==='agent-world'){setActiveNavigation(view);enterAgentWorld();return}
+        if(view==='agent-world'){saveAgentLocation(worldPersona);setActiveNavigation(view);enterAgentWorld();return}
+        if(profile?.id)try{sessionStorage.removeItem('wonly_agent_location_'+profile.id)}catch{}
         if($('#app').classList.contains('agent-world-active')){restoreWorldPanels();$('#app').classList.remove('agent-world-active');$('#agent-world-page').classList.add('hidden');$('#ai-assistant-open').classList.remove('hidden');}
         const worldSwitch=$('#world-switch');worldSwitch.setAttribute('aria-pressed','false');worldSwitch.setAttribute('aria-label','切换到智能体世界');worldSwitch.title='切换到智能体世界';
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}

@@ -1421,7 +1421,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=20260923-1" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=20260923-2" />
 </head>
   <body>
     <section id="boot" class="boot-shell">
@@ -2471,7 +2471,8 @@
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
-      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20260923-1";
+      import { mountIntelligence } from './assets/agent-intelligence.mjs?v=20260923-1';
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20260923-2";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;
@@ -4872,7 +4873,7 @@
       async function saveAdvisorFeedback(id,decision){
         const labels={accepted:"采纳",modified:"修改后采纳",ignored:"忽略",invalid:"无效"},audited=await recordAdvisorAudit(id,decision);if(!audited)return toast("反馈未完成审计，系统未保存本次选择");advisorFeedback[id]={decision:labels[decision],at:new Date().toISOString()};localStorage.setItem("wonly_advisor_feedback_v1",JSON.stringify(advisorFeedback));toast(`已记录“${labels[decision]}”，用于后续评估建议效果`);renderAdvisor();
       }
-      let worldController=null,worldPersona=null;
+      let worldController=null,worldPersona=null,worldIntelligence=null;
       const assistantHome=document.createComment('AI assistant home');$('#ai-assistant-panel').before(assistantHome);
       const advisorHome=document.createComment('AI analysis home');$('#ai-advisor-page').before(advisorHome);
       function restoreWorldPanels(){
@@ -4886,11 +4887,12 @@
         $('#ai-assistant-open').classList.add('hidden');
         if(!worldController)worldController=mountAgentWorld($('#agent-world-page'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),onSelect:(name,slot)=>{
           if(!canUseAgentWorld(profile,currentAuthUser))return;
-          worldPersona=name;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';
+          worldPersona=name;worldIntelligence?.select(name);advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';
           $('#ai-advisor-page').classList.add('hidden');slot.append($('#ai-assistant-panel'));openAiAssistant();
           $('#ai-assistant-panel').querySelector('.ai-panel-head strong').textContent=name+' · '+({Grace:'营销增长智能体',Brian:'销售智能体',Jay:'经营决策智能体'}[name]);
-          $('#ai-assistant-input').value={Grace:'分析当前渠道表现和有效询盘率',Brian:'分析当前商机漏斗与风险询盘',Jay:'总结当前经营情况'}[name];
+          $('#ai-assistant-input').value={Grace:'汇报当前海外市场与竞品情报',Brian:'汇报当前销售商机与跟进风险',Jay:'汇报营销和销售经营简报'}[name];
         },onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
+        if(!worldIntelligence)worldIntelligence=mountIntelligence($('#world-knowledge-slot'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),getContext:(question='')=>aiDataContext(question)});else worldIntelligence.refresh();
         $$('[data-crm-world]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.crmWorld==='agents')));return true;
       }
       $$('[data-crm-world]').forEach(button=>button.onclick=()=>{if(!canUseAgentWorld(profile,currentAuthUser))return;switchView(button.dataset.crmWorld==='agents'?'agent-world':'dashboard')});
@@ -8740,6 +8742,10 @@
       $$("[data-ai-question]").forEach(button=>button.addEventListener("click",()=>{$("#ai-assistant-input").value=button.dataset.aiQuestion;$("#ai-assistant-form").requestSubmit();}));
       $("#ai-assistant-form").addEventListener("submit",async event=>{
         event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
+        if(worldPersona&&canUseAgentWorld(profile,currentAuthUser)){
+          const brief=worldIntelligence?.answer(question);
+          if(brief){addAiMessage("user",question);input.value="";addAiMessage("assistant",brief);aiLastQuestion=question;aiLastContext=aiDataContext(question);aiConversation.push({role:"user",content:question},{role:"assistant",content:brief});return;}
+        }
         addAiMessage("user",question);input.value="";aiLastQuestion=question;aiLastContext=aiDataContext(question);const grounded=aiAnswer(question),evidence=aiEvidence(question),submit=event.submitter||$("#ai-assistant-form button[type='submit']");submit.disabled=true;submit.textContent="分析中…";worldController?.setMode("thinking");
         if(/进行中|询盘编号|列出编号|下一步建议/.test(question.toLowerCase())){submit.disabled=false;submit.textContent="提问";worldController?.setMode("idle");addAiMessage("assistant",grounded);aiConversation.push({role:"user",content:question},{role:"assistant",content:grounded});return;}
         let answer=grounded,fallbackReason="";

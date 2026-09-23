@@ -152,6 +152,10 @@
         display: grid;
         grid-template-columns: 184px 1fr;
       }
+      .app.agent-world { grid-template-columns:1fr; background:radial-gradient(circle at 82% 12%,#edf2d9 0,transparent 32%),radial-gradient(circle at 12% 10%,#dceafb 0,transparent 36%),#f3f6f3; }
+      .app.agent-world .rail { display:none; }
+      .world-switch { border-color:#315f49; color:#315f49; font-weight:800; }
+      .world-switch.active { border-color:var(--brand); background:var(--brand); color:#fff; box-shadow:0 8px 24px rgba(32,61,49,.2); }
       .rail {
         background: var(--rail);
         color: #fff;
@@ -1479,8 +1483,6 @@
           <i data-lucide="calendar-days"></i><span>跟进日历</span></button
         ><button class="nav" data-view="marketing-center">
           <i data-lucide="list-checks"></i><span>市场任务中心</span></button
-        ><button class="nav" data-view="ai-advisor">
-          <i data-lucide="sparkles"></i><span>AI 智能顾问</span></button
         ><button class="nav" data-view="inquiries">
           <i data-lucide="contact-round"></i><span>询盘商机</span></button
         ><button class="nav" data-view="customers">
@@ -1527,6 +1529,7 @@
         <header class="top">
           <h2>王力 · 全球询盘 CRM</h2>
           <div class="user">
+            <button id="world-switch" class="ghost world-switch hidden" type="button"><i data-lucide="orbit"></i><span>进入智能体世界</span></button>
             <button class="avatar" id="avatar" type="button" aria-label="上传我的头像" title="点击上传我的头像">王</button>
             <div>
               <b id="user-name">—</b><br /><small id="user-role">—</small>
@@ -2622,12 +2625,12 @@
       };
       const roleViewAccess = {
         owner: new Set(["dashboard","sales-today","follow-calendar","marketing-center","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","risk-review","settings"]),
-        sales_manager: new Set(["dashboard","ai-advisor","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"]),
-        marketing: new Set(["dashboard","marketing-center","ai-advisor","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
-        sales: new Set(["dashboard","sales-today","follow-calendar","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
+        sales_manager: new Set(["dashboard","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"]),
+        marketing: new Set(["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
+        sales: new Set(["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
       const sidebarNavigationGroups = [
-        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","ai-advisor","sales-today","follow-calendar","marketing-center","daily"]},
+        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","sales-today","follow-calendar","marketing-center","daily"]},
         {key:"customers",label:"客户与商机",icon:"briefcase-business",views:["inquiries","customers","assignment","nurture","public-pool","research"]},
         {key:"communication",label:"沟通协作",icon:"messages-square",views:["mailbox","whatsapp","email","communications"]},
         {key:"sales-support",label:"销售支持",icon:"library-big",views:["templates","knowledge","quotes","fulfillment","legacy-projects"]},
@@ -2667,12 +2670,13 @@
         {at:"2026-09-18 10:32",title:"360 评分中心上线",detail:"接入匿名多方评价、角色可见范围、校准、申诉和影子运行提示。",roles:["owner","sales_manager","marketing","sales"]}
       ];
       function canAccessView(view, role = profile?.role) {
+        if(view==="ai-advisor")return Boolean(role==="owner"&&currentAuthUser?.email?.toLowerCase()==="chloelee@wonlyglobal.com");
         return Boolean(role && roleViewAccess[role]?.has(view));
       }
       function renderRoleGuideLive(){
         const role=profile?.role,box=$("#role-guide-live");
         if(!role||!box)return;
-        const modules=[...(roleViewAccess[role]||[])].filter(view=>view!=="sop").map(view=>roleGuideViewNames[view]||view);
+        const modules=[...(roleViewAccess[role]||[])].filter(view=>view!=="sop"&&canAccessView(view,role)).map(view=>roleGuideViewNames[view]||view);
         const updates=roleGuideUpdates.filter(item=>item.roles.includes(role));
         box.innerHTML=`<article class="role-guide-card"><h3>${esc(roleNames[role]||role)}·当前权限指南</h3><p>与当前生产角色权限矩阵实时同步；角色或菜单改变后，重新打开本页即会更新。</p><div class="role-guide-status">已同步当前生产权限 · ${esc(new Date().toLocaleString("zh-CN",{hour12:false}))}</div><div class="role-guide-modules">${modules.map(name=>`<span class="role-guide-module">${esc(name)}</span>`).join("")}</div></article><article class="role-guide-card"><h3>最近更新</h3><p>按生产发布和权限验收时间倒序排列。</p><div class="role-guide-update-list">${updates.map(item=>`<div class="role-guide-update"><time>${esc(item.at)}</time><div><b>${esc(item.title)}</b><span>${esc(item.detail)}</span></div></div>`).join("")}</div></article>`;
       }
@@ -2889,6 +2893,7 @@
         setMemberAvatar($("#avatar"), profile, "王");
         const role = profile.role;
         $$(".nav[data-view]").forEach(nav => nav.classList.toggle("hidden", !canAccessView(nav.dataset.view, role)));
+        $("#world-switch").classList.toggle("hidden",!canAccessView("ai-advisor",role));
         initializeSidebarNavigation();
         const roleGuideNav=$('.nav[data-view="sop"]');
         if(roleGuideNav)roleGuideNav.parentElement.appendChild(roleGuideNav);
@@ -4875,6 +4880,7 @@
           options = {};
         }
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
+        const enteringAgentWorld=view==="ai-advisor";$("#app").classList.toggle("agent-world",enteringAgentWorld);$("#world-switch").classList.toggle("active",enteringAgentWorld);$("#world-switch span").textContent=enteringAgentWorld?"返回 CRM 世界":"进入智能体世界";
         $("#sales-profile-page").classList.add("hidden");
         setActiveNavigation(view);
         if (view === "daily") {
@@ -8661,6 +8667,7 @@
       $$(".marketing-period-tab").forEach(button=>button.addEventListener("click",()=>{$("#marketing-period").value=button.dataset.marketingPeriod;$$('.marketing-period-tab').forEach(item=>{const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active))});renderMarketingWorkbench(dashboardState.rows)}));
       $("#website-intake-refresh").addEventListener("click",loadWebsiteIntakeMonitor);
       $("#marketing-open-website-monitor").addEventListener("click",()=>switchView("settings"));
+      $("#world-switch").addEventListener("click",()=>switchView($("#app").classList.contains("agent-world")?"dashboard":"ai-advisor"));
       $$("[data-advisor-tab]").forEach(button=>button.addEventListener("click",()=>{advisorActiveTab=button.dataset.advisorTab;$$('[data-advisor-tab]').forEach(item=>item.classList.toggle("active",item===button));renderAdvisor()}));
       $("#advisor-refresh").addEventListener("click",()=>{renderAdvisor();toast("已按当前权限和最新 CRM 数据刷新建议")});
       $("#advisor-ask").addEventListener("click",()=>{openAiAssistant();$("#ai-assistant-input").value="请基于当前 CRM 数据解释最优先的营销和销售建议，并说明证据、数据缺口与风险。"});

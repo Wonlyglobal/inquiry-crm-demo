@@ -5,10 +5,12 @@ import { readFile } from 'node:fs/promises';
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const feedbackFunction = await readFile(new URL('../supabase/functions/crm-ai-advisor-feedback/index.ts', import.meta.url), 'utf8');
 
-test('AI advisor is available to every CRM business role', () => {
-  for (const role of ['owner', 'sales_manager', 'marketing', 'sales']) {
-    assert.match(html, new RegExp(`${role}: new Set\\(\\[[^\\]]*"ai-advisor"`));
-  }
+test('AI advisor world is restricted to Li Huayan and removed from the sidebar', () => {
+  assert.match(html, /if\(view==="ai-advisor"\)return Boolean\(role==="owner"&&currentAuthUser\?\.email\?\.toLowerCase\(\)==="chloelee@wonlyglobal\.com"\)/);
+  assert.match(html, /id="world-switch" class="ghost world-switch hidden"/);
+  assert.doesNotMatch(html, /class="nav" data-view="ai-advisor"/);
+  assert.match(html, /\.app\.agent-world \.rail \{ display:none; \}/);
+  assert.match(html, /switchView\(\$\("#app"\)\.classList\.contains\("agent-world"\)\?"dashboard":"ai-advisor"\)/);
 });
 
 test('AI advisor exposes the six approved role-aware views', () => {

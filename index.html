@@ -1665,15 +1665,13 @@
           <div class="dashboard-toolbar card" style="margin-bottom:18px">
             <div class="dashboard-toolbar-primary"><div class="dashboard-scope-group"><div class="period-tabs" role="group" aria-label="市场任务周期"><button class="period-tab marketing-period-tab" data-marketing-period="today">今日</button><button class="period-tab marketing-period-tab" data-marketing-period="week">本周</button><button class="period-tab marketing-period-tab active" data-marketing-period="month">本月</button><button class="period-tab marketing-period-tab" data-marketing-period="quarter">本季度</button><button class="period-tab marketing-period-tab" data-marketing-period="year">本年度</button></div><select id="marketing-period" class="input compact hidden"><option value="today">今日</option><option value="week">本周</option><option value="month" selected>本月</option><option value="quarter">本季度</option><option value="year">本年度</option></select></div><span class="dashboard-scope-note">任务和渠道数据随所选周期同步更新</span></div>
           </div>
+          <section id="website-intake-alert" class="card hidden" style="padding:14px 18px;margin-bottom:14px">
+            <div class="sales-workbench-head"><div><b>官网接入存在失败记录</b><p id="website-intake-alert-text">请到系统设置查看详情并重试。</p></div><button id="marketing-open-website-monitor" class="ghost" type="button">查看接入监控</button></div>
+          </section>
           <section id="marketing-workbench" class="dashboard-panel manager-workbench hidden">
             <div class="sales-workbench-head"><div><b>官方询盘分拣与分配</b><p>登录账号与公共邮箱相互独立；这里处理 inquiry@wonlyglobal.com 的来信</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">公共邮箱状态</button><button id="marketing-open-email" class="ghost">进入邮件分拣</button><button id="marketing-open-research" class="ghost">客户背调</button></div></div>
             <div id="marketing-workbench-kpis" class="sales-workbench-kpis"></div>
             <div class="manager-workbench-body"><div><div class="panel-title"><b>市场待处理事项</b><span class="dashboard-scope-note">按流程优先级排列</span></div><div id="marketing-priority-list" class="manager-priority-list"></div></div><div id="marketing-source-overview" class="manager-workload"></div></div>
-          </section>
-          <section id="website-intake-panel" class="dashboard-panel hidden" style="margin-top:14px">
-            <div class="panel-title"><div><b>官网实时接入监控</b><div class="dashboard-scope-note">监控官网表单同步、UTM 归因、处理延迟和失败重试</div></div><button id="website-intake-refresh" class="table-action" type="button">刷新</button></div>
-            <div id="website-intake-kpis" class="sales-workbench-kpis"></div>
-            <div id="website-intake-list" class="dashboard-table-scroll"></div>
           </section>
         </section>
         <section id="module-page" class="page hidden">
@@ -1694,6 +1692,11 @@
               <button id="module-primary" class="primary hidden"></button>
             </div>
           </div>
+          <section id="website-intake-panel" class="dashboard-panel hidden" style="margin-bottom:20px">
+            <div class="panel-title"><div><b>官网实时接入监控</b><div class="dashboard-scope-note">系统设置 · 监控官网表单同步、UTM 归因、处理延迟和失败重试</div></div><button id="website-intake-refresh" class="table-action" type="button">刷新</button></div>
+            <div id="website-intake-kpis" class="sales-workbench-kpis"></div>
+            <div id="website-intake-list" class="dashboard-table-scroll"></div>
+          </section>
           <section id="role-guide-live" class="role-guide-live hidden" aria-label="角色指南实时更新"></section>
           <div id="module-insights" class="module-insights hidden"></div>
           <section id="sales360-framework" class="card hidden" style="padding:20px;margin-bottom:20px" aria-label="360评价体系">
@@ -4131,6 +4134,9 @@
         if(view==="sop")renderRoleGuideLive();
         $("#whatsapp-workspace").classList.toggle("hidden",view!=="whatsapp");
         $("#customer-core").classList.toggle("hidden",view!=="customers");
+        const websiteMonitorVisible=view==="settings"&&["owner","marketing"].includes(profile.role);
+        $("#website-intake-panel").classList.toggle("hidden",!websiteMonitorVisible);
+        if(websiteMonitorVisible)loadWebsiteIntakeMonitor();
         if(view==="customers")$("#customer-core").innerHTML='<article class="customer-core-card"><h3>正在加载客户主档…</h3><p>按当前账号权限读取公司、联系人和商机。</p></article>';
         $("#module-table-wrap").classList.toggle("hidden",view==="whatsapp");
         $("#inquiry-command").classList.toggle("hidden", view !== "inquiries");
@@ -5062,7 +5068,14 @@
         $$('[data-marketing-task]').forEach(item=>item.addEventListener("click",()=>{const t=tasks[Number(item.dataset.marketingTask)];if(t?.id)openInquiryDetail(t.id);else switchView(t?.view||"research")}));
         const labels={email:"企业邮箱",manual:"手工录入",website:"官网表单",organic_search:"SEO自然搜索",google_ads:"Google Ads",meta_ads:"Meta Ads",linkedin:"LinkedIn",exhibition:"展会",outbound:"销售自主开发",referral:"转介绍",other:"其他"},sources=new Map();rows.forEach(x=>{const key=x.primary_source||x.source||"other",v=sources.get(key)||{total:0,valid:0};v.total++;if(x.validity==="valid")v.valid++;sources.set(key,v)});const sourceRows=[...sources].sort((a,b)=>b[1].total-a[1].total),max=Math.max(...sourceRows.map(x=>x[1].total),1);
         $("#marketing-source-overview").innerHTML=`<h4>询盘来源结构</h4><p class="dashboard-scope-note">总体有效率 ${pct(validCount,validDecided.length)}</p>${sourceRows.length?sourceRows.map(([key,v])=>`<div class="marketing-source-row"><span>${esc(labels[key]||key)}</span><div><div class="workload-bar"><i style="width:${Math.max(4,v.total/max*100)}%"></i></div><small>有效率 ${pct(v.valid,v.total)}</small></div><b>${v.total} 条</b></div>`).join(""):'<div class="empty">暂无渠道询盘数据</div>'}`;
-        loadWebsiteIntakeMonitor();
+        loadWebsiteIntakeAlert();
+      }
+      async function loadWebsiteIntakeAlert(){
+        const alert=$("#website-intake-alert");if(!alert||!["owner","marketing"].includes(profile?.role))return alert?.classList.add("hidden");
+        const {data,error}=await supabase.from("website_intake_attempts").select("id,received_at").eq("status","failed").order("received_at",{ascending:false}).limit(10);
+        if(error||!(data||[]).length)return alert.classList.add("hidden");
+        $("#website-intake-alert-text").textContent=`发现 ${(data||[]).length} 条失败记录，请到系统设置查看详情并重试。`;
+        alert.classList.remove("hidden");
       }
       async function loadWebsiteIntakeMonitor(){
         const panel=$("#website-intake-panel");if(!panel||!["owner","marketing"].includes(profile?.role))return;
@@ -8567,6 +8580,7 @@
       $$(".period-tab[data-period]").forEach(button=>button.addEventListener("click",()=>{$("#dashboard-period").value=button.dataset.period;$("#dashboard-period").dispatchEvent(new Event("change"))}));
       $$(".marketing-period-tab").forEach(button=>button.addEventListener("click",()=>{$("#marketing-period").value=button.dataset.marketingPeriod;$$('.marketing-period-tab').forEach(item=>{const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active))});renderMarketingWorkbench(dashboardState.rows)}));
       $("#website-intake-refresh").addEventListener("click",loadWebsiteIntakeMonitor);
+      $("#marketing-open-website-monitor").addEventListener("click",()=>switchView("settings"));
       $("#dashboard-layout-toggle").addEventListener("click",()=>setDashboardLayoutEditing(!dashboardLayoutEditing));
       $("#dashboard-layout-reset").addEventListener("click",async()=>{if(!await appConfirm("确认恢复当前账号的默认看板顺序？",{title:"恢复默认布局",confirmText:"确认恢复"}))return;applyDashboardLayout(dashboardInitialOrder);try{localStorage.removeItem(dashboardLayoutStorageKey())}catch{}persistDashboardPreferences();setDashboardLayoutEditing(false);toast("已恢复默认看板布局")});
       $("#detail-tabs-order-toggle").addEventListener("click",()=>setDetailTabsEditing(!detailTabsEditing));

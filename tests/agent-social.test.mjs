@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {summarize,permittedCaller} from '../integrations/social-summary/supabase/functions/social-summary/summary.mjs';
+import {loadSocial,SOCIAL_URL} from '../supabase/functions/agent-conversation/social.mjs';
+test('social summary drops identifiers and tokens, preserves missing and marks stale',()=>{
+ const data=summarize({accounts:[{id:'private-id',display_name:'WONLY',platform:'youtube',followers:0,token:'private-token'}],competitors:[{id:'rival',name:'Brand',platform:'youtube',followers:20,last_synced_at:'2026-09-01'}],snapshots:[],posts:[]},Date.parse('2026-09-23'));assert.equal(data.accounts[0].followers,null);assert.equal(data.accounts[0].status,'missing');assert.equal(data.competitors[0].status,'stale');assert.doesNotMatch(JSON.stringify(data),/private-id|private-token/);
+});
+test('published metrics remain explicitly unverified rather than marketed as fresh API metrics',()=>{const data=summarize({accounts:[],competitors:[],snapshots:[],posts:[{platform:'youtube',title:'public topic',views:0,operator_email:'secret@example.com'}]});assert.equal(data.published_28d[0].metric_status,'recorded_not_verified');assert.doesNotMatch(JSON.stringify(data),/secret@example/)});
+test('social fetch is fixed target and rejects errors without exposing authorization',async()=>{const data=await loadSocial('test-secret',async(url,options)=>{assert.equal(url,SOCIAL_URL);assert.equal(options.redirect,'error');return new Response('{}',{status:403})});assert.equal(data.status,'unavailable');assert.doesNotMatch(JSON.stringify(data),/test-secret/)});
+
+test('social source authorizes exact enabled CRM identity, not possession of public key',()=>{const u={id:'c43bd3c2-6e3a-4228-99c7-dc95f33643f2',email:'chloelee@wonlyglobal.com'};assert.equal(permittedCaller(u,{active:true,role:'owner'}),true);for(const user of [null,{...u,id:'other'},{...u,email:'other@example.com'}])assert.equal(permittedCaller(user,{active:true,role:'owner'}),false);for(const profile of [null,{active:false,role:'owner'},{active:true,role:'sales'}])assert.equal(permittedCaller(u,profile),false)});

@@ -1421,7 +1421,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=20260923-3" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=20260923-4" />
 </head>
   <body>
     <section id="boot" class="boot-shell">
@@ -1524,7 +1524,7 @@
       </aside>
       <main class="main">
         <header class="top">
-          <div class="world-brand"><img src="./assets/wonly-gold.png" alt="王力 WONLY" /><span>CRM</span></div><nav id="world-switch" class="world-switch hidden" aria-label="世界切换"><button type="button" data-crm-world="crm" aria-pressed="true">CRM 世界</button><button type="button" data-crm-world="agents" aria-pressed="false">智能体世界</button></nav>
+          <div class="world-brand"><img src="./assets/wonly-gold.png" alt="王力 WONLY" /><span>CRM</span></div><button id="world-switch" class="world-switch hidden" type="button" aria-label="切换到智能体世界" title="切换到智能体世界" aria-pressed="false"><i data-lucide="orbit"></i></button>
           <div class="user">
             <button class="avatar" id="avatar" type="button" aria-label="上传我的头像" title="点击上传我的头像">王</button>
             <div>
@@ -4907,9 +4907,9 @@
           $('#ai-assistant-input').value={Grace:'汇报当前海外市场与竞品情报',Brian:'汇报当前销售商机与跟进风险',Jay:'汇报营销和销售经营简报'}[name];
         },onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldIntelligence)worldIntelligence=mountIntelligence($('#world-knowledge-slot'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),getContext:(question='')=>({...aiDataContext(question),ready:dashboardHasSuccessfulLoad,refreshFailed:agentDataRefreshFailed}),onQuestion:(name,question)=>{if(!canUseAgentWorld(profile,currentAuthUser)||$('#ai-assistant-form button[type="submit"]').disabled)return;$('#agent-world-page [data-advisor="'+name+'"]').click();$('#ai-assistant-input').value=question;$('#ai-assistant-form').requestSubmit()}});else worldIntelligence.refresh();
-        $$('[data-crm-world]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.crmWorld==='agents')));return true;
+        const worldSwitch=$('#world-switch');worldSwitch.setAttribute('aria-pressed','true');worldSwitch.setAttribute('aria-label','返回 CRM');worldSwitch.title='返回 CRM';return true;
       }
-      $$('[data-crm-world]').forEach(button=>button.onclick=()=>{if(!canUseAgentWorld(profile,currentAuthUser))return;switchView(button.dataset.crmWorld==='agents'?'agent-world':'dashboard')});
+      $('#world-switch').onclick=()=>{if(!canUseAgentWorld(profile,currentAuthUser))return;switchView($('#app').classList.contains('agent-world-active')?'dashboard':'agent-world')};
       async function switchView(view, options = {}) {
         if (!canAccessView(view)) {
           toast("当前角色无权进入该功能");
@@ -4918,7 +4918,7 @@
         }
         if(view==='agent-world'){setActiveNavigation(view);enterAgentWorld();return}
         if($('#app').classList.contains('agent-world-active')){restoreWorldPanels();$('#app').classList.remove('agent-world-active');$('#agent-world-page').classList.add('hidden');$('#ai-assistant-open').classList.remove('hidden');}
-        $$('[data-crm-world]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.crmWorld==='crm')));
+        const worldSwitch=$('#world-switch');worldSwitch.setAttribute('aria-pressed','false');worldSwitch.setAttribute('aria-label','切换到智能体世界');worldSwitch.title='切换到智能体世界';
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         $("#sales-profile-page").classList.add("hidden");
         setActiveNavigation(view);

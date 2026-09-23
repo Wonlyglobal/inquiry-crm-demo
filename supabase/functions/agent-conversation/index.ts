@@ -2,7 +2,7 @@ import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
 import {POLICY,PERSONAS,eligible,requestBody,outputText} from './policy.mjs';
 import {CHAT_URL,TTS_URL,MODELS,providerJson,speechBody,speechAudio,transcriptionBody} from './bailian.mjs';
 import {loadCrmStats} from './crm-stats.mjs';
-import {answerIssues,correctionMessage} from './answer-quality.mjs';
+import {answerIssues,correctionMessage,safeMarketingFallback} from './answer-quality.mjs';
 import {loadSocial} from './social.mjs';
 import {loadSeo} from './seo.mjs';
 import {loadResearch} from './research.mjs';
@@ -62,7 +62,7 @@ Deno.serve(async req=>{
   const payload=await providerJson(endpoint,body,key);
   if(['speech','greeting'].includes(input.action))return new Response(await speechAudio(payload),{headers:{...cors,'Content-Type':'audio/wav'}});
   if(input.action==='transcribe')return json({text:outputText(payload).slice(0,3000)});
-  let answer=outputText(payload);const issues=answerIssues(answer,qualityContext);if(issues.length){const {error:reviewAuditError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_answer_quality_retry',after_data:{request_id:requestId,provider:'bailian',model,issue_count:issues.length},reason:'纠正未核验指标或审批主体表述，不记录对话正文'});if(reviewAuditError)return json({error:'回答核验未完成，请稍后重试'},503);answer=outputText(await providerJson(endpoint,{...body,messages:[...body.messages,correctionMessage(issues)]},key));if(answerIssues(answer,qualityContext).length)return json({error:'回答核验未完成，请换个更具体的问题重试'},502);}const speech=answer.replace(/https?:\/\/\S+/g,'来源链接见文字回答').slice(0,1800);
+  let answer=outputText(payload);const issues=answerIssues(answer,qualityContext);if(issues.length){const {error:reviewAuditError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_answer_quality_retry',after_data:{request_id:requestId,provider:'bailian',model,issue_count:issues.length},reason:'纠正未核验指标或审批主体表述，不记录对话正文'});if(reviewAuditError)return json({error:'回答核验未完成，请稍后重试'},503);answer=outputText(await providerJson(endpoint,{...body,messages:[...body.messages,{role:'assistant',content:answer},correctionMessage(issues)]},key));if(answerIssues(answer,qualityContext).length){answer=safeMarketingFallback(qualityContext);contextMetadata.answer_status='safe_reference_fallback';}else contextMetadata.answer_status='corrected';}const speech=answer.replace(/https?:\/\/\S+/g,'来源链接见文字回答').slice(0,1800);
   return json({answer,model,provider:'bailian',context:contextMetadata,ticket:await ticket({user:user.id,persona:input.persona,text:speech,expires:Date.now()+300000},key)});
  }catch(error){return json({error:error instanceof Error&&/百炼|录音|语音|播报|请求|问题|历史|智能体|敏感|移除|未完成|文字回答/.test(error.message)?error.message:'请求未完成，请稍后重试'},400)}
 });

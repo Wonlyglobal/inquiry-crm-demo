@@ -66,7 +66,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   onWake:async persona=>{
    wakeTransition=true;try{onSelectPersona(persona)}finally{wakeTransition=false}
    if(getPersona()!==persona)throw Error('当前对话未结束，无法切换智能体');
-   const epoch=version;controller=new AbortController();busy=true;state('正在问候…','thinking');onMessage('assistant','Hello Chloe');
+   const epoch=version;controller=new AbortController();busy=true;state('正在问候…','thinking');onMessage('assistant',persona==='Grace'?"I'm here, Chloe.":'Hello Chloe');
    try{const blob=await call({action:'greeting',persona},controller.signal);await playBlob(blob,epoch)}catch(e){busy=false;throw e}
   },onQuestion:text=>ask(text,{voice:true})});
  installWake.onclick=async()=>{if(installing)return;stopAll();installing=true;sync();try{await wake.install()}catch(e){state(e.message)}finally{installing=false;sync()}};

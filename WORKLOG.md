@@ -199,3 +199,10 @@ PR93/94页面部署35835281689成功；生产index.html、agent-conversation.mjs
 2026-09-23 五平台自然增长背景候选：用户明确TikTok/Instagram/Facebook/YouTube/LinkedIn并确认暂未广告投放，Codex将带日期用户陈述接入模型上下文，不冒充后台核验或永久无广告。462回归通过；源码确认四个同步连接器、无LinkedIn连接器、API设置仍占位。社媒生产页需管理员登录，已打开并请用户登录；未取员工密码、未创建应用/扩大OAuth权限。真实平台权限和后台数据尚未接通；回滚本轮context import及JSON，保留审计。
 
 2026-09-23 用户完成社媒管理员登录后，Codex通过已有授权切换Supabase社媒身份，仅核对配置名称和下载生产连接器源码。确认YouTube只有API Key无OAuth配置、LinkedIn无连接器/配置、Facebook存在FB_PAGE_TOKEN但当前sync-facebook读取FB_ACCESS_TOKEN或IG_ACCESS_TOKEN。新增只读summary.connections候选，区分配置存在和权限未验证；不回传任何凭据值，不读取TikTok凭据表、不改RLS/数据库。464回归通过；尚待源端部署与真实Grace验证。YouTube后台与LinkedIn接入仍需OAuth应用/页面确认；Google Cloud现有会话可用，继续核对。
+
+
+2026-09-23T16:31:02 五平台接入推进：授权人用户（开始/已登录），执行Codex。PR95/d9dc65a用户确认的五平台/暂未广告背景已部署agent-conversation并合并；PR96源端social-summary配置就绪状态已部署并合并，464回归及CI35837170909通过、匿名401。仅增加不含凭据值的状态，无源端数据写入/RLS/OAuth权限变化；回滚分别恢复PR94的CRM函数和PR95前的源函数。通过官方CLI切回社媒管理账号，生产配置和源码已核对：YouTube APIkey-only，LinkedIn无连接器，FB_PAGE_TOKEN未被sync-facebook读取（仍可能通过IG_ACCESS_TOKEN工作，不能据此断言平台调用失败）。Google既有youtube-data-api-v3-503403项目无OAuth；已准备WONLY Social Analytics基础注册，停在Google用户数据政策确认页，未勾选/创建，等待用户确认。LinkedIn公司主页链接待用户提供；后台Insights、视频和字幕未接通，不能以就绪状态代替实测。
+
+PR95/96真实Grace验收完成：已正确返回五平台运营、用户确认暂未投广告、YouTube private_analytics=oauth_not_configured、LinkedIn connector=not_integrated，checked_at=2026-09-23T08:31:58.093Z，社媒仍37/37且SEO available。发布合并d9dc65a/6d46f96，464回归通过；实际平台后台权限尚未建立，等待Google政策确认和LinkedIn公司链接。
+
+2026-09-23 LinkedIn主页引用候选：用户提供wonly-group公司主页；Codex登记到只读connections，标记用户确认/登录后待核验，connector仍not_integrated。没有创建LinkedIn账号、授权应用或回传凭据。生产发布待CI；回滚该静态引用即可。

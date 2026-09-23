@@ -10,7 +10,7 @@ export function connectionReadiness(get){
    instagram:{public_statistics:has('IG_ACCESS_TOKEN')&&has('IG_BUSINESS_ID')?'configured_unverified':'not_configured',private_analytics:'insights_permissions_unverified'},
    facebook:{public_statistics:has('FB_ACCESS_TOKEN')||has('IG_ACCESS_TOKEN')?'configured_unverified':'not_configured',private_analytics:'insights_permissions_unverified',page_token_configured:has('FB_PAGE_TOKEN'),page_token_used_by_current_sync:false},
    tiktok:{application:has('TIKTOK_CLIENT_KEY')&&has('TIKTOK_CLIENT_SECRET')?'configured_unverified':'not_configured',user_authorization:'not_checked',private_analytics:'not_integrated'},
-   linkedin:{connector:'not_integrated',user_authorization:'not_checked',private_analytics:'not_integrated'}
+   linkedin:{company_page:'https://www.linkedin.com/company/wonly-group/',page_source:'user_confirmed_2026-09-23',page_verification:'login_required_not_independently_verified',connector:'not_integrated',user_authorization:'not_checked',private_analytics:'not_integrated'}
   },
   limits:'仅服务端配置存在性核对，不代表Token有效、OAuth权限满足或后台数据已接通；不返回凭据。Facebook当前同步函数不读取FB_PAGE_TOKEN。TikTok用户授权存于源端，未在此读取。LinkedIn尚无连接器。禁止据此编造曝光、留存、受众或广告指标。'
  };

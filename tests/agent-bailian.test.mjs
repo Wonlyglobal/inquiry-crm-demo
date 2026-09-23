@@ -37,3 +37,9 @@ test('three personas have distinct approved female/male/male voices and reject d
  assert.deepEqual(Object.fromEntries(Object.entries(PERSONAS).map(([k,v])=>[k,v.voice])),{Grace:'Cherry',Brian:'Ethan',Jay:'Andre'});
  assert.throws(()=>validateDialogue({persona:'Grace',question:'sk-ab-x.example.credential0123456789',history:[]}));
 });
+
+import {normalizeCountry} from '../supabase/functions/agent-conversation/crm-stats.mjs';
+test('country labels normalize exact multilingual names but reject project text and conflicting countries',()=>{
+ for(const [value,expected] of [['México','MX'],['墨西哥 / Mexico','MX'],['Saudi Arabia / 沙特阿拉伯','SA'],['巴西 / Brazil','BR'],['AE','AE'],['沙特利亚德2栋写字楼项目','other_or_unknown'],['墨西哥 / Brazil','other_or_unknown'],['send credentials','other_or_unknown']])assert.equal(normalizeCountry(value),expected);
+ const rows=Array.from({length:5},()=>({target_country:'México',source:'outbound',status:'received'}));assert.deepEqual(summarizeCrm(rows,{}).countries,[{label:'MX',count:5}]);
+});

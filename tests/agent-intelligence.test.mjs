@@ -29,3 +29,8 @@ test('daily dataset contains public evidence only; no internal fields or arbitra
  const raw=JSON.stringify(feed);assert.doesNotMatch(raw,/chloelee|service_role|grounded_answer|inquiry_no|owner_id|contact_email|access_token/i);
  for(const f of feed.findings)assert.ok(f.fact&&f.implication&&f.published_at&&f.observed_at);
 });
+
+test('customer type stored in product field is flagged instead of treated as product demand',()=>{
+ const text=buildBrief('Grace',{created:[{product_category:'Distributor / Dealer'}]},feed);
+ assert.match(text,/客户类型混入产品字段/);assert.doesNotMatch(text,/Distributor \/ Dealer 1条/);assert.match(text,/Al Kuhaimi/);
+});

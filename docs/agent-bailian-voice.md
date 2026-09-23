@@ -21,7 +21,7 @@ CRM由用户JWT客户端执行RLS读取最少字段，不用服务角色读取�
 
 ## 验证
 - 434项离线回归通过；HTML模块及Edge TS语法检查通过（不是Deno类型检查）。
-- 实际北京API：三角色文字返回成功；三种最终音色中英合成→HTTPS下载→ASR成功，均识别Hello Chloe和各自名字。合成样例位于项目 artifacts/agent-voice-samples；无真实客户/录音外发。
+- 实际北京API：三角色文字返回成功；三种最终音色中英合成→HTTPS下载→ASR成功，均识别Hello Chloe和各自名字。WebM与OGG合成音频亦通过真实ASR。合成样例位于项目 artifacts/agent-voice-samples；无真实客户/录音外发。
 - 合成本机浏览器验证大厅→Grace空间→返回→Brian空间，角色标题/脑核/会话独立。
 - 尚未：生产Edge部署、真实JWT端到端统计查询、真实麦克风/本机唤醒实测、生产页面验收。不能把上述测试写成已上线。
 

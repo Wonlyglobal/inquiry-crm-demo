@@ -1,3 +1,4 @@
+import {answerQuestion,classifyQuestion,knowledgeStatus} from './agent-answers.mjs?v=20260923-1';
 // Public-source intelligence only. CRM context remains in this authenticated browser.
 export function safeSource(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password?u.href:''}catch{return ''}}
 export function validateFeed(feed){
@@ -28,17 +29,37 @@ export function buildBrief(persona,context,feed,now=Date.now()){
  const sections=persona==='Grace'?grace:persona==='Brian'?brian:[...jay,...grace,...brian];
  return [`${persona} · 自动信息简报`,...basis,'',...sections,'','公开市场与竞品',...external].join('\n');
 }
-export function mountIntelligence(host,{getContext,isAllowed}){
- const section=document.createElement('section');section.className='world-intelligence';section.setAttribute('aria-label','智能体信息简报');
- const title=document.createElement('h2');title.textContent='自动信息简报';
- const note=document.createElement('p');note.textContent='公开信息每日计划更新；重大变化提醒，周一由 Jay 汇总。调度由本机 Codex 执行，离线时可能延迟；CRM 内部数据按页面已加载范围即时分析。';
- const refresh=document.createElement('button');refresh.textContent='刷新信息';refresh.type='button';
- const status=document.createElement('p');status.setAttribute('role','status');
- const body=document.createElement('pre'),links=document.createElement('div');links.className='world-source-links';
- section.append(title,note,refresh,status,body,links);host.append(section);
- let feed=null,persona='Jay',busy=false;
- function render(){if(!isAllowed()){section.hidden=true;return}section.hidden=false;body.textContent=buildBrief(persona,getContext(),feed);links.replaceChildren();for(const s of feed?.sources||[]){const a=document.createElement('a');a.href=safeSource(s.url);a.textContent=`${s.name} · ${s.status==='checked'?'已核验':s.status==='partial'?'部分可读':'获取失败'}`;a.target='_blank';a.rel='noopener noreferrer';links.append(a)}for(const f of feed?.findings||[]){const a=document.createElement('a');a.href=safeSource(f.url);a.textContent=f.title+' · 原文';a.target='_blank';a.rel='noopener noreferrer';links.append(a)}}
- async function refreshFeed(){if(busy||!isAllowed())return;busy=true;refresh.disabled=true;status.textContent='正在读取最近公开情报…';try{const r=await fetch('./data/agent-intelligence.json',{cache:'no-store',signal:AbortSignal.timeout(12000)});if(!r.ok)throw new Error('HTTP '+r.status);feed=validateFeed(await r.json());status.textContent=feedAge(feed)}catch{status.textContent='公开情报读取失败；保留上次结果与原核验时间，不表示市场没有变化。'}finally{busy=false;refresh.disabled=false;render()}}
- refresh.onclick=refreshFeed;render();refreshFeed();
- return {select(name){persona=name;render()},answer(question){if(!isAllowed())return null;if(!/市场|竞品|海外|情报|简报|汇报|周报|增长|产品|策略|战略|dormakaba|Hörmann|ASSA ABLOY/.test(question))return null;return buildBrief(persona,getContext(question),feed)},refresh:refreshFeed};
+export function mountIntelligence(host,{getContext,isAllowed,onQuestion}){
+ const el=(tag,text,className)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(className)n.className=className;return n};
+ const section=el('section',null,'world-intelligence');section.setAttribute('aria-label','智能体信息简报');
+ const title=el('h2','智能体知识与分析'),note=el('p','根据已核验资料和当前权限内数据回答，事实、建议和缺口分开呈现。'),toolbar=el('div',null,'intelligence-toolbar');
+ const refresh=el('button','重新读取公开情报');refresh.type='button';
+ const period=el('select');period.setAttribute('aria-label','简报统计周期');for(const [value,label] of [['','当前看板周期'],['本周','本周'],['上周','上周']]){const o=el('option',label);o.value=value;period.append(o)}
+ const status=el('p');status.setAttribute('role','status');
+ const metrics=el('div',null,'intelligence-metrics'),suggestions=el('div',null,'intelligence-questions'),body=el('pre'),details=el('details'),summary=el('summary','查看已知资料与信息缺口'),links=el('div',null,'world-source-links');
+ details.append(summary,links);toolbar.append(period,refresh);section.append(title,note,toolbar,status,metrics,suggestions,body,details);host.append(section);
+ let feed=null,persona='Jay',busy=false,readError=false;const memories=new Map();
+ const questions={Grace:['目前海外市场处于什么阶段？','本月渠道质量如何？','dormakaba有什么动态？','我们有哪些产品资料？'],Brian:['现在优先跟进什么？','报价前需要确认什么？','如何推进销售商机？','哪些承诺还不能给客户？'],Jay:['汇总经营优先事项','上周经营汇报','我们与Hörmann怎么比较？','目前缺哪些决策信息？']};
+ function context(q=''){return getContext(/上周|上星期|本周|这周|本月|今天|今日|昨天|昨日|近\s*\d+\s*天/.test(q)?q:[period.value,q].filter(Boolean).join(' '))}
+ function render(){
+  if(!isAllowed()){section.hidden=true;body.textContent='';return}section.hidden=false;
+  title.textContent=persona+' · 知识与分析';const c=context(),k=knowledgeStatus(c,feed);
+  status.textContent=readError?'公开情报读取失败；保留原版本，未表示已完成新研究。':feed?feedAge(feed)+` · 完整可读 ${feed.sources.filter(s=>s.status==='checked').length}/${feed.sources.length} 个来源`:'公开情报尚未加载';
+  metrics.replaceChildren();for(const text of [`当前样本 ${c.ready===false?'未就绪':k.sample+'条'}`,`产品待核验 ${c.ready===false?'未知':k.missingProducts+'条'}`,`公开来源 ${k.sourceCount}个`])metrics.append(el('span',text));
+  const defaultQuestion=persona==='Grace'?'目前海外市场处于什么阶段？':persona==='Brian'?'现在优先跟进什么？':'汇总经营优先事项';
+  body.textContent=answerQuestion({question:defaultQuestion,persona,context:c,feed}).text;
+  suggestions.replaceChildren();for(const question of questions[persona]){const b=el('button',question);b.type='button';b.onclick=()=>{if(isAllowed())onQuestion?.(persona,question)};suggestions.append(b)}
+  links.replaceChildren();links.append(el('p','知识缺口：正式海外战略、目标预算、型号规格、有效认证、价格和交期，仍需可核验的业务资料。'));
+  for(const source of feed?.sources||[]){const block=el('div',null,'intelligence-source'),a=el('a',source.name+' · '+({checked:'已核验',partial:'部分可读',failed:'获取失败'}[source.status]));a.href=safeSource(source.url);a.target='_blank';a.rel='noopener noreferrer';block.append(a,el('p',source.note||'说明待补'));links.append(block)}
+  links.append(el('p','公开资料计划每日9点研究、周一汇总，由本机Codex执行；离线可能延迟。重新读取仅获取已发布资料，不触发全网实时搜索。'));
+ }
+ async function refreshFeed(){if(busy||!isAllowed())return;busy=true;refresh.disabled=true;status.textContent='正在读取已发布资料…';try{const r=await fetch('./data/agent-intelligence.json',{cache:'no-store',signal:AbortSignal.timeout(12000)});if(!r.ok)throw new Error('HTTP '+r.status);feed=validateFeed(await r.json());readError=false}catch{readError=true}finally{busy=false;refresh.disabled=false;render()}}
+ period.onchange=render;refresh.onclick=refreshFeed;render();refreshFeed();
+ return {select(name){if(!questions[name])return;persona=name;render()},clear(name=persona){memories.delete(name)},answer(question){
+  if(!isAllowed())return null;
+  if(/销售额|成交额|排名|排行|询盘编号|列出编号|进行中询盘/.test(question))return null;
+  const previous=memories.get(persona),intent=classifyQuestion(question,persona,previous?.intent),effectiveQuestion=intent.followup?previous.question:question;
+  const result=answerQuestion({question,persona,context:context(effectiveQuestion),feed,previous:previous?.intent});
+  memories.set(persona,{intent:result.intent,question:effectiveQuestion});return result.text;
+ },refresh:refreshFeed,refreshContext:render};
 }

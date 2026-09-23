@@ -1,18 +1,18 @@
-import {createWakeConversation} from './agent-wake.mjs?v=20260923-1';
+import {createWakeConversation} from './agent-wake.mjs?v=20260923-2';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
  const bar=el('div','');bar.className='agent-conversation-tools';
  const mode=el('select','');mode.setAttribute('aria-label','回答方式');for(const [v,t] of [['local','CRM资料分析'],['bailian','百炼通用推理']]){const o=el('option',t);o.value=v;mode.append(o)}
- const wakeButton=el('button','开启 Hello 唤醒');
+ const wakeButton=el('button','开启 Hello 唤醒'),installWake=el('button','安装本机语音包');
  const mic=el('button','开始语音'),stop=el('button','停止'),replay=el('button','播放回答'),check=el('button','检查连接'),status=el('span','选择百炼可进行通用推理和语音对话。');
- for(const b of [wakeButton,mic,stop,replay,check])b.type='button';status.setAttribute('role','status');
+ for(const b of [wakeButton,installWake,mic,stop,replay,check])b.type='button';status.setAttribute('role','status');
  const note=el('p','百炼模式仅发送你主动输入的非机密问题、该模式近期对话、公开资料、背调样本分布及近30天权限内脱敏统计；录音发送至百炼转写。请勿输入客户机密或凭证。声音由AI生成，播报最多约1800字。');note.className='hint';
- bar.append(mode,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
- let wake=null,wakeTransition=false;
+ bar.append(mode,installWake,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
+ let wake=null,wakeTransition=false,installing=false;
  const histories=new Map();let ready=false,busy=false,version=0,recorder=null,stream=null,timer=null,player=null,audioUrl=null,lastTicket=null,controller=null;
  function state(text,orb='idle'){status.textContent=text;onMode(orb);sync()}
- function sync(){wakeButton.disabled=!ready||mode.value!=='bailian'||busy;wakeButton.textContent=wake?.isActive()?'关闭 Hello 唤醒':'开启 Hello 唤醒';mic.disabled=!ready||mode.value!=='bailian'||busy;mic.textContent=recorder?'结束并提问':'开始语音';stop.disabled=!busy&&!recorder&&!player&&!wake?.isActive();replay.disabled=!lastTicket||busy||!!recorder||mode.value!=='bailian';}
+ function sync(){installWake.disabled=installing||busy||!!recorder||!!wake?.isActive();installWake.textContent=installing?'正在准备语音包…':'安装本机语音包';wakeButton.disabled=installing||!ready||mode.value!=='bailian'||busy;wakeButton.textContent=wake?.isActive()?'关闭 Hello 唤醒':'开启 Hello 唤醒';mic.disabled=!ready||mode.value!=='bailian'||busy;mic.textContent=recorder?'结束并提问':'开始语音';stop.disabled=!installing&&!busy&&!recorder&&!player&&!wake?.isActive();replay.disabled=!lastTicket||busy||!!recorder||mode.value!=='bailian';}
  async function call(body,signal){if(!isAllowed())throw Error('当前账号不可用');return invoke(body,signal)}
  function release(){clearTimeout(timer);timer=null;stream?.getTracks().forEach(t=>t.stop());stream=null}
  function stopAll({keepWake=false}={}){if(!keepWake)wake?.stop();version++;controller?.abort();controller=null;if(recorder){recorder.onstop=null;try{recorder.stop()}catch{}recorder=null}release();if(player){player.pause();player=null}if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null}busy=false;state('已停止')}
@@ -57,6 +57,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    const epoch=version;controller=new AbortController();busy=true;state('正在问候…','thinking');onMessage('assistant','Hello Chloe');
    try{const blob=await call({action:'greeting',persona},controller.signal);await playBlob(blob,epoch)}catch(e){busy=false;throw e}
   },onQuestion:text=>ask(text,{voice:true})});
+ installWake.onclick=async()=>{if(installing)return;stopAll();installing=true;sync();try{await wake.install()}catch(e){state(e.message)}finally{installing=false;sync()}};
  wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();try{await wake.start()}catch(e){state(e.message)}};
  mic.onclick=record;stop.onclick=()=>stopAll();check.onclick=checkConnection;replay.onclick=()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}};
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAll()});window.addEventListener('pagehide',stopAll);sync();

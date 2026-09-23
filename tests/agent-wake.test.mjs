@@ -21,3 +21,12 @@ test('unsupported on-device recognition never falls back to cloud recognition',a
 test('cancel during greeting does not restart the microphone',async()=>{
  FakeRecognition.instances=[];let finish;const w=createWakeConversation({Recognition:FakeRecognition,onState:()=>{},onWake:()=>new Promise(r=>finish=r),onQuestion:()=>assert.fail()});await w.start();const pending=say(FakeRecognition.instances[0],'Hello Grace');w.stop();finish();await pending;assert.equal(FakeRecognition.instances.length,1);assert.equal(w.isActive(),false);
 });
+test('downloadable packs are installed explicitly and never activate microphone automatically',async()=>{
+ class Downloadable extends FakeRecognition{static ready=false;static async available(){return this.ready?'available':'downloadable'}static async install(options){assert.deepEqual(options.langs,['en-US','zh-CN']);this.ready=true;return true}}
+ FakeRecognition.instances=[];const states=[];const w=createWakeConversation({Recognition:Downloadable,onState:s=>states.push(s),onWake:()=>{},onQuestion:()=>{}});
+ await assert.rejects(w.start(),/安装本机语音包/);await w.install();assert.equal(w.isActive(),false);assert.equal(FakeRecognition.instances.length,0);assert.match(states.at(-1),/已就绪/);await w.start();assert.equal(w.isActive(),true);w.stop();
+});
+test('unsupported Chinese pack is identified instead of telling users to install an unavailable pack',async()=>{
+ class NoChinese extends FakeRecognition{static async available({langs}){return langs[0]==='zh-CN'?'unavailable':'available'}static install(){assert.fail('unsupported pack cannot be installed')}}
+ const w=createWakeConversation({Recognition:NoChinese,onState:()=>{},onWake:()=>{},onQuestion:()=>{}});await assert.rejects(w.start(),/不支持中文/);await assert.rejects(w.install(),/不支持中文/);assert.equal(w.isActive(),false);
+});

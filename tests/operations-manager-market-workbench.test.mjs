@@ -16,3 +16,10 @@ test("owner operations manager can use the marketing workbench", () => {
   assert.match(html, /if\(!\["owner","marketing"\]\.includes\(profile\?\.role\)\)return/);
   assert.match(html, /if\(!panel\|\|!\["owner","marketing"\]\.includes\(profile\?\.role\)\)return/);
 });
+
+test("market workbench actions stay neutral until their destination is selected", () => {
+  assert.match(html, /id="marketing-connect-inquiry" class="ghost"/);
+  assert.match(html, /id="marketing-open-email" class="ghost"/);
+  assert.match(html, /id="marketing-open-research" class="ghost"/);
+  assert.doesNotMatch(html, /id="marketing-open-email" class="primary"/);
+});

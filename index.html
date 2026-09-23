@@ -1661,12 +1661,12 @@
           </div>
         </section>
         <section id="marketing-center-page" class="page hidden">
-          <div class="heading"><div><h1>市场任务中心</h1><p>从邮件接收、人工分拣、有效性判断、客户背调到提交分配</p></div></div>
+          <div class="heading"><div><h1>市场任务中心</h1><p>官方询盘邮箱 inquiry@wonlyglobal.com · 从邮件接收、人工分拣、有效性判断、客户背调到提交主管分配</p></div></div>
           <div class="dashboard-toolbar card" style="margin-bottom:18px">
             <div class="dashboard-toolbar-primary"><div class="dashboard-scope-group"><div class="period-tabs" role="group" aria-label="市场任务周期"><button class="period-tab marketing-period-tab" data-marketing-period="today">今日</button><button class="period-tab marketing-period-tab" data-marketing-period="week">本周</button><button class="period-tab marketing-period-tab active" data-marketing-period="month">本月</button><button class="period-tab marketing-period-tab" data-marketing-period="quarter">本季度</button><button class="period-tab marketing-period-tab" data-marketing-period="year">本年度</button></div><select id="marketing-period" class="input compact hidden"><option value="today">今日</option><option value="week">本周</option><option value="month" selected>本月</option><option value="quarter">本季度</option><option value="year">本年度</option></select></div><span class="dashboard-scope-note">任务和渠道数据随所选周期同步更新</span></div>
           </div>
           <section id="marketing-workbench" class="dashboard-panel manager-workbench hidden">
-            <div class="sales-workbench-head"><div><b>市场任务中心</b><p>优先处理当前周期内尚未完成的市场流程</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">公共邮箱状态</button><button id="marketing-open-email" class="primary">进入邮件分拣</button><button id="marketing-open-research" class="ghost">客户背调</button></div></div>
+            <div class="sales-workbench-head"><div><b>官方询盘分拣与分配</b><p>登录账号与公共邮箱相互独立；这里处理 inquiry@wonlyglobal.com 的来信</p></div><div class="sales-workbench-actions"><button id="marketing-connect-inquiry" class="ghost">公共邮箱状态</button><button id="marketing-open-email" class="primary">进入邮件分拣</button><button id="marketing-open-research" class="ghost">客户背调</button></div></div>
             <div id="marketing-workbench-kpis" class="sales-workbench-kpis"></div>
             <div class="manager-workbench-body"><div><div class="panel-title"><b>市场待处理事项</b><span class="dashboard-scope-note">按流程优先级排列</span></div><div id="marketing-priority-list" class="manager-priority-list"></div></div><div id="marketing-source-overview" class="manager-workload"></div></div>
           </section>
@@ -2857,12 +2857,12 @@
           "hidden",
           !["owner", "sales_manager", "marketing"].includes(role),
         );
-        const salesView=role==="sales",managerView=role==="sales_manager",marketingView=role==="marketing";
+        const salesView=role==="sales",managerView=role==="sales_manager",marketingView=role==="marketing",marketingWorkbenchView=["owner","marketing"].includes(role);
         $("#new-inquiry").classList.toggle("hidden",!['owner','marketing','sales'].includes(role));
         $("#dashboard-page").classList.toggle("sales-role-view",salesView);
         $("#sales-workbench").classList.toggle("hidden",!salesView);
         $("#manager-workbench").classList.toggle("hidden",!managerView);
-        $("#marketing-workbench").classList.toggle("hidden",!marketingView);
+        $("#marketing-workbench").classList.toggle("hidden",!marketingWorkbenchView);
         $("#hero-sales-label").textContent=salesView?"我的销售额":"团队总销售额";
         ["#dashboard-team","#dashboard-sales","#dashboard-data-scope"].forEach(selector=>$(selector)?.classList.toggle("hidden",salesView));
         ["#dashboard-team","#dashboard-sales"].forEach(selector=>{if(marketingView)$(selector)?.classList.add("hidden")});
@@ -5054,7 +5054,7 @@
         $$('[data-sales-profile-name]').forEach(row=>{const open=()=>{const member=sales.find(x=>x.full_name===row.dataset.salesProfileName);if(member)openSalesProfilePage(member.id)};row.addEventListener("click",open);row.addEventListener("keydown",event=>{if(event.key==="Enter")open()})});
       }
       function renderMarketingWorkbench(rows){
-        if(profile?.role!=="marketing")return;
+        if(!["owner","marketing"].includes(profile?.role))return;
         const {type,start,end}=marketingRange(),periodLabel={today:"今日",week:"本周",month:"本月",quarter:"本季度",year:"本年度"}[type]||"所选周期";rows=rows.filter(x=>!x.excluded_from_dashboard&&inRange(x.created_at,start,end));const visibleInquiryIds=new Set(rows.map(x=>x.id)),visibleCompanyIds=new Set(rows.map(x=>x.company_id).filter(Boolean)),intakes=(dashboardState.emailIntakes||[]).filter(x=>(!x.inquiry_id||visibleInquiryIds.has(x.inquiry_id))&&inRange(x.received_at||x.created_at,start,end)),companies=(dashboardState.researchCompanies||[]).filter(x=>visibleCompanyIds.has(x.id)),periodEmails=intakes,unprocessed=intakes.filter(x=>["pending","processing","pending_review","failed"].includes(String(x.processing_status||"").toLowerCase())),validityPending=rows.filter(x=>x.validity==="pending"),researchPending=companies.filter(x=>!["completed","confirmed","done","ready"].includes(String(x.research_status||"").toLowerCase())),assignmentPending=rows.filter(x=>x.validity==="valid"&&x.status==="pending_assignment"),validDecided=rows.filter(x=>x.validity!=="pending"),validCount=validDecided.filter(x=>x.validity==="valid").length;
         $("#marketing-workbench-kpis").innerHTML=[[`${periodLabel}新邮件`,periodEmails.length],["待分拣邮件",unprocessed.length],["有效性待确认",validityPending.length],["背调待完成",researchPending.length],["待主管分配",assignmentPending.length]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i>0&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         const tasks=[];unprocessed.forEach(x=>tasks.push({priority:1,id:x.inquiry_id,title:x.subject||x.sender_email||"新客户邮件",reason:`${x.sender_email||"未知发件人"} · 邮件尚未完成登记`,time:x.received_at||x.created_at,label:"处理邮件",view:"email"}));validityPending.forEach(x=>tasks.push({priority:2,id:x.id,title:x.title,reason:"尚未确认有效性和无效原因",time:x.created_at,label:"判断有效性",view:"inquiry"}));researchPending.forEach(x=>tasks.push({priority:3,title:x.name||"待背调公司",reason:"公司背调尚未完成",time:x.updated_at,label:"完成背调",view:"research"}));assignmentPending.forEach(x=>{if(!tasks.some(t=>t.id===x.id))tasks.push({priority:4,id:x.id,title:x.title,reason:"已登记，等待提交或主管分配",time:x.updated_at||x.created_at,label:"检查登记",view:"inquiry"})});tasks.sort((a,b)=>a.priority-b.priority||new Date(a.time)-new Date(b.time));
@@ -5065,7 +5065,7 @@
         loadWebsiteIntakeMonitor();
       }
       async function loadWebsiteIntakeMonitor(){
-        const panel=$("#website-intake-panel");if(!panel||profile?.role!=="marketing")return;
+        const panel=$("#website-intake-panel");if(!panel||!["owner","marketing"].includes(profile?.role))return;
         panel.classList.remove("hidden");$("#website-intake-list").innerHTML='<div class="empty"><small>正在读取官网接入状态…</small></div>';
         const {data,error}=await supabase.from("website_intake_attempts").select("id,event_key,status,inquiry_id,attempts,last_error,submitted_at,received_at,processed_at,latency_ms").order("received_at",{ascending:false}).limit(100);
         if(error){$("#website-intake-kpis").innerHTML="";$("#website-intake-list").innerHTML=`<div class="empty"><b>接入监控暂不可用</b><small>${esc(error.message)}</small></div>`;return}

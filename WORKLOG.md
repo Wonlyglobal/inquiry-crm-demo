@@ -165,3 +165,12 @@ PR76已发布：合并b64d1ed3f40e5a967e6da963f96e903a83e50df3，Pages3581473899
 2026-09-23 Hello唤醒无响应修复：用户报告Hello Grace无反应，执行Codex。真实页面提示本机语音包未就绪；只读诊断确认en-US与zh-CN均downloadable。新增显式安装入口、逐语言可用性检测、下载状态与不支持语言的准确说明；安装结束不自动启动麦克风，须再次开启Hello。保持processLocally=true，不回退云端环境监听。调用浏览器官方install准备本机语言包，不录音。待离线/生产验收。
 
 2026-09-23 Grace空间自动唤醒候选：用户明确要求进入Grace即可语音唤醒，Codex增加空间入口启动百炼连接、本机语音包准备和Hello监听；退出/隐藏/停止通过版本取消，唤醒自身角色回调不重新启动问候。仅Grace自动开启，范围仍为已批准百炼对话与本机唤醒，未新增环境音云端上传。440离线回归及浏览器模块语法通过，候选未部署。回滚本次前端提交；真实用户语音闭环仍待确认。
+
+
+2026-09-23T14:40:51 Grace SEO/海外打法接入调查：授权人项目负责人要求接入SEO并研究海外打法，未指定品牌；执行Codex。找到候选WONLY CMS GA4/GSC/巡检接口，读取要求CMS管理员会话；2026-09-23T04:45:21Z同步工作流成功、healthz200，未读取受保护SEO缓存或改权限。等待确认该系统是否为用户所指SEO系统，暂不构造跨系统授权。整理Hörmann/dormakaba/ASSA ABLOY官方样本及事实/推断/实验/指标，候选分支feature/grace-market-context；5项相关政策回归通过。交付docs/grace-seo-market-integration.md及market-playbooks.json，未提交/未部署，生产不变。回滚丢弃候选改动；残余：真实SEO数据、只读通道、实时刷新及模型端到端未接通，不声称完成。
+
+2026-09-23 Grace SEO候选适配：用户要求接通；本地完成独立HMAC源端读取、字段投影、日期/缺失/过期状态及回答来源标注，445回归和语法通过。自动审批拒绝源端部署/凭据交接消息，需明确目标/字段/接收方/范围确认；未绕过，未配置Secrets，未部署。详情docs/grace-seo-market-integration.md。
+
+2026-09-23T15:00:02 社媒只读源端部署：用户明确批准grogrigybgimvuuunxef/social-summary目标、精确Chloe active owner鉴权、WONLY及竞品聚合范围、CRM接收端和百炼北京用途；执行Codex。此前自动审批拒绝已得到具体用户批准。仅配置CRM公开publishable校验key并部署只读函数，未复制平台Token/服务角色凭据，未改社媒RLS或业务数据。匿名GET401，449离线回归通过。CRM接收端尚未部署，切换社媒管理登录后CRM项目403，待用户切回；不能声称Grace已接通。回滚删除social-summary函数及CRM_PUBLISHABLE_KEY配置（确认无其他调用方后），保留审计。剩余：真实登录品牌范围、记录新鲜度与端到端需验收；SEO源端另行推进。
+
+2026-09-23 Grace课程与AI工作流知识候选：用户要求平台营销课程/AI工作流并继续已批准发布，执行Codex。增加官方Google/Meta/TikTok/YouTube/n8n公开参考、核验日期、学习覆盖范围和王力待验证实验；LinkedIn来源尚未核验，不宣称完成课程/实时学习。只读数据范围保持。449测试及语法通过。CRM管理员Wonlyglobal登录已恢复，生产接收端待部署。回滚原函数及PR86页面，保留审计；剩余SEO源端、社媒真实快照需端到端核验。

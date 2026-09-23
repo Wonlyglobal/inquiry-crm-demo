@@ -31,3 +31,5 @@ LinkedIn官方Community Management需要应用获得相应产品准入和组织�
 YouTube报表范围需核对实际OAuth授权及账号归属；公开API key不足以证明后台权限。参考：https://developers.google.com/youtube/analytics/channel_reports
 
 后续验收必须有：自有品牌/账号范围、实际请求返回、权限缺口、统计口径/时间窗/更新时间、匿名拒绝及Grace端到端来源。账号connected标签、密钥存在或离线测试均不能替代平台API证据。
+
+2026-09-23 用户提供LinkedIn主页：https://www.linkedin.com/company/wonly-group/ 。已登记为用户确认来源；公开读取遇登录墙，未独立核对主页内容或管理员归属。只读摘要新增链接与来源标记，不新增账号、权限或假数据；已请求用户使用公司主页管理员登录。Google政策确认仍待明确同意，不由提供LinkedIn链接推定。

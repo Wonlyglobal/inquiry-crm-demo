@@ -20,7 +20,7 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
   stop();const g=generation;const items=await packs();if(g!==generation)return;
   const issue=unavailable(items);if(issue)throw Error(issue);
   if(items.some(x=>x.status!=='available'))throw Error('尚未开始监听：请先点击“安装本机语音包”，完成后再开启 Hello 唤醒');
-  active=true;phase='wake';expiry=setTimeout(()=>{stop();onState('语音已在10分钟后自动关闭')},600000);listen(g);
+  active=true;phase='wake';listen(g);
  }
  function listen(g){
   if(!active||g!==generation)return;
@@ -36,7 +36,7 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
     // Recognition is stopped while greeting/answer audio plays to avoid echo loops.
     if(persona){await onWake(persona);phase='dialogue'}else await onQuestion(text);
     if(active&&g===generation)listen(g);
-   }catch(error){if(g===generation){stop();onState(error.message||'语音对话未完成，请重试')}}
+   }catch(error){if(active&&g===generation){phase='dialogue';onState((error.message||'本次回答未完成')+'；继续聆听，可重新提问');restart=setTimeout(()=>listen(g),1200)}}
   };
   r.onerror=e=>{if(g!==generation)return;if(['no-speech','aborted'].includes(e.error))return;stop();onState(e.error==='not-allowed'?'本机唤醒被浏览器拒绝；即使麦克风已允许，语音识别仍可能受限。可用“开始语音”录音对话。':'本机语音识别失败：'+e.error+'；可使用按钮录音')};
   r.onend=()=>{recognition=null;if(!handled&&active&&g===generation)restart=setTimeout(()=>listen(g),350)};

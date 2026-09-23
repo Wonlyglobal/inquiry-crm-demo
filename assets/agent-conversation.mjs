@@ -1,6 +1,6 @@
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
-import {createWakeConversation} from './agent-wake.mjs?v=20260923-3';
+import {createWakeConversation} from './agent-wake.mjs?v=20260923-4';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -33,7 +33,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(!ready){state('请先完成百炼配置并检查连接');return true}
   if(busy||recorder)return true;
   stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state('正在思考…','thinking');onMessage('user',question);onTranscript('');
-  try{const result=await call({action:'chat',persona,question,history:(histories.get(persona)||[]).slice(-8)},controller.signal);if(version!==epoch||persona!==getPersona())return true;
+  try{const result=await call({action:'chat',persona,question,voice,history:(histories.get(persona)||[]).slice(-8)},controller.signal);if(version!==epoch||persona!==getPersona())return true;
    histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-8));onMessage('assistant',result.answer+'\n\n— 百炼 · '+result.model+' · 仅使用权限内脱敏统计，无客户明细'+seoContextLabel(result.context)+socialContextLabel(result.context));lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice)await speak(result.ticket,epoch,persona);
   }catch(e){if(version===epoch){busy=false;onMessage('assistant','百炼未完成回答：'+e.message+'。没有将本地规则回答冒充模型回答。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{if(version===epoch){busy=false;sync()}}return true;
  }

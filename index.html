@@ -562,6 +562,34 @@
       .mini-metric { border:1px solid var(--line); border-radius:12px; padding:13px; }
       .mini-metric span { display:block; color:var(--muted); font-size:10px; margin-bottom:7px; }
       .mini-metric b { font-size:19px; }
+      .advisor-tabs { display:flex; gap:6px; margin-bottom:14px; padding:6px; overflow-x:auto; border:1px solid var(--line); border-radius:15px; background:#fff; }
+      .advisor-tab { flex:1 0 max-content; min-height:42px; padding:10px 16px; border:0; border-radius:10px; background:transparent; color:var(--muted); font:inherit; font-weight:800; cursor:pointer; }
+      .advisor-tab.active { background:var(--brand); color:#fff; box-shadow:0 5px 12px rgba(32,61,49,.16); }
+      .advisor-hero { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr); gap:14px; margin-bottom:14px; }
+      .advisor-hero-main { padding:22px; color:#fff; background:linear-gradient(135deg,#183b2f,#315f49); border:0; }
+      .advisor-hero-main h2 { margin:0 0 8px; font-size:24px; }
+      .advisor-hero-main p { margin:0; color:#d8e6dd; line-height:1.65; }
+      .advisor-guardrail { margin-top:16px; padding:11px 13px; border:1px solid rgba(255,255,255,.2); border-radius:12px; background:rgba(255,255,255,.08); font-size:11px; line-height:1.55; }
+      .advisor-summary { display:grid; grid-template-columns:repeat(2,1fr); gap:9px; padding:16px; }
+      .advisor-summary div { padding:12px; border:1px solid var(--line); border-radius:12px; background:#fafbfa; }
+      .advisor-summary span,.advisor-card small { color:var(--muted); font-size:11px; }
+      .advisor-summary b { display:block; margin-top:6px; font-size:22px; }
+      .advisor-list { display:grid; gap:12px; }
+      .advisor-card { padding:18px; border:1px solid var(--line); border-radius:17px; background:#fff; }
+      .advisor-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
+      .advisor-card h3 { margin:0 0 6px; font-size:17px; }
+      .advisor-priority { flex:none; padding:5px 9px; border-radius:999px; background:#edf3ee; color:#315f49; font-size:10px; font-weight:800; }
+      .advisor-priority.immediate { background:#f9e8e6; color:#a33f35; }
+      .advisor-priority.today { background:#fff4e8; color:#a9571e; }
+      .advisor-card-body { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin:14px 0; }
+      .advisor-card-body div { padding:11px; border-radius:11px; background:#f7faf8; line-height:1.5; }
+      .advisor-card-body b { display:block; margin-bottom:4px; font-size:11px; }
+      .advisor-card-body span { color:var(--muted); font-size:11px; }
+      .advisor-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+      .advisor-actions .advisor-feedback { margin-left:auto; }
+      .advisor-empty { padding:46px 20px; text-align:center; color:var(--muted); }
+      @media(max-width:980px){.advisor-hero{grid-template-columns:1fr}.advisor-card-body{grid-template-columns:1fr 1fr}}
+      @media(max-width:620px){.advisor-card-body{grid-template-columns:1fr}.advisor-actions .advisor-feedback{margin-left:0}}
       .table-wrap {
         background: #fff;
         border: 1px solid var(--line);
@@ -1451,6 +1479,8 @@
           <i data-lucide="calendar-days"></i><span>跟进日历</span></button
         ><button class="nav" data-view="marketing-center">
           <i data-lucide="list-checks"></i><span>市场任务中心</span></button
+        ><button class="nav" data-view="ai-advisor">
+          <i data-lucide="sparkles"></i><span>AI 智能顾问</span></button
         ><button class="nav" data-view="inquiries">
           <i data-lucide="contact-round"></i><span>询盘商机</span></button
         ><button class="nav" data-view="customers">
@@ -1673,6 +1703,12 @@
             <div id="marketing-workbench-kpis" class="sales-workbench-kpis"></div>
             <div class="manager-workbench-body"><div><div class="panel-title"><b>市场待处理事项</b><span class="dashboard-scope-note">按流程优先级排列</span></div><div id="marketing-priority-list" class="manager-priority-list"></div></div><div id="marketing-source-overview" class="manager-workload"></div></div>
           </section>
+        </section>
+        <section id="ai-advisor-page" class="page hidden">
+          <div class="heading"><div><h1>AI 智能顾问</h1><p>基于当前账号可见的 CRM 数据提供营销与销售建议；所有执行均需人工确认</p></div><div class="heading-actions"><button id="advisor-refresh" class="ghost" type="button"><i data-lucide="refresh-cw"></i> 刷新分析</button><button id="advisor-ask" class="primary" type="button"><i data-lucide="message-circle-question"></i> 继续提问</button></div></div>
+          <nav class="advisor-tabs" aria-label="AI 智能顾问视图"><button class="advisor-tab active" data-advisor-tab="today">今日建议</button><button class="advisor-tab" data-advisor-tab="marketing">营销顾问</button><button class="advisor-tab" data-advisor-tab="sales">销售顾问</button><button class="advisor-tab" data-advisor-tab="daily">每日简报</button><button class="advisor-tab" data-advisor-tab="weekly">每周分析</button><button class="advisor-tab" data-advisor-tab="outcomes">建议效果</button></nav>
+          <div class="advisor-hero"><section class="card advisor-hero-main"><h2 id="advisor-role-title">正在读取角色范围…</h2><p id="advisor-role-description"></p><div class="advisor-guardrail">安全边界：仅生成建议，不自动发信、分配询盘、修改价格、判定有效/无效、成交/丢单；确认后仅进入既有页面和审批流程。客户内容不作为指令执行。</div></section><section id="advisor-summary" class="card advisor-summary"></section></div>
+          <section id="advisor-list" class="advisor-list" aria-live="polite"></section>
         </section>
         <section id="module-page" class="page hidden">
           <div class="heading">
@@ -2585,13 +2621,13 @@
         sales: "销售",
       };
       const roleViewAccess = {
-        owner: new Set(["dashboard","sales-today","follow-calendar","marketing-center","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","risk-review","settings"]),
-        sales_manager: new Set(["dashboard","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"]),
-        marketing: new Set(["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
-        sales: new Set(["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
+        owner: new Set(["dashboard","sales-today","follow-calendar","marketing-center","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","risk-review","settings"]),
+        sales_manager: new Set(["dashboard","ai-advisor","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"]),
+        marketing: new Set(["dashboard","marketing-center","ai-advisor","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
+        sales: new Set(["dashboard","sales-today","follow-calendar","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
       const sidebarNavigationGroups = [
-        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","sales-today","follow-calendar","marketing-center","daily"]},
+        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","ai-advisor","sales-today","follow-calendar","marketing-center","daily"]},
         {key:"customers",label:"客户与商机",icon:"briefcase-business",views:["inquiries","customers","assignment","nurture","public-pool","research"]},
         {key:"communication",label:"沟通协作",icon:"messages-square",views:["mailbox","whatsapp","email","communications"]},
         {key:"sales-support",label:"销售支持",icon:"library-big",views:["templates","knowledge","quotes","fulfillment","legacy-projects"]},
@@ -2616,7 +2652,7 @@
         syncSidebarGroupBadges();
       }
       const roleGuideViewNames = {
-        dashboard:"经营看板","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
+        dashboard:"经营看板","ai-advisor":"AI 智能顾问","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
         {at:"2026-09-20 10:15",title:"新增风险审查中心第一阶段",detail:"老板可查看全公司、主管可查看本团队业务风险；确定性规则识别无人负责、首响逾期和跟进逾期，处置、解除和关闭均留不可删除事件记录。",roles:["owner","sales_manager"]},
@@ -4794,6 +4830,44 @@
         if (project.website && !/^无$/i.test(project.website)) { try { const url = new URL(/^https?:\/\//i.test(project.website) ? project.website : `https://${project.website}`); website = `<a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">${esc(project.website)} ↗</a>`; } catch {} }
         openDashboardModal(`历史工程 #${project.legacy_project_id} · ${project.partner_name || project.project_name || "项目详情"}`, `<div class="legacy-detail-grid">${fields.map(([label,value]) => `<div class="legacy-detail-item"><span>${esc(label)}</span><div>${value === null || value === undefined || value === "" ? "—" : esc(value)}</div></div>`).join("")}${website ? `<div class="legacy-detail-item"><span>网站</span><div>${website}</div></div>` : ""}</div><p class="hint" style="margin-top:16px">该记录来自旧 CRM 文件，仅用于历史工程管理，不计入新询盘响应率、成交率和渠道 ROI。</p>`);
       }
+      let advisorActiveTab="today",advisorFeedback={};try{advisorFeedback=JSON.parse(localStorage.getItem("wonly_advisor_feedback_v1")||"{}")||{}}catch{advisorFeedback={}}
+      const advisorRoleCopy={owner:["经营决策顾问","聚焦有效询盘率、报价率、销售转化与渠道投入效率。"],sales_manager:["团队销售顾问","聚焦分配、首次响应、报价推进、团队负荷与风险商机。"],marketing:["营销增长顾问","聚焦渠道质量、有效询盘、培育转化与投入建议。"],sales:["个人销售顾问","聚焦本人客户优先级、报价机会、超时响应与下一步跟进。"]};
+      function advisorScopedContext(){return aiDataContext(advisorActiveTab==="weekly"?"本周":"今日")}
+      function advisorRecommendations(){
+        const c=advisorScopedContext(),role=profile?.role||"sales",valid=c.created.filter(x=>x.validity!=="pending"),validCount=valid.filter(x=>x.validity==="valid").length,quoted=c.created.filter(x=>["quoted","sample_sent","negotiating","won"].includes(x.status)),recommendations=[];
+        const add=(id,domain,priority,title,conclusion,evidence,logic,benefit,risk,actionView,actionLabel)=>recommendations.push({id,domain,priority,title,conclusion,evidence,logic,benefit,risk,actionView,actionLabel,confidence:evidence.includes("0 条")?"中":"高"});
+        if(c.overdue.length)add("response-overdue","sales","immediate","优先处理首次响应超时",`当前有 ${c.overdue.length} 条已分配询盘超过 30 分钟仍未形成首次有效联系。`,`${c.start.toLocaleDateString("zh-CN")}—${c.end.toLocaleDateString("zh-CN")}；当前账号可见范围；超时 ${c.overdue.length} 条。`,`首次响应是销售漏斗最前端的可控环节，应先于一般跟进处理。`,`降低客户流失并改善首次响应率。`,`数量由系统字段判定，仍需负责人核实客户是否已通过线下渠道联系。`,"sales-today","查看待办");
+        if(c.risky.length)add("pipeline-risk","sales","today","复核高风险与逾期商机",`识别到 ${c.risky.length} 条风险或逾期商机，建议逐条补齐下一步与日期。`,`风险标记、预计成交日或下次跟进日命中规则，共 ${c.risky.length} 条。`,`缺少明确下一步的活跃商机会持续老化。`,`提升跟进完整率与报价后推进率。`,`风险标记是提醒，不代表客户必然流失。`,"inquiries","进入询盘商机");
+        if(["owner","marketing"].includes(role)){
+          add("valid-rate","marketing",valid.length&&validCount/valid.length<.5?"today":"week","检查有效询盘率",valid.length?`已核验询盘有效率 ${pct(validCount,valid.length)}，建议按来源复核低质量流量。`:"当前周期暂无已完成人工核验的询盘，暂不能判断有效率。",`已核验 ${valid.length} 条，其中有效 ${validCount} 条；待核验不进入分母。`,`渠道投入调整必须建立在人工有效性结论和足够样本上。`,`减少低质量流量并改善市场投入效率。`,`样本不足时不得据此暂停渠道；市场部仍需人工确认每条有效性。`,"marketing-center","进入市场任务中心");
+          const top=c.sources[0];add("channel-mix","marketing","week","复核渠道投入结构",top?`${top.name} 当前带来 ${top.count} 条新增询盘；结合有效、报价、成交与成本后再决定增投、维持、减投或暂停。`:"当前周期缺少可归因渠道数据，先补齐主来源与 UTM。",`可见新增询盘 ${c.created.length} 条；${c.sources.map(x=>`${x.name} ${x.count}条`).join("，")||"无来源数据"}。`,`询盘量不能单独代表渠道价值，需与质量、报价、成交和成本联合判断。`,`让预算建议由完整漏斗证据支撑。`,`本阶段不自动调整预算；成本或归因缺失会降低结论置信度。`,"dashboard","查看渠道看板");
+        }
+        if(["owner","sales_manager","sales"].includes(role))add("quote-opportunity","sales",quoted.length?"today":"observe",quoted.length?"推进已报价商机":"补齐报价机会识别",quoted.length?`当前周期有 ${quoted.length} 条进入报价或更后阶段，建议核对报价后静默与下次跟进。`:`当前新增询盘中暂无进入报价阶段的记录，建议先核实需求和报价条件。`,`新增 ${c.created.length} 条；报价及后续阶段 ${quoted.length} 条。`,`报价率需要同时关注报价条件成熟度和报价后推进质量。`,`提高报价率，并避免为不成熟需求过早报价。`,`系统不自动给出最终价格或折扣，价格仍由授权人员确认。`,"quotes","进入报价管理");
+        if(!recommendations.length)add("data-baseline","operations","observe","先完善数据再形成建议","当前可见周期的数据不足以生成高置信度行动建议。",`新增询盘 ${c.created.length} 条；风险 ${c.risky.length} 条；超时 ${c.overdue.length} 条。`,`可靠建议需要真实的来源、有效性、负责人、阶段和时间字段。`,`避免基于空数据或缺失字段做错误决策。`,`数据缺口不等同于业务表现为零。`,"inquiries","检查询盘数据");
+        return recommendations;
+      }
+      function advisorVisibleRecommendations(items){
+        if(advisorActiveTab==="marketing")return items.filter(x=>x.domain==="marketing");
+        if(advisorActiveTab==="sales")return items.filter(x=>x.domain==="sales");
+        if(advisorActiveTab==="outcomes")return items.filter(x=>advisorFeedback[x.id]);
+        return items;
+      }
+      function renderAdvisor(){
+        const c=advisorScopedContext(),copy=advisorRoleCopy[profile?.role]||advisorRoleCopy.sales,all=advisorRecommendations(),items=advisorVisibleRecommendations(all),reviewed=Object.values(advisorFeedback).length;
+        $("#advisor-role-title").textContent=copy[0];$("#advisor-role-description").textContent=`${copy[1]} 数据范围严格沿用当前账号权限；${advisorActiveTab==="weekly"?"本周分析":"实时分析"}。`;
+        $("#advisor-summary").innerHTML=`<div><span>当前建议</span><b>${all.length}</b></div><div><span>立即 / 今日</span><b>${all.filter(x=>["immediate","today"].includes(x.priority)).length}</b></div><div><span>已反馈</span><b>${reviewed}</b></div><div><span>数据周期</span><b style="font-size:13px">${c.start.toLocaleDateString("zh-CN")}—${c.end.toLocaleDateString("zh-CN")}</b></div>`;
+        const priorityName={immediate:"立即",today:"今日",week:"本周",observe:"观察"};
+        $("#advisor-list").innerHTML=items.length?items.map(item=>`<article class="advisor-card"><div class="advisor-card-head"><div><h3>${esc(item.title)}</h3><small>${esc(item.domain==="marketing"?"营销顾问":item.domain==="sales"?"销售顾问":"运营顾问")} · 置信度 ${item.confidence}</small></div><span class="advisor-priority ${item.priority}">${priorityName[item.priority]}</span></div><p>${esc(item.conclusion)}</p><div class="advisor-card-body"><div><b>证据</b><span>${esc(item.evidence)}</span></div><div><b>判断逻辑</b><span>${esc(item.logic)}</span></div><div><b>预期收益</b><span>${esc(item.benefit)}</span></div><div><b>风险与缺口</b><span>${esc(item.risk)}</span></div></div><div class="advisor-actions"><button class="primary" data-advisor-action="${item.actionView}" data-advisor-id="${item.id}">${esc(item.actionLabel)}</button><button class="ghost advisor-feedback" data-advisor-feedback="accepted" data-advisor-id="${item.id}">采纳</button><button class="ghost" data-advisor-feedback="modified" data-advisor-id="${item.id}">修改后采纳</button><button class="ghost" data-advisor-feedback="ignored" data-advisor-id="${item.id}">忽略</button><button class="ghost" data-advisor-feedback="invalid" data-advisor-id="${item.id}">无效</button>${advisorFeedback[item.id]?`<span class="tag">已反馈：${esc(advisorFeedback[item.id].decision)}</span>`:""}</div></article>`).join(""):`<div class="card advisor-empty">当前视图暂无建议或反馈记录。</div>`;
+        $$('[data-advisor-action]').forEach(button=>button.onclick=()=>{recordAdvisorAudit(button.dataset.advisorId,"opened_workflow",button.dataset.advisorAction);switchView(button.dataset.advisorAction)});
+        $$('[data-advisor-feedback]').forEach(button=>button.onclick=()=>saveAdvisorFeedback(button.dataset.advisorId,button.dataset.advisorFeedback));icons();
+      }
+      async function recordAdvisorAudit(adviceId,decision,note=""){
+        const result=await supabase.functions.invoke("crm-ai-advisor-feedback",{body:{advice_id:adviceId,decision,note}});
+        if(result.error||result.data?.error){console.warn("AI 顾问审计写入失败",result.error||result.data?.error);return false}return true;
+      }
+      async function saveAdvisorFeedback(id,decision){
+        const labels={accepted:"采纳",modified:"修改后采纳",ignored:"忽略",invalid:"无效"},audited=await recordAdvisorAudit(id,decision);if(!audited)return toast("反馈未完成审计，系统未保存本次选择");advisorFeedback[id]={decision:labels[decision],at:new Date().toISOString()};localStorage.setItem("wonly_advisor_feedback_v1",JSON.stringify(advisorFeedback));toast(`已记录“${labels[decision]}”，用于后续评估建议效果`);renderAdvisor();
+      }
       async function switchView(view, options = {}) {
         if (!canAccessView(view)) {
           toast("当前角色无权进入该功能");
@@ -4806,16 +4880,19 @@
         if (view === "daily") {
           $("#dashboard-page").classList.add("hidden");
           $("#marketing-center-page").classList.add("hidden");
+          $("#ai-advisor-page").classList.add("hidden");
           $("#module-page").classList.add("hidden");
           await openDailyReport();
           return;
         }
         $("#daily-modal").classList.add("hidden");
-        const dashboard = view === "dashboard", marketingCenter=view==="marketing-center";
+        const dashboard = view === "dashboard", marketingCenter=view==="marketing-center",advisor=view==="ai-advisor";
         $("#dashboard-page").classList.toggle("hidden", !dashboard);
         $("#marketing-center-page").classList.toggle("hidden",!marketingCenter);
-        $("#module-page").classList.toggle("hidden",dashboard||marketingCenter);
+        $("#ai-advisor-page").classList.toggle("hidden",!advisor);
+        $("#module-page").classList.toggle("hidden",dashboard||marketingCenter||advisor);
         if(marketingCenter){renderMarketingWorkbench(dashboardState.rows);return}
+        if(advisor){renderAdvisor();return}
         if (!dashboard) await loadModule(view, options);
       }
       async function loadNotifications() {
@@ -5514,7 +5591,7 @@
         const member=dashboardState.profiles.find(x=>x.id===userId);if(!member)return toast("未找到该成员数据");
         const allowed=profile.id===userId||["owner","marketing","sales_manager"].includes(profile.role);if(!allowed)return toast("当前账号无权查看该业务员主页");
         const {start,end}=dashboardRange(),allInquiries=dashboardState.rows.filter(x=>x.owner_id===userId),commercial=allInquiries.filter(x=>x.validity==="valid"),commercialIds=new Set(commercial.map(x=>x.id)),periodInquiries=allInquiries.filter(x=>inRange(x.created_at,start,end)),valid=periodInquiries.filter(x=>x.validity==="valid"),closed=valid.filter(x=>["won","lost"].includes(x.status)),won=valid.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,start,end)),assigned=valid.filter(x=>x.assigned_at),responded=assigned.filter(x=>x.first_valid_contact_at),fast=responded.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000),overdue=commercial.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&Date.now()-new Date(x.assigned_at)>1800000),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]),amount=sumWonCny(won),usd=fxToCny("USD")||0,memberFollowups=(dashboardState.followups||[]).filter(x=>x.author_id===userId&&commercialIds.has(x.inquiry_id)),lateTasks=memberFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<new Date());
-        $("#dashboard-page").classList.add("hidden");$("#marketing-center-page").classList.add("hidden");$("#module-page").classList.add("hidden");$("#sales-profile-page").classList.remove("hidden");
+        $("#dashboard-page").classList.add("hidden");$("#marketing-center-page").classList.add("hidden");$("#ai-advisor-page").classList.add("hidden");$("#module-page").classList.add("hidden");$("#sales-profile-page").classList.remove("hidden");
         currentSalesProfileUserId=userId;setMemberAvatar($("#sales-profile-avatar"),member,"销");$("#sales-profile-avatar").disabled=userId!==profile.id;$("#sales-profile-avatar-hint").classList.toggle("hidden",userId!==profile.id);$("#sales-profile-name").textContent=`${member.full_name} · 个人业务主页`;$("#sales-profile-meta").textContent=[member.english_name,member.job_title||roleNames[member.role],member.team,member.email].filter(Boolean).join(" · ");$("#sales-profile-period").textContent=`${start.toLocaleDateString("zh-CN")}—${end.toLocaleDateString("zh-CN")}`;
         const kpis=[["询盘处理量",responded.length],["30分钟首次响应率",pct(fast.length,assigned.length)],["平均首次响应",mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN)],["有效询盘率",pct(valid.length,periodInquiries.filter(x=>x.validity!=="pending").length)],["报价率",pct(valid.filter(x=>quotedStages.has(x.status)).length,valid.length)],["成交率",pct(won.length,closed.length)],["成交额",`${money(amount,"CNY")}${usd?` / ${money(amount/usd,"USD")}`:""}`],["响应超时",overdue.length],["逾期跟进",lateTasks.length]];
         $("#sales-profile-kpis").innerHTML=kpis.map(([label,value],i)=>`<div class="card"><div class="kpi-label">${label}</div><div class="kpi-value ${i>6&&Number(value)>0?"danger-text":""}">${value}</div></div>`).join("");
@@ -6068,6 +6145,7 @@
         setActiveNavigation("inquiries");
         $("#dashboard-page").classList.add("hidden");
         $("#marketing-center-page").classList.add("hidden");
+        $("#ai-advisor-page").classList.add("hidden");
         $("#module-page").classList.add("hidden");
         $("#sales-profile-page").classList.add("hidden");
         $("#detail-modal").classList.remove("hidden");
@@ -6968,6 +7046,7 @@
         if (detailOriginView === "sales-profile") {
           $("#dashboard-page").classList.add("hidden");
           $("#marketing-center-page").classList.add("hidden");
+          $("#ai-advisor-page").classList.add("hidden");
           $("#module-page").classList.add("hidden");
           $("#sales-profile-page").classList.remove("hidden");
           return;
@@ -6976,7 +7055,8 @@
         setActiveNavigation(activeView);
         $("#dashboard-page").classList.toggle("hidden", activeView !== "dashboard");
         $("#marketing-center-page").classList.toggle("hidden",activeView!=="marketing-center");
-        $("#module-page").classList.toggle("hidden", activeView === "dashboard"||activeView==="marketing-center");
+        $("#ai-advisor-page").classList.toggle("hidden",activeView!=="ai-advisor");
+        $("#module-page").classList.toggle("hidden", activeView === "dashboard"||activeView==="marketing-center"||activeView==="ai-advisor");
       }
       $("#close-detail").addEventListener("click", () => {
         if (location.hash.startsWith("#inquiry/")) history.back();
@@ -8581,6 +8661,9 @@
       $$(".marketing-period-tab").forEach(button=>button.addEventListener("click",()=>{$("#marketing-period").value=button.dataset.marketingPeriod;$$('.marketing-period-tab').forEach(item=>{const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active))});renderMarketingWorkbench(dashboardState.rows)}));
       $("#website-intake-refresh").addEventListener("click",loadWebsiteIntakeMonitor);
       $("#marketing-open-website-monitor").addEventListener("click",()=>switchView("settings"));
+      $$("[data-advisor-tab]").forEach(button=>button.addEventListener("click",()=>{advisorActiveTab=button.dataset.advisorTab;$$('[data-advisor-tab]').forEach(item=>item.classList.toggle("active",item===button));renderAdvisor()}));
+      $("#advisor-refresh").addEventListener("click",()=>{renderAdvisor();toast("已按当前权限和最新 CRM 数据刷新建议")});
+      $("#advisor-ask").addEventListener("click",()=>{openAiAssistant();$("#ai-assistant-input").value="请基于当前 CRM 数据解释最优先的营销和销售建议，并说明证据、数据缺口与风险。"});
       $("#dashboard-layout-toggle").addEventListener("click",()=>setDashboardLayoutEditing(!dashboardLayoutEditing));
       $("#dashboard-layout-reset").addEventListener("click",async()=>{if(!await appConfirm("确认恢复当前账号的默认看板顺序？",{title:"恢复默认布局",confirmText:"确认恢复"}))return;applyDashboardLayout(dashboardInitialOrder);try{localStorage.removeItem(dashboardLayoutStorageKey())}catch{}persistDashboardPreferences();setDashboardLayoutEditing(false);toast("已恢复默认看板布局")});
       $("#detail-tabs-order-toggle").addEventListener("click",()=>setDetailTabsEditing(!detailTabsEditing));

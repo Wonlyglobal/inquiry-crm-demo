@@ -4,12 +4,22 @@ export function endPhrase(text){return /^(结束对话|停止对话|退出语音
 export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
  let generation=0,recognition=null,active=false,phase='wake',expiry=null,restart=null;
  function stop(){generation++;active=false;clearTimeout(expiry);clearTimeout(restart);if(recognition){recognition.onend=null;recognition.onresult=null;recognition.onerror=null;recognition.abort();recognition=null}}
+ function supported(){if(!Recognition||!('processLocally' in Recognition.prototype)||typeof Recognition.available!=='function')throw Error('此浏览器不支持本机唤醒，请使用“开始语音”与百炼对话');}
+ async function packs(){supported();return Promise.all(['en-US','zh-CN'].map(async lang=>({lang,status:await Recognition.available({langs:[lang],processLocally:true})})));}
+ function unavailable(items){const missing=items.filter(x=>x.status==='unavailable').map(x=>x.lang==='en-US'?'英文':'中文');return missing.length?'此浏览器不支持'+missing.join('和')+'本机语音包；请使用“开始语音”与百炼对话':null}
+ async function install(){
+  stop();const g=generation;onState('正在检查本机语音包…');const items=await packs();if(g!==generation)return;
+  const issue=unavailable(items);if(issue)throw Error(issue);
+  const missing=items.filter(x=>x.status!=='available');
+  if(missing.length){if(typeof Recognition.install!=='function')throw Error('此浏览器无法安装本机语音包，请使用“开始语音”');onState('正在下载本机语音包，完成后再点击“开启 Hello 唤醒”…');
+   const installed=await Recognition.install({langs:missing.map(x=>x.lang),processLocally:true});if(g!==generation)return;if(!installed)throw Error('语音包下载未完成，请重试或使用“开始语音”');
+  }
+  const checked=await packs();if(g!==generation)return;if(checked.some(x=>x.status!=='available'))throw Error('语音包仍在准备，请稍后重试');onState('本机语音包已就绪，请点击“开启 Hello 唤醒”，再说 Hello Grace');
+ }
  async function start(){
-  stop();const g=generation;
-  if(!Recognition||!('processLocally' in Recognition.prototype)||typeof Recognition.available!=='function')throw Error('此浏览器不支持本机唤醒，请使用“开始语音”');
-  const available=await Recognition.available({langs:['en-US','zh-CN'],processLocally:true});
-  if(g!==generation)return;
-  if(available!=='available')throw Error('本机中英文语音包未就绪，需在浏览器安装后再开启唤醒');
+  stop();const g=generation;const items=await packs();if(g!==generation)return;
+  const issue=unavailable(items);if(issue)throw Error(issue);
+  if(items.some(x=>x.status!=='available'))throw Error('尚未开始监听：请先点击“安装本机语音包”，完成后再开启 Hello 唤醒');
   active=true;phase='wake';expiry=setTimeout(()=>{stop();onState('语音已在10分钟后自动关闭')},600000);listen(g);
  }
  function listen(g){
@@ -32,5 +42,5 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
   r.onend=()=>{recognition=null;if(!handled&&active&&g===generation)restart=setTimeout(()=>listen(g),350)};
   try{r.start()}catch(error){stop();onState(error.message||'无法开启本机语音识别')}
  }
- return {start,stop,isActive:()=>active};
+ return {start,stop,install,isActive:()=>active};
 }

@@ -20,11 +20,11 @@ const rank=(rows,key)=>{const counts=new Map();for(const row of rows){const labe
 export function buildBrief(persona,context,feed,now=Date.now()){
  const c=context||{},created=(c.created||[]).filter(x=>!x.excluded_from_dashboard),period=c.start&&c.end?`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`:'统计周期未加载';
  const basis=[`CRM范围：${c.scope||'当前账号可见范围'}；${period}`,`当前新增样本：${created.length}条。数据来自当前页面已加载的权限内记录，不代表完整海外市场。`];
- const grace=[`市场观察顺序（按本周期新增询盘量）：${rank(created,'target_country')}`,`产品观察顺序：${rank(created,'product_category')}`,`渠道：${(c.sources||[]).map(x=>`${x.name} ${x.count}条`).join('；')||'暂无'}`,`阶段判断：${created.length?'已有可见获客活动；仍需目标、历史成交和渠道成本共同确认拓展阶段。':'当前周期样本不足，暂不能判断海外拓展阶段。'}不能把询盘量当作市场份额或正式战略优先级。`];
+ const grace=[`市场观察顺序（按本周期新增询盘量）：${rank(created,'target_country')}`,`产品观察顺序：${rank(created.map(x=>({...x,product_category:/distributor|dealer|经销商|代理商/i.test(x.product_category||'')?'待核验（客户类型混入产品字段）':x.product_category})),'product_category')}`,`渠道：${(c.sources||[]).map(x=>`${x.name} ${x.count}条`).join('；')||'暂无'}`,`阶段判断：${created.length?'已有可见获客活动；仍需目标、历史成交和渠道成本共同确认拓展阶段。':'当前周期样本不足，暂不能判断海外拓展阶段。'}不能把询盘量当作市场份额或正式战略优先级。`];
  const brian=[`进行中有效商机 ${(c.active||[]).length}条；首响超时 ${(c.overdue||[]).length}条；规则识别的风险/逾期 ${(c.risky||[]).length}条。`,`行动顺序：核实超时响应 → 补齐下一步及日期 → 推进已报价商机。价格、认证、交期和客户意向必须有原始证据，不自动对客发送。`];
  const jay=[`Grace汇报：本周期新增 ${created.length}条，渠道 ${(c.sources||[]).length}类；市场分布见下方。`,`Brian汇报：成交 ${(c.won||[]).length}单；首响超时 ${(c.overdue||[]).length}条；风险/逾期 ${(c.risky||[]).length}条。`,`决策缺口：尚未核实的年度战略、利润、预算和认证不可由公开新闻填补。当前汇总为页面即时计算，不是后台已留档的经营周报。`];
  const findings=feed?.findings||[];
- const external=feed?[`${feedAge(feed,now)}；核验时间 ${feed.checked_at}`,feed.coverage,...findings.slice(0,8).flatMap(f=>[`${f.published_at}｜${f.brand}｜${f.title}`,`事实：${f.fact}`,`判断：${f.implication}`,`来源：${f.url}`])]:['公开情报尚未加载；不能据此判断市场没有变化。'];
+ const external=feed?[`${feedAge(feed,now)}；核验时间 ${feed.checked_at}`,feed.coverage,...(feed.sources||[]).map(s=>`${s.name}（${s.status==='checked'?'已核验':s.status==='partial'?'部分可读':'获取失败'}）：${s.note||'说明待补'} 来源：${s.url}`),...findings.slice(0,8).flatMap(f=>[`${f.published_at}｜${f.brand}｜${f.title}`,`事实：${f.fact}`,`判断：${f.implication}`,`来源：${f.url}`])]:['公开情报尚未加载；不能据此判断市场没有变化。'];
  const sections=persona==='Grace'?grace:persona==='Brian'?brian:[...jay,...grace,...brian];
  return [`${persona} · 自动信息简报`,...basis,'',...sections,'','公开市场与竞品',...external].join('\n');
 }

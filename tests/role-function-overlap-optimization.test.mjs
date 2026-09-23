@@ -9,9 +9,9 @@ const rollback=await readFile(new URL('./production-role-function-overlap-rollba
 
 test('one central role matrix removes duplicated daily execution menus',()=>{
   const matrix=html.slice(html.indexOf('const roleViewAccess ='),html.indexOf('function canAccessView'));
-  assert.match(matrix,/sales_manager: new Set\(\["dashboard","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"\]\)/);
-  assert.match(matrix,/marketing: new Set\(\["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"\]\)/);
-  assert.match(matrix,/sales: new Set\(\["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"\]\)/);
+  assert.match(matrix,/sales_manager: new Set\(\["dashboard","ai-advisor","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"\]\)/);
+  assert.match(matrix,/marketing: new Set\(\["dashboard","marketing-center","ai-advisor","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"\]\)/);
+  assert.match(matrix,/sales: new Set\(\["dashboard","sales-today","follow-calendar","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"\]\)/);
   assert.match(html,/if \(!canAccessView\(view\)\) \{[\s\S]*?当前角色无权进入该功能/);
 });
 

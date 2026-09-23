@@ -405,6 +405,9 @@
       .period-tab.active { color:#fff; background:var(--green); box-shadow:0 4px 12px rgba(31,75,56,.24); }
       #dashboard-data-scope { min-width:122px; }
       .input.compact { width:auto; min-width:110px; padding:9px 10px; }
+      .dashboard-load-state { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:-2px 0 14px; padding:13px 16px; border:1px solid #e5b2aa; border-radius:14px; background:#fff4f1; color:#963d34; font-weight:700; }
+      .dashboard-load-state.loading { border-color:var(--line); background:var(--soft); color:var(--muted); }
+      .dashboard-load-state .ghost { flex:none; background:#fff; }
       .dashboard-kpis { grid-template-columns:repeat(4,1fr); }
       .sales-hero { display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:14px; }
       .sales-hero > * { min-width:0; }
@@ -1526,7 +1529,7 @@
           <div class="dashboard-toolbar card">
             <div class="dashboard-toolbar-primary">
               <div class="dashboard-scope-group">
-                <div class="period-tabs" role="group" aria-label="统计周期"><button class="period-tab" data-period="today">今日</button><button class="period-tab" data-period="week">本周</button><button class="period-tab active" data-period="month">本月</button><button class="period-tab" data-period="quarter">本季度</button><button class="period-tab" data-period="year">本年度</button></div>
+                <div class="period-tabs" role="group" aria-label="统计周期"><button class="period-tab" data-period="today">今日</button><button class="period-tab" data-period="week">本周</button><button class="period-tab active" data-period="month">本月</button><button class="period-tab" data-period="quarter">本季度</button><button class="period-tab" data-period="year">本年度</button><button class="period-tab" data-period="all">全部历史</button></div>
                 <select id="dashboard-period" class="input compact hidden"><option value="today">今日</option><option value="week">本周</option><option value="month" selected>本月</option><option value="quarter">本季度</option><option value="year">本年度</option><option value="all">全部历史</option><option value="custom">自定义</option></select>
                 <select id="dashboard-data-scope" class="input compact"><option value="current">当前 CRM</option><option value="legacy">历史工程 / 订单</option><option value="combined">综合视图</option></select>
                 <input id="dashboard-start" class="input compact hidden" type="date" />
@@ -1546,6 +1549,7 @@
             <span class="dashboard-scope-note">筛选条件会同步作用于看板、排名和导出</span>
             </div>
           </div>
+          <div id="dashboard-load-state" class="dashboard-load-state hidden" role="status" aria-live="polite"><span id="dashboard-load-state-text"></span><button id="dashboard-retry" class="ghost" type="button">重新加载</button></div>
           <div id="dashboard-widgets">
           <section id="sales-workbench" class="dashboard-panel sales-workbench hidden" data-dashboard-widget="sales-tasks">
             <div class="sales-workbench-head"><div><b>我的任务中心</b><p>仅处理主管分配的询盘，以及已关联询盘的真实客户新回复</p></div><div class="sales-workbench-actions"><button id="sales-connect-mailbox" class="ghost">连接我的邮箱</button><button id="sales-open-profile" class="ghost">个人业务主页</button><button id="sales-view-inquiries" class="ghost">我的询盘</button><button id="sales-write-daily" class="primary">填写销售日报</button></div></div>
@@ -4917,6 +4921,23 @@
         ,historical_order_trend:["历史订单趋势","按下单日期汇总唯一订单数与明细金额。","来源文件没有国家字段，不推断国家；未匹配正式账号的原业务员仅保留姓名。"]
       };
       let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], whatsappMessages:[], replyReminders:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], historicalOrders:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
+      let dashboardHasSuccessfulLoad = false, dashboardRetryTimer = null, dashboardRetryCount = 0;
+      function setDashboardLoadState(kind, message) {
+        const box = $("#dashboard-load-state");
+        if (!box) return;
+        box.classList.toggle("hidden", !kind);
+        box.classList.toggle("loading", kind === "loading");
+        $("#dashboard-load-state-text").textContent = message || "";
+        $("#dashboard-retry").classList.toggle("hidden", kind !== "error");
+      }
+      function renderDashboardUnavailable() {
+        if (dashboardHasSuccessfulLoad) return;
+        $("#hero-sales-cny").textContent = "—";
+        $("#hero-sales-usd").textContent = "数据未加载";
+        $("#hero-sales-period").textContent = "等待重新加载";
+        $("#hero-sales-change").textContent = "";
+        ["#kpi-total","#kpi-pending","#kpi-overdue","#kpi-valid-rate","#kpi-response-rate","#kpi-avg-response","#kpi-conversion","#kpi-quote-rate","#kpi-won-cny","#kpi-won-usd"].forEach(selector=>{const element=$(selector);if(element)element.textContent="—"});
+      }
       function dashboardRange() {
         const now = new Date(), type = $("#dashboard-period")?.value || "month";
         let start = new Date(now), end = new Date(now);
@@ -5508,10 +5529,26 @@
         $("#channel-cost-form").onsubmit=async e=>{e.preventDefault();const currency=$("#cost-currency").value,amount=Number($("#cost-amount").value),rate=fxToCny(currency);if(currency!=="CNY"&&!rate)return toast("今日汇率尚未同步，暂不能保存该币种成本");const payload={month:$("#cost-month").value+"-01",channel:$("#cost-channel").value,amount,currency,amount_cny:amount*(rate||1),entered_by:profile.id};const {error}=await supabase.from("channel_costs").upsert(payload,{onConflict:"month,channel"});if(error)return toast("渠道成本保存失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("渠道成本已保存");await loadInquiries();};
       }
       async function loadInquiries() {
-        try { return await loadInquiriesUnsafe(); }
+        setDashboardLoadState("loading", dashboardHasSuccessfulLoad ? "正在更新看板数据…" : "正在加载看板数据…");
+        try {
+          const result = await loadInquiriesUnsafe();
+          dashboardHasSuccessfulLoad = true;
+          dashboardRetryCount = 0;
+          if (dashboardRetryTimer) clearTimeout(dashboardRetryTimer);
+          dashboardRetryTimer = null;
+          setDashboardLoadState(null);
+          return result;
+        }
         catch (error) {
           console.error("经营看板加载异常", error);
-          toast(/failed to fetch|networkerror|load failed/i.test(String(error?.message || error)) ? "数据服务连接不稳定，系统已自动重试；请稍后重新加载" : `经营看板加载失败：${error?.message || error}`);
+          renderDashboardUnavailable();
+          const network = /failed to fetch|networkerror|load failed/i.test(String(error?.message || error));
+          setDashboardLoadState("error", dashboardHasSuccessfulLoad ? "本次更新失败，已保留上一次有效数据。" : "看板数据加载失败，当前数字不代表真实业务数据。");
+          toast(network ? "数据服务连接不稳定，系统将自动重试" : `经营看板加载失败：${error?.message || error}`);
+          if (!dashboardRetryTimer && dashboardRetryCount < 1) {
+            dashboardRetryCount += 1;
+            dashboardRetryTimer = setTimeout(()=>{dashboardRetryTimer=null;loadInquiries()}, 3000);
+          }
           return null;
         }
       }
@@ -5593,10 +5630,7 @@
       }
       async function loadInquiriesUnsafe() {
         const { data, error } = await loadAllDashboardInquiries();
-        if (error) {
-          toast("加载失败：" + error.message);
-          return;
-        }
+        if (error) throw new Error("询盘数据加载失败：" + error.message);
         const rows = data || [];
         // Optional dashboard columns are loaded separately so the UI remains
         // usable while a newly deployed migration is being applied.
@@ -5618,10 +5652,7 @@
           }
         }
         const { data: history, error: historyError } = await loadAllStageHistory();
-        if (historyError) {
-          toast("阶段时间加载失败：" + historyError.message);
-          return;
-        }
+        if (historyError) throw new Error("阶段时间加载失败：" + historyError.message);
         // The sales ranking only needs inquiries, people and exchange rates.
         // Render it before slower mail, audit, legacy and channel queries finish.
         const [{ data: earlyProfiles }, { data: earlyTargetPeople }, { data: earlyRates }] = await Promise.all([
@@ -5630,7 +5661,7 @@
           supabase.from("exchange_rates").select("*").order("rate_date", { ascending: false }).limit(500),
         ]);
         renderSalesAmountRankingEarly(rows, earlyProfiles || [], earlyTargetPeople || [], earlyRates || []);
-        const [{ data: dashboardProfiles }, { data: dashboardFollowups }, { data: dashboardEmailMessages }, { data: dashboardWhatsAppMessages }, { data: replyReminders }, { data: channelCosts }, { data: salesTargets }, { data: targetPeople }, { data: targetPlanItems }, { data: dashboardAudits }, { data: exchangeRates }, { data: legacyProjects }, { data: historicalOrders }, { data: dailyReports }, { data: emailIntakes }, { data: researchCompanies }, { data: retentionRequests }, { data: marketingTouches }] = await Promise.all([
+        const dashboardResults = await Promise.all([
           supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active,avatar_url").eq("active", true),
           loadAllDashboardFollowups(),
           loadAllDashboardEmailMessages(),
@@ -5650,6 +5681,10 @@
           loadModuleRowsPaged((from,to)=>supabase.from("inquiry_retention_requests").select("id,inquiry_id,requested_by,requested_until,reason,status,created_at").order("created_at",{ascending:false}).range(from,to)),
           loadModuleRowsPaged((from,to)=>supabase.from("inquiry_marketing_touches").select("inquiry_id,channel,is_primary,touch_at,program_name,campaign_name,tactic_name,offer_name").order("touch_at",{ascending:false}).range(from,to)),
         ]);
+        const [profilesResult, followupsResult, emailMessagesResult, whatsAppMessagesResult, replyRemindersResult, channelCostsResult, salesTargetsResult, targetPeopleResult, targetPlanItemsResult, auditsResult, exchangeRatesResult, legacyProjectsResult, historicalOrdersResult, dailyReportsResult, emailIntakesResult, researchCompaniesResult, retentionRequestsResult, marketingTouchesResult] = dashboardResults;
+        if (profilesResult.error) throw new Error("成员数据加载失败：" + profilesResult.error.message);
+        if (profile?.role === "owner" && historicalOrdersResult.error) throw new Error("历史订单加载失败：" + historicalOrdersResult.error.message);
+        const dashboardProfiles=profilesResult.data, dashboardFollowups=followupsResult.data, dashboardEmailMessages=emailMessagesResult.data, dashboardWhatsAppMessages=whatsAppMessagesResult.data, replyReminders=replyRemindersResult.data, channelCosts=channelCostsResult.data, salesTargets=salesTargetsResult.data, targetPeople=targetPeopleResult.data, targetPlanItems=targetPlanItemsResult.data, dashboardAudits=auditsResult.data, exchangeRates=exchangeRatesResult.data, legacyProjects=legacyProjectsResult.data, historicalOrders=historicalOrdersResult.data, dailyReports=dailyReportsResult.data, emailIntakes=emailIntakesResult.data, researchCompanies=researchCompaniesResult.data, retentionRequests=retentionRequestsResult.data, marketingTouches=marketingTouchesResult.data;
         const teamSelect = $("#dashboard-team"), salesSelect = $("#dashboard-sales"), sourceSelect = $("#dashboard-source");
         if (teamSelect && teamSelect.options.length === 1) [...new Set((dashboardProfiles||[]).map(x=>x.team).filter(Boolean))].sort().forEach(v=>teamSelect.add(new Option(v,v)));
         if (salesSelect && salesSelect.options.length === 1) (dashboardProfiles||[]).filter(x=>["sales","sales_manager"].includes(x.role)).forEach(x=>salesSelect.add(new Option(x.full_name,x.id)));
@@ -5666,8 +5701,8 @@
         dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.whatsappMessages=dashboardWhatsAppMessages||[];dashboardState.replyReminders=replyReminders||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.historicalOrders=historicalOrders||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
         if(profile?.role==="owner"&&(historicalOrders||[]).length&&$("#dashboard-data-scope")?.value==="current"){
           $("#dashboard-data-scope").value="combined";
-          $("#dashboard-period").value="year";
-          $$(".period-tab[data-period]").forEach(button=>button.classList.toggle("active",button.dataset.period==="year"));
+          $("#dashboard-period").value="all";
+          $$(".period-tab[data-period]").forEach(button=>button.classList.toggle("active",button.dataset.period==="all"));
         }
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         if($(".nav[data-view=\"marketing-center\"]")?.classList.contains("active"))renderMarketingWorkbench(rows);
@@ -8534,6 +8569,7 @@
         $$(".period-tab[data-period]").forEach(button=>{const active=button.dataset.period===event.target.value;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});
         if (!custom) renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups);
       });
+      $("#dashboard-retry").addEventListener("click",()=>{dashboardRetryCount=0;if(dashboardRetryTimer)clearTimeout(dashboardRetryTimer);dashboardRetryTimer=null;loadInquiries()});
       $$(".period-tab[data-period]").forEach(button=>button.addEventListener("click",()=>{$("#dashboard-period").value=button.dataset.period;$("#dashboard-period").dispatchEvent(new Event("change"))}));
       $$(".marketing-period-tab").forEach(button=>button.addEventListener("click",()=>{$("#marketing-period").value=button.dataset.marketingPeriod;$$('.marketing-period-tab').forEach(item=>{const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active))});renderMarketingWorkbench(dashboardState.rows)}));
       $("#website-intake-refresh").addEventListener("click",loadWebsiteIntakeMonitor);

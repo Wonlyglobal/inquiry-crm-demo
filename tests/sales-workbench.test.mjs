@@ -58,7 +58,7 @@ test('inquiry, assignment, nurture, public-pool and quote lists paginate',()=>{
 });
 
 test('dashboard ancillary datasets paginate before ranking and attribution render',()=>{
-  const start=html.indexOf('const [{ data: dashboardProfiles }');
+  const start=html.indexOf('const dashboardResults = await Promise.all([');
   const branch=html.slice(start,html.indexOf('const teamSelect',start));
   for(const table of ['channel_costs','sales_targets','sales_target_plan_items','audit_logs','legacy_engineering_projects','daily_sales_reports','email_intake','companies','inquiry_retention_requests','inquiry_marketing_touches'])
     assert.match(branch,new RegExp(`loadModuleRowsPaged\\(\\(from,to\\)=>supabase\\.from\\("${table}"`));

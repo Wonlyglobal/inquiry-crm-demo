@@ -5,6 +5,7 @@ class Element{children=[];value='';append(...nodes){this.children.push(...nodes)
 class Recognition{static instances=[];static async available(){return 'available'}start(){Recognition.instances.push(this)}abort(){this.aborted=true}}
 Recognition.prototype.processLocally=false;
 function setup(invoke=async()=>({enabled:true,configured:true,model:'test'})){
+ Object.defineProperty(globalThis,'navigator',{configurable:true,value:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){}}]})}}});
  Recognition.instances=[];globalThis.document={hidden:false,createElement:()=>new Element(),addEventListener(){}};globalThis.window={SpeechRecognition:Recognition,addEventListener(){}};
  const host=new Element();let persona='Grace';const model=mountConversation(host,{invoke,getPersona:()=>persona,isAllowed:()=>true,onMode(){},onMessage(){},onTranscript(){},onSelectPersona(){}});
  return {model,host,setPersona:p=>persona=p};

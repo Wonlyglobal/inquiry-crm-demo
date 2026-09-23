@@ -38,7 +38,7 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
     if(active&&g===generation)listen(g);
    }catch(error){if(g===generation){stop();onState(error.message||'语音对话未完成，请重试')}}
   };
-  r.onerror=e=>{if(g!==generation)return;if(['no-speech','aborted'].includes(e.error))return;stop();onState('本机语音识别失败：'+e.error+'；可使用按钮录音')};
+  r.onerror=e=>{if(g!==generation)return;if(['no-speech','aborted'].includes(e.error))return;stop();onState(e.error==='not-allowed'?'本机唤醒被浏览器拒绝；即使麦克风已允许，语音识别仍可能受限。可用“开始语音”录音对话。':'本机语音识别失败：'+e.error+'；可使用按钮录音')};
   r.onend=()=>{recognition=null;if(!handled&&active&&g===generation)restart=setTimeout(()=>listen(g),350)};
   try{r.start()}catch(error){stop();onState(error.message||'无法开启本机语音识别')}
  }

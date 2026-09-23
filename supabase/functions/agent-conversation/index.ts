@@ -5,6 +5,7 @@ import {loadCrmStats} from './crm-stats.mjs';
 import {loadSocial} from './social.mjs';
 import {loadSeo} from './seo.mjs';
 import {loadResearch} from './research.mjs';
+import marketingLearning from './marketing-learning.json' with {type:'json'};
 import marketPlaybooks from './market-playbooks.json' with {type:'json'};
 import publicFeed from './public-knowledge.json' with {type:'json'};
 const cors={'Access-Control-Allow-Origin':'https://crm.foreverdoodle.com','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS','Cache-Control':'no-store'};
@@ -42,7 +43,7 @@ Deno.serve(async req=>{
   const model=input.action==='chat'?(Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'):input.action==='transcribe'?MODELS.transcribe:MODELS.speech;
   let endpoint=CHAT_URL,body:any,contextMetadata:any=null;
   if(input.action==='chat'){
-   const [research,crm,seo,social]=await Promise.all([loadResearch(),loadCrmStats(client),loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')}),loadSocial(authorization)]);contextMetadata={crm_status:crm.status,crm_period:crm.period,research_status:research.status||'available',research_date:research.as_of||null,social_status:social.status,social_generated_at:social.generated_at||null,seo_status:seo.status,seo_generated_at:seo.generated_at||null,seo_freshness:seo.freshness||null};body=requestBody(input,model,JSON.stringify({publicFeed,marketPlaybooks,research,crm,seo,social}));
+   const [research,crm,seo,social]=await Promise.all([loadResearch(),loadCrmStats(client),loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')}),loadSocial(authorization)]);contextMetadata={crm_status:crm.status,crm_period:crm.period,research_status:research.status||'available',research_date:research.as_of||null,social_status:social.status,social_generated_at:social.generated_at||null,seo_status:seo.status,seo_generated_at:seo.generated_at||null,seo_freshness:seo.freshness||null};body=requestBody(input,model,JSON.stringify({publicFeed,marketPlaybooks,marketingLearning,research,crm,seo,social}));
   }else if(input.action==='transcribe'){
    const audio=form?.get('audio');if(!(audio instanceof File))return json({error:'录音文件缺失'},400);body=transcriptionBody(new Uint8Array(await audio.arrayBuffer()),audio.type.split(';')[0]);
   }else if(input.action==='greeting'){

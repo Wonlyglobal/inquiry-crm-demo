@@ -172,3 +172,5 @@ PR76已发布：合并b64d1ed3f40e5a967e6da963f96e903a83e50df3，Pages3581473899
 2026-09-23 Grace SEO候选适配：用户要求接通；本地完成独立HMAC源端读取、字段投影、日期/缺失/过期状态及回答来源标注，445回归和语法通过。自动审批拒绝源端部署/凭据交接消息，需明确目标/字段/接收方/范围确认；未绕过，未配置Secrets，未部署。详情docs/grace-seo-market-integration.md。
 
 2026-09-23T15:00:02 社媒只读源端部署：用户明确批准grogrigybgimvuuunxef/social-summary目标、精确Chloe active owner鉴权、WONLY及竞品聚合范围、CRM接收端和百炼北京用途；执行Codex。此前自动审批拒绝已得到具体用户批准。仅配置CRM公开publishable校验key并部署只读函数，未复制平台Token/服务角色凭据，未改社媒RLS或业务数据。匿名GET401，449离线回归通过。CRM接收端尚未部署，切换社媒管理登录后CRM项目403，待用户切回；不能声称Grace已接通。回滚删除social-summary函数及CRM_PUBLISHABLE_KEY配置（确认无其他调用方后），保留审计。剩余：真实登录品牌范围、记录新鲜度与端到端需验收；SEO源端另行推进。
+
+2026-09-23 Grace课程与AI工作流知识候选：用户要求平台营销课程/AI工作流并继续已批准发布，执行Codex。增加官方Google/Meta/TikTok/YouTube/n8n公开参考、核验日期、学习覆盖范围和王力待验证实验；LinkedIn来源尚未核验，不宣称完成课程/实时学习。只读数据范围保持。449测试及语法通过。CRM管理员Wonlyglobal登录已恢复，生产接收端待部署。回滚原函数及PR86页面，保留审计；剩余SEO源端、社媒真实快照需端到端核验。

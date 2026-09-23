@@ -1421,7 +1421,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=20260923-4" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=20260923-5" />
 </head>
   <body>
     <section id="boot" class="boot-shell">
@@ -2471,10 +2471,10 @@
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20260923-2';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20260923-3';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence } from './assets/agent-intelligence.mjs?v=20260923-3';
-      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20260923-3";
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20260923-4";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;
@@ -4906,7 +4906,7 @@
           $('#ai-advisor-page').classList.add('hidden');slot.append($('#ai-assistant-panel'));openAiAssistant();
           $('#ai-assistant-panel').querySelector('.ai-panel-head strong').textContent=name+' · '+({Grace:'营销增长智能体',Brian:'销售智能体',Jay:'经营决策智能体'}[name]);
           $('#ai-assistant-input').value={Grace:'汇报当前海外市场与竞品情报',Brian:'汇报当前销售商机与跟进风险',Jay:'汇报营销和销售经营简报'}[name];
-        },onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
+        },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
           onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
@@ -8761,7 +8761,7 @@
       $("#dashboard-modal-close").addEventListener("click",()=>$("#dashboard-modal").classList.add("hidden"));
       $("#inquiry-definitions").addEventListener("click",openInquiryDefinitions);
       $("#ai-assistant-open").addEventListener("click",openAiAssistant);
-      $("#ai-assistant-close").addEventListener("click",()=>{worldModel?.reset();$("#ai-assistant-panel").classList.add("hidden")});
+      $("#ai-assistant-close").addEventListener("click",()=>{if(worldPersona){$("#room-back")?.click();return;}worldModel?.reset();$("#ai-assistant-panel").classList.add("hidden")});
       $("#ai-clear-chat").addEventListener("click",()=>{worldModel?.clear();worldIntelligence?.clear();aiConversation=[];aiLastContext=null;aiLastQuestion="";$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制；询盘清单导出需独立审批。</div>';toast("AI 对话已清空");});
       $("#ai-copy-result").addEventListener("click",async()=>{const text=latestAiAnswer();if(!text)return toast("请先向 AI 提问");await navigator.clipboard.writeText(text);toast("已复制最新 AI 回答");});
       $("#ai-export-csv").addEventListener("click",openControlledExportCenter);

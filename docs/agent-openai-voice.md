@@ -1,3 +1,5 @@
+> 2026-09-23：本方案已由 [百炼候选](agent-bailian-voice.md) 替代。本文保留历史，不能用于当前发布。
+
 # OpenAI 通用推理与语音接入候选
 
 2026-09-23；状态：代码候选，未部署，尚无真实API/音频验收。用户明确选择统一OpenAI推理和语音，并请求协助配置。OPENAI_API_KEY已配置；最新合成测试返回credit_balance_exhausted，账户额度仍不可用。API密钥须仅存Supabase Secrets，不进入源码、浏览器或审计正文。

@@ -197,3 +197,5 @@ PR93/94页面部署35835281689成功；生产index.html、agent-conversation.mjs
 最终生产验收完成：真实Chloe/Grace响应的服务端覆盖页脚为37/37，tiktok28、youtube7、instagram1、facebook1，模型本次相同；462回归通过。只验证已入库文案/登记指标与覆盖计数，不等于平台全部历史、视频内容理解或后台Insights。
 
 2026-09-23 五平台自然增长背景候选：用户明确TikTok/Instagram/Facebook/YouTube/LinkedIn并确认暂未广告投放，Codex将带日期用户陈述接入模型上下文，不冒充后台核验或永久无广告。462回归通过；源码确认四个同步连接器、无LinkedIn连接器、API设置仍占位。社媒生产页需管理员登录，已打开并请用户登录；未取员工密码、未创建应用/扩大OAuth权限。真实平台权限和后台数据尚未接通；回滚本轮context import及JSON，保留审计。
+
+2026-09-23 用户完成社媒管理员登录后，Codex通过已有授权切换Supabase社媒身份，仅核对配置名称和下载生产连接器源码。确认YouTube只有API Key无OAuth配置、LinkedIn无连接器/配置、Facebook存在FB_PAGE_TOKEN但当前sync-facebook读取FB_ACCESS_TOKEN或IG_ACCESS_TOKEN。新增只读summary.connections候选，区分配置存在和权限未验证；不回传任何凭据值，不读取TikTok凭据表、不改RLS/数据库。464回归通过；尚待源端部署与真实Grace验证。YouTube后台与LinkedIn接入仍需OAuth应用/页面确认；Google Cloud现有会话可用，继续核对。

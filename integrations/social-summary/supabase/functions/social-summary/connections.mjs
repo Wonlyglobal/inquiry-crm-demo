@@ -6,7 +6,7 @@ export function connectionReadiness(get){
   checked_at:new Date().toISOString(),
   verification:'configuration_presence_only',
   platforms:{
-   youtube:{public_statistics:has('YOUTUBE_API_KEY')?'configured_unverified':'not_configured',private_analytics:youtubeOAuth?'authorization_scope_unverified':'oauth_not_configured'},
+   youtube:{public_statistics:has('YOUTUBE_API_KEY')?'configured_unverified':'not_configured',private_analytics:['YT_ANALYTICS_CLIENT_ID','YT_ANALYTICS_CLIENT_SECRET','YT_ANALYTICS_REFRESH_TOKEN'].every(has)?'configured_see_youtube_analytics_status':youtubeOAuth?'authorization_scope_unverified':'oauth_not_configured'},
    instagram:{public_statistics:has('IG_ACCESS_TOKEN')&&has('IG_BUSINESS_ID')?'configured_unverified':'not_configured',private_analytics:'insights_permissions_unverified'},
    facebook:{public_statistics:has('FB_ACCESS_TOKEN')||has('IG_ACCESS_TOKEN')?'configured_unverified':'not_configured',private_analytics:'insights_permissions_unverified',page_token_configured:has('FB_PAGE_TOKEN'),page_token_used_by_current_sync:false},
    tiktok:{application:has('TIKTOK_CLIENT_KEY')&&has('TIKTOK_CLIENT_SECRET')?'configured_unverified':'not_configured',user_authorization:'not_checked',private_analytics:'not_integrated'},

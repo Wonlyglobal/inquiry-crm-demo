@@ -176,3 +176,5 @@ PR76已发布：合并b64d1ed3f40e5a967e6da963f96e903a83e50df3，Pages3581473899
 2026-09-23 Grace课程与AI工作流知识候选：用户要求平台营销课程/AI工作流并继续已批准发布，执行Codex。增加官方Google/Meta/TikTok/YouTube/n8n公开参考、核验日期、学习覆盖范围和王力待验证实验；LinkedIn来源尚未核验，不宣称完成课程/实时学习。只读数据范围保持。449测试及语法通过。CRM管理员Wonlyglobal登录已恢复，生产接收端待部署。回滚原函数及PR86页面，保留审计；剩余SEO源端、社媒真实快照需端到端核验。
 
 2026-09-23 Grace发布PR86：用户批准社媒只读范围及上线，执行Codex。CRM agent-conversation部署成功，匿名401；PR86合并86e9116，449回归与CI通过。真实Chloe模型回答收到social available及28天发布统计，未发送客户明细；源指标存在缺失/未核验，不代表实时效果。SEO仍not_configured，源端DNS完成但服务/TLS待部署。实测发现模型把缺失写成零、读取时间当新鲜度和自拟门槛，正在修复提示约束；不能称回答质量全部验收。回滚PR86前端/函数，保留审计。
+
+2026-09-23 Grace只读社媒与营销知识上线验收：授权人项目负责人（明确社媒字段/Chloe active owner/CRM接收/Bailian北京范围及上线），执行Codex。PR86/86e9116接入，PR87/b3f7bdd改进提示与数据说明，PR88增加一次有审计的输出纠正。agent-conversation已部署；社媒源端已部署。451离线测试、PR88 CI通过；PR87 Pages35831215812成功，index/conversation/status三文件生产字节一致。真实Chloe会话确认social available、SEO not_configured、TikTok官方课程链接可引用；模型仍产生无依据目标或AI审批表述，最终质量门禁实际拦截并返回可重试，不能宣称复杂营销回答稳定。没有客户明细/平台Token外发，未发帖或修改业务数据。SEO源端仅DNS已核验，服务/TLS/凭据与端到端仍未完成；营销课程仅公开目录/指南参考，LinkedIn待补，不是完成课程或持续学习。回滚原agent-conversation及PR86-88页面，保留审计；剩余风险为模型事实性及答案被拦截的可用性，需后续继续提高。

@@ -2471,6 +2471,7 @@
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20260923-1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence } from './assets/agent-intelligence.mjs?v=20260923-3';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20260923-3";
@@ -4875,12 +4876,12 @@
         const labels={accepted:"采纳",modified:"修改后采纳",ignored:"忽略",invalid:"无效"},audited=await recordAdvisorAudit(id,decision);if(!audited)return toast("反馈未完成审计，系统未保存本次选择");advisorFeedback[id]={decision:labels[decision],at:new Date().toISOString()};localStorage.setItem("wonly_advisor_feedback_v1",JSON.stringify(advisorFeedback));toast(`已记录“${labels[decision]}”，用于后续评估建议效果`);renderAdvisor();
       }
       let worldController=null,worldPersona=null,worldIntelligence=null;
-      let agentDataRefreshFailed=false;
+      let agentDataRefreshFailed=false,worldModel=null;
       const assistantHome=document.createComment('AI assistant home');$('#ai-assistant-panel').before(assistantHome);
       const advisorHome=document.createComment('AI analysis home');$('#ai-advisor-page').before(advisorHome);
       const worldChatSessions=new Map();
       function switchWorldConversation(next){
-        if(worldPersona===next)return;
+        if(worldPersona===next)return;worldModel?.reset();
         const key=worldPersona||'CRM';
         worldChatSessions.set(key,{messages:[...$('#ai-assistant-messages').children].map(el=>({role:el.classList.contains('user')?'user':'assistant',text:el.textContent})),conversation:aiConversation.map(item=>({...item})),context:aiLastContext,question:aiLastQuestion});
         const saved=worldChatSessions.get(next||'CRM');aiConversation=saved?.conversation?.map(item=>({...item}))||[];aiLastContext=saved?.context||null;aiLastQuestion=saved?.question||'';
@@ -4889,7 +4890,7 @@
         worldPersona=next;
       }
       function restoreWorldPanels(){
-        switchWorldConversation(null);
+        worldModel?.reset();switchWorldConversation(null);
         assistantHome.after($('#ai-assistant-panel'));advisorHome.after($('#ai-advisor-page'));
         $('#ai-assistant-panel').classList.add('hidden');worldPersona=null;
       }
@@ -4906,6 +4907,17 @@
           $('#ai-assistant-panel').querySelector('.ai-panel-head strong').textContent=name+' · '+({Grace:'营销增长智能体',Brian:'销售智能体',Jay:'经营决策智能体'}[name]);
           $('#ai-assistant-input').value={Grace:'汇报当前海外市场与竞品情报',Brian:'汇报当前销售商机与跟进风险',Jay:'汇报营销和销售经营简报'}[name];
         },onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
+        if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
+          getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
+          onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
+          invoke:async(body,signal)=>{
+            const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');
+            const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';
+            const response=await fetch('https://plhverjihjilnuhlhlxi.supabase.co/functions/v1/agent-conversation',{method:'POST',headers,body:body instanceof FormData?body:JSON.stringify(body),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(70000)]):AbortSignal.timeout(15000)});
+            if(!response.ok){let payload;try{payload=await response.json()}catch{}throw new Error(payload?.error||'服务连接失败，请稍后重试')}
+            return response.headers.get('content-type')?.includes('audio/')?response.blob():response.json();
+          }
+        });
         if(!worldIntelligence)worldIntelligence=mountIntelligence($('#world-knowledge-slot'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),getContext:(question='')=>({...aiDataContext(question),ready:dashboardHasSuccessfulLoad,refreshFailed:agentDataRefreshFailed}),onQuestion:(name,question)=>{if(!canUseAgentWorld(profile,currentAuthUser)||$('#ai-assistant-form button[type="submit"]').disabled)return;$('#agent-world-page [data-advisor="'+name+'"]').click();$('#ai-assistant-input').value=question;$('#ai-assistant-form').requestSubmit()}});else worldIntelligence.refresh();
         const worldSwitch=$('#world-switch');worldSwitch.setAttribute('aria-pressed','true');worldSwitch.setAttribute('aria-label','返回 CRM');worldSwitch.title='返回 CRM';return true;
       }
@@ -8749,8 +8761,8 @@
       $("#dashboard-modal-close").addEventListener("click",()=>$("#dashboard-modal").classList.add("hidden"));
       $("#inquiry-definitions").addEventListener("click",openInquiryDefinitions);
       $("#ai-assistant-open").addEventListener("click",openAiAssistant);
-      $("#ai-assistant-close").addEventListener("click",()=>$("#ai-assistant-panel").classList.add("hidden"));
-      $("#ai-clear-chat").addEventListener("click",()=>{worldIntelligence?.clear();aiConversation=[];aiLastContext=null;aiLastQuestion="";$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制；询盘清单导出需独立审批。</div>';toast("AI 对话已清空");});
+      $("#ai-assistant-close").addEventListener("click",()=>{worldModel?.reset();$("#ai-assistant-panel").classList.add("hidden")});
+      $("#ai-clear-chat").addEventListener("click",()=>{worldModel?.clear();worldIntelligence?.clear();aiConversation=[];aiLastContext=null;aiLastQuestion="";$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制；询盘清单导出需独立审批。</div>';toast("AI 对话已清空");});
       $("#ai-copy-result").addEventListener("click",async()=>{const text=latestAiAnswer();if(!text)return toast("请先向 AI 提问");await navigator.clipboard.writeText(text);toast("已复制最新 AI 回答");});
       $("#ai-export-csv").addEventListener("click",openControlledExportCenter);
       $("#ai-export-pdf").addEventListener("click",openControlledExportCenter);
@@ -8758,6 +8770,7 @@
       $("#ai-assistant-form").addEventListener("submit",async event=>{
         event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
         if(worldPersona&&canUseAgentWorld(profile,currentAuthUser)){
+          if(worldModel?.isModel()){await worldModel.ask(question);return;}
           const brief=worldIntelligence?.answer(question)||aiAnswer(question);
           if(brief){addAiMessage("user",question);input.value="";addAiMessage("assistant",brief);aiLastQuestion=question;aiLastContext=aiDataContext(question);aiConversation.push({role:"user",content:question},{role:"assistant",content:brief});return;}
         }

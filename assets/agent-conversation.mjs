@@ -1,5 +1,6 @@
+import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
-import {createWakeConversation} from './agent-wake.mjs?v=20260923-2';
+import {createWakeConversation} from './agent-wake.mjs?v=20260923-3';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -57,7 +58,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   stopAll();const epoch=version;mode.value='bailian';ready=false;state('正在为 Grace 准备语音唤醒…');
   await checkConnection();if(epoch!==version||!ready||document.hidden)return;
   installing=true;sync();
-  try{await wake.install();if(epoch!==version||document.hidden)return;await wake.start()}
+  try{state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.install();if(epoch!==version||document.hidden)return;await wake.start()}
   catch(e){if(epoch===version)state(e.message)}
   finally{if(epoch===version){installing=false;sync()}}
  }
@@ -70,7 +71,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    try{const blob=await call({action:'greeting',persona},controller.signal);await playBlob(blob,epoch)}catch(e){busy=false;throw e}
   },onQuestion:text=>ask(text,{voice:true})});
  installWake.onclick=async()=>{if(installing)return;stopAll();installing=true;sync();try{await wake.install()}catch(e){state(e.message)}finally{installing=false;sync()}};
- wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();try{await wake.start()}catch(e){state(e.message)}};
+ wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();const epoch=version;try{state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.start()}catch(e){state(e.message)}};
  mic.onclick=record;stop.onclick=()=>stopAll();check.onclick=checkConnection;replay.onclick=()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}};
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAll()});window.addEventListener('pagehide',stopAll);sync();
  return {ask,enter,isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){stopAll({keepWake:wakeTransition});lastTicket=null;sync()},clear(){histories.delete(getPersona());stopAll();lastTicket=null;sync()}};

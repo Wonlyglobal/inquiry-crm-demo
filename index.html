@@ -154,8 +154,10 @@
       }
       .app.agent-world { grid-template-columns:1fr; background:radial-gradient(circle at 82% 12%,#edf2d9 0,transparent 32%),radial-gradient(circle at 12% 10%,#dceafb 0,transparent 36%),#f3f6f3; }
       .app.agent-world .rail { display:none; }
-      .world-switch { border-color:#315f49; color:#315f49; font-weight:800; }
-      .world-switch.active { border-color:var(--brand); background:var(--brand); color:#fff; box-shadow:0 8px 24px rgba(32,61,49,.2); }
+      .world-switch { width:38px; height:38px; min-height:38px; padding:0; border-color:var(--line); color:var(--muted); background:rgba(255,255,255,.72); border-radius:50%; box-shadow:none; }
+      .world-switch svg { width:17px; height:17px; }
+      .world-switch:not(:disabled):hover { color:var(--brand); background:#f1f5f2; box-shadow:none; transform:none; }
+      .world-switch.active { border-color:#b8ccc0; background:#edf3ee; color:var(--brand); box-shadow:none; }
       .rail {
         background: var(--rail);
         color: #fff;
@@ -1529,7 +1531,7 @@
         <header class="top">
           <h2>王力 · 全球询盘 CRM</h2>
           <div class="user">
-            <button id="world-switch" class="ghost world-switch hidden" type="button"><i data-lucide="orbit"></i><span>进入智能体世界</span></button>
+            <button id="world-switch" class="ghost world-switch hidden" type="button" aria-label="切换到智能体世界" title="切换到智能体世界"><i data-lucide="orbit"></i></button>
             <button class="avatar" id="avatar" type="button" aria-label="上传我的头像" title="点击上传我的头像">王</button>
             <div>
               <b id="user-name">—</b><br /><small id="user-role">—</small>
@@ -4880,7 +4882,7 @@
           options = {};
         }
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
-        const enteringAgentWorld=view==="ai-advisor";$("#app").classList.toggle("agent-world",enteringAgentWorld);$("#world-switch").classList.toggle("active",enteringAgentWorld);$("#world-switch span").textContent=enteringAgentWorld?"返回 CRM 世界":"进入智能体世界";
+        const enteringAgentWorld=view==="ai-advisor",worldSwitch=$("#world-switch");$("#app").classList.toggle("agent-world",enteringAgentWorld);worldSwitch.classList.toggle("active",enteringAgentWorld);worldSwitch.setAttribute("aria-label",enteringAgentWorld?"返回 CRM":"切换到智能体世界");worldSwitch.title=enteringAgentWorld?"返回 CRM":"切换到智能体世界";
         $("#sales-profile-page").classList.add("hidden");
         setActiveNavigation(view);
         if (view === "daily") {

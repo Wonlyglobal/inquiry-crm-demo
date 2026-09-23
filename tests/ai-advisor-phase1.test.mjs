@@ -8,6 +8,9 @@ const feedbackFunction = await readFile(new URL('../supabase/functions/crm-ai-ad
 test('AI advisor world is restricted to Li Huayan and removed from the sidebar', () => {
   assert.match(html, /if\(view==="ai-advisor"\)return Boolean\(role==="owner"&&currentAuthUser\?\.email\?\.toLowerCase\(\)==="chloelee@wonlyglobal\.com"\)/);
   assert.match(html, /id="world-switch" class="ghost world-switch hidden"/);
+  assert.match(html, /id="world-switch"[^>]*aria-label="切换到智能体世界"[^>]*><i data-lucide="orbit"><\/i><\/button>/);
+  assert.doesNotMatch(html, /id="world-switch"[^>]*>[\s\S]{0,120}<span>/);
+  assert.match(html, /\.world-switch \{ width:38px; height:38px;/);
   assert.doesNotMatch(html, /class="nav" data-view="ai-advisor"/);
   assert.match(html, /\.app\.agent-world \.rail \{ display:none; \}/);
   assert.match(html, /switchView\(\$\("#app"\)\.classList\.contains\("agent-world"\)\?"dashboard":"ai-advisor"\)/);

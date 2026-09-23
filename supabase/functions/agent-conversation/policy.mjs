@@ -8,7 +8,7 @@ export function validateDialogue(input){
  if(!Array.isArray(input.history)||input.history.length>8)throw Error('历史消息过长');
  const history=input.history.map(x=>{if(!['user','assistant'].includes(x?.role)||typeof x.content!=='string'||x.content.length>6000)throw Error('历史消息格式不正确');return {role:x.role,content:x.content}});
  // Defense in depth, NOT automatic classification or permission to send L3/L4.
- const all=[input.question,...history.map(x=>x.content)].join('\n');
+ const all=[input.question,...history.map(x=>x.content)].join('\n').replace(/https:\/\/(?:www\.)?(?:tiktok\.com\/@[A-Za-z0-9_.-]+\/video\/|youtube\.com\/watch\?v=)[A-Za-z0-9_-]+/g,'[公开帖子链接]');
  if(/sk-[A-Za-z0-9_.-]{12,}|Bearer\s+[A-Za-z0-9._-]{12,}|-----BEGIN .*PRIVATE KEY|\b\d{15,19}\b|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|(?:密码|密钥|银行卡号|身份证号)\s*[:：=]/i.test(all))throw Error('请移除联系人、凭证及敏感标识后再提问');
  return {question:input.question.trim(),history,persona:input.persona};
 }

@@ -11,7 +11,7 @@
 - 视频画面：现有posts只有封面/公开帖子链接；不能以封面代替视频。需取得已发布视频原文件或平台官方允许的媒体访问，再以北京地域视觉模型提取带时间戳证据。
 - 字幕：发布文案不是转写。YouTube字幕/自有视频音轨需要对应授权或已发布原素材；TikTok当前Display API不提供通用转写。
 - 留存/受众：YouTube现有API key公开视频统计不足以读取频道Analytics，需要频道OAuth的yt-analytics.readonly；TikTok当前user.info.basic/user.info.stats/video.list不是后台广告/受众授权；Meta需核验实际账号和Insights权限。
-- 广告：尚未确定实际投放的平台与广告账号。先取得只读报表范围，按平台/币种/时间窗/归因窗保留口径；不申请投放、付款、发布或客户名单权限。
+- 广告：2026-09-23用户明确五个平台暂未投放。当前按自然增长推进，不申请广告权限；此为用户陈述，未以广告后台验证。
 - 每帖同步：当前登记指标无独立同步时间，仍标recorded_not_verified；账号同步日期不能替代。
 - 竞品：只读公开数据与已获许可的数据，不能获取其私有后台。无法证实的打法为假设。
 
@@ -20,3 +20,14 @@
 ## SEO 独立核验
 
 真实CRM Chloe会话服务端页脚已显示available，generated_at 2026-09-23T07:42:41.012Z，GA4截至2026-09-22、GSC截至2026-09-20。Secrets自动生效；未输出密钥、原始查询词或个人数据，未提交询盘。
+
+## 五平台实际连接准备（2026-09-23）
+
+用户指定TikTok、Instagram、Facebook、YouTube、LinkedIn，确认暂未广告投放。业务背景已作为独立带日期资料接入候选；不自动变成“后台已连接”。
+
+源码核验：有sync-tiktok/sync-instagram/sync-facebook/sync-youtube；没有LinkedIn连接器。Settings的API集成仅占位，不能完成授权。YouTube发布模块虽引用OAuth配置，但配置是否存在及是否包含Analytics权限尚未核验，不能认定必须重新申请。社媒生产网页当前登录页；已请用户登录管理员账号，未读取员工凭据。
+
+LinkedIn官方Community Management需要应用获得相应产品准入和组织授权；先核对已有应用，不创建重复应用或申请发布权限。参考：https://learn.microsoft.com/en-us/linkedin/marketing/community-management/community-management-overview
+YouTube报表范围需核对实际OAuth授权及账号归属；公开API key不足以证明后台权限。参考：https://developers.google.com/youtube/analytics/channel_reports
+
+后续验收必须有：自有品牌/账号范围、实际请求返回、权限缺口、统计口径/时间窗/更新时间、匿名拒绝及Grace端到端来源。账号connected标签、密钥存在或离线测试均不能替代平台API证据。

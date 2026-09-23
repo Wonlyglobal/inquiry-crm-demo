@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "brand": "WONLY",
+  "confirmed_at": "2026-09-23",
+  "source": "项目负责人在CRM智能体接入任务中明确确认",
+  "operated_platforms": ["tiktok", "instagram", "facebook", "youtube", "linkedin"],
+  "paid_advertising": {
+    "status": "not_started_user_confirmed",
+    "scope": "上述五个平台",
+    "basis": "用户回复：暂未",
+    "verified_with_ad_platform": false
+  },
+  "analysis_priority": "自然增长：发布内容、观看与留存、互动、涨粉、网站引流、可验证询盘归因及公开竞品研究",
+  "rules": [
+    "这是带日期的用户陈述，不是广告后台核验结果，也不表示永久不投广告。",
+    "用户确认运营某平台，不等于数据接口已接通；LinkedIn无内容入库不能表述为未运营。",
+    "不为当前阶段编造广告支出、广告转化率或ROAS；广告建议仅在用户要求时作为待验证方案。",
+    "数据缺失必须写未取得，不能填0；用户后续明确更新经营背景时指出与旧背景的日期差异。",
+    "网站、社媒和CRM没有证据关联时不能声称已完成引流归因。"
+  ]
+}

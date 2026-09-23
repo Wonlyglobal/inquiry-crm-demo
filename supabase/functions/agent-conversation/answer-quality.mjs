@@ -9,7 +9,8 @@ export function answerIssues(text,{social,seo}={}){
 }
 export function correctionMessage(issues){return {role:'system',content:'发布前事实检查要求：'+issues.join(' ')+'重新回答原问题，最多500字。不引用之前错误答案；官方链接从marketingLearning的source逐字复制；实验不写未经证实的产品性能或具体数字目标。只输出修正后的答案。'}};
 
-export function safeMarketingFallback({social,seo}={}){
+export function safeMarketingFallback({social,seo,socialPosts}={}){
+ if(socialPosts?.status==='available')return '模型分析未通过事实检查。以下为系统直接整理的已发布内容记录，不是效果分析。\n\n'+`社媒第${socialPosts.page}页，本页${socialPosts.posts.length}条；已入库发布记录共${socialPosts.total_records}条；${socialPosts.has_more?'还有下一页':'没有下一页'}。仅代表当前系统已入库范围。\n\n`+socialPosts.posts.map((p,i)=>`${i+1}. ${p.platform}｜${p.title||'标题缺失'}\n${p.url||'公开链接缺失'}\n发布时间：${p.published_at||'未知'}\n正文摘录：${p.content?.slice(0,400)||'未取得正文'}${p.content?.length>400?'（仅展示摘录）':''}\n登记累计指标（未核验）：播放${p.metrics.views??'未知'}、赞${p.metrics.likes??'未知'}、评论${p.metrics.comments??'未知'}、分享${p.metrics.shares??'未知'}、收藏${p.metrics.saves??'未知'}。`).join('\n\n')+'\n\n单帖同步时间未知；曝光、触达、观看时长、留存、点击、受众地区、广告归因、视频转写与画面分析尚未取得。正文不是视频转写，登记值不能直接作为效果结论。';
  const socialLine=social?.status==='available'?'社媒只读摘要已接通；其中未核验的互动记录不能作为效果结论。':'本次未取得可用社媒摘要，不能判断当前表现。';
  const seoLine=seo?.status==='available'?'SEO摘要已取得，请以各来源截止日期为准。':'本次未取得可用SEO摘要；这不代表网站流量为零或源系统没有GA4/GSC。';
  return `本次模型方案未通过事实检查，以下是系统提供的保守参考模板，不是模型分析结论。\n\n${socialLine}\n${seoLine}\n\n可供讨论的内容实验：选择一个已核验的产品事实，用实拍展示，比较两种开场表达；保持语言、受众和发布条件尽量一致。先收集观看留存、合格访问与询盘基线，目标待基线确认，不预设达标线。\n\n工作流：核对产品资料 → 生成草稿 → 人类负责人审核事实、版权和承诺 → 在原系统人工批准发布 → 按同口径复盘。尚未执行或启用定时任务。\n\nTikTok官方学习入口：https://ads.tiktok.com/business/en/academy（2026-09-23核验课程介绍，未完成认证）。`;

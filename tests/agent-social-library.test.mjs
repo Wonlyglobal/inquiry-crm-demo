@@ -8,3 +8,5 @@ test('library caps reads at 100 and rejects duplicate public links as complete c
 
 import {socialContextLabel} from '../assets/agent-seo-status.mjs';
 test('coverage footer uses server counts and marks partial reads',()=>{const t=socialContextLabel({social_status:'available',social_library_status:'partial',social_library_records:20,social_library_total:37});assert.match(t,/20 \/ 37/);assert.match(t,/读取不完整/);assert.match(t,/不代表平台全部/)});
+
+test('platform footer shows computed counts and excludes unexpected fields',()=>{const t=socialContextLabel({social_status:'available',social_library_platforms:{youtube:6,tiktok:26,other:5,secret:1}});assert.match(t,/youtube 6条、tiktok 26条、other 5条/);assert.doesNotMatch(t,/secret/)});

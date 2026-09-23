@@ -30,3 +30,8 @@ test('unsupported Chinese pack is identified instead of telling users to install
  class NoChinese extends FakeRecognition{static async available({langs}){return langs[0]==='zh-CN'?'unavailable':'available'}static install(){assert.fail('unsupported pack cannot be installed')}}
  const w=createWakeConversation({Recognition:NoChinese,onState:()=>{},onWake:()=>{},onQuestion:()=>{}});await assert.rejects(w.start(),/不支持中文/);await assert.rejects(w.install(),/不支持中文/);assert.equal(w.isActive(),false);
 });
+
+test('a failed answer keeps dialogue active until explicit stop',async()=>{
+ FakeRecognition.instances=[];const states=[];const w=createWakeConversation({Recognition:FakeRecognition,onState:s=>states.push(s),onWake:async()=>{},onQuestion:async()=>{throw Error('temporary failure')}});
+ try{await w.start();await say(FakeRecognition.instances.at(-1),'Hello Grace');await say(FakeRecognition.instances.at(-1),'分析');assert.equal(w.isActive(),true);assert.match(states.at(-1),/继续聆听/);}finally{w.stop()}
+});

@@ -1,6 +1,6 @@
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
-import {createWakeConversation} from './agent-wake.mjs?v=20260923-3';
+import {createWakeConversation} from './agent-wake.mjs?v=20260923-4';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};

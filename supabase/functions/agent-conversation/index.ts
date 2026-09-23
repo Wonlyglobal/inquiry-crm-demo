@@ -49,7 +49,7 @@ Deno.serve(async req=>{
   }else if(input.action==='transcribe'){
    const audio=form?.get('audio');if(!(audio instanceof File))return json({error:'录音文件缺失'},400);body=transcriptionBody(new Uint8Array(await audio.arrayBuffer()),audio.type.split(';')[0]);
   }else if(input.action==='greeting'){
-   endpoint=TTS_URL;body=speechBody('Hello Chloe',PERSONAS[input.persona].voice);
+   endpoint=TTS_URL;body=speechBody(input.persona==='Grace'?"I'm here, Chloe.":'Hello Chloe',PERSONAS[input.persona].voice);
   }else{
    const t=input.ticket;if(typeof t?.data!=='string'||t.data.length>40000||typeof t.signature!=='string')return json({error:'播报凭据无效'},400);
    const expected=await mac(t.data,key);let mismatch=expected.length^t.signature.length;for(let i=0;i<expected.length;i++)mismatch|=expected.charCodeAt(i)^(t.signature.charCodeAt(i)||0);

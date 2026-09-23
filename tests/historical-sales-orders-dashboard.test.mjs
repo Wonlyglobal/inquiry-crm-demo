@@ -21,7 +21,9 @@ test("dashboard counts unique orders while summing every source line", () => {
   assert.match(html, /sum\+Number\(x\.amount_wan\|\|0\)/);
   assert.match(html, /订单数按订单号去重，金额按全部明细累计/);
   assert.match(html, /历史工程 \/ 订单/);
-  assert.match(html, /综合销售额（CRM成交＋历史订单）/);
+  assert.match(html, /销售额（CRM成交＋导入订单）/);
+  assert.match(html, /panel\.classList\.remove\("hidden"\)/);
+  assert.match(html, /previousImportedCny/);
   assert.match(html, /profile\?\.role==="owner"\?loadModuleRowsPaged/);
 });
 

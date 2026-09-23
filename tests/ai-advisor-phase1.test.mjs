@@ -16,9 +16,9 @@ test('AI advisor exposes the six approved role-aware views', () => {
     assert.match(html, new RegExp(`data-advisor-tab="${tab}"`));
   }
   assert.match(html, /advisorRoleCopy=\{owner:/);
-  assert.match(html, /sales_manager:\["团队销售顾问"/);
-  assert.match(html, /marketing:\["营销增长顾问"/);
-  assert.match(html, /sales:\["个人销售顾问"/);
+  assert.match(html, /sales_manager:\["团队销售智能体"/);
+  assert.match(html, /marketing:\["营销增长智能体"/);
+  assert.match(html, /sales:\["个人销售智能体"/);
 });
 
 test('AI advisor keeps human approval and audit guardrails', () => {

@@ -1421,7 +1421,8 @@
         }
       }
     </style>
-  </head>
+  <link rel="stylesheet" href="./assets/agent-world.css?v=20260923-1" />
+</head>
   <body>
     <section id="boot" class="boot-shell">
       <div class="boot-card"><span class="boot-spinner"></span><span>正在进入询盘 CRM…</span></div>
@@ -1468,9 +1469,7 @@
     </section>
     <div id="app" class="app hidden">
       <aside class="rail">
-        <div class="logo">
-          <i><i data-lucide="messages-square"></i></i><b>询盘 CRM</b>
-        </div>
+        <div class="logo world-brand"><img src="./assets/wonly-gold.png" alt="王力 WONLY" /><span>CRM</span></div>
         <button class="nav active" data-view="dashboard">
           <i data-lucide="layout-dashboard"></i><span>经营看板</span></button
         ><button class="nav" data-view="sales-today">
@@ -1480,7 +1479,7 @@
         ><button class="nav" data-view="marketing-center">
           <i data-lucide="list-checks"></i><span>市场任务中心</span></button
         ><button class="nav" data-view="ai-advisor">
-          <i data-lucide="sparkles"></i><span>AI 智能顾问</span></button
+          <i data-lucide="sparkles"></i><span>AI 智能体</span></button
         ><button class="nav" data-view="inquiries">
           <i data-lucide="contact-round"></i><span>询盘商机</span></button
         ><button class="nav" data-view="customers">
@@ -1525,7 +1524,7 @@
       </aside>
       <main class="main">
         <header class="top">
-          <h2>王力 · 全球询盘 CRM</h2>
+          <div class="world-brand"><img src="./assets/wonly-gold.png" alt="王力 WONLY" /><span>CRM</span></div><nav id="world-switch" class="world-switch hidden" aria-label="世界切换"><button type="button" data-crm-world="crm" aria-pressed="true">CRM 世界</button><button type="button" data-crm-world="agents" aria-pressed="false">智能体世界</button></nav>
           <div class="user">
             <button class="avatar" id="avatar" type="button" aria-label="上传我的头像" title="点击上传我的头像">王</button>
             <div>
@@ -1549,6 +1548,7 @@
             <button id="logout" class="ghost">退出</button>
           </div>
         </header>
+        <section id="agent-world-page" class="hidden"></section>
         <section id="dashboard-page" class="page">
           <div class="heading">
             <div>
@@ -1705,8 +1705,8 @@
           </section>
         </section>
         <section id="ai-advisor-page" class="page hidden">
-          <div class="heading"><div><h1>AI 智能顾问</h1><p>基于当前账号可见的 CRM 数据提供营销与销售建议；所有执行均需人工确认</p></div><div class="heading-actions"><button id="advisor-refresh" class="ghost" type="button"><i data-lucide="refresh-cw"></i> 刷新分析</button><button id="advisor-ask" class="primary" type="button"><i data-lucide="message-circle-question"></i> 继续提问</button></div></div>
-          <nav class="advisor-tabs" aria-label="AI 智能顾问视图"><button class="advisor-tab active" data-advisor-tab="today">今日建议</button><button class="advisor-tab" data-advisor-tab="marketing">营销顾问</button><button class="advisor-tab" data-advisor-tab="sales">销售顾问</button><button class="advisor-tab" data-advisor-tab="daily">每日简报</button><button class="advisor-tab" data-advisor-tab="weekly">每周分析</button><button class="advisor-tab" data-advisor-tab="outcomes">建议效果</button></nav>
+          <div class="heading"><div><h1>AI 智能体</h1><p>基于当前账号可见的 CRM 数据提供营销与销售建议；所有执行均需人工确认</p></div><div class="heading-actions"><button id="advisor-refresh" class="ghost" type="button"><i data-lucide="refresh-cw"></i> 刷新分析</button><button id="advisor-ask" class="primary" type="button"><i data-lucide="message-circle-question"></i> 继续提问</button></div></div>
+          <nav class="advisor-tabs" aria-label="AI 智能体视图"><button class="advisor-tab active" data-advisor-tab="today">今日建议</button><button class="advisor-tab" data-advisor-tab="marketing">营销智能体</button><button class="advisor-tab" data-advisor-tab="sales">销售智能体</button><button class="advisor-tab" data-advisor-tab="daily">每日简报</button><button class="advisor-tab" data-advisor-tab="weekly">每周分析</button><button class="advisor-tab" data-advisor-tab="outcomes">建议效果</button></nav>
           <div class="advisor-hero"><section class="card advisor-hero-main"><h2 id="advisor-role-title">正在读取角色范围…</h2><p id="advisor-role-description"></p><div class="advisor-guardrail">安全边界：仅生成建议，不自动发信、分配询盘、修改价格、判定有效/无效、成交/丢单；确认后仅进入既有页面和审批流程。客户内容不作为指令执行。</div></section><section id="advisor-summary" class="card advisor-summary"></section></div>
           <section id="advisor-list" class="advisor-list" aria-live="polite"></section>
         </section>
@@ -2471,6 +2471,7 @@
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20260923-1";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;
@@ -2652,7 +2653,7 @@
         syncSidebarGroupBadges();
       }
       const roleGuideViewNames = {
-        dashboard:"经营看板","ai-advisor":"AI 智能顾问","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
+        dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
         {at:"2026-09-20 10:15",title:"新增风险审查中心第一阶段",detail:"老板可查看全公司、主管可查看本团队业务风险；确定性规则识别无人负责、首响逾期和跟进逾期，处置、解除和关闭均留不可删除事件记录。",roles:["owner","sales_manager"]},
@@ -2667,6 +2668,7 @@
         {at:"2026-09-18 10:32",title:"360 评分中心上线",detail:"接入匿名多方评价、角色可见范围、校准、申诉和影子运行提示。",roles:["owner","sales_manager","marketing","sales"]}
       ];
       function canAccessView(view, role = profile?.role) {
+        if(view==="agent-world")return canUseAgentWorld(profile,currentAuthUser);
         return Boolean(role && roleViewAccess[role]?.has(view));
       }
       function renderRoleGuideLive(){
@@ -2890,6 +2892,8 @@
         const role = profile.role;
         $$(".nav[data-view]").forEach(nav => nav.classList.toggle("hidden", !canAccessView(nav.dataset.view, role)));
         initializeSidebarNavigation();
+        $("#world-switch").classList.toggle("hidden",!canUseAgentWorld(profile,currentAuthUser));
+        if(canUseAgentWorld(profile,currentAuthUser))$('.nav[data-view="ai-advisor"]')?.classList.add("hidden");
         const roleGuideNav=$('.nav[data-view="sop"]');
         if(roleGuideNav)roleGuideNav.parentElement.appendChild(roleGuideNav);
         $("#assignment-action-head").classList.toggle(
@@ -4831,7 +4835,7 @@
         openDashboardModal(`历史工程 #${project.legacy_project_id} · ${project.partner_name || project.project_name || "项目详情"}`, `<div class="legacy-detail-grid">${fields.map(([label,value]) => `<div class="legacy-detail-item"><span>${esc(label)}</span><div>${value === null || value === undefined || value === "" ? "—" : esc(value)}</div></div>`).join("")}${website ? `<div class="legacy-detail-item"><span>网站</span><div>${website}</div></div>` : ""}</div><p class="hint" style="margin-top:16px">该记录来自旧 CRM 文件，仅用于历史工程管理，不计入新询盘响应率、成交率和渠道 ROI。</p>`);
       }
       let advisorActiveTab="today",advisorFeedback={};try{advisorFeedback=JSON.parse(localStorage.getItem("wonly_advisor_feedback_v1")||"{}")||{}}catch{advisorFeedback={}}
-      const advisorRoleCopy={owner:["经营决策顾问","聚焦有效询盘率、报价率、销售转化与渠道投入效率。"],sales_manager:["团队销售顾问","聚焦分配、首次响应、报价推进、团队负荷与风险商机。"],marketing:["营销增长顾问","聚焦渠道质量、有效询盘、培育转化与投入建议。"],sales:["个人销售顾问","聚焦本人客户优先级、报价机会、超时响应与下一步跟进。"]};
+      const advisorRoleCopy={owner:["经营决策智能体","聚焦有效询盘率、报价率、销售转化与渠道投入效率。"],sales_manager:["团队销售智能体","聚焦分配、首次响应、报价推进、团队负荷与风险商机。"],marketing:["营销增长智能体","聚焦渠道质量、有效询盘、培育转化与投入建议。"],sales:["个人销售智能体","聚焦本人客户优先级、报价机会、超时响应与下一步跟进。"]};
       function advisorScopedContext(){return aiDataContext(advisorActiveTab==="weekly"?"本周":"今日")}
       function advisorRecommendations(){
         const c=advisorScopedContext(),role=profile?.role||"sales",valid=c.created.filter(x=>x.validity!=="pending"),validCount=valid.filter(x=>x.validity==="valid").length,quoted=c.created.filter(x=>["quoted","sample_sent","negotiating","won"].includes(x.status)),recommendations=[];
@@ -4857,23 +4861,48 @@
         $("#advisor-role-title").textContent=copy[0];$("#advisor-role-description").textContent=`${copy[1]} 数据范围严格沿用当前账号权限；${advisorActiveTab==="weekly"?"本周分析":"实时分析"}。`;
         $("#advisor-summary").innerHTML=`<div><span>当前建议</span><b>${all.length}</b></div><div><span>立即 / 今日</span><b>${all.filter(x=>["immediate","today"].includes(x.priority)).length}</b></div><div><span>已反馈</span><b>${reviewed}</b></div><div><span>数据周期</span><b style="font-size:13px">${c.start.toLocaleDateString("zh-CN")}—${c.end.toLocaleDateString("zh-CN")}</b></div>`;
         const priorityName={immediate:"立即",today:"今日",week:"本周",observe:"观察"};
-        $("#advisor-list").innerHTML=items.length?items.map(item=>`<article class="advisor-card"><div class="advisor-card-head"><div><h3>${esc(item.title)}</h3><small>${esc(item.domain==="marketing"?"营销顾问":item.domain==="sales"?"销售顾问":"运营顾问")} · 置信度 ${item.confidence}</small></div><span class="advisor-priority ${item.priority}">${priorityName[item.priority]}</span></div><p>${esc(item.conclusion)}</p><div class="advisor-card-body"><div><b>证据</b><span>${esc(item.evidence)}</span></div><div><b>判断逻辑</b><span>${esc(item.logic)}</span></div><div><b>预期收益</b><span>${esc(item.benefit)}</span></div><div><b>风险与缺口</b><span>${esc(item.risk)}</span></div></div><div class="advisor-actions"><button class="primary" data-advisor-action="${item.actionView}" data-advisor-id="${item.id}">${esc(item.actionLabel)}</button><button class="ghost advisor-feedback" data-advisor-feedback="accepted" data-advisor-id="${item.id}">采纳</button><button class="ghost" data-advisor-feedback="modified" data-advisor-id="${item.id}">修改后采纳</button><button class="ghost" data-advisor-feedback="ignored" data-advisor-id="${item.id}">忽略</button><button class="ghost" data-advisor-feedback="invalid" data-advisor-id="${item.id}">无效</button>${advisorFeedback[item.id]?`<span class="tag">已反馈：${esc(advisorFeedback[item.id].decision)}</span>`:""}</div></article>`).join(""):`<div class="card advisor-empty">当前视图暂无建议或反馈记录。</div>`;
+        $("#advisor-list").innerHTML=items.length?items.map(item=>`<article class="advisor-card"><div class="advisor-card-head"><div><h3>${esc(item.title)}</h3><small>${esc(item.domain==="marketing"?"营销智能体":item.domain==="sales"?"销售智能体":"运营智能体")} · 置信度 ${item.confidence}</small></div><span class="advisor-priority ${item.priority}">${priorityName[item.priority]}</span></div><p>${esc(item.conclusion)}</p><div class="advisor-card-body"><div><b>证据</b><span>${esc(item.evidence)}</span></div><div><b>判断逻辑</b><span>${esc(item.logic)}</span></div><div><b>预期收益</b><span>${esc(item.benefit)}</span></div><div><b>风险与缺口</b><span>${esc(item.risk)}</span></div></div><div class="advisor-actions"><button class="primary" data-advisor-action="${item.actionView}" data-advisor-id="${item.id}">${esc(item.actionLabel)}</button><button class="ghost advisor-feedback" data-advisor-feedback="accepted" data-advisor-id="${item.id}">采纳</button><button class="ghost" data-advisor-feedback="modified" data-advisor-id="${item.id}">修改后采纳</button><button class="ghost" data-advisor-feedback="ignored" data-advisor-id="${item.id}">忽略</button><button class="ghost" data-advisor-feedback="invalid" data-advisor-id="${item.id}">无效</button>${advisorFeedback[item.id]?`<span class="tag">已反馈：${esc(advisorFeedback[item.id].decision)}</span>`:""}</div></article>`).join(""):`<div class="card advisor-empty">当前视图暂无建议或反馈记录。</div>`;
         $$('[data-advisor-action]').forEach(button=>button.onclick=()=>{recordAdvisorAudit(button.dataset.advisorId,"opened_workflow",button.dataset.advisorAction);switchView(button.dataset.advisorAction)});
         $$('[data-advisor-feedback]').forEach(button=>button.onclick=()=>saveAdvisorFeedback(button.dataset.advisorId,button.dataset.advisorFeedback));icons();
       }
       async function recordAdvisorAudit(adviceId,decision,note=""){
         const result=await supabase.functions.invoke("crm-ai-advisor-feedback",{body:{advice_id:adviceId,decision,note}});
-        if(result.error||result.data?.error){console.warn("AI 顾问审计写入失败",result.error||result.data?.error);return false}return true;
+        if(result.error||result.data?.error){console.warn("AI 智能体审计写入失败",result.error||result.data?.error);return false}return true;
       }
       async function saveAdvisorFeedback(id,decision){
         const labels={accepted:"采纳",modified:"修改后采纳",ignored:"忽略",invalid:"无效"},audited=await recordAdvisorAudit(id,decision);if(!audited)return toast("反馈未完成审计，系统未保存本次选择");advisorFeedback[id]={decision:labels[decision],at:new Date().toISOString()};localStorage.setItem("wonly_advisor_feedback_v1",JSON.stringify(advisorFeedback));toast(`已记录“${labels[decision]}”，用于后续评估建议效果`);renderAdvisor();
       }
+      let worldController=null,worldPersona=null;
+      const assistantHome=document.createComment('AI assistant home');$('#ai-assistant-panel').before(assistantHome);
+      const advisorHome=document.createComment('AI analysis home');$('#ai-advisor-page').before(advisorHome);
+      function restoreWorldPanels(){
+        assistantHome.after($('#ai-assistant-panel'));advisorHome.after($('#ai-advisor-page'));
+        $('#ai-assistant-panel').classList.add('hidden');worldPersona=null;
+      }
+      function enterAgentWorld(){
+        if(!canUseAgentWorld(profile,currentAuthUser))return false;
+        $('#app').classList.add('agent-world-active');$('#agent-world-page').classList.remove('hidden');
+        ['dashboard-page','marketing-center-page','module-page','sales-profile-page','ai-advisor-page','daily-modal','detail-modal'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+        $('#ai-assistant-open').classList.add('hidden');
+        if(!worldController)worldController=mountAgentWorld($('#agent-world-page'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),onSelect:(name,slot)=>{
+          if(!canUseAgentWorld(profile,currentAuthUser))return;
+          worldPersona=name;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';
+          $('#ai-advisor-page').classList.add('hidden');slot.append($('#ai-assistant-panel'));openAiAssistant();
+          $('#ai-assistant-panel').querySelector('.ai-panel-head strong').textContent=name+' · '+({Grace:'营销增长智能体',Brian:'销售智能体',Jay:'经营决策智能体'}[name]);
+          $('#ai-assistant-input').value={Grace:'分析当前渠道表现和有效询盘率',Brian:'分析当前商机漏斗与风险询盘',Jay:'总结当前经营情况'}[name];
+        },onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
+        $$('[data-crm-world]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.crmWorld==='agents')));return true;
+      }
+      $$('[data-crm-world]').forEach(button=>button.onclick=()=>{if(!canUseAgentWorld(profile,currentAuthUser))return;switchView(button.dataset.crmWorld==='agents'?'agent-world':'dashboard')});
       async function switchView(view, options = {}) {
         if (!canAccessView(view)) {
           toast("当前角色无权进入该功能");
           view = "dashboard";
           options = {};
         }
+        if(view==='agent-world'){setActiveNavigation(view);enterAgentWorld();return}
+        if($('#app').classList.contains('agent-world-active')){restoreWorldPanels();$('#app').classList.remove('agent-world-active');$('#agent-world-page').classList.add('hidden');$('#ai-assistant-open').classList.remove('hidden');}
+        $$('[data-crm-world]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.crmWorld==='crm')));
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         $("#sales-profile-page").classList.add("hidden");
         setActiveNavigation(view);
@@ -8711,12 +8740,12 @@
       $$("[data-ai-question]").forEach(button=>button.addEventListener("click",()=>{$("#ai-assistant-input").value=button.dataset.aiQuestion;$("#ai-assistant-form").requestSubmit();}));
       $("#ai-assistant-form").addEventListener("submit",async event=>{
         event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
-        addAiMessage("user",question);input.value="";aiLastQuestion=question;aiLastContext=aiDataContext(question);const grounded=aiAnswer(question),evidence=aiEvidence(question),submit=event.submitter||$("#ai-assistant-form button[type='submit']");submit.disabled=true;submit.textContent="分析中…";
-        if(/进行中|询盘编号|列出编号|下一步建议/.test(question.toLowerCase())){submit.disabled=false;submit.textContent="提问";addAiMessage("assistant",grounded);aiConversation.push({role:"user",content:question},{role:"assistant",content:grounded});return;}
+        addAiMessage("user",question);input.value="";aiLastQuestion=question;aiLastContext=aiDataContext(question);const grounded=aiAnswer(question),evidence=aiEvidence(question),submit=event.submitter||$("#ai-assistant-form button[type='submit']");submit.disabled=true;submit.textContent="分析中…";worldController?.setMode("thinking");
+        if(/进行中|询盘编号|列出编号|下一步建议/.test(question.toLowerCase())){submit.disabled=false;submit.textContent="提问";worldController?.setMode("idle");addAiMessage("assistant",grounded);aiConversation.push({role:"user",content:question},{role:"assistant",content:grounded});return;}
         let answer=grounded,fallbackReason="";
         try{const {data,error}=await supabase.functions.invoke("crm-ai-assistant",{body:{question,grounded_answer:evidence,history:aiConversation.slice(-6)}});if(!error&&data?.answer)answer=data.answer;else{fallbackReason=data?.error||error?.message||"DeepSeek 服务未返回答案";if(error?.context)try{fallbackReason=(await error.context.clone().json())?.error||fallbackReason;}catch{}}}catch(error){fallbackReason=error?.message||String(error);}
         if(fallbackReason){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",fallbackReason);answer+=`\n\n⚠️ DeepSeek 暂未生效，本次使用 CRM 本地统计：${fallbackReason}`;}
-        submit.disabled=false;submit.textContent="提问";addAiMessage("assistant",answer);aiConversation.push({role:"user",content:question},{role:"assistant",content:answer});
+        submit.disabled=false;submit.textContent="提问";worldController?.setMode("idle");addAiMessage("assistant",answer);aiConversation.push({role:"user",content:question},{role:"assistant",content:answer});
       });
       bindMetricHelp();
       const openRecoveryPassword = () => {

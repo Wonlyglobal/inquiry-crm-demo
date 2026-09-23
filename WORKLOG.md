@@ -125,3 +125,7 @@
 - 回滚：调用 owner-only `rollback_historical_sales_order_import` 按源文件 SHA-256 删除本批明细，并另记回滚原因、执行人、删除行数和原批次汇总；不影响当前 CRM 询盘、正式履约订单和此前 27 条历史项目。
 - 验证：内联模块脚本语法检查、`git diff --check` 和全量回归 388/388 已通过；新增定向测试覆盖 owner-only、RLS、幂等键、审计、回滚以及 24 行/22 单看板口径。
 - 部署状态：2026-09-22 PostgreSQL 直连 dry-run 被远端中断后，改用 Supabase 官方 Management API 执行同一迁移；随后以李铧燕（运营经理 / owner）身份调用 owner-only 幂等导入 RPC。生产验收为 24 行、22 个唯一订单、1,169.42780212 万元、4 位原业务员，审计动作 `historical_sales_orders_imported` 已写入；原有 51 条测试/无效询盘仍保持隔离。前端已由 PR #57 合并，main 安全检查与 Pages 部署成功；线上源码验收已确认“历史工程 / 订单”、历史订单经营概览和综合销售额聚合逻辑生效。回滚方式为回退 PR #57，并调用 owner-only 回滚 RPC 删除本批哈希对应的 24 行。
+
+## 2026-09-23 智能体世界正式接入候选
+
+用户授权正式接入并提供WONLY金色Logo；Codex接入全站双世界切换、三色脑核、现有数据助手/证据建议和Logo下接CRM组合。新入口仅限已认证李铧燕精确身份+启用owner，未扩大数据权限。404回归及语法、合成浏览器入口/交互/撤销/窄屏检查通过。尚未部署；无数据库迁移、外部AI控制绕过或真实业务写入。详情docs/agent-world-integration.md。

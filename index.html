@@ -2471,7 +2471,7 @@
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20260923-1';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20260923-2';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence } from './assets/agent-intelligence.mjs?v=20260923-3';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20260923-3";
@@ -4908,7 +4908,7 @@
           $('#ai-assistant-input').value={Grace:'汇报当前海外市场与竞品情报',Brian:'汇报当前销售商机与跟进风险',Jay:'汇报营销和销售经营简报'}[name];
         },onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
-          getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
+          onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
           onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');

@@ -27,7 +27,7 @@ Deno.serve(async req=>{
   if(!enabled)return json({error:'OpenAI数据范围尚未批准启用',code:'POLICY_PENDING'},503);
   if(!key)return json({error:'OpenAI服务密钥尚未配置',code:'KEY_MISSING'},503);
   if(!PERSONAS[input.persona])return json({error:'智能体无效'},400);
-  if(!['chat','transcribe','speech'].includes(input.action))return json({error:'操作无效'},400);
+  if(!['chat','transcribe','speech','greeting'].includes(input.action))return json({error:'操作无效'},400);
   const admin=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
   const action='agent_openai_request';
   const {count,error:rateError}=await admin.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action',action).gte('created_at',new Date(Date.now()-60000).toISOString());
@@ -40,6 +40,8 @@ Deno.serve(async req=>{
   }else if(input.action==='transcribe'){
    const audio=form?.get('audio');if(!(audio instanceof File)||audio.size<100||audio.size>2500000||!['audio/webm','audio/mp4','audio/ogg','audio/wav'].includes(audio.type.split(';')[0]))return json({error:'录音格式或大小不支持'},400);
    const payload=new FormData();payload.append('file',audio,'speech.'+({'audio/mp4':'mp4','audio/webm':'webm','audio/ogg':'ogg','audio/wav':'wav'}[audio.type.split(';')[0]]));payload.append('model',model);payload.append('language','zh');endpoint='audio/transcriptions';body=payload;
+  }else if(input.action==='greeting'){
+   endpoint='audio/speech';body=JSON.stringify({model,voice:PERSONAS[input.persona].voice,input:'Hello Chloe',response_format:'mp3'});headers['Content-Type']='application/json';
   }else{
    const t=input.ticket;if(typeof t?.data!=='string'||t.data.length>40000||typeof t.signature!=='string')return json({error:'播报凭据无效'},400);
    const expected=await mac(t.data,key);let mismatch=expected.length^t.signature.length;for(let i=0;i<expected.length;i++)mismatch|=expected.charCodeAt(i)^(t.signature.charCodeAt(i)||0);
@@ -52,7 +54,7 @@ Deno.serve(async req=>{
   if(auditError)return json({error:'调用审计失败，尚未发送至模型'},503);
   const response=await fetch('https://api.openai.com/v1/'+endpoint,{method:'POST',headers,body,signal:AbortSignal.timeout(60000)});
   if(!response.ok)return json({error:response.status===429?'OpenAI额度或速率受限，请检查账户':'OpenAI服务暂不可用，请稍后重试',code:'PROVIDER_ERROR'},502);
-  if(input.action==='speech')return new Response(response.body,{headers:{...cors,'Content-Type':'audio/mpeg'}});
+  if(['speech','greeting'].includes(input.action))return new Response(response.body,{headers:{...cors,'Content-Type':'audio/mpeg'}});
   const payload=await response.json();
   if(input.action==='transcribe')return json({text:String(payload.text||'').slice(0,3000)});
   const answer=outputText(payload),speech=answer.replace(/https?:\/\/\S+/g,'来源链接见文字回答').slice(0,1800);

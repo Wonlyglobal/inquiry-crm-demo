@@ -1,31 +1,39 @@
+import {createWakeConversation} from './agent-wake.mjs?v=20260923-1';
 // Explicit OpenAI dialogue only. Never receives CRM context or local assistant history.
-export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed}){
+export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
  const bar=el('div','');bar.className='agent-conversation-tools';
  const mode=el('select','');mode.setAttribute('aria-label','回答方式');for(const [v,t] of [['local','CRM资料分析'],['openai','OpenAI通用推理']]){const o=el('option',t);o.value=v;mode.append(o)}
+ const wakeButton=el('button','开启 Hello 唤醒');
  const mic=el('button','开始语音'),stop=el('button','停止'),replay=el('button','播放回答'),check=el('button','检查连接'),status=el('span','选择OpenAI可进行通用推理和语音对话。');
- for(const b of [mic,stop,replay,check])b.type='button';status.setAttribute('role','status');
+ for(const b of [wakeButton,mic,stop,replay,check])b.type='button';status.setAttribute('role','status');
  const note=el('p','OpenAI模式仅发送你主动输入的非机密问题、该模式近期对话和公开资料；录音发送至OpenAI转写。请勿输入客户机密或凭证。声音由AI生成，播报最多约1800字。');note.className='hint';
- bar.append(mode,mic,stop,replay,check,status,note);host.prepend(bar);
+ bar.append(mode,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
+ let wake=null,wakeTransition=false;
  const histories=new Map();let ready=false,busy=false,version=0,recorder=null,stream=null,timer=null,player=null,audioUrl=null,lastTicket=null,controller=null;
  function state(text,orb='idle'){status.textContent=text;onMode(orb);sync()}
- function sync(){mic.disabled=!ready||mode.value!=='openai'||busy;mic.textContent=recorder?'结束并提问':'开始语音';stop.disabled=!busy&&!recorder&&!player;replay.disabled=!lastTicket||busy||!!recorder||mode.value!=='openai';}
+ function sync(){wakeButton.disabled=!ready||mode.value!=='openai'||busy;wakeButton.textContent=wake?.isActive()?'关闭 Hello 唤醒':'开启 Hello 唤醒';mic.disabled=!ready||mode.value!=='openai'||busy;mic.textContent=recorder?'结束并提问':'开始语音';stop.disabled=!busy&&!recorder&&!player&&!wake?.isActive();replay.disabled=!lastTicket||busy||!!recorder||mode.value!=='openai';}
  async function call(body,signal){if(!isAllowed())throw Error('当前账号不可用');return invoke(body,signal)}
  function release(){clearTimeout(timer);timer=null;stream?.getTracks().forEach(t=>t.stop());stream=null}
- function stopAll(){version++;controller?.abort();controller=null;if(recorder){recorder.onstop=null;try{recorder.stop()}catch{}recorder=null}release();if(player){player.pause();player=null}if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null}busy=false;state('已停止')}
+ function stopAll({keepWake=false}={}){if(!keepWake)wake?.stop();version++;controller?.abort();controller=null;if(recorder){recorder.onstop=null;try{recorder.stop()}catch{}recorder=null}release();if(player){player.pause();player=null}if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null}busy=false;state('已停止')}
  async function checkConnection(){check.disabled=true;try{const s=await call({action:'status'});ready=!!s.enabled&&!!s.configured;state(!s.configured?'尚未配置OpenAI密钥':!s.enabled?'数据范围等待批准启用':`OpenAI已配置 · ${s.model}（实际调用待验证）`)}catch(e){ready=false;state(e.message)}finally{check.disabled=false;sync()}}
+ async function playBlob(blob,epoch){
+  if(version!==epoch)throw Error('对话已停止');audioUrl=URL.createObjectURL(blob);player=new Audio(audioUrl);
+  await new Promise((resolve,reject)=>{const current=player;current.onended=resolve;current.onerror=()=>reject(Error('声音播放失败'));controller?.signal.addEventListener('abort',()=>reject(Error('对话已停止')),{once:true});current.play().then(()=>{if(version===epoch){busy=false;state('正在说话 · 可点击停止','speaking')}}).catch(()=>reject(Error('请点击播放回答以允许声音播放')))});
+  if(version===epoch){player=null;URL.revokeObjectURL(audioUrl);audioUrl=null;busy=false;state('播报结束')}
+ }
  async function speak(ticket,epoch,persona){
   if(!ticket||version!==epoch)return;controller=new AbortController();busy=true;state('正在生成语音…','thinking');
-  try{const blob=await call({action:'speech',persona,ticket},controller.signal);if(version!==epoch)return;audioUrl=URL.createObjectURL(blob);player=new Audio(audioUrl);player.onended=()=>{if(version!==epoch)return;player=null;URL.revokeObjectURL(audioUrl);audioUrl=null;busy=false;state('播报结束')};player.onerror=()=>{if(version===epoch){busy=false;state('声音播放失败，可重新播放')}};await player.play();busy=false;state('正在说话 · 可点击停止','speaking')}catch(e){if(version===epoch){busy=false;state(e.name==='NotAllowedError'?'浏览器阻止自动播放，请点击“播放回答”':e.message)}}
+  try{const blob=await call({action:'speech',persona,ticket},controller.signal);await playBlob(blob,epoch)}catch(e){if(version===epoch){busy=false;state(e.message)}if(wake?.isActive())throw e}
  }
  async function ask(question,{voice=false}={}){
   if(mode.value!=='openai')return false;
   if(!ready){state('请先完成OpenAI配置并检查连接');return true}
   if(busy||recorder)return true;
-  stopAll();const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state('正在思考…','thinking');onMessage('user',question);onTranscript('');
+  stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state('正在思考…','thinking');onMessage('user',question);onTranscript('');
   try{const result=await call({action:'chat',persona,question,history:(histories.get(persona)||[]).slice(-8)},controller.signal);if(version!==epoch||persona!==getPersona())return true;
    histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-8));onMessage('assistant',result.answer+'\n\n— OpenAI · '+result.model+' · 未读取CRM客户记录');lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice)await speak(result.ticket,epoch,persona);
-  }catch(e){if(version===epoch){busy=false;onMessage('assistant','OpenAI未完成回答：'+e.message+'。没有将本地规则回答冒充模型回答。');state('回答未完成，可重试')}}finally{if(version===epoch){busy=false;sync()}}return true;
+  }catch(e){if(version===epoch){busy=false;onMessage('assistant','OpenAI未完成回答：'+e.message+'。没有将本地规则回答冒充模型回答。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{if(version===epoch){busy=false;sync()}}return true;
  }
  async function record(){
   if(recorder){recorder.stop();return}
@@ -42,7 +50,15 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   }catch(e){release();busy=false;state(e.name==='NotAllowedError'?'麦克风未授权，可继续文字提问':e.message)}
  }
  mode.onchange=()=>{stopAll();lastTicket=null;state(mode.value==='openai'?'仅输入非机密内容；按开始语音可说话':'CRM资料仅在本地分析');if(mode.value==='openai')checkConnection()};
- mic.onclick=record;stop.onclick=stopAll;check.onclick=checkConnection;replay.onclick=()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}};
+ wake=createWakeConversation({Recognition:window.SpeechRecognition||window.webkitSpeechRecognition,onState:state,
+  onWake:async persona=>{
+   wakeTransition=true;try{onSelectPersona(persona)}finally{wakeTransition=false}
+   if(getPersona()!==persona)throw Error('当前对话未结束，无法切换智能体');
+   const epoch=version;controller=new AbortController();busy=true;state('正在问候…','thinking');onMessage('assistant','Hello Chloe');
+   try{const blob=await call({action:'greeting',persona},controller.signal);await playBlob(blob,epoch)}catch(e){busy=false;throw e}
+  },onQuestion:text=>ask(text,{voice:true})});
+ wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();try{await wake.start()}catch(e){state(e.message)}};
+ mic.onclick=record;stop.onclick=()=>stopAll();check.onclick=checkConnection;replay.onclick=()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}};
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAll()});window.addEventListener('pagehide',stopAll);sync();
- return {ask,isModel:()=>mode.value==='openai',busy:()=>busy||!!recorder,reset(){stopAll();lastTicket=null;sync()},clear(){histories.delete(getPersona());stopAll();lastTicket=null;sync()}};
+ return {ask,isModel:()=>mode.value==='openai',busy:()=>busy||!!recorder,reset(){stopAll({keepWake:wakeTransition});lastTicket=null;sync()},clear(){histories.delete(getPersona());stopAll();lastTicket=null;sync()}};
 }

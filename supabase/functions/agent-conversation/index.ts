@@ -3,7 +3,7 @@ import {POLICY,PERSONAS,eligible,requestBody,outputText} from './policy.mjs';
 import {CHAT_URL,TTS_URL,MODELS,providerJson,speechBody,speechAudio,transcriptionBody} from './bailian.mjs';
 import {loadCrmStats} from './crm-stats.mjs';
 import {answerIssues,correctionMessage,safeMarketingFallback} from './answer-quality.mjs';
-import {loadSocial,loadSocialPosts,requestedPostPage} from './social.mjs';
+import {loadSocial,loadSocialPosts,loadSocialLibrary,requestedPostPage} from './social.mjs';
 import {loadSeo} from './seo.mjs';
 import {loadResearch} from './research.mjs';
 import marketingLearning from './marketing-learning.json' with {type:'json'};
@@ -44,7 +44,7 @@ Deno.serve(async req=>{
   const model=input.action==='chat'?(Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'):input.action==='transcribe'?MODELS.transcribe:MODELS.speech;
   let endpoint=CHAT_URL,body:any,contextMetadata:any=null,qualityContext:any=null;
   if(input.action==='chat'){
-   const [research,crm,seo,social,socialPosts]=await Promise.all([loadResearch(),loadCrmStats(client),loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')}),loadSocial(authorization),loadSocialPosts(authorization,requestedPostPage(input.question))]);qualityContext={seo,social,socialPosts};contextMetadata={crm_status:crm.status,crm_period:crm.period,research_status:research.status||'available',research_date:research.as_of||null,social_status:social.status,social_posts_status:socialPosts.status,social_posts_page:socialPosts.page||null,social_generated_at:social.generated_at||null,seo_status:seo.status,seo_generated_at:seo.generated_at||null,seo_freshness:seo.freshness||null};body=requestBody(input,model,JSON.stringify({publicFeed,marketPlaybooks,marketingLearning,research,crm,seo,social,socialPosts}));
+   const [research,crm,seo,social,socialPosts,socialLibrary]=await Promise.all([loadResearch(),loadCrmStats(client),loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')}),loadSocial(authorization),loadSocialPosts(authorization,requestedPostPage(input.question)),input.persona==='Grace'?loadSocialLibrary(authorization):Promise.resolve({status:'not_requested'})]);qualityContext={seo,social,socialPosts,socialLibrary};contextMetadata={crm_status:crm.status,crm_period:crm.period,research_status:research.status||'available',research_date:research.as_of||null,social_status:social.status,social_library_status:socialLibrary.status,social_library_records:socialLibrary.records_read||0,social_library_total:socialLibrary.total_records??null,social_posts_status:socialPosts.status,social_posts_page:socialPosts.page||null,social_generated_at:social.generated_at||null,seo_status:seo.status,seo_generated_at:seo.generated_at||null,seo_freshness:seo.freshness||null};body=requestBody(input,model,JSON.stringify({publicFeed,marketPlaybooks,marketingLearning,research,crm,seo,social,socialPosts,socialLibrary}));
   }else if(input.action==='transcribe'){
    const audio=form?.get('audio');if(!(audio instanceof File))return json({error:'录音文件缺失'},400);body=transcriptionBody(new Uint8Array(await audio.arrayBuffer()),audio.type.split(';')[0]);
   }else if(input.action==='greeting'){

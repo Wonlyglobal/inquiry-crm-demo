@@ -4985,7 +4985,7 @@
         for(let i=count-1;i>=0;i--){const d=new Date(now);if(grain==="day")d.setDate(now.getDate()-i);else if(grain==="month")d.setMonth(now.getMonth()-i,1);else d.setFullYear(now.getFullYear()-i,0,1);buckets.push({key:keyFor(d),label:grain==="day"?`${d.getMonth()+1}/${d.getDate()}`:grain==="month"?`${d.getFullYear()}/${d.getMonth()+1}`:`${d.getFullYear()}`,inquiries:0,assigned:0,fast:0,sales:0})}
         const map=new Map(buckets.map(x=>[x.key,x]));
         rows.forEach(x=>{const created=map.get(keyFor(x.created_at));if(created)created.inquiries++;const assigned=map.get(keyFor(x.assigned_at));if(x.validity==="valid"&&assigned&&x.assigned_at){assigned.assigned++;if(x.first_valid_contact_at&&new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000)assigned.fast++}const won=map.get(keyFor(x.won_at||x.created_at));if(won&&x.status==="won")won.sales+=amountCny(x,true)||0});
-        if($("#dashboard-data-scope")?.value==="combined") historicalOrdersForFilters().forEach(order=>{const bucket=order.ordered_at&&map.get(keyFor(order.ordered_at));if(bucket)bucket.sales+=Number(order.amount_wan||0)*10000});
+        if($("#dashboard-data-scope")?.value!=="legacy") historicalOrdersForFilters().forEach(order=>{const bucket=order.ordered_at&&map.get(keyFor(order.ordered_at));if(bucket)bucket.sales+=Number(order.amount_wan||0)*10000});
         const charts=[{title:"新增询盘",unit:"条",values:buckets.map(x=>x.inquiries),format:v=>`${Math.round(v)} 条`},{title:"首次响应率",unit:"%",values:buckets.map(x=>x.assigned?x.fast/x.assigned*100:0),format:v=>`${v.toFixed(1)}%`},{title:"成交额",unit:"CNY",values:buckets.map(x=>x.sales),format:v=>money(v,"CNY")}];
         const chartHtml=chart=>{const w=420,h=150,p=12,max=Math.max(...chart.values,1),points=chart.values.map((v,i)=>({x:p+(w-p*2)*(chart.values.length===1?0:i/(chart.values.length-1)),y:h-p-(h-p*2)*v/max,v})),line=points.map(q=>`${q.x},${q.y}`).join(" "),area=`${p},${h-p} ${line} ${w-p},${h-p}`,latest=chart.values.at(-1)||0,labels=[buckets[0]?.label,buckets[Math.floor((buckets.length-1)/2)]?.label,buckets.at(-1)?.label];return `<div class="trend-chart"><div class="trend-chart-head"><b>${chart.title}</b><span>最新 ${chart.format(latest)}</span></div><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${chart.title}趋势"><line class="trend-axis" x1="${p}" y1="${h-p}" x2="${w-p}" y2="${h-p}"/><polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${line}"/>${points.map(q=>`<circle class="trend-dot" cx="${q.x}" cy="${q.y}" r="3"><title>${chart.format(q.v)}</title></circle>`).join("")}</svg><div class="trend-labels"><span>${labels[0]||""}</span><span>${labels[1]||""}</span><span>${labels[2]||""}</span></div></div>`};
         $("#dashboard-trend-charts").innerHTML=charts.map(chartHtml).join("");
@@ -5097,8 +5097,7 @@
       }
       function renderHistoricalOrdersDashboard(){
         const scope=$("#dashboard-data-scope")?.value||"current",panel=$("#historical-orders-dashboard");
-        panel.classList.toggle("hidden",scope==="current");
-        if(scope==="current")return;
+        panel.classList.remove("hidden");
         const {start,end}=dashboardRange(),rows=historicalOrdersForFilters().filter(x=>x.ordered_at&&inRange(x.ordered_at,start,end)),orders=new Set(rows.map(x=>x.order_no)).size,amount=rows.reduce((sum,x)=>sum+Number(x.amount_wan||0),0),owners=new Set(rows.map(x=>x.legacy_owner_name).filter(Boolean)).size,unmapped=rows.filter(x=>!x.owner_id).length;
         $("#historical-orders-kpis").innerHTML=[["唯一订单",orders],["原始明细",rows.length],["订单金额（万元）",amount.toLocaleString("zh-CN",{maximumFractionDigits:2})],["原业务员",owners],["待账号映射明细",unmapped]].map(([l,v])=>`<div class="card"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div></div>`).join("");
         const byOwner=new Map();rows.forEach(x=>{const key=x.legacy_owner_name||"未填写",value=byOwner.get(key)||{orders:new Set(),lines:0,amount:0};value.orders.add(x.order_no);value.lines++;value.amount+=Number(x.amount_wan||0);byOwner.set(key,value)});
@@ -5188,8 +5187,8 @@
         $("#kpi-avg-response").textContent=mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN);
         $("#kpi-conversion").textContent=pct(won.length,closed.length);
         const validPeriod=periodRows.filter(x=>x.validity==="valid"),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]);$("#kpi-quote-rate").textContent=pct(validPeriod.filter(x=>quotedStages.has(x.status)).length,validPeriod.length);
-        const historicalCny=$("#dashboard-data-scope")?.value==="combined"?historicalOrdersForFilters().filter(x=>x.ordered_at&&inRange(x.ordered_at,start,end)).reduce((sum,x)=>sum+Number(x.amount_wan||0)*10000,0):0,wonCny=sumWonCny(won)+historicalCny,usdCny=fxToCny("USD")||0;
-        $("#hero-sales-label").textContent=historicalCny?"综合销售额（CRM成交＋历史订单）":"团队总销售额";
+        const includeImportedOrders=$("#dashboard-data-scope")?.value!=="legacy",historicalCny=includeImportedOrders?historicalOrdersForFilters().filter(x=>x.ordered_at&&inRange(x.ordered_at,start,end)).reduce((sum,x)=>sum+Number(x.amount_wan||0)*10000,0):0,wonCny=sumWonCny(won)+historicalCny,usdCny=fxToCny("USD")||0;
+        $("#hero-sales-label").textContent=includeImportedOrders?"销售额（CRM成交＋导入订单）":"团队总销售额";
         $("#kpi-won-cny").textContent=money(wonCny,"CNY"); $("#kpi-won-usd").textContent=usdCny?money(wonCny/usdCny,"USD"):"汇率待更新";
         $("#hero-sales-cny").textContent=money(wonCny,"CNY"); $("#hero-sales-usd").textContent=usdCny?money(wonCny/usdCny,"USD"):"汇率待更新";
         $("#hero-sales-period").textContent={today:"今日",week:"本周",month:"本月",quarter:"本季度",year:"本年度",all:"全部历史",custom:"自定义周期"}[type]||"当前周期";
@@ -5211,7 +5210,7 @@
           const prevConversion=previousClosed.length?previousClosed.filter(x=>x.status==="won").length/previousClosed.length*100:0;
           return {id:p.id,name:p.full_name,processing,response,amount,conversion,closed:ownClosed.length,changes:{processing:valueChange(processing,prevProcessing),response:prevResponse===Number.MAX_SAFE_INTEGER?null:valueChange(response,prevResponse,true),amount:valueChange(amount,prevAmount),conversion:valueChange(conversion,prevConversion)}};
         });
-        const previousWonCny=sumWonCny(scoped.filter(x=>x.validity==="valid"&&x.status==="won"&&inRange(x.won_at||x.created_at,previousStart,previousEnd))),teamSalesChange=valueChange(wonCny,previousWonCny);
+        const previousImportedCny=includeImportedOrders?historicalOrdersForFilters().filter(x=>x.ordered_at&&inRange(x.ordered_at,previousStart,previousEnd)).reduce((sum,x)=>sum+Number(x.amount_wan||0)*10000,0):0,previousWonCny=sumWonCny(scoped.filter(x=>x.validity==="valid"&&x.status==="won"&&inRange(x.won_at||x.created_at,previousStart,previousEnd)))+previousImportedCny,teamSalesChange=valueChange(wonCny,previousWonCny);
         $("#hero-sales-change").textContent=teamSalesChange===null?"环比 —":teamSalesChange===0?"环比持平":`环比 ${teamSalesChange>0?'↑':'↓'} ${Math.abs(teamSalesChange).toFixed(1)}%`;
         $("#hero-sales-change").className=teamSalesChange>0?"trend-up":teamSalesChange<0?"trend-down":"";
         renderTrendCharts(scoped);
@@ -5699,11 +5698,6 @@
         const syncedRates=await syncDailyExchangeRates(rows,exchangeRates||[]);
         const primaryTouchByInquiry=new Map();for(const touch of marketingTouches||[]){if(touch.is_primary&&!primaryTouchByInquiry.has(touch.inquiry_id))primaryTouchByInquiry.set(touch.inquiry_id,touch)}rows.forEach(x=>{x.primary_marketing_touch=primaryTouchByInquiry.get(x.id)||null});
         dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.whatsappMessages=dashboardWhatsAppMessages||[];dashboardState.replyReminders=replyReminders||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.historicalOrders=historicalOrders||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
-        if(profile?.role==="owner"&&(historicalOrders||[]).length&&$("#dashboard-data-scope")?.value==="current"){
-          $("#dashboard-data-scope").value="combined";
-          $("#dashboard-period").value="all";
-          $$(".period-tab[data-period]").forEach(button=>button.classList.toggle("active",button.dataset.period==="all"));
-        }
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         if($(".nav[data-view=\"marketing-center\"]")?.classList.contains("active"))renderMarketingWorkbench(rows);
         const latestByInquiry = new Map();

@@ -1,3 +1,4 @@
+import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
 import {createWakeConversation} from './agent-wake.mjs?v=20260923-4';
@@ -9,20 +10,27 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  const wakeButton=el('button','开启 Hello 唤醒'),installWake=el('button','安装本机语音包');
  const mic=el('button','开始语音'),stop=el('button','停止'),replay=el('button','播放回答'),check=el('button','检查连接'),status=el('span','选择百炼可进行通用推理和语音对话。');
  for(const b of [wakeButton,installWake,mic,stop,replay,check])b.type='button';status.setAttribute('role','status');
- const note=el('p','百炼模式仅发送你主动输入的非机密问题、该模式近期对话、公开资料、背调样本分布、近30天权限内脱敏统计，以及已批准的SEO与社媒只读摘要；录音发送至百炼转写。请勿输入客户机密或凭证。声音由AI生成，播报最多约1800字。');note.className='hint';
+ const note=el('p','百炼模式仅发送你主动输入的非机密问题、该模式近期对话、公开资料、背调样本分布、近30天权限内脱敏统计，以及已批准的SEO与社媒只读摘要；录音发送至百炼转写。请勿输入客户机密或凭证。声音由AI生成；语音回答优先播报简短结果，完整信息显示在窗口。');note.className='hint';
  stop.setAttribute('data-voice-stop','true');bar.append(mode,installWake,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
- let wake=null,wakeTransition=false,installing=false;
+ let wake=null,wakeTransition=false,installing=false;const greetings=new Map();
  const histories=new Map();let ready=false,busy=false,version=0,recorder=null,stream=null,timer=null,player=null,audioUrl=null,lastTicket=null,controller=null;
  function state(text,orb='idle'){status.textContent=text;onStatus?.(text);onMode(orb);sync()}
  function sync(){installWake.disabled=installing||busy||!!recorder||!!wake?.isActive();installWake.textContent=installing?'正在准备语音包…':'安装本机语音包';wakeButton.disabled=installing||!ready||mode.value!=='bailian'||busy;wakeButton.textContent=wake?.isActive()?'关闭 Hello 唤醒':'开启 Hello 唤醒';mic.disabled=!ready||mode.value!=='bailian'||busy;mic.textContent=recorder?'结束并提问':'开始语音';stop.disabled=!installing&&!busy&&!recorder&&!player&&!wake?.isActive();replay.disabled=!lastTicket||busy||!!recorder||mode.value!=='bailian';}
- async function call(body,signal){if(!isAllowed())throw Error('当前账号不可用');return invoke(body,signal)}
+ async function call(body,signal){if(!isAllowed())throw Error('当前账号不可用');
+  const limit=body?.action==='greeting'?12000:body?.action==='speech'?20000:70000;
+  const deadline=new AbortController();let timeout=false;const timer=setTimeout(()=>{timeout=true;deadline.abort()},limit);
+  const combined=signal?AbortSignal.any([signal,deadline.signal]):deadline.signal;
+  try{return await Promise.race([invoke(body,combined),new Promise((_,reject)=>{const fail=()=>reject(Error(timeout?'语音或回答服务超时，请重试':'对话已停止'));if(combined.aborted)fail();else combined.addEventListener('abort',fail,{once:true})})])}finally{clearTimeout(timer)}
+ }
  function release(){clearTimeout(timer);timer=null;stream?.getTracks().forEach(t=>t.stop());stream=null}
  function stopAll({keepWake=false}={}){if(!keepWake)wake?.stop();installing=false;version++;controller?.abort();controller=null;if(recorder){recorder.onstop=null;try{recorder.stop()}catch{}recorder=null}release();if(player){player.pause();player=null}if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null}busy=false;state('已停止')}
  async function checkConnection(){const epoch=version;check.disabled=true;try{const s=await call({action:'status'});if(epoch!==version)return;ready=!!s.enabled&&!!s.configured;state(!s.configured?'尚未配置百炼密钥':!s.enabled?'数据范围等待批准启用':`百炼已配置 · ${s.model}（实际调用待验证）`)}catch(e){if(epoch===version){ready=false;state(e.message)}}finally{check.disabled=false;sync()}}
  async function playBlob(blob,epoch){
   if(version!==epoch)throw Error('对话已停止');audioUrl=URL.createObjectURL(blob);player=new Audio(audioUrl);
-  await new Promise((resolve,reject)=>{const current=player;current.onended=resolve;current.onerror=()=>reject(Error('声音播放失败'));controller?.signal.addEventListener('abort',()=>reject(Error('对话已停止')),{once:true});current.play().then(()=>{if(version===epoch){busy=false;state('正在说话 · 可点击停止','speaking')}}).catch(()=>reject(Error('请点击播放回答以允许声音播放')))});
-  if(version===epoch){player=null;URL.revokeObjectURL(audioUrl);audioUrl=null;busy=false;state('播报结束')}
+  const current=player,url=audioUrl;
+  try{await playWithDeadline(current,controller?.signal,{onPlaying:()=>{if(version===epoch){busy=false;state('正在说话 · 可点击停止','speaking')}}})}
+  finally{URL.revokeObjectURL(url);if(version===epoch){player=null;audioUrl=null;busy=false}}
+  if(version===epoch)state('播报结束');
  }
  async function speak(ticket,epoch,persona){
   if(!ticket||version!==epoch)return;controller=new AbortController();busy=true;state('正在生成语音…','thinking');
@@ -68,7 +76,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    wakeTransition=true;try{onSelectPersona(persona)}finally{wakeTransition=false}
    if(getPersona()!==persona)throw Error('当前对话未结束，无法切换智能体');
    const epoch=version;controller=new AbortController();busy=true;state('正在问候…','thinking');onMessage('assistant',persona==='Grace'?"I'm here, Chloe.":'Hello Chloe');
-   try{const blob=await call({action:'greeting',persona},controller.signal);await playBlob(blob,epoch)}catch(e){busy=false;throw e}
+   try{let blob=greetings.get(persona);if(!blob){blob=await call({action:'greeting',persona},controller.signal);if(version!==epoch)return;greetings.set(persona,blob)}state('问候已准备，正在播放…','speaking');await playBlob(blob,epoch)}catch(e){if(version===epoch){busy=false;onMessage('assistant','已听到你的唤醒词，但问候声音未完成：'+e.message+'。可以继续说出问题。')}throw e}
   },onQuestion:text=>ask(text,{voice:true})});
  installWake.onclick=async()=>{if(installing)return;stopAll();installing=true;sync();try{await wake.install()}catch(e){state(e.message)}finally{installing=false;sync()}};
  wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();const epoch=version;try{state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.start()}catch(e){state(e.message)}};

@@ -12,3 +12,5 @@ test('differences are candidates with sources, history and unmatched quotations 
 test('coverage and no-match answers avoid dumping irrelevant materials',()=>{const d={assets:[asset('a','尺寸：900 mm')],document_coverage:{total:3,ready:1}};assert.doesNotMatch(conciseMaterialAnswer(d,'产品知识覆盖'),/900 mm/);assert.match(conciseMaterialAnswer({...d,assets:[]},'物料：不存在'),/不能据此判断该产品不存在/)});
 test('concise answers keep video timestamps',()=>{const a={id:'v',name:'Synthetic clip',video:{status:'ready',segments:[{start:75,kind:'speech',text:'Synthetic words'}]}};assert.match(conciseMaterialAnswer({assets:[a]},'物料：安装视频'),/1:15 语音转写/)});
 test('unrecognized followup does not silently reuse the previous property',()=>{assert.match(resolveMaterialTurn('那它适合户外吗',['物料：TEST-X1 防火']).question,/户外/);assert.doesNotMatch(resolveMaterialTurn('那它适合户外吗',['物料：TEST-X1 防火']).question,/防火/)});
+
+test('standalone product manual request resets unrelated series context',()=>{assert.deepEqual(resolveMaterialTurn('防火门英文产品手册',['我们有哪些产品系列']),{question:'防火门英文产品手册'})});

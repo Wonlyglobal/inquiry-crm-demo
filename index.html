@@ -1433,7 +1433,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=20260924-2" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=windows1-20260924-2" />
 </head>
   <body>
     <section id="boot" class="boot-shell">
@@ -2483,6 +2483,7 @@
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
+      import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
       import { mountConversation } from './assets/agent-conversation.mjs?v=20260924-feedback1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence } from './assets/agent-intelligence.mjs?v=20260923-3';
@@ -4908,9 +4909,9 @@
       function switchWorldConversation(next){
         if(worldPersona===next)return;worldModel?.reset();
         const key=worldPersona||'CRM';
-        worldChatSessions.set(key,{messages:[...$('#ai-assistant-messages').children].map(el=>({role:el.classList.contains('user')?'user':'assistant',text:el.textContent})),conversation:aiConversation.map(item=>({...item})),context:aiLastContext,question:aiLastQuestion});
+        worldChatSessions.set(key,{messages:[...$('#ai-assistant-messages').querySelectorAll('.ai-message')].map(el=>({role:el.classList.contains('user')?'user':'assistant',text:el.textContent})),conversation:aiConversation.map(item=>({...item})),context:aiLastContext,question:aiLastQuestion});
         const saved=worldChatSessions.get(next||'CRM');aiConversation=saved?.conversation?.map(item=>({...item}))||[];aiLastContext=saved?.context||null;aiLastQuestion=saved?.question||'';
-        $('#ai-assistant-messages').replaceChildren();
+        $('#ai-assistant-panel').querySelector('.question-history')?.remove();$('#ai-assistant-messages').replaceChildren();worldPersona=next;
         for(const message of saved?.messages||[{role:'assistant',text:`${next||'CRM'} 已准备好。请提出具体问题，我会区分事实、建议与缺口。`}])addAiMessage(message.role,message.text);
         worldPersona=next;
       }
@@ -4935,7 +4936,7 @@
         },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}saveAgentLocation();worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
-          onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets){const row=document.createElement('div');row.style.margin='12px 0';const title=document.createElement('strong');title.textContent=asset.name;row.append(title);for(const operation of ['preview','download']){const button=document.createElement('button');button.type='button';button.className='button secondary';button.textContent=operation==='preview'?'打开资料':'下载原文件';button.onclick=async()=>{button.disabled=true;let frame;try{const result=await supabase.functions.invoke('agent-conversation',{body:{action:'material-file',asset_id:asset.id,operation}});if(result.error||result.data?.error)throw Error(await edgeFunctionErrorMessage(result));const data=result.data;if(data.url!=='https://file.foreverdoodle.com:8088/api/integrations/crm/file'||typeof data.proof!=='string'||typeof data.body!=='string')throw Error('资料入口无效');frame=document.createElement('iframe');frame.name='material-'+crypto.randomUUID();frame.title=asset.name;frame.setAttribute('sandbox','allow-same-origin allow-downloads');frame.style.cssText='width:100%;height:420px;border:1px solid #475569;border-radius:12px;background:white;margin-top:12px';const close=document.createElement('button');close.type='button';close.className='button secondary';close.textContent='关闭资料窗口';close.onclick=()=>{frame.remove();close.remove()};row.append(close,frame);const form=document.createElement('form');form.method='POST';form.action=data.url;form.target=frame.name;for(const key of ['body','proof']){const input=document.createElement('input');input.type='hidden';input.name=key;input.value=data[key];form.append(input)}document.body.append(form);form.submit();form.remove();toast(operation==='preview'?'正在打开资料；无法预览的格式将下载原文件':'已提交文件请求，请查看浏览器下载列表')}catch(error){frame?.remove();toast(error.message||'资料暂时无法打开')}finally{button.disabled=false}};row.append(button)}list.append(row)}$('#ai-assistant-messages').append(list)},onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
+          onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets){const row=document.createElement('div');row.style.margin='12px 0';const title=document.createElement('strong');title.textContent=asset.name;row.append(title);for(const operation of ['preview','download']){const button=document.createElement('button');button.type='button';button.className='button secondary';button.textContent=operation==='preview'?'打开资料':'下载原文件';button.onclick=async()=>{button.disabled=true;let frame;try{const result=await supabase.functions.invoke('agent-conversation',{body:{action:'material-file',asset_id:asset.id,operation}});if(result.error||result.data?.error)throw Error(await edgeFunctionErrorMessage(result));const data=result.data;if(data.url!=='https://file.foreverdoodle.com:8088/api/integrations/crm/file'||typeof data.proof!=='string'||typeof data.body!=='string')throw Error('资料入口无效');frame=document.createElement('iframe');frame.name='material-'+crypto.randomUUID();frame.title=asset.name;frame.setAttribute('sandbox','allow-same-origin allow-downloads');frame.style.cssText='width:100%;height:420px;border:1px solid #475569;border-radius:12px;background:white;margin-top:12px';const close=document.createElement('button');close.type='button';close.className='button secondary';close.textContent='关闭资料窗口';close.onclick=()=>{frame.remove();close.remove()};row.append(close,frame);const form=document.createElement('form');form.method='POST';form.action=data.url;form.target=frame.name;for(const key of ['body','proof']){const input=document.createElement('input');input.type='hidden';input.name=key;input.value=data[key];form.append(input)}document.body.append(form);form.submit();form.remove();toast(operation==='preview'?'正在打开资料；无法预览的格式将下载原文件':'已提交文件请求，请查看浏览器下载列表')}catch(error){frame?.remove();toast(error.message||'资料暂时无法打开')}finally{button.disabled=false}};row.append(button)}list.append(row)}appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');
             const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';
@@ -5552,7 +5553,8 @@
           }else{toast("操作已记录");await openControlledExportCenter()}
         });
       }
-      function addAiMessage(role,text){const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;$("#ai-assistant-messages").append(el);if(worldPersona&&role==='assistant'&&!/^(I\'m here, Chloe\.|Hello Chloe|.*已准备好)/.test(text))worldController?.showResponse();$("#ai-assistant-messages").scrollTop=$("#ai-assistant-messages").scrollHeight;}
+      function addAiMessage(role,text){const host=$("#ai-assistant-messages");if(worldPersona){appendQuestionMessage(host,role,text);if(!/^(I\'m here, Chloe\.|Hello Chloe|.*已准备好)/.test(text))worldController?.showResponse();}else{const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;host.append(el);host.scrollTop=host.scrollHeight;}}
+
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
       function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
       function openWhatsAppConnectionForm(){
@@ -8789,7 +8791,7 @@
       $("#inquiry-definitions").addEventListener("click",openInquiryDefinitions);
       $("#ai-assistant-open").addEventListener("click",openAiAssistant);
       $("#ai-assistant-close").addEventListener("click",()=>{if(worldPersona){worldController?.closeWindow();return;}worldModel?.reset();$("#ai-assistant-panel").classList.add("hidden")});
-      $("#ai-clear-chat").addEventListener("click",()=>{worldModel?.clear();worldIntelligence?.clear();aiConversation=[];aiLastContext=null;aiLastQuestion="";$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制；询盘清单导出需独立审批。</div>';toast("AI 对话已清空");});
+      $("#ai-clear-chat").addEventListener("click",()=>{worldModel?.clear();worldIntelligence?.clear();$('#ai-assistant-panel').querySelector('.question-history')?.remove();aiConversation=[];aiLastContext=null;aiLastQuestion="";$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制；询盘清单导出需独立审批。</div>';toast("AI 对话已清空");});
       $("#ai-copy-result").addEventListener("click",async()=>{const text=latestAiAnswer();if(!text)return toast("请先向 AI 提问");await navigator.clipboard.writeText(text);toast("已复制最新 AI 回答");});
       $("#ai-export-csv").addEventListener("click",openControlledExportCenter);
       $("#ai-export-pdf").addEventListener("click",openControlledExportCenter);

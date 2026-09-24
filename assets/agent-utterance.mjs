@@ -26,11 +26,11 @@ export function captureUtterance({signal,onState,mediaDevices=navigator.mediaDev
    poll=setInterval(()=>{
     analyser.getFloatTimeDomainData(samples);let sum=0;for(const x of samples)sum+=x*x;
     const loud=Math.sqrt(sum/samples.length)>0.018,now=Date.now();
-    if(loud){lastSound=now;voiced+=50;if(!heard){heard=true;recorder.start(250);clearTimeout(deadline);deadline=setTimeout(()=>recorder.state==='recording'&&recorder.stop(),60000);onState('正在听你说 · 停顿后自动提交至百炼北京','listening')}}
+    if(loud){lastSound=now;voiced+=50;if(!heard){heard=true;recorder.start(250);clearTimeout(deadline);deadline=setTimeout(()=>recorder.state==='recording'&&recorder.stop(),60000);onState('正在听你说 · 说完后自动提交','listening')}}
     if(heard&&now-lastSound>1400&&recorder.state==='recording')recorder.stop();
    },50);
    deadline=setTimeout(()=>finish(null,null),30000);
-   onState('持续聆听中 · 说话后发送至百炼北京 · 可随时停止','listening');
+   onState('持续聆听中 · 请说出你的问题 · 可随时停止','listening');
   }catch(error){finish(error)}})();
  });
 }

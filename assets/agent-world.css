@@ -43,3 +43,21 @@
 @media(max-width:650px){#agent-world .room-layout{display:flex;flex-direction:column;min-height:52vh;gap:18px}#agent-world .room-heading{width:100%}#agent-world .room-heading canvas{width:230px;height:230px}#agent-world #room-content{width:100%;max-height:55vh}#agent-world #agent-private-room .ai-panel{height:36vh}#agent-world .room-dock{gap:6px}#agent-world .room-dock button{padding:9px 12px}}
 
 #agent-world #room-voice-status{font-size:15px;line-height:1.7;color:#f4d899;max-width:360px}#agent-world #room-purpose{color:#c4cedd}#agent-world .room-dock button{font-size:14px;color:#e0e6f0}
+
+/* Question windows: newest first, previous questions stay compact. */
+#agent-world #agent-private-room:not([data-settings=true]) .world-intelligence,
+#agent-world #agent-private-room:not([data-settings=true]) .world-analysis-toggle{display:none}
+#agent-world #room-content{overflow:hidden}
+#agent-world #agent-private-room .ai-panel{height:58vh;min-height:300px}
+#agent-world #agent-private-room .ai-messages{display:flex;flex-direction:column-reverse;justify-content:flex-end;gap:10px;overflow:auto;min-height:0;padding:12px}
+#agent-world .question-window{flex:none;border:1px solid #43516a;border-radius:14px;background:#141e30;overflow:hidden}
+#agent-world .question-window[open]{flex:1 0 auto;border-color:var(--room-tone);background:#111b2b}
+#agent-world .question-window summary{padding:13px 16px;font-size:15px;font-weight:600;color:#f4e2bb;cursor:pointer;overflow-wrap:anywhere}
+#agent-world .question-window:not([open]) summary{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;color:#c5d0e3}
+#agent-world .question-window-body{max-height:43vh;overflow:auto;padding:0 16px 16px;scrollbar-gutter:stable}
+#agent-world .question-window .ai-message{max-width:100%;padding:0;margin:10px 0;background:transparent;color:#edf2fb;font-size:16px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}
+#agent-world .question-window .ai-message.user{display:none}
+#agent-world #agent-private-room:not([data-settings=true]) .agent-response-feedback{display:none}
+@media(max-width:650px){#agent-world #room-content{max-height:60vh}#agent-world #agent-private-room .ai-panel{height:52vh}.question-window-body{max-height:36vh}}
+
+#agent-world .question-history{margin:8px 12px 0;padding:8px 12px;background:#152035;color:#e7edf7;border:1px solid #43516a;border-radius:10px;max-width:calc(100% - 24px)}

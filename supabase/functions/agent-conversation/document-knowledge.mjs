@@ -1,13 +1,15 @@
+import {materialConstraints} from './material-relevance.mjs';
 // Document content never enters an external model. Evidence stays attributed, not a verified claim.
 const boundedInt=(n,max=1000000)=>Number.isSafeInteger(Number(n))&&Number(n)>=0?Math.min(Number(n),max):0;
 export function materialQuery(question){
  const original=String(question).slice(0,500),page=Number(original.match(/第\s*(\d+)\s*页/)?.[1]||1);
- if(/最新|动态|所有资料|全部资料|知识覆盖|解析进度|学了多少|了解多少/.test(original))return {query:'',terms:[],page};
- const query=original.replace(/^.*?[：:]/,'').replace(/第\s*\d+\s*页/g,'').replace(/帮我|请|找到|查找|找一下|查一下|资料库|物料系统|产品知识|资料|物料|文件|给我|我要|想要|找|王力|我们|我司|介绍一下|介绍|了解|告诉我|是多少|是什么|怎么样|有哪些|如何|多少|的|？|\?/g,' ').trim().slice(0,120);
+ if(/^(?:查看|查询|帮我看)?(?:最新物料|最新资料|所有资料|全部资料|公司动态|知识覆盖|产品知识覆盖|解析进度|学了多少|了解多少)[。？?！!]*$/.test(original))return {query:'',terms:[],page};
+ const query=original.replace(/^.*?[：:]/,'').replace(/第\s*\d+\s*页/g,'').replace(/最新|最近|当前/g,' ').replace(/帮我|请|找到|查找|找一下|查一下|资料库|物料系统|产品知识|资料|物料|文件|给我|我要|想要|找|王力|我们|我司|介绍一下|介绍|了解|告诉我|是多少|是什么|怎么样|有哪些|如何|多少|的|？|\?/g,' ').trim().slice(0,120);
  const ids=query.match(/[a-z0-9][a-z0-9_-]{1,39}/gi)||[];
  const fields=[['防火','防火'],['隔音','隔音'],['尺寸','尺寸'],['规格','规格'],['材质','材质'],['型号','型号'],['认证','认证'],['安装','安装'],['质保','质保'],['保养','保养'],['参数','参数']].filter(([k])=>query.includes(k)).map(([,v])=>v);
  const terms=[...new Set([...ids,...fields])].slice(0,6);
- return {query,terms:terms.length?terms:[query].filter(Boolean),page};
+ const constraints=materialConstraints(original);
+ return {query,terms:terms.length?terms:[query].filter(Boolean),page,constraints};
 }
 export function normalizeDocument(d){
  if(!d||typeof d!=='object')return null;

@@ -1421,7 +1421,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=20260923-5" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=20260924-1" />
 </head>
   <body>
     <section id="boot" class="boot-shell">
@@ -2471,10 +2471,10 @@
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
     <script type="module">
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20260923-13';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20260924-1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence } from './assets/agent-intelligence.mjs?v=20260923-3';
-      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20260923-4";
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20260924-1";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;
@@ -4903,7 +4903,7 @@
         worldPersona=next;
       }
       function restoreWorldPanels(){
-        worldModel?.reset();switchWorldConversation(null);
+        worldController?.restoreComposer();worldModel?.reset();switchWorldConversation(null);
         assistantHome.after($('#ai-assistant-panel'));advisorHome.after($('#ai-advisor-page'));
         $('#ai-assistant-panel').classList.add('hidden');worldPersona=null;
       }
@@ -4918,12 +4918,12 @@
           saveAgentLocation(name);switchWorldConversation(name);worldIntelligence?.select(name);advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';
           $('#ai-advisor-page').classList.add('hidden');slot.append($('#ai-assistant-panel'));openAiAssistant();
           $('#ai-assistant-panel').querySelector('.ai-panel-head strong').textContent=name+' · '+({Grace:'营销增长智能体',Brian:'销售智能体',Jay:'经营决策智能体'}[name]);
-          $('#ai-assistant-input').value={Grace:'汇报当前海外市场与竞品情报',Brian:'汇报当前销售商机与跟进风险',Jay:'汇报营销和销售经营简报'}[name];
+          $('#ai-assistant-input').value='';$('#ai-assistant-input').placeholder='输入你想了解的问题…';
           worldModel?.enter();
         },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}saveAgentLocation();worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
-          onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
+          onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');
             const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';
@@ -5540,7 +5540,7 @@
           }else{toast("操作已记录");await openControlledExportCenter()}
         });
       }
-      function addAiMessage(role,text){const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;$("#ai-assistant-messages").append(el);$("#ai-assistant-messages").scrollTop=$("#ai-assistant-messages").scrollHeight;}
+      function addAiMessage(role,text){const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;$("#ai-assistant-messages").append(el);if(worldPersona&&role==='assistant'&&!/^(I\'m here, Chloe\.|Hello Chloe|.*已准备好)/.test(text))worldController?.showResponse();$("#ai-assistant-messages").scrollTop=$("#ai-assistant-messages").scrollHeight;}
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
       function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
       function openWhatsAppConnectionForm(){
@@ -8776,7 +8776,7 @@
       $("#dashboard-modal-close").addEventListener("click",()=>$("#dashboard-modal").classList.add("hidden"));
       $("#inquiry-definitions").addEventListener("click",openInquiryDefinitions);
       $("#ai-assistant-open").addEventListener("click",openAiAssistant);
-      $("#ai-assistant-close").addEventListener("click",()=>{if(worldPersona){$("#room-back")?.click();return;}worldModel?.reset();$("#ai-assistant-panel").classList.add("hidden")});
+      $("#ai-assistant-close").addEventListener("click",()=>{if(worldPersona){worldController?.closeWindow();return;}worldModel?.reset();$("#ai-assistant-panel").classList.add("hidden")});
       $("#ai-clear-chat").addEventListener("click",()=>{worldModel?.clear();worldIntelligence?.clear();aiConversation=[];aiLastContext=null;aiLastQuestion="";$("#ai-assistant-messages").innerHTML='<div class="ai-message assistant">你好，我可以基于你当前权限和看板筛选范围，总结经营数据、排名、响应、漏斗、风险和渠道表现。回答可复制；询盘清单导出需独立审批。</div>';toast("AI 对话已清空");});
       $("#ai-copy-result").addEventListener("click",async()=>{const text=latestAiAnswer();if(!text)return toast("请先向 AI 提问");await navigator.clipboard.writeText(text);toast("已复制最新 AI 回答");});
       $("#ai-export-csv").addEventListener("click",openControlledExportCenter);

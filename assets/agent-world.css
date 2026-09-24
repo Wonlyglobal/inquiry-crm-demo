@@ -41,3 +41,5 @@
 #agent-world #room-compose textarea{background:transparent;color:#edf1fa}
 @media(max-width:1100px){#agent-world .room-layout{grid-template-columns:minmax(210px,1fr) minmax(280px,1fr)}#agent-world .room-heading{grid-column:1}#agent-world #room-content{grid-column:2}#agent-world #agent-private-room:not([data-window=open]) .room-heading{grid-column:1/-1}}
 @media(max-width:650px){#agent-world .room-layout{display:flex;flex-direction:column;min-height:52vh;gap:18px}#agent-world .room-heading{width:100%}#agent-world .room-heading canvas{width:230px;height:230px}#agent-world #room-content{width:100%;max-height:55vh}#agent-world #agent-private-room .ai-panel{height:36vh}#agent-world .room-dock{gap:6px}#agent-world .room-dock button{padding:9px 12px}}
+
+#agent-world #room-voice-status{font-size:15px;line-height:1.7;color:#f4d899;max-width:360px}#agent-world #room-purpose{color:#c4cedd}#agent-world .room-dock button{font-size:14px;color:#e0e6f0}

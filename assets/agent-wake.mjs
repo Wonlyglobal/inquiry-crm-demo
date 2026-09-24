@@ -25,11 +25,11 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
  function listen(g){
   if(!active||g!==generation)return;
   const r=new Recognition();recognition=r;r.processLocally=true;r.lang=phase==='wake'?'en-US':'zh-CN';r.continuous=false;r.interimResults=false;let handled=false;
-  onState(phase==='wake'?'本机待唤醒：Hello Grace / Brian / Jay':'正在聆听；说“结束对话”退出','listening');
+  onState('正在启动本机识别…');r.onstart=()=>{if(active&&g===generation)onState(phase==='wake'?'正在聆听唤醒词：Hello Grace / Brian / Jay':'正在聆听你的问题；说“结束对话”退出','listening')};
   r.onresult=async e=>{
    if(handled||!active||g!==generation)return;
    const text=Array.from(e.results).filter(x=>x.isFinal).map(x=>x[0].transcript).join(' ').trim();if(!text)return;
-   const persona=wakeName(text);if(phase==='wake'&&!persona)return;
+   const persona=wakeName(text);if(phase==='wake'&&!persona){onState('已听到声音，但未匹配唤醒词，请清晰说 Hello Grace','listening');return;}
    handled=true;r.onend=null;r.abort();recognition=null;
    if(endPhrase(text)){stop();onState('对话已结束');return}
    try{

@@ -45,3 +45,19 @@ test('leaving while a language repair is pending never restarts recognition',asy
  let finish;class Repairable extends FakeRecognition{static install(){return new Promise(r=>finish=r)}}
  FakeRecognition.instances=[];const w=createWakeConversation({Recognition:Repairable,onState:()=>{},onWake:async()=>{},onQuestion:async()=>{}});await w.start();const pending=FakeRecognition.instances.at(-1).onerror({error:'language-not-supported'});w.stop();finish(true);await pending;assert.equal(FakeRecognition.instances.length,1);assert.equal(w.isActive(),false);
 });
+
+test('approved cloud dialogue checks only English and starts after greeting; stop aborts capture',async()=>{
+ const langs=[];class EnglishOnly extends FakeRecognition{static async available(o){langs.push(...o.langs);return o.langs[0]==='en-US'?'available':'unavailable'}}
+ FakeRecognition.instances=[];let greetingDone,captureSignal,reads=0;
+ const w=createWakeConversation({Recognition:EnglishOnly,onState:()=>{},onWake:()=>new Promise(r=>greetingDone=r),onQuestion:()=>assert.fail(),readQuestion:signal=>{reads++;captureSignal=signal;return new Promise(()=>{})}});
+ await w.start();assert.deepEqual(langs,['en-US']);await say(FakeRecognition.instances[0],'background');assert.equal(reads,0);
+ const pending=say(FakeRecognition.instances[0],'Hello Grace');assert.equal(reads,0);greetingDone();await pending;assert.equal(reads,1);assert.equal(FakeRecognition.instances.length,1);w.stop();assert.equal(captureSignal.aborted,true);
+});
+test('cloud exit phrase never becomes a model question',async()=>{
+ FakeRecognition.instances=[];const w=createWakeConversation({Recognition:FakeRecognition,onState:()=>{},onWake:async()=>{},onQuestion:()=>assert.fail(),readQuestion:async()=> '结束对话'});
+ await w.start();await say(FakeRecognition.instances[0],'Hello Grace');await new Promise(r=>setImmediate(r));assert.equal(w.isActive(),false);
+});
+test('cloud transcription failure stops rather than repeatedly uploading',async()=>{
+ FakeRecognition.instances=[];let count=0;const w=createWakeConversation({Recognition:FakeRecognition,onState:()=>{},onWake:async()=>{},onQuestion:()=>assert.fail(),readQuestion:async()=>{count++;throw Error('offline')}});
+ await w.start();await say(FakeRecognition.instances[0],'Hello Grace');await new Promise(r=>setImmediate(r));assert.equal(w.isActive(),false);assert.equal(count,1);
+});

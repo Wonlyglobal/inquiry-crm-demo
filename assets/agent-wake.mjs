@@ -1,11 +1,11 @@
 export function wakeName(text){const m=String(text).trim().match(/^hello[\s,，]+(grace|brian|jay)[.!！。?？\s]*$/i);return m?{grace:'Grace',brian:'Brian',jay:'Jay'}[m[1].toLowerCase()]:null}
 export function endPhrase(text){return /^(结束对话|停止对话|退出语音|goodbye)[。.!！?？\s]*$/i.test(String(text).trim())}
 // Requires genuine browser on-device recognition; never falls back to cloud SR.
-export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
- let generation=0,recognition=null,active=false,phase='wake',expiry=null,restart=null;const repaired=new Set();
- function stop(){generation++;active=false;clearTimeout(expiry);clearTimeout(restart);if(recognition){recognition.onend=null;recognition.onresult=null;recognition.onerror=null;recognition.abort();recognition=null}}
+export function createWakeConversation({Recognition,onState,onWake,onQuestion,readQuestion}){
+ let generation=0,recognition=null,active=false,phase='wake',expiry=null,restart=null,dialogueController=null;const repaired=new Set();
+ function stop(){dialogueController?.abort();dialogueController=null;generation++;active=false;clearTimeout(expiry);clearTimeout(restart);if(recognition){recognition.onend=null;recognition.onresult=null;recognition.onerror=null;recognition.abort();recognition=null}}
  function supported(){if(!Recognition||!('processLocally' in Recognition.prototype)||typeof Recognition.available!=='function')throw Error('此浏览器不支持本机唤醒，请使用“开始语音”与百炼对话');}
- async function packs(){supported();return Promise.all(['en-US','zh-CN'].map(async lang=>({lang,status:await Recognition.available({langs:[lang],processLocally:true})})));}
+ async function packs(){supported();return Promise.all((readQuestion?['en-US']:['en-US','zh-CN']).map(async lang=>({lang,status:await Recognition.available({langs:[lang],processLocally:true})})));}
  function unavailable(items){const missing=items.filter(x=>x.status==='unavailable').map(x=>x.lang==='en-US'?'英文':'中文');return missing.length?'此浏览器不支持'+missing.join('和')+'本机语音包；请使用“开始语音”与百炼对话':null}
  async function install(){
   stop();const g=generation;onState('正在检查本机语音包…');const items=await packs();if(g!==generation)return;
@@ -22,8 +22,19 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
   if(items.some(x=>x.status!=='available'))throw Error('尚未开始监听：请先点击“安装本机语音包”，完成后再开启 Hello 唤醒');
   active=true;phase='wake';listen(g);
  }
+ async function dialogue(g){
+  const control=new AbortController();dialogueController=control;
+  try{
+   const text=await readQuestion(control.signal);
+   if(!active||g!==generation)return;
+   if(endPhrase(text)){stop();onState('对话已结束');return}
+   if(text?.trim())await onQuestion(text);
+   if(active&&g===generation)restart=setTimeout(()=>listen(g),250);
+  }catch(error){if(active&&g===generation){stop();onState((error.message||'语音连接失败')+'；聆听已停止，请点击开启聆听重试')}}
+ }
  function listen(g){
   if(!active||g!==generation)return;
+  if(phase==='dialogue'&&readQuestion){void dialogue(g);return}
   const r=new Recognition();recognition=r;r.processLocally=true;r.lang=phase==='wake'?'en-US':'zh-CN';r.continuous=false;r.interimResults=false;let handled=false;
   onState('正在启动本机识别…');r.onstart=()=>{if(active&&g===generation)onState(phase==='wake'?'正在聆听唤醒词：Hello Grace / Brian / Jay':'正在聆听你的问题；说“结束对话”退出','listening')};
   r.onresult=async e=>{

@@ -1,3 +1,4 @@
+import {normalizeProfile,profileEvidence} from './knowledge-profile.mjs';
 import {materialConstraints} from './material-relevance.mjs';
 // Document content never enters an external model. Evidence stays attributed, not a verified claim.
 const boundedInt=(n,max=1000000)=>Number.isSafeInteger(Number(n))&&Number(n)>=0?Math.min(Number(n),max):0;
@@ -13,11 +14,11 @@ export function materialQuery(question){
 }
 export function normalizeDocument(d){
  if(!d||typeof d!=='object')return null;
- return {warnings:(Array.isArray(d.warnings)?d.warnings:[]).slice(0,4).map(w=>String(w).slice(0,180)),status:['ready','partial','queued','processing','failed'].includes(d.status)?d.status:'not_indexed',pages_total:boundedInt(d.pages_total,100000),pages_processed:boundedInt(d.pages_processed,500),pages_with_text:boundedInt(d.pages_with_text,500),sha256:/^[a-f0-9]{64}$/.test(d.sha256)?d.sha256:'',pages:(Array.isArray(d.pages)?d.pages:[]).filter(p=>Number.isInteger(p.page)&&p.page>0&&p.page<=500).slice(0,6).map(p=>({page:p.page,location:String(p.location||'第'+p.page+'页').slice(0,140),kind:['sheet_cells','ocr','native_and_ocr','native_text'].includes(p.kind)?p.kind:'source_text',chunks:(Array.isArray(p.chunks)?p.chunks:[]).slice(0,3).map(s=>String(s).slice(0,850)),facts:(Array.isArray(p.facts)?p.facts:[]).filter(f=>['型号','尺寸','材质','认证','性能','安装','维护'].includes(f.field)&&f.kind==='source_excerpt').slice(0,4).map(f=>({field:f.field,quote:String(f.quote||'').slice(0,500)}))}))};
+ return {knowledge_profile:normalizeProfile(d.knowledge_profile),warnings:(Array.isArray(d.warnings)?d.warnings:[]).slice(0,4).map(w=>String(w).slice(0,180)),status:['ready','partial','queued','processing','failed'].includes(d.status)?d.status:'not_indexed',pages_total:boundedInt(d.pages_total,100000),pages_processed:boundedInt(d.pages_processed,500),pages_with_text:boundedInt(d.pages_with_text,500),sha256:/^[a-f0-9]{64}$/.test(d.sha256)?d.sha256:'',pages:(Array.isArray(d.pages)?d.pages:[]).filter(p=>Number.isInteger(p.page)&&p.page>0&&p.page<=500).slice(0,6).map(p=>({page:p.page,location:String(p.location||'第'+p.page+'页').slice(0,140),kind:['sheet_cells','ocr','native_and_ocr','native_text'].includes(p.kind)?p.kind:'source_text',chunks:(Array.isArray(p.chunks)?p.chunks:[]).slice(0,3).map(s=>String(s).slice(0,850)),facts:(Array.isArray(p.facts)?p.facts:[]).filter(f=>['型号','尺寸','材质','认证','性能','安装','维护'].includes(f.field)&&f.kind==='source_excerpt').slice(0,4).map(f=>({field:f.field,quote:String(f.quote||'').slice(0,500)}))}))};
 }
 export function documentEvidence(d){
  const labels={ready:'逐页文字提取完成（未人工核验）',partial:'部分提取，仍有缺口',queued:'等待解析',processing:'正在解析',failed:'解析失败',not_indexed:'尚未解析或格式暂不支持'};
- return `文档：${labels[d.status]||labels.not_indexed}；已处理 ${d.pages_processed}/${d.pages_total} 页，有文字 ${d.pages_with_text} 页。${(d.warnings||[]).join('；')}\n`+d.pages.map(p=>`[${p.location}｜${p.kind==='sheet_cells'?'单元格记录':p.kind==='ocr'?'OCR文字，需核对':p.kind==='native_text'?'原文文字（未OCR）':'原文及OCR，需核对'}]\n${p.chunks.join('\n')}\n${p.facts.map(f=>`资料中的${f.field}表述（待核验）：${f.quote}`).join('\n')}`).join('\n')+'\n页码基于内部解析版本；参数、认证、适用条件以原文为准，不将其他型号或历史版本作为当前产品结论。';
+ return profileEvidence(d.knowledge_profile)+'\n'+`文档：${labels[d.status]||labels.not_indexed}；已处理 ${d.pages_processed}/${d.pages_total} 页，有文字 ${d.pages_with_text} 页。${(d.warnings||[]).join('；')}\n`+d.pages.map(p=>`[${p.location}｜${p.kind==='sheet_cells'?'单元格记录':p.kind==='ocr'?'OCR文字，需核对':p.kind==='native_text'?'原文文字（未OCR）':'原文及OCR，需核对'}]\n${p.chunks.join('\n')}\n${p.facts.map(f=>`资料中的${f.field}表述（待核验）：${f.quote}`).join('\n')}`).join('\n')+'\n页码基于内部解析版本；参数、认证、适用条件以原文为准，不将其他型号或历史版本作为当前产品结论。';
 }
 export function coverageSummary(c){
  if(!c||typeof c!=='object')return '';

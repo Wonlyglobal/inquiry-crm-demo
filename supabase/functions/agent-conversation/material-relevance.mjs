@@ -5,10 +5,10 @@ export function materialConstraints(question){
 }
 export function relevantMaterial(asset,constraints){
  const identity=[asset.name,asset.relativePath,...(asset.document?.pages||[]).flatMap(p=>p.chunks||[])].join(' ');
- const language=String(asset.language||'');
- if(constraints.fireDoor&&!/防火门|fire[- ]?(?:rated )?doors?/i.test(identity))return false;
- if(constraints.english&&!/^(?:en|en[-_][a-z]+|english|英文|英语)$/i.test(language.trim())&&!/英文|英语|english|(?:^|[\s_\-.\/])EN(?:[\s_\-.\/]|$)/i.test([asset.name,asset.relativePath].join(' ')))return false;
- if(constraints.manual&&!/手册|目录|宣传册|样册|图册|catalog(?:ue)?|brochure|product manual/i.test([asset.name,asset.relativePath].join(' ')))return false;
+ const language=String(asset.language||''),profile=asset.document?.knowledge_profile;
+ if(constraints.fireDoor&&!profile?.categories?.some(x=>x.value==='fire_door')&&!/防火门|fire[- ]?(?:rated )?doors?/i.test(identity))return false;
+ if(constraints.english&&!profile?.languages?.includes('en')&&!/^(?:en|en[-_][a-z]+|english|英文|英语)$/i.test(language.trim())&&!/英文|英语|english|(?:^|[\s_\-.\/])EN(?:[\s_\-.\/]|$)/i.test([asset.name,asset.relativePath].join(' ')))return false;
+ if(constraints.manual&&!profile?.document_types?.some(x=>x.value==='product_manual')&&!/手册|目录|宣传册|样册|图册|catalog(?:ue)?|brochure|product manual/i.test([asset.name,asset.relativePath].join(' ')))return false;
  return true;
 }
 export function filterMaterialResults(data,question){

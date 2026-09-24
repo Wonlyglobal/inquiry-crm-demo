@@ -1,3 +1,4 @@
+import {profileEvidence} from './knowledge-profile.mjs';
 import {materialQuery,coverageSummary} from './document-knowledge.mjs';
 const modelIds=q=>[...new Set((String(q).match(/\b[A-Za-z][A-Za-z0-9_-]{0,38}\d[A-Za-z0-9_-]*\b/g)||[]).map(x=>x.toUpperCase()))].slice(0,4);
 const fields=q=>['防火','隔音','尺寸','规格','材质','型号','认证','安装','质保','保养','参数'].filter(x=>String(q).includes(x));
@@ -34,7 +35,7 @@ export function conciseMaterialAnswer(data,question){
  if(!data.assets.length)return '在本次有权检索的资料中没有找到匹配内容，不能据此判断该产品不存在。请提供完整型号，或减少关键词后重试。\n'+coverageSummary(data.document_coverage);
  const wanted=fields(question),blocks=[];
  for(const a of data.assets.slice(0,3)){
-  const refs=[];if(a.video){for(const segment of (a.video.segments||[]).slice(0,2))refs.push(`[${Math.floor(segment.start/60)}:${String(Math.floor(segment.start%60)).padStart(2,'0')} ${segment.kind==='speech'?'语音转写':segment.kind==='screen_text'?'画面文字':'画面推测'}] ${segment.text.slice(0,420)}`);if(!refs.length)refs.push('视频尚无可引用片段；状态：'+({queued:'排队中',processing:'处理中',failed:'失败',partial:'部分解析',ready:'采样完成'}[a.video.status]||'未解析'))}for(const p of a.document?.pages||[]){
+  const refs=[];const profile=profileEvidence(a.document?.knowledge_profile);if(profile)refs.push(profile);if(a.video){for(const segment of (a.video.segments||[]).slice(0,2))refs.push(`[${Math.floor(segment.start/60)}:${String(Math.floor(segment.start%60)).padStart(2,'0')} ${segment.kind==='speech'?'语音转写':segment.kind==='screen_text'?'画面文字':'画面推测'}] ${segment.text.slice(0,420)}`);if(!refs.length)refs.push('视频尚无可引用片段；状态：'+({queued:'排队中',processing:'处理中',failed:'失败',partial:'部分解析',ready:'采样完成'}[a.video.status]||'未解析'))}for(const p of a.document?.pages||[]){
    for(const f of p.facts||[])if((!wanted.length||wanted.some(w=>f.quote.includes(w)||f.field===w))&&p.chunks.join('\n').includes(f.quote))refs.push(`[${p.location}] ${f.quote}`);
    if(!refs.length&&p.chunks.length)refs.push(`[${p.location}] ${p.chunks[0].slice(0,420)}`);
    if(refs.length>=3)break;

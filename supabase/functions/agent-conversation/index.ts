@@ -1,3 +1,4 @@
+import {plainAnswer} from './answer-format.mjs';
 import {seriesCatalogueAnswer} from './knowledge-profile.mjs';
 import {filterMaterialResults} from './material-relevance.mjs';
 import {preferenceInstruction} from './response-preferences.mjs';
@@ -19,7 +20,7 @@ import marketingLearning from './marketing-learning.json' with {type:'json'};
 import marketPlaybooks from './market-playbooks.json' with {type:'json'};
 import publicFeed from './public-knowledge.json' with {type:'json'};
 const cors={'Access-Control-Allow-Origin':'https://crm.foreverdoodle.com','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS','Cache-Control':'no-store'};
-const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{...cors,'Content-Type':'application/json'}});
+const json=(data:unknown,status=200)=>new Response(JSON.stringify(data && typeof data==='object' && 'answer' in data ? {...data,answer:plainAnswer((data as {answer:unknown}).answer)} : data),{status,headers:{...cors,'Content-Type':'application/json'}});
 const envKey=(group:string,legacy:string)=>{try{return JSON.parse(Deno.env.get(group)||'{}').default||Deno.env.get(legacy)||''}catch{return Deno.env.get(legacy)||''}};
 const encoder=new TextEncoder();
 async function mac(text:string,secret:string){const key=await crypto.subtle.importKey('raw',encoder.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return Array.from(new Uint8Array(await crypto.subtle.sign('HMAC',key,encoder.encode(text)))).map(x=>x.toString(16).padStart(2,'0')).join('')}
@@ -90,7 +91,7 @@ Deno.serve(async req=>{
   const payload=await providerJson(endpoint,body,key);
   if(['speech','greeting'].includes(input.action))return new Response(await speechAudio(payload),{headers:{...cors,'Content-Type':'audio/wav'}});
   if(input.action==='transcribe')return json({text:outputText(payload).slice(0,3000)});
-  let answer=outputText(payload);const issues=route.mode==='business'?answerIssues(answer,qualityContext):[];if(issues.length){const {error:reviewAuditError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_answer_quality_retry',after_data:{request_id:requestId,provider:'bailian',model,issue_count:issues.length},reason:'纠正未核验指标或审批主体表述，不记录对话正文'});if(reviewAuditError)return json({error:'回答核验未完成，请稍后重试'},503);answer=outputText(await providerJson(endpoint,{...body,messages:[...body.messages,{role:'assistant',content:answer},correctionMessage(issues)]},key));if(answerIssues(answer,qualityContext).length){answer=safeMarketingFallback(qualityContext);contextMetadata.answer_status='safe_reference_fallback';}else contextMetadata.answer_status='corrected';}answer+=sourceFooter(web);const speech=input.voice===true?'已为你整理好回答，请查看信息窗口。':answer.replace(/https?:\/\/\S+/g,'来源链接见文字回答').slice(0,1800);
+  let answer=outputText(payload);const issues=route.mode==='business'?answerIssues(answer,qualityContext):[];if(issues.length){const {error:reviewAuditError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_answer_quality_retry',after_data:{request_id:requestId,provider:'bailian',model,issue_count:issues.length},reason:'纠正未核验指标或审批主体表述，不记录对话正文'});if(reviewAuditError)return json({error:'回答核验未完成，请稍后重试'},503);answer=outputText(await providerJson(endpoint,{...body,messages:[...body.messages,{role:'assistant',content:answer},correctionMessage(issues)]},key));if(answerIssues(answer,qualityContext).length){answer=safeMarketingFallback(qualityContext);contextMetadata.answer_status='safe_reference_fallback';}else contextMetadata.answer_status='corrected';}answer=plainAnswer(answer+sourceFooter(web));const speech=input.voice===true?'已为你整理好回答，请查看信息窗口。':answer.replace(/https?:\/\/\S+/g,'来源链接见文字回答').slice(0,1800);
   return json({answer,sources:web.sources||[],model,provider:'bailian',context:contextMetadata,ticket:await ticket({user:user.id,persona:input.persona,text:speech,expires:Date.now()+300000},key)});
  }catch(error){return json({error:error instanceof Error&&/百炼|录音|语音|播报|请求|问题|历史|智能体|敏感|移除|未完成|文字回答/.test(error.message)?error.message:'请求未完成，请稍后重试'},400)}
 });

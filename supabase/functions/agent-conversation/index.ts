@@ -1,3 +1,4 @@
+import {signMaterialFileRequest} from './material-file-proof.mjs';
 import {resolveMaterialTurn,conciseMaterialAnswer} from './material-dialogue.mjs';
 import {loadFullMaterials,fullMaterialAnswer} from './materials.mjs';
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
@@ -35,6 +36,17 @@ Deno.serve(async req=>{
   let input:any,form:FormData|null=null;
   if(type.startsWith('multipart/form-data')){form=await new Response(bytes,{headers:{'Content-Type':type}}).formData();input={action:'transcribe',persona:form.get('persona')}}
   else input=JSON.parse(new TextDecoder().decode(bytes));
+  if(input.action==='material-file'){
+   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.asset_id||'')||!['preview','download'].includes(input.operation))return json({error:'资料请求无效'},400);
+   const privateJwk=Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK');if(!privateJwk)return json({error:'资料直达服务尚未配置'},503);
+   const audit=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+   const {count,error:limitError}=await audit.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','agent_material_file_ticket').gte('created_at',new Date(Date.now()-60000).toISOString());
+   if(limitError)return json({error:'暂时无法核验访问限额'},503);if((count||0)>=12)return json({error:'资料请求较多，请一分钟后重试'},429);
+   const body=JSON.stringify({asset_id:input.asset_id,operation:input.operation});
+   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_material_file_ticket',after_data:{asset_id:input.asset_id,operation:input.operation,expires_in:30},reason:'用户主动获取当前权限内单份物料；原文件不发送外部模型'});
+   if(auditError)return json({error:'资料访问审计失败，请稍后重试'},503);
+   return json({url:'https://file.foreverdoodle.com:8088/api/integrations/crm/file',body,proof:await signMaterialFileRequest({body,actor:user.id,privateJwk}),expires_in:30});
+  }
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});
   if(!enabled)return json({error:'百炼数据范围尚未批准启用',code:'POLICY_PENDING'},503);

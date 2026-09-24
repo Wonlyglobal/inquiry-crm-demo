@@ -1,7 +1,7 @@
 import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
-import {createWakeConversation} from './agent-wake.mjs?v=20260923-4';
+import {createWakeConversation} from './agent-wake.mjs?v=20260924-1';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -11,7 +11,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  const mic=el('button','开始语音'),stop=el('button','停止'),replay=el('button','播放回答'),check=el('button','检查连接'),status=el('span','选择百炼可进行通用推理和语音对话。');
  for(const b of [wakeButton,installWake,mic,stop,replay,check])b.type='button';status.setAttribute('role','status');
  const note=el('p','百炼模式仅发送你主动输入的非机密问题、该模式近期对话、公开资料、背调样本分布、近30天权限内脱敏统计，以及已批准的SEO与社媒只读摘要；录音发送至百炼转写。请勿输入客户机密或凭证。声音由AI生成；语音回答优先播报简短结果，完整信息显示在窗口。');note.className='hint';
- stop.setAttribute('data-voice-stop','true');bar.append(mode,installWake,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
+ stop.setAttribute('data-voice-stop','true');const startWake=el('button','恢复聆听');startWake.type='button';startWake.setAttribute('data-voice-start','true');startWake.hidden=true;bar.append(startWake);bar.append(mode,installWake,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
  let wake=null,wakeTransition=false,installing=false;const greetings=new Map();
  const histories=new Map();let ready=false,busy=false,version=0,recorder=null,stream=null,timer=null,player=null,audioUrl=null,lastTicket=null,lastGreeting=null,controller=null;
  function state(text,orb='idle'){status.textContent=text;onStatus?.(text);onMode(orb);sync()}
@@ -79,6 +79,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    try{let blob=greetings.get(persona);if(!blob){blob=await call({action:'greeting',persona},controller.signal);if(version!==epoch)return;greetings.set(persona,blob)}state('问候已准备，正在播放…','speaking');await playBlob(blob,epoch)}catch(e){if(version===epoch){busy=false;onMessage('assistant','已听到你的唤醒词，但问候声音未完成：'+e.message+'。可以继续说出问题。')}throw e}
   },onQuestion:text=>ask(text,{voice:true})});
  installWake.onclick=async()=>{if(installing)return;stopAll();installing=true;sync();try{await wake.install()}catch(e){state(e.message)}finally{installing=false;sync()}};
+ startWake.onclick=async()=>{if(wake.isActive())return;if(mode.value!=='bailian'||!ready){mode.value='bailian';await checkConnection()}if(ready)await wakeButton.onclick()};
  wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();const epoch=version;try{state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.start()}catch(e){state(e.message)}};
  mic.onclick=record;stop.onclick=()=>stopAll();check.onclick=checkConnection;replay.onclick=async()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}else if(lastGreeting){const persona=lastGreeting;stopAll();const epoch=version;controller=new AbortController();busy=true;state('正在重播问候…','thinking');try{let blob=greetings.get(persona);if(!blob){blob=await call({action:'greeting',persona},controller.signal);if(version!==epoch)return;greetings.set(persona,blob)}await playBlob(blob,epoch)}catch(e){if(version===epoch)state(e.message)}finally{if(version===epoch){busy=false;sync()}}}};
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAll()});window.addEventListener('pagehide',stopAll);sync();

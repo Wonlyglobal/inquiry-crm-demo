@@ -25,11 +25,11 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
  function listen(g){
   if(!active||g!==generation)return;
   const r=new Recognition();recognition=r;r.processLocally=true;r.lang=phase==='wake'?'en-US':'zh-CN';r.continuous=false;r.interimResults=false;let handled=false;
-  onState(phase==='wake'?'本机待唤醒：Hello Grace / Brian / Jay':'正在聆听；说“结束对话”退出','listening');
+  onState('正在启动本机识别…');r.onstart=()=>{if(active&&g===generation)onState(phase==='wake'?'正在聆听唤醒词：Hello Grace / Brian / Jay':'正在聆听你的问题；说“结束对话”退出','listening')};
   r.onresult=async e=>{
    if(handled||!active||g!==generation)return;
    const text=Array.from(e.results).filter(x=>x.isFinal).map(x=>x[0].transcript).join(' ').trim();if(!text)return;
-   const persona=wakeName(text);if(phase==='wake'&&!persona)return;
+   const persona=wakeName(text);if(phase==='wake'&&!persona){onState('本机识别：'+text.slice(0,70)+'；请单独说 Hello Grace','listening');return;}
    handled=true;r.onend=null;r.abort();recognition=null;
    if(endPhrase(text)){stop();onState('对话已结束');return}
    try{
@@ -38,7 +38,7 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
     if(active&&g===generation)listen(g);
    }catch(error){if(active&&g===generation){phase='dialogue';onState((error.message||'本次回答未完成')+'；继续聆听，可重新提问');restart=setTimeout(()=>listen(g),1200)}}
   };
-  r.onerror=e=>{if(g!==generation)return;if(['no-speech','aborted'].includes(e.error))return;stop();onState(e.error==='not-allowed'?'本机唤醒被浏览器拒绝；即使麦克风已允许，语音识别仍可能受限。可用“开始语音”录音对话。':'本机语音识别失败：'+e.error+'；可使用按钮录音')};
+  r.onerror=e=>{if(g!==generation)return;if(e.error==='no-speech'){onState('暂未听清声音，请靠近麦克风说 Hello Grace','listening');return}if(e.error==='aborted')return;stop();onState(e.error==='not-allowed'?'本机唤醒被浏览器拒绝；即使麦克风已允许，语音识别仍可能受限。可用“开始语音”录音对话。':'本机语音识别失败：'+e.error+'；可使用按钮录音')};
   r.onend=()=>{recognition=null;if(!handled&&active&&g===generation)restart=setTimeout(()=>listen(g),350)};
   try{r.start()}catch(error){stop();onState(error.message||'无法开启本机语音识别')}
  }

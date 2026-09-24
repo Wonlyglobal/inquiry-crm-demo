@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {signMaterialFileRequest,verifyMaterialFileRequest,MATERIAL_ACTOR} from '../supabase/functions/agent-conversation/material-file-proof.mjs';
+const keys=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+const privateJwk=JSON.stringify(await crypto.subtle.exportKey('jwk',keys.privateKey)),publicJwk=JSON.stringify(await crypto.subtle.exportKey('jwk',keys.publicKey));
+const now=1800000000000,body=JSON.stringify({query:'synthetic',page:1});
+const make=()=>signMaterialFileRequest({body,actor:MATERIAL_ACTOR,privateJwk,now});
+test('signed request binds actor and exact query and expires in 30 seconds',async()=>{const proof=await make();const c=await verifyMaterialFileRequest({proof,body,publicJwk,now});assert.equal(c.sub,MATERIAL_ACTOR);assert.equal(c.exp-c.iat,30);assert.equal(await verifyMaterialFileRequest({proof,body:body+' ',publicJwk,now}),null);assert.equal(await verifyMaterialFileRequest({proof,body,publicJwk,now:now+30000}),null);assert.equal(await verifyMaterialFileRequest({proof,body,publicJwk,now:now-5000}),null)});
+test('tampered, missing and wrong-key proofs fail closed',async()=>{const proof=await make();for(const invalid of ['',proof.slice(0,-8)+'AAAAAAAA','v1.bad.bad'])assert.equal(await verifyMaterialFileRequest({proof:invalid,body,publicJwk,now}),null);assert.equal(await verifyMaterialFileRequest({proof,body,publicJwk:privateJwk,now}),null);const other=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);assert.equal(await verifyMaterialFileRequest({proof,body,publicJwk:JSON.stringify(await crypto.subtle.exportKey('jwk',other.publicKey)),now}),null)});
+test('only designated actor can sign and requests have distinct IDs',async()=>{await assert.rejects(signMaterialFileRequest({body,actor:'other',privateJwk,now}));const a=await verifyMaterialFileRequest({proof:await make(),body,publicJwk,now}),b=await verifyMaterialFileRequest({proof:await make(),body,publicJwk,now});assert.notEqual(a.jti,b.jti)});
+
+import {signMaterialRequest} from '../supabase/functions/agent-conversation/material-request-proof.mjs';
+test('knowledge credential cannot be used to retrieve files',async()=>{const proof=await signMaterialRequest({body,actor:MATERIAL_ACTOR,privateJwk,now});assert.equal(await verifyMaterialFileRequest({proof,body,publicJwk,now}),null)});

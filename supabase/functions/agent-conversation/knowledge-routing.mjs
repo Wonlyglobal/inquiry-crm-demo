@@ -3,7 +3,8 @@ export function knowledgeRoute(question,history=[]){
  const q=String(question),previous=history.filter(x=>x.role==='user').at(-1)?.content||'';
  const followup=/^(那|继续|展开|详细|为什么|怎么做|再|它|他们|这个|上面)/.test(q)&&q.length<80;
  const topic=followup?q+' '+previous:q;
- const materials=/物料|资料库|产品手册|宣传册|安装视频|公司动态|公司资料|找.{0,12}(资料|文件|视频|图片)/.test(topic);
+ const productInternal=/(我们|我司|王力|wonly)/i.test(topic)&&/产品|型号|材质|规格|尺寸|认证|防火|隔音|质保|安装|参数/i.test(topic);
+ const materials=productInternal||/物料|资料库|产品知识|知识覆盖|解析进度|产品手册|宣传册|安装视频|公司动态|公司资料|找.{0,12}(资料|文件|视频|图片)/.test(topic);
  const business=/我们|王力|wonly|CRM|询盘|线索|商机|客户|复盘|背调|网站|SEO|GSC|GA4|社媒|帖子|粉丝|转化率|销售阶段/i.test(topic);
  const fresh=/最新|最近|今天|目前|当前|实时|新闻|动态|联网|搜索|查一下|竞品|政策|天气|汇率|now|latest|today/i.test(topic);
  const social=/社媒|帖子|粉丝|社交|tiktok|instagram|facebook|youtube|linkedin/i.test(topic);

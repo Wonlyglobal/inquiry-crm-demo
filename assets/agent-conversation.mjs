@@ -1,7 +1,8 @@
+import {captureUtterance} from './agent-utterance.mjs?v=20260924-1';
 import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
-import {createWakeConversation} from './agent-wake.mjs?v=20260924-2';
+import {createWakeConversation} from './agent-wake.mjs?v=20260924-3';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -10,7 +11,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  const wakeButton=el('button','开启 Hello 唤醒'),installWake=el('button','安装本机语音包');
  const mic=el('button','开始语音'),stop=el('button','停止'),replay=el('button','播放回答'),check=el('button','检查连接'),status=el('span','选择百炼可进行通用推理和语音对话。');
  for(const b of [wakeButton,installWake,mic,stop,replay,check])b.type='button';status.setAttribute('role','status');
- const note=el('p','百炼模式仅发送你主动输入的非机密问题、该模式近期对话、公开资料、背调样本分布、近30天权限内脱敏统计，以及已批准的SEO与社媒只读摘要；录音发送至百炼转写。请勿输入客户机密或凭证。声音由AI生成；语音回答优先播报简短结果，完整信息显示在窗口。');note.className='hint';
+ const note=el('p','百炼模式仅发送你主动输入的非机密问题、该模式近期对话、公开资料、背调样本分布、近30天权限内脱敏统计，以及已批准的SEO与社媒只读摘要；Hello唤醒前录音不上传；唤醒后说话片段自动发送至百炼北京转写，播报期间暂停录音，停止或离开即结束。请勿输入客户机密或凭证。声音由AI生成；语音回答优先播报简短结果，完整信息显示在窗口。');note.className='hint';
  stop.setAttribute('data-voice-stop','true');const startWake=el('button','恢复聆听');startWake.type='button';startWake.setAttribute('data-voice-start','true');startWake.hidden=true;bar.append(startWake);bar.append(mode,installWake,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
  let wake=null,wakeTransition=false,installing=false;const greetings=new Map();
  const histories=new Map();let ready=false,busy=false,version=0,recorder=null,stream=null,timer=null,player=null,audioUrl=null,lastTicket=null,lastGreeting=null,controller=null;
@@ -71,7 +72,18 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   finally{if(epoch===version){installing=false;sync()}}
  }
  mode.onchange=()=>{stopAll();lastTicket=null;state(mode.value==='bailian'?'仅输入非机密内容；按开始语音可说话':'CRM资料仅在本地分析');if(mode.value==='bailian')checkConnection()};
- wake=createWakeConversation({Recognition:window.SpeechRecognition||window.webkitSpeechRecognition,onState:state,
+ async function readQuestion(signal){
+  const epoch=version,persona=getPersona();
+  const blob=await captureUtterance({signal,onState:state});
+  if(signal.aborted||epoch!==version||document.hidden||!isAllowed())throw Error('对话已停止');
+  if(!blob)return '';
+  state('百炼北京正在识别…','thinking');
+  const form=new FormData();form.append('persona',persona);form.append('audio',blob,'speech.'+(blob.type.includes('ogg')?'ogg':'webm'));
+  const result=await call(form,signal);
+  if(signal.aborted||epoch!==version||document.hidden)throw Error('对话已停止');
+  return result.text?.trim()||'';
+ }
+ wake=createWakeConversation({readQuestion,Recognition:window.SpeechRecognition||window.webkitSpeechRecognition,onState:state,
   onWake:async persona=>{
    wakeTransition=true;try{onSelectPersona(persona)}finally{wakeTransition=false}
    if(getPersona()!==persona)throw Error('当前对话未结束，无法切换智能体');

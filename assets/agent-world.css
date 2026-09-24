@@ -55,7 +55,7 @@
 #agent-world .question-window summary{padding:13px 16px;font-size:15px;font-weight:600;color:#f4e2bb;cursor:pointer;overflow-wrap:anywhere}
 #agent-world .question-window:not([open]) summary{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;color:#c5d0e3}
 #agent-world .question-window-body{max-height:43vh;overflow:auto;padding:0 16px 16px;scrollbar-gutter:stable}
-#agent-world .question-window .ai-message{max-width:100%;padding:0;margin:10px 0;background:transparent;color:#edf2fb;font-size:16px;line-height:1.9;overflow-wrap:anywhere}
+#agent-world .question-window .ai-message{max-width:100%;padding:0;margin:10px 0;background:transparent;color:#edf2fb;font-size:16px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}
 #agent-world .question-window .ai-message.user{display:none}
 #agent-world #agent-private-room:not([data-settings=true]) .agent-response-feedback{display:none}
 @media(max-width:650px){#agent-world #room-content{max-height:60vh}#agent-world #agent-private-room .ai-panel{height:52vh}.question-window-body{max-height:36vh}}

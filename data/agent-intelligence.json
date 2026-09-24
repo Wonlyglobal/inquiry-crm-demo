@@ -1,43 +1,43 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-09-23T11:11:26.338941+08:00",
-  "coverage": "首轮公开来源基线；尚未形成连续监测历史。竞品均为待按目标国家和品类验证的候选，不代表已在同一项目竞争。",
+  "checked_at": "2026-09-24T09:07:21.376490+08:00",
+  "coverage": "2026-09-24复核六个公开来源。核验时间仅代表本轮检查；首页可读不等于新闻完整覆盖，部分动态页面和旧缓存仍存在。首次发现旧闻不作为新事件预警。",
   "sources": [
     {
       "name": "WONLY 官方网站",
       "url": "https://www.wonlyglobal.com/",
       "status": "partial",
-      "note": "已确认安全门和智能锁的公开定位；页面动态加载，认证、价格、交期和海外阶段尚不能据此确认。"
+      "note": "本轮仅提取到网站标题；安全门与智能锁定位沿用历史基线，今日正文和新动态未能核验。"
     },
     {
       "name": "Hörmann 门业官网",
       "url": "https://www.hoermann.com/en/",
-      "status": "checked",
-      "note": "门、门框和驱动系统的候选对标品牌；需与同名工业集团区分。"
+      "status": "partial",
+      "note": "公司介绍可读，门、门框与驱动系统定位可核对；本轮未完成新闻栏目覆盖，不能断言无新动态。"
     },
     {
       "name": "ASSA ABLOY 官方新闻",
       "url": "https://www.assaabloy.com/group/en/news-media/press-releases",
-      "status": "partial",
-      "note": "入口解决方案候选对标；新闻正文提取不完整，未将搜索摘要升级为已核实动态。"
+      "status": "checked",
+      "note": "新闻索引与9月16日PACLOCK收购正文可读；该事件今日首次收录，但不是今日发生。"
     },
     {
       "name": "dormakaba 官方新闻",
       "url": "https://www.dormakabagroup.com/en/newsroom",
       "status": "checked",
-      "note": "门禁和酒店进入系统候选对标，相关性按产品和市场核验。"
+      "note": "新闻索引与9月23日可持续报告奖项正文可读；既有拟收购和机器人试点仍保留原始语义。"
     },
     {
       "name": "Al Kuhaimi Metal Industries 官网",
       "url": "https://alkuhaimimetal.com/",
-      "status": "checked",
-      "note": "官网位于沙特达曼，列有钢质门、防火门和门五金。作为门业竞品候选；具体认证和价格需逐产品核验，未证实近期有新动作。"
+      "status": "partial",
+      "note": "官网门业产品可读；Media页面工具返回上月缓存，仅见2024年条目，不能据此认定近期没有新动作。"
     },
     {
       "name": "Puertas Asturmex 官网",
       "url": "https://puertasasturmex.com/",
-      "status": "checked",
-      "note": "墨西哥门业候选，官网展示金属安全门、防火门、经销网络与Revit资料。产品和渠道重合是研究理由，不代表已在同一客户项目竞争。"
+      "status": "partial",
+      "note": "官网门产品、经销网络与Revit资料可读；博客索引返回三周前缓存且未显示发布日期，不能据此认定近期无变化。"
     }
   ],
   "findings": [
@@ -65,6 +65,32 @@
       "fact": "官方于9月17日发布与 ANYbotics、LEGIC 合作的门禁通行试点消息；试点不等同于全面商业化。",
       "implication": "推测：可作为自动化门禁技术观察项。目前没有证据证明与王力现有询盘直接相关，暂不作为紧急销售预警。",
       "url": "https://www.dormakabagroup.com/en/news/76d32a7d-b9ef-4513-9bdd-6e8a58be8cb7/dormakaba-anybotics-and-legic-present-a-successful-pilot-of-autonomous-robots-passing-through-access-controlled-doors",
+      "importance": "watch"
+    },
+    {
+      "id": "dormakaba-reporting-award-20260923",
+      "published_at": "2026-09-23",
+      "observed_at": "2026-09-24T09:07:21.376490+08:00",
+      "agent": "Grace",
+      "brand": "dormakaba",
+      "category": "品牌与传播",
+      "title": "dormakaba公布可持续报告奖项",
+      "fact": "官方9月23日称其获得瑞士可持续发展报告卓越奖的技术类别奖项；这是报告质量认可，不是门锁产品认证。",
+      "implication": "推测：可观察其以可持续信息建立品牌信任的传播方式。尚无证据表明该奖项带来特定海外市场订单或产品竞争变化，不作紧急预警。",
+      "url": "https://www.dormakabagroup.com/en/news/47e9dd34-d03f-4a15-bf35-a04e2be723a0/dormakaba-wins-at-swiss-sustainability-reporting-excellence-awards",
+      "importance": "watch"
+    },
+    {
+      "id": "assa-abloy-paclock-20260916",
+      "published_at": "2026-09-16",
+      "observed_at": "2026-09-24T09:07:21.376490+08:00",
+      "agent": "Grace",
+      "brand": "ASSA ABLOY",
+      "category": "并购与产品",
+      "title": "ASSA ABLOY公布收购美国PACLOCK（历史补录）",
+      "fact": "9月16日官方公告称已收购美国挂锁与安全五金制造商PACLOCK，纳入美洲事业部住宅业务板块。本轮首次核实，不是今日新发生的收购。",
+      "implication": "推测：可作为安全五金产品组合扩展的行业观察；挂锁不等于智能门锁，尚无证据证明此次交易改变具体门业项目竞争或渠道安排。",
+      "url": "https://www.assaabloy.com/group/en/news-media/press-releases/id.faf92c5f528cee84",
       "importance": "watch"
     }
   ]

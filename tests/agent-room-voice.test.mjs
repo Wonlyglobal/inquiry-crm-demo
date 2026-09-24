@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mountConversation} from '../assets/agent-conversation.mjs';
-class Element{children=[];value='';append(...nodes){this.children.push(...nodes);if(!this.value&&nodes[0]?.value)this.value=nodes[0].value}prepend(...nodes){this.children.unshift(...nodes)}setAttribute(){}}
+class Element{children=[];value='';style={};dataset={};querySelector(){return {after(){}}}append(...nodes){this.children.push(...nodes);if(!this.value&&nodes[0]?.value)this.value=nodes[0].value}prepend(...nodes){this.children.unshift(...nodes)}setAttribute(){}}
 class Recognition{static instances=[];static async available(){return 'available'}start(){Recognition.instances.push(this)}abort(){this.aborted=true}}
 Recognition.prototype.processLocally=false;
 function setup(invoke=async()=>({enabled:true,configured:true,model:'test'})){

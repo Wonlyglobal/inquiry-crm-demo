@@ -2,7 +2,7 @@ export function wakeName(text){const m=String(text).trim().match(/^hello[\s,，]
 export function endPhrase(text){return /^(结束对话|停止对话|退出语音|goodbye)[。.!！?？\s]*$/i.test(String(text).trim())}
 // Requires genuine browser on-device recognition; never falls back to cloud SR.
 export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
- let generation=0,recognition=null,active=false,phase='wake',expiry=null,restart=null;
+ let generation=0,recognition=null,active=false,phase='wake',expiry=null,restart=null;const repaired=new Set();
  function stop(){generation++;active=false;clearTimeout(expiry);clearTimeout(restart);if(recognition){recognition.onend=null;recognition.onresult=null;recognition.onerror=null;recognition.abort();recognition=null}}
  function supported(){if(!Recognition||!('processLocally' in Recognition.prototype)||typeof Recognition.available!=='function')throw Error('此浏览器不支持本机唤醒，请使用“开始语音”与百炼对话');}
  async function packs(){supported();return Promise.all(['en-US','zh-CN'].map(async lang=>({lang,status:await Recognition.available({langs:[lang],processLocally:true})})));}
@@ -17,7 +17,7 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
   const checked=await packs();if(g!==generation)return;if(checked.some(x=>x.status!=='available'))throw Error('语音包仍在准备，请稍后重试');onState('本机语音包已就绪，请点击“开启 Hello 唤醒”，再说 Hello Grace');
  }
  async function start(){
-  stop();const g=generation;const items=await packs();if(g!==generation)return;
+  repaired.clear();stop();const g=generation;const items=await packs();if(g!==generation)return;
   const issue=unavailable(items);if(issue)throw Error(issue);
   if(items.some(x=>x.status!=='available'))throw Error('尚未开始监听：请先点击“安装本机语音包”，完成后再开启 Hello 唤醒');
   active=true;phase='wake';listen(g);
@@ -38,7 +38,18 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion}){
     if(active&&g===generation)listen(g);
    }catch(error){if(active&&g===generation){phase='dialogue';onState((error.message||'本次回答未完成')+'；继续聆听，可重新提问');restart=setTimeout(()=>listen(g),1200)}}
   };
-  r.onerror=e=>{if(g!==generation)return;if(e.error==='no-speech'){onState('暂未听清声音，请靠近麦克风说 Hello Grace','listening');return}if(e.error==='aborted')return;stop();onState(e.error==='not-allowed'?'本机唤醒被浏览器拒绝；即使麦克风已允许，语音识别仍可能受限。可用“开始语音”录音对话。':'本机语音识别失败：'+e.error+'；可使用按钮录音')};
+  r.onerror=async e=>{if(g!==generation)return;
+   if(e.error==='language-not-supported'){
+    const lang=r.lang,label=lang==='en-US'?'英文唤醒':'中文对话';handled=true;r.onend=null;r.abort();recognition=null;
+    if(repaired.has(lang)||typeof Recognition.install!=='function'){stop();onState(label+'的本机引擎无法启动（'+lang+'）。请使用“开始语音”；没有切换到云端常驻监听。');return}
+    repaired.add(lang);onState('正在修复'+label+'语言包（'+lang+'）…');
+    try{const ok=await Recognition.install({langs:[lang],processLocally:true});if(g!==generation||!active)return;
+     const status=await Recognition.available({langs:[lang],processLocally:true});if(g!==generation||!active)return;
+     if(!ok||status!=='available')throw Error(label+'语言包未能准备好');
+     listen(g);
+    }catch(error){if(g===generation){stop();onState((error.message||label+'修复失败')+'；可使用“开始语音”')}}return;
+   }
+if(e.error==='no-speech'){onState('暂未听清声音，请靠近麦克风说 Hello Grace','listening');return}if(e.error==='aborted')return;stop();onState(e.error==='not-allowed'?'本机唤醒被浏览器拒绝；即使麦克风已允许，语音识别仍可能受限。可用“开始语音”录音对话。':'本机语音识别失败：'+e.error+'；可使用按钮录音')};
   r.onend=()=>{recognition=null;if(!handled&&active&&g===generation)restart=setTimeout(()=>listen(g),350)};
   try{r.start()}catch(error){stop();onState(error.message||'无法开启本机语音识别')}
  }

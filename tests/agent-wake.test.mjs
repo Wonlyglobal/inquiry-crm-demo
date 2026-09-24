@@ -35,3 +35,13 @@ test('a failed answer keeps dialogue active until explicit stop',async()=>{
  FakeRecognition.instances=[];const states=[];const w=createWakeConversation({Recognition:FakeRecognition,onState:s=>states.push(s),onWake:async()=>{},onQuestion:async()=>{throw Error('temporary failure')}});
  try{await w.start();await say(FakeRecognition.instances.at(-1),'Hello Grace');await say(FakeRecognition.instances.at(-1),'分析');assert.equal(w.isActive(),true);assert.match(states.at(-1),/继续聆听/);}finally{w.stop()}
 });
+
+test('runtime language rejection repairs only failed local language once',async()=>{
+ const installs=[];class Repairable extends FakeRecognition{static async install(o){installs.push(o);return true}}
+ FakeRecognition.instances=[];const states=[];const w=createWakeConversation({Recognition:Repairable,onState:s=>states.push(s),onWake:async()=>{},onQuestion:async()=>{}});
+ try{await w.start();await say(FakeRecognition.instances.at(-1),'Hello Grace');await FakeRecognition.instances.at(-1).onerror({error:'language-not-supported'});assert.deepEqual(installs,[{langs:['zh-CN'],processLocally:true}]);assert.equal(FakeRecognition.instances.at(-1).lang,'zh-CN');assert.equal(FakeRecognition.instances.at(-1).processLocally,true);await FakeRecognition.instances.at(-1).onerror({error:'language-not-supported'});assert.equal(w.isActive(),false);assert.match(states.at(-1),/中文对话/);assert.equal(installs.length,1)}finally{w.stop()}
+});
+test('leaving while a language repair is pending never restarts recognition',async()=>{
+ let finish;class Repairable extends FakeRecognition{static install(){return new Promise(r=>finish=r)}}
+ FakeRecognition.instances=[];const w=createWakeConversation({Recognition:Repairable,onState:()=>{},onWake:async()=>{},onQuestion:async()=>{}});await w.start();const pending=FakeRecognition.instances.at(-1).onerror({error:'language-not-supported'});w.stop();finish(true);await pending;assert.equal(FakeRecognition.instances.length,1);assert.equal(w.isActive(),false);
+});

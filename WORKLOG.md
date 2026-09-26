@@ -206,3 +206,5 @@ PR93/94页面部署35835281689成功；生产index.html、agent-conversation.mjs
 PR95/96真实Grace验收完成：已正确返回五平台运营、用户确认暂未投广告、YouTube private_analytics=oauth_not_configured、LinkedIn connector=not_integrated，checked_at=2026-09-23T08:31:58.093Z，社媒仍37/37且SEO available。发布合并d9dc65a/6d46f96，464回归通过；实际平台后台权限尚未建立，等待Google政策确认和LinkedIn公司链接。
 
 2026-09-23 LinkedIn主页引用候选：用户提供wonly-group公司主页；Codex登记到只读connections，标记用户确认/登录后待核验，connector仍not_integrated。没有创建LinkedIn账号、授权应用或回传凭据。生产发布待CI；回滚该静态引用即可。
+
+2026-09-26 Social live read candidate: owner authorized connecting Facebook/Instagram/TikTok excluding LinkedIn. Exact existing Chloe active-owner authorization retained. Adds bounded official-platform reads using server-held existing credentials, requires platform account ID to match WONLY account binding, no DB writes or new platform grants. Facebook uses FB_PAGE_TOKEN; Instagram returns per-metric failure/null; TikTok rejects expired credentials. No token or raw upstream error returned. YouTube existing Analytics retained. 537 offline tests pass. Deployment and real authorization verification pending. Rollback: restore prior social-summary function; no schema/data migration.

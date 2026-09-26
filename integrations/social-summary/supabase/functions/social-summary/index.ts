@@ -1,4 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
+import {livePlatforms} from './live-platforms.mjs';
 import {youtubeAnalytics} from './youtube.mjs';
 import {connectionReadiness} from './connections.mjs';
 import {postPage} from './post-details.mjs';
@@ -21,7 +22,7 @@ Deno.serve(async req=>{
   if(brandError)return json({error:'source_unavailable'},503);
   const ids=(brands||[]).filter(x=>/^wonly(?:\s+global)?$|^王力$/i.test(x.name?.trim()||'')).map(x=>x.id);
   if(!ids.length)return json({error:'brand_scope_unverified'},503);
-  const [a,c]=await Promise.all([db.from('accounts').select('id,platform,display_name,followers,last_synced_at').in('brand_id',ids).limit(101),db.from('competitors').select('id,name,platform,followers,posts_count,last_synced_at').limit(101)]);
+  const [a,c]=await Promise.all([db.from('accounts').select('id,platform,external_id,display_name,followers,last_synced_at').in('brand_id',ids).limit(101),db.from('competitors').select('id,name,platform,followers,posts_count,last_synced_at').limit(101)]);
   if(a.error||c.error||(a.data?.length||0)>100||(c.data?.length||0)>100)return json({error:'source_incomplete'},503);
   const params=new URL(req.url).searchParams;
   if(params.has('posts_page')){
@@ -35,6 +36,7 @@ Deno.serve(async req=>{
   const accounts=a.data||[],competitors=c.data||[],subjectIds=[...accounts,...competitors].map(x=>x.id),since=new Date(Date.now()-28*86400000).toISOString();
   const [s,p]=await Promise.all([subjectIds.length?db.from('metric_snapshots').select('subject_type,subject_id,captured_at,followers,views,likes').in('subject_id',subjectIds).gte('captured_at',since.slice(0,10)).order('captured_at',{ascending:false}).limit(6001):Promise.resolve({data:[],error:null}),accounts.length?db.from('posts').select('platform,title,published_at,likes,views,comments,shares').in('account_id',accounts.map(x=>x.id)).eq('status','published').gte('published_at',since).lte('published_at',new Date().toISOString()).order('published_at',{ascending:false}).limit(1001):Promise.resolve({data:[],error:null})]);
   if(s.error||p.error||(s.data?.length||0)>6000||(p.data?.length||0)>1000)return json({error:'source_incomplete'},503);
-  return json({...summarize({accounts,competitors,snapshots:s.data||[],posts:p.data||[]}),connections:connectionReadiness(k=>Deno.env.get(k)),youtube_analytics:await youtubeAnalytics(k=>Deno.env.get(k))});
+  const [youtube,live]=await Promise.all([youtubeAnalytics(k=>Deno.env.get(k)),livePlatforms({get:k=>Deno.env.get(k),accounts,tiktokToken:async()=>{const {data,error}=await db.from('tiktok_tokens').select('access_token,expires_at').eq('id',1).maybeSingle();return error?null:data;}})]);
+  return json({...summarize({accounts,competitors,snapshots:s.data||[],posts:p.data||[]}),connections:connectionReadiness(k=>Deno.env.get(k)),youtube_analytics:youtube,live_platforms:live});
  }catch{return json({error:'source_unavailable'},503)}
 });

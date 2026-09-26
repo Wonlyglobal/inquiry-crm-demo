@@ -22,7 +22,7 @@ Deno.serve(async req=>{
   if(brandError)return json({error:'source_unavailable'},503);
   const ids=(brands||[]).filter(x=>/^wonly(?:\s+global)?$|^王力$/i.test(x.name?.trim()||'')).map(x=>x.id);
   if(!ids.length)return json({error:'brand_scope_unverified'},503);
-  const [a,c]=await Promise.all([db.from('accounts').select('id,platform,external_id,display_name,followers,last_synced_at').in('brand_id',ids).limit(101),db.from('competitors').select('id,name,platform,followers,posts_count,last_synced_at').limit(101)]);
+  const [a,c]=await Promise.all([db.from('accounts').select('id,platform,external_id,handle,display_name,followers,last_synced_at').in('brand_id',ids).limit(101),db.from('competitors').select('id,name,platform,followers,posts_count,last_synced_at').limit(101)]);
   if(a.error||c.error||(a.data?.length||0)>100||(c.data?.length||0)>100)return json({error:'source_incomplete'},503);
   const params=new URL(req.url).searchParams;
   if(params.has('posts_page')){

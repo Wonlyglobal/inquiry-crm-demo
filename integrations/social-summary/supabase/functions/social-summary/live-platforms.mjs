@@ -14,12 +14,14 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
  const graph=(path,fields,token)=>read(`https://graph.facebook.com/v23.0/${path}?${new URLSearchParams(fields)}`,token);
  async function run(platform,fn){try{return await fn()}catch(e){return failure(['reauthorization_required','permission_required','response_too_large'].includes(e.message)?e.message:signal.aborted?'timeout':'platform_request_failed')}}
  const matched=(platform,id)=>accounts.some(a=>a.platform?.toLowerCase()===platform&&String(a.external_id)===String(id));
+ const handleMatches=(platform,handle)=>typeof handle==='string'&&/^[a-zA-Z0-9._]+$/.test(handle)&&accounts.some(a=>a.platform?.toLowerCase()===platform&&typeof a.handle==='string'&&a.handle.replace(/^@/,'').toLowerCase()===handle.toLowerCase());
  const common=source=>({source,fetched_at:now.toISOString(),metric_period:'platform cumulative values at fetch; not period growth',limits:'仅本次返回的已发布内容；不是全平台全量，不含私信、用户身份、广告、归因或视频画面理解。未返回指标为未知，不能按零计算。'});
  const [facebook,instagram,tiktok]=await Promise.all([
  run('facebook',async()=>{
   const token=get('FB_PAGE_TOKEN');if(!token)return failure('not_configured');
   const me=await graph('me',{fields:'id'},token);
-  if(!me.id||!matched('facebook',me.id))return failure('account_binding_mismatch');
+  if(!me.id)return failure('account_binding_mismatch');
+  if(!matched('facebook',me.id)){const page=await graph('me',{fields:'id,link'},token);let handle='';try{const u=new URL(page.link);if(u.protocol==='https:'&&['facebook.com','www.facebook.com'].includes(u.hostname))handle=u.pathname.replace(/^\/|\/$/g,'')}catch{}if(page.id!==me.id||!handleMatches('facebook',handle))return failure('account_binding_mismatch');}
   const feed=await graph(`${me.id}/published_posts`,{fields:'id,message,permalink_url,created_time,shares,likes.limit(0).summary(true),comments.limit(0).summary(true)',limit:'12'},token);
   if(!Array.isArray(feed.data))return failure('invalid_response');
   return {...common('Facebook Graph API'),status:'available',has_more:!!feed.paging?.next,posts:feed.data.slice(0,12).map(p=>({url:publicPostUrl(p.permalink_url),content:safeText(p.message),published_at:p.created_time,metrics:{likes:numeric(p.likes?.summary?.total_count),comments:numeric(p.comments?.summary?.total_count),shares:numeric(p.shares?.count)}})),missing:['reach','views','retention','attributed_conversions']};
@@ -40,7 +42,8 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
   const record=await tiktokToken();if(!record?.access_token)return failure('not_authorized');
   if(!Number.isFinite(Date.parse(record.expires_at))||Date.parse(record.expires_at)<=now.getTime())return failure('reauthorization_required');
   const me=await read('https://open.tiktokapis.com/v2/user/info/?fields=open_id',record.access_token);
-  const id=me.data?.user?.open_id;if(!id||!matched('tiktok',id))return failure('account_binding_mismatch');
+  const id=me.data?.user?.open_id;if(!id)return failure('account_binding_mismatch');
+  if(!matched('tiktok',id)){const profile=await read('https://open.tiktokapis.com/v2/user/info/?fields=open_id,username',record.access_token);if(profile.data?.user?.open_id!==id||!handleMatches('tiktok',profile.data?.user?.username))return failure('account_binding_mismatch');}
   const d=await read('https://open.tiktokapis.com/v2/video/list/?fields=id,title,share_url,create_time,view_count,like_count,comment_count,share_count',record.access_token,{max_count:20});
   if(!Array.isArray(d.data?.videos))return failure('invalid_response');
   return {...common('TikTok Display API'),status:'available',has_more:d.data.has_more===true,posts:d.data.videos.slice(0,20).map(p=>({url:publicPostUrl(p.share_url),content:safeText(p.title),published_at:typeof p.create_time==='number'&&p.create_time>0&&p.create_time<1e11?new Date(p.create_time*1000).toISOString():null,metrics:{views:numeric(p.view_count),likes:numeric(p.like_count),comments:numeric(p.comment_count),shares:numeric(p.share_count)}})),missing:['watch_time','retention','audience_regions','attributed_conversions']};

@@ -21,7 +21,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
   const token=get('FB_PAGE_TOKEN');if(!token)return failure('not_configured');
   const me=await graph('me',{fields:'id'},token);
   if(!me.id)return failure('account_binding_mismatch');
-  if(!matched('facebook',me.id)){const page=await graph('me',{fields:'id,link'},token);let handle='';try{const u=new URL(page.link);if(u.protocol==='https:'&&['facebook.com','www.facebook.com'].includes(u.hostname))handle=u.pathname.replace(/^\/|\/$/g,'')}catch{}if(page.id!==me.id||!handleMatches('facebook',handle))return failure('account_binding_mismatch');}
+  if(!matched('facebook',me.id)){const page=await graph('me',{fields:'id,link,name'},token);let handle='';try{const u=new URL(page.link);if(u.protocol==='https:'&&['facebook.com','www.facebook.com'].includes(u.hostname))handle=u.pathname.replace(/^\/|\/$/g,'')}catch{}if(page.id!==me.id||!handleMatches('facebook',handle))return {...failure('account_binding_mismatch'),observed_page_name:safeText(page.name),observed_page_url:publicPostUrl(page.link)};}
   const feed=await graph(`${me.id}/published_posts`,{fields:'id,message,permalink_url,created_time,shares,likes.limit(0).summary(true),comments.limit(0).summary(true)',limit:'12'},token);
   if(!Array.isArray(feed.data))return failure('invalid_response');
   return {...common('Facebook Graph API'),status:'available',has_more:!!feed.paging?.next,posts:feed.data.slice(0,12).map(p=>({url:publicPostUrl(p.permalink_url),content:safeText(p.message),published_at:p.created_time,metrics:{likes:numeric(p.likes?.summary?.total_count),comments:numeric(p.comments?.summary?.total_count),shares:numeric(p.shares?.count)}})),missing:['reach','views','retention','attributed_conversions']};
@@ -43,9 +43,9 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
   if(!Number.isFinite(Date.parse(record.expires_at))||Date.parse(record.expires_at)<=now.getTime())return failure('reauthorization_required');
   const me=await read('https://open.tiktokapis.com/v2/user/info/?fields=open_id',record.access_token);
   const id=me.data?.user?.open_id;if(!id)return failure('account_binding_mismatch');
-  if(!matched('tiktok',id)){const profile=await read('https://open.tiktokapis.com/v2/user/info/?fields=open_id,username',record.access_token);if(profile.data?.user?.open_id!==id||!handleMatches('tiktok',profile.data?.user?.username))return failure('account_binding_mismatch');}
   const d=await read('https://open.tiktokapis.com/v2/video/list/?fields=id,title,share_url,create_time,view_count,like_count,comment_count,share_count',record.access_token,{max_count:20});
   if(!Array.isArray(d.data?.videos))return failure('invalid_response');
+  if(!matched('tiktok',id)){const verified=d.data.videos.length>0&&d.data.videos.every(p=>{try{const u=new URL(p.share_url);const m=u.pathname.match(/^\/@([^/]+)\/(?:video|photo)\/\d+/);return u.protocol==='https:'&&['www.tiktok.com','tiktok.com'].includes(u.hostname)&&m&&handleMatches('tiktok',m[1])}catch{return false}});if(!verified)return failure('account_binding_mismatch');}
   return {...common('TikTok Display API'),status:'available',has_more:d.data.has_more===true,posts:d.data.videos.slice(0,20).map(p=>({url:publicPostUrl(p.share_url),content:safeText(p.title),published_at:typeof p.create_time==='number'&&p.create_time>0&&p.create_time<1e11?new Date(p.create_time*1000).toISOString():null,metrics:{views:numeric(p.view_count),likes:numeric(p.like_count),comments:numeric(p.comment_count),shares:numeric(p.share_count)}})),missing:['watch_time','retention','audience_regions','attributed_conversions']};
  })]);
  return {checked_at:now.toISOString(),facebook,instagram,tiktok};

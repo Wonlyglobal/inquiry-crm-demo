@@ -333,3 +333,5 @@
 ## 2026-09-23 智能体信息简报
 
 授权：用户确认自动获取信息、每日更新、重要变化、每周汇总；执行Codex。PR76/1ae0a6b，合并b64d1ed，Pages35814738990成功。408项回归、语法与合成浏览器通过；真实登录只读确认即时简报和公开资料，五份线上资产字节一致。前态无情报，后态本地规则汇总与公开feed可用。未改角色/RLS/数据库，未外发客户内容。自动化grace-brian-jay已ACTIVE，每日9点、周一周报，依赖本机和授权会话；尚无首次定时成功证据，内部周报本地/当前任务交付。回滚前端并暂停该任务，保留已有记录。
+
+2026-09-26 evidence gate candidate: user requested CRM/Grace integration; Codex added response-side material evidence validation without permission/database/model changes. 537 offline tests and browser syntax passed. Not deployed; live-file freshness and public-model answer checking remain outside this candidate. Rollback: revert this change; preserve existing audit records.

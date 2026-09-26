@@ -14,6 +14,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  for(const b of [wakeButton,installWake,mic,stop,replay,check])b.type='button';status.setAttribute('role','status');
  const note=el('p','智能推理仅发送你主动输入的非机密问题、该模式近期对话、公开资料、背调样本分布、近30天权限内脱敏统计，以及已批准的SEO与社媒只读摘要；Hello唤醒前录音不上传；唤醒后说话片段发送至阿里云语音服务转写；切换浏览器标签页继续，播报期间暂停录音，停止或退出私人空间即结束。请勿输入客户机密或凭证。声音由AI生成；语音回答优先播报简短结果，完整信息显示在窗口。');note.className='hint';
  stop.setAttribute('data-voice-stop','true');const startWake=el('button','恢复聆听');startWake.type='button';startWake.setAttribute('data-voice-start','true');startWake.hidden=true;bar.append(startWake);bar.append(mode,installWake,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
+ const reveal=el('button','查看详细回答');reveal.type='button';reveal.hidden=true;bar.append(reveal);let pending=null;function showPending(){if(!pending)return false;const fn=pending;pending=null;reveal.hidden=true;fn();return true}reveal.onclick=showPending;
  let wake=null,wakeTransition=false,installing=false;const greetings=new Map(),greetingLoads=new Map();
  let preferenceStorage;try{preferenceStorage=window.localStorage}catch{preferenceStorage={getItem:()=>null,setItem:()=>{throw Error('unavailable')},removeItem:()=>{throw Error('unavailable')}}}
  const preferenceStores=new Map();const preferences=()=>{const persona=getPersona();if(!preferenceStores.has(persona))preferenceStores.set(persona,createResponsePreferences(preferenceStorage,'wonly-agent-preferences-chloe-v1-'+persona));return preferenceStores.get(persona)};
@@ -32,7 +33,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  }
  function release(){clearTimeout(timer);timer=null;stream?.getTracks().forEach(t=>t.stop());stream=null}
  function stopAll({keepWake=false}={}){if(!keepWake)wake?.stop();installing=false;version++;controller?.abort();controller=null;if(recorder){recorder.onstop=null;try{recorder.stop()}catch{}recorder=null}release();if(player){player.pause();player=null}if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null}busy=false;state('已停止')}
- async function greeting(persona){if(greetings.has(persona))return greetings.get(persona);if(!greetingLoads.has(persona))greetingLoads.set(persona,call({action:'greeting',persona}).then(blob=>{greetings.set(persona,blob);return blob}).finally(()=>greetingLoads.delete(persona)));return greetingLoads.get(persona)}
+ async function greeting(persona,kind='wake'){const cacheKey=persona+':'+kind;if(greetings.has(cacheKey))return greetings.get(cacheKey);if(!greetingLoads.has(cacheKey))greetingLoads.set(cacheKey,call({action:'greeting',persona,kind}).then(blob=>{greetings.set(cacheKey,blob);return blob}).finally(()=>greetingLoads.delete(cacheKey)));return greetingLoads.get(cacheKey)}
  async function checkConnection(){const epoch=version;check.disabled=true;try{const s=await call({action:'status'});if(epoch!==version)return;ready=!!s.enabled&&!!s.configured;state(!s.configured?'尚未配置百炼密钥':!s.enabled?'数据范围等待批准启用':'连接已就绪')}catch(e){if(epoch===version){ready=false;state(e.message)}}finally{check.disabled=false;sync()}}
  async function playBlob(blob,epoch){
   if(version!==epoch)throw Error('对话已停止');audioUrl=URL.createObjectURL(blob);player=new Audio(audioUrl);
@@ -48,11 +49,13 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  async function ask(question,{voice=false}={}){
   if(mode.value!=='bailian')return false;
   if(!ready){state('请先完成百炼配置并检查连接');return true}
-  if(busy||recorder)return true;
+  if(busy||recorder||player)return true;
+  if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question);showPending();return true}
+  pending=null;reveal.hidden=true;
   stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state('收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
-  try{const result=await call({action:'chat',persona,question,voice,preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:(histories.get(persona)||[]).slice(-8)},controller.signal);if(version!==epoch||persona!==getPersona())return true;
+  try{if(voice){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true;state('语音确认未播放，继续整理回答…','thinking')}busy=true;}const result=await call({action:'chat',persona,question,voice,preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:(histories.get(persona)||[]).slice(-8)},controller.signal);if(version!==epoch||persona!==getPersona())return true;
    if(result.provider==='internal'){if(result.context?.material_question)materialHistories.set(persona,[result.context.material_question])}else materialHistories.delete(persona);
-   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-8));onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);feedback.hidden=false;renderFeedback();lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice)await speak(result.ticket,epoch,persona);
+   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-8));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);feedback.hidden=false;renderFeedback();};lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice){pending=publish;reveal.hidden=false;try{await speak(result.ticket,epoch,persona);if(version===epoch){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('需要查看详细回答吗？可说“打开”或点击查看。')}}catch(e){if(version===epoch){showPending();state('声音未完成，已显示文字回答；可继续提问')}}}else publish();
   }catch(e){if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);if(version===epoch){busy=false;sync()}}return true;
  }
  async function record(){
@@ -75,7 +78,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(wakeTransition||getPersona()!=='Grace'||!isAllowed()||document.hidden)return;
   stopAll();const epoch=version;mode.value='bailian';ready=false;state('正在为 Grace 准备语音唤醒…');
   await checkConnection();if(epoch!==version||!ready||document.hidden)return;
-  void greeting('Grace').catch(()=>{});installing=true;sync();
+  void greeting('Grace').catch(()=>{});void greeting('Grace','ack').catch(()=>{});void greeting('Grace','offer').catch(()=>{});installing=true;sync();
   try{state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.install();if(epoch!==version||document.hidden)return;await wake.start()}
   catch(e){if(epoch===version)state(e.message)}
   finally{if(epoch===version){installing=false;sync()}}
@@ -105,5 +108,5 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  mic.onclick=record;stop.onclick=()=>stopAll();check.onclick=checkConnection;replay.onclick=async()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}else if(lastGreeting){const persona=lastGreeting;stopAll();const epoch=version;controller=new AbortController();busy=true;state('正在重播问候…','thinking');try{const blob=await greeting(persona);if(version!==epoch)return;await playBlob(blob,epoch)}catch(e){if(version===epoch)state(e.message)}finally{if(version===epoch){busy=false;sync()}}}};
  // An explicitly started conversation continues across browser tab switches.
  window.addEventListener('pagehide',stopAll);sync();
- return {ask,enter,isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){histories.delete(getPersona());materialHistories.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
+ return {ask,enter,isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){pending=null;reveal.hidden=true;feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){pending=null;reveal.hidden=true;histories.delete(getPersona());materialHistories.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
 }

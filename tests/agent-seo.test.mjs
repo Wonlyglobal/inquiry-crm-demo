@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createHmac,createHash} from 'node:crypto';
 import {seoSummary,seoHeaders,loadSeo} from '../supabase/functions/agent-conversation/seo.mjs';
-import {seoContextLabel} from '../assets/agent-seo-status.mjs';
+import {seoContextLabel,socialContextLabel} from '../assets/agent-seo-status.mjs';
 const now=Date.parse('2026-09-23T08:00:00Z');
 const sample={schema_version:'1.0',site:'wonlyglobal.com',generated_at:'2026-09-23T07:00:00Z',freshness:{ga4:{through:'2026-09-22',lag_days:1,status:'partial'},gsc:{through:'2026-09-20',lag_days:3,status:'ok'},semrush:{through:null,status:'missing'}},windows:{'7d':{gsc:{clicks:0,impressions:50,ctr:0,avg_position:10},ga4:{organic_sessions:8}}},funnel:{organic_7d:{form_open:5,form_start:0}},competitors:['hormann.com']};
 test('SEO projection preserves zero, missing, date and channel distinctions; strips unapproved fields',()=>{
@@ -19,3 +19,5 @@ test('unconfigured/unauthorized/redirected source fails closed, fixed host preve
  assert.equal((await loadSeo({url:'https://seo-api.wonlyglobal.com/seo-summary/v1/current',keyId:'test',secret:'test',fetcher:async(url,opts)=>{assert.equal(opts.redirect,'error');return new Response('{}',{status:401})}})).status,'unavailable');
 });
 test('source labels never claim a missing integration is live',()=>{assert.match(seoContextLabel({seo_status:'not_configured'}),/尚未配置/);assert.match(seoContextLabel({seo_status:'stale',seo_generated_at:sample.generated_at,seo_freshness:sample.freshness}),/过期/)});
+
+test('sources not requested for this question do not show failure labels',()=>{assert.equal(seoContextLabel({seo_status:'not_requested'}),'');assert.equal(socialContextLabel({social_status:'not_requested'}),'');assert.match(seoContextLabel({seo_status:'unavailable'}),/暂不可用/);assert.match(socialContextLabel({social_status:'unavailable'}),/暂不可用/)});

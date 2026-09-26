@@ -12,3 +12,5 @@ test('evidence distinguishes missing, zero-valued and stale without leaking sour
 test('internal materials remain routed to company system even for deep requests',()=>{
  assert.equal(knowledgeRoute('深度分析我们产品手册并给优化建议').materials,true);
 });
+
+test('source status checks do not trigger irrelevant public search',()=>{const r=knowledgeRoute('请核对SEO网站和社媒摘要目前是否读取成功，只列来源状态、数据截止日期及缺口，不给营销方案。');assert.equal(r.seo,true);assert.equal(r.social,true);assert.equal(r.search,false);});

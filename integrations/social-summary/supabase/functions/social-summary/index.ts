@@ -1,4 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
+import {refreshTikTok} from './tiktok-token.mjs';
 import {livePlatforms} from './live-platforms.mjs';
 import {youtubeAnalytics} from './youtube.mjs';
 import {connectionReadiness} from './connections.mjs';
@@ -36,7 +37,7 @@ Deno.serve(async req=>{
   const accounts=a.data||[],competitors=c.data||[],subjectIds=[...accounts,...competitors].map(x=>x.id),since=new Date(Date.now()-28*86400000).toISOString();
   const [s,p]=await Promise.all([subjectIds.length?db.from('metric_snapshots').select('subject_type,subject_id,captured_at,followers,views,likes').in('subject_id',subjectIds).gte('captured_at',since.slice(0,10)).order('captured_at',{ascending:false}).limit(6001):Promise.resolve({data:[],error:null}),accounts.length?db.from('posts').select('platform,title,published_at,likes,views,comments,shares').in('account_id',accounts.map(x=>x.id)).eq('status','published').gte('published_at',since).lte('published_at',new Date().toISOString()).order('published_at',{ascending:false}).limit(1001):Promise.resolve({data:[],error:null})]);
   if(s.error||p.error||(s.data?.length||0)>6000||(p.data?.length||0)>1000)return json({error:'source_incomplete'},503);
-  const [youtube,live]=await Promise.all([youtubeAnalytics(k=>Deno.env.get(k)),livePlatforms({get:k=>Deno.env.get(k),accounts,tiktokToken:async()=>{const {data,error}=await db.from('tiktok_tokens').select('access_token,expires_at').eq('id',1).maybeSingle();return error?null:data;}})]);
+  const [youtube,live]=await Promise.all([youtubeAnalytics(k=>Deno.env.get(k)),livePlatforms({get:k=>Deno.env.get(k),accounts,tiktokToken:async(force=false)=>{const {data,error}=await db.from('tiktok_tokens').select('access_token,refresh_token,open_id,scope,expires_at').eq('id',1).maybeSingle();if(error||!data)return null;if(!force)return data;return refreshTikTok(k=>Deno.env.get(k),data,async next=>{const result=await db.from('tiktok_tokens').update(next).eq('id',1).eq('access_token',data.access_token).select('id');return !result.error&&result.data?.length===1;});}})]);
   return json({...summarize({accounts,competitors,snapshots:s.data||[],posts:p.data||[]}),connections:connectionReadiness(k=>Deno.env.get(k)),youtube_analytics:youtube,live_platforms:live});
  }catch{return json({error:'source_unavailable'},503)}
 });

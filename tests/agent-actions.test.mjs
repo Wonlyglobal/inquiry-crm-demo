@@ -18,8 +18,11 @@ test('searches carry only the keywords and never contact details',()=>{
  assert.match(actionIntent('帮我打开百度搜一下王力防盗门').search.url,/^https:\/\/www\.baidu\.com\/s\?wd=/);
  const b=actionIntent('打开浏览器搜索 buyer@example.com');assert.equal(b.search,null);assert.match(actionAnswer(b).answer,/不会把它放进搜索网址/);
 });
-test('answer lists what opens and explains the popup fallback; URLs re-checked in the browser',()=>{
- const r=actionAnswer(actionIntent('打开报价管理和客户公海'));assert.equal(r.actions.length,2);assert.match(r.answer,/报价管理/);assert.match(r.answer,/允许 crm.foreverdoodle.com 弹出窗口/);
+test('answer points to the Grace timeline (no popups); competitors are evidence cards; search stays in-page',()=>{
+ const r=actionAnswer(actionIntent('打开报价管理和客户公海'));assert.equal(r.actions.length,2);assert.match(r.answer,/报价管理/);assert.match(r.answer,/需求时间线/);assert.doesNotMatch(r.answer,/弹出窗口|新窗口/);
+ const c=competitorLinks('打开霍曼的竞品资料');assert.ok(c.length>0&&c.every(a=>a.type==='evidence'&&a.id&&a.quote&&a.accessed));
+ const s=actionIntent('帮我打开浏览器搜索 fire rated door Riyadh');assert.equal(s.search.type,'web_search');assert.equal(s.search.query,'fire rated door Riyadh');
+ assert.equal(actionIntent('打开浏览器搜索 john@example.com').search,null);
  assert.equal(safeUrl('http://x.com'),null);assert.equal(safeActionUrl('javascript:alert(1)'),null);assert.equal(safeActionUrl('https://u:p@x.com'),null);assert.equal(safeActionUrl('https://www.google.com/search?q=a'),'https://www.google.com/search?q=a');
  assert.ok(OPEN_WORDS.test('帮我打开'));
 });

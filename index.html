@@ -1433,7 +1433,10 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=lobby-brief-20260928" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=timeline-20260928" />
+    <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
+    <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
+    <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
 </head>
   <body>
     <section id="boot" class="boot-shell">
@@ -2484,10 +2487,10 @@
     </aside>
     <script type="module">
       import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20260928-cat2';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20260928-tl1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
-      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=footerless-20260924-2";
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=timeline-20260928";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;
@@ -4889,18 +4892,20 @@
       async function saveAdvisorFeedback(id,decision){
         const labels={accepted:"采纳",modified:"修改后采纳",ignored:"忽略",invalid:"无效"},audited=await recordAdvisorAudit(id,decision);if(!audited)return toast("反馈未完成审计，系统未保存本次选择");advisorFeedback[id]={decision:labels[decision],at:new Date().toISOString()};localStorage.setItem("wonly_advisor_feedback_v1",JSON.stringify(advisorFeedback));toast(`已记录“${labels[decision]}”，用于后续评估建议效果`);renderAdvisor();
       }
-      function saveAgentLocation(room=null){
+      function saveAgentLocation(room=null){if(window.CRM_EMBED)return;
         if(!canUseAgentWorld(profile,currentAuthUser))return;
         try{sessionStorage.setItem('wonly_agent_location_'+profile.id,JSON.stringify({world:true,room:['Grace','Brian','Jay'].includes(room)?room:null}))}catch{}
       }
       function restoreAgentLocation(){
-        if(!canUseAgentWorld(profile,currentAuthUser))return;
+        if(window.CRM_EMBED||!canUseAgentWorld(profile,currentAuthUser))return;
         try{const saved=JSON.parse(sessionStorage.getItem('wonly_agent_location_'+profile.id)||'null');
           if(saved?.world!==true)return;
           switchView('agent-world');
           if(['Grace','Brian','Jay'].includes(saved.room))$('#agent-world-page [data-advisor="'+saved.room+'"]').click();
         }catch{}
       }
+      // Material preview/download row, used in the conversation and in the Grace timeline windows.
+      function agentMaterialRow(asset){const row=document.createElement('div');row.style.margin='12px 0';const title=document.createElement('strong');title.textContent=asset.name;row.append(title);for(const operation of ['preview','download']){const button=document.createElement('button');button.type='button';button.className='button secondary';button.textContent=operation==='preview'?'打开资料':'下载原文件';button.onclick=async()=>{button.disabled=true;let frame;try{const result=await supabase.functions.invoke('agent-conversation',{body:{action:'material-file',asset_id:asset.id,operation}});if(result.error||result.data?.error)throw Error(await edgeFunctionErrorMessage(result));const data=result.data;if(data.url!=='https://file.foreverdoodle.com:8088/api/integrations/crm/file'||typeof data.proof!=='string'||typeof data.body!=='string')throw Error('资料入口无效');frame=document.createElement('iframe');frame.name='material-'+crypto.randomUUID();frame.title=asset.name;frame.setAttribute('sandbox','allow-same-origin allow-downloads');frame.style.cssText='width:100%;height:420px;border:1px solid #475569;border-radius:12px;background:white;margin-top:12px';const close=document.createElement('button');close.type='button';close.className='button secondary';close.textContent='关闭资料窗口';close.onclick=()=>{frame.remove();close.remove()};row.append(close,frame);const form=document.createElement('form');form.method='POST';form.action=data.url;form.target=frame.name;for(const key of ['body','proof']){const input=document.createElement('input');input.type='hidden';input.name=key;input.value=data[key];form.append(input)}document.body.append(form);form.submit();form.remove();toast(operation==='preview'?'正在打开资料；无法预览的格式将下载原文件':'已提交文件请求，请查看浏览器下载列表')}catch(error){frame?.remove();toast(error.message||'资料暂时无法打开')}finally{button.disabled=false}};row.append(button)}return row}
       let worldController=null,worldPersona=null,worldIntelligence=null,worldLobbyBrief=null;
       let agentDataRefreshFailed=false,worldModel=null;
       const assistantHome=document.createComment('AI assistant home');$('#ai-assistant-panel').before(assistantHome);
@@ -4921,7 +4926,7 @@
         $('#ai-assistant-panel').classList.add('hidden');worldPersona=null;
       }
       function enterAgentWorld(){
-        if(!canUseAgentWorld(profile,currentAuthUser))return false;
+        if(window.CRM_EMBED||!canUseAgentWorld(profile,currentAuthUser))return false;
         $('#app').classList.add('agent-world-active');$('#agent-world-page').classList.remove('hidden');
         ['dashboard-page','marketing-center-page','module-page','sales-profile-page','ai-advisor-page','daily-modal','detail-modal'].forEach(id=>$('#'+id)?.classList.add('hidden'));
         $('#ai-assistant-open').classList.add('hidden');
@@ -4932,11 +4937,11 @@
           $('#ai-advisor-page').classList.add('hidden');slot.append($('#ai-assistant-panel'));openAiAssistant();
           $('#ai-assistant-panel').querySelector('.ai-panel-head strong').textContent=name+' · '+({Grace:'营销增长智能体',Brian:'销售智能体',Jay:'经营决策智能体'}[name]);
           $('#ai-assistant-input').value='';$('#ai-assistant-input').placeholder='输入你想了解的问题…';
-          worldModel?.enter();
+          worldModel?.enter();worldModel?.loadTimeline();
         },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}saveAgentLocation();worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
-          onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets){const row=document.createElement('div');row.style.margin='12px 0';const title=document.createElement('strong');title.textContent=asset.name;row.append(title);for(const operation of ['preview','download']){const button=document.createElement('button');button.type='button';button.className='button secondary';button.textContent=operation==='preview'?'打开资料':'下载原文件';button.onclick=async()=>{button.disabled=true;let frame;try{const result=await supabase.functions.invoke('agent-conversation',{body:{action:'material-file',asset_id:asset.id,operation}});if(result.error||result.data?.error)throw Error(await edgeFunctionErrorMessage(result));const data=result.data;if(data.url!=='https://file.foreverdoodle.com:8088/api/integrations/crm/file'||typeof data.proof!=='string'||typeof data.body!=='string')throw Error('资料入口无效');frame=document.createElement('iframe');frame.name='material-'+crypto.randomUUID();frame.title=asset.name;frame.setAttribute('sandbox','allow-same-origin allow-downloads');frame.style.cssText='width:100%;height:420px;border:1px solid #475569;border-radius:12px;background:white;margin-top:12px';const close=document.createElement('button');close.type='button';close.className='button secondary';close.textContent='关闭资料窗口';close.onclick=()=>{frame.remove();close.remove()};row.append(close,frame);const form=document.createElement('form');form.method='POST';form.action=data.url;form.target=frame.name;for(const key of ['body','proof']){const input=document.createElement('input');input.type='hidden';input.name=key;input.value=data[key];form.append(input)}document.body.append(form);form.submit();form.remove();toast(operation==='preview'?'正在打开资料；无法预览的格式将下载原文件':'已提交文件请求，请查看浏览器下载列表')}catch(error){frame?.remove();toast(error.message||'资料暂时无法打开')}finally{button.disabled=false}};row.append(button)}list.append(row)}appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
+          timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');
             const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';

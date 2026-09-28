@@ -40,6 +40,6 @@ export function openCatalogViewer({title,urls,start=1,pdf=null,container,doc=doc
  const shut=()=>root.remove();
  root.addEventListener('keydown',e=>{if(e.target===num)return;if(e.key==='ArrowLeft'){go(k-1);e.preventDefault()}else if(e.key==='ArrowRight'){go(k+1);e.preventDefault()}else if(e.key==='Escape')toggle(false)});
  prev.onclick=()=>go(k-1);next.onclick=()=>go(k+1);num.onchange=()=>go(num.value);big.onclick=()=>toggle();img.onclick=()=>toggle();close.onclick=shut;
- go(k);try{root.scrollIntoView?.({block:'nearest'});root.focus?.({preventScroll:true})}catch{}
+ go(k);try{root.scrollIntoView?.({block:'nearest'})}catch{}
  return {go,close:shut,page:()=>k,root,toggle};
 }

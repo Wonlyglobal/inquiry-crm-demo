@@ -40,3 +40,17 @@ test('ledger links product category to public evidence without leaking category 
  const t=productLedgerText(l);assert.match(t,/同维度对照/);assert.match(t,/90 分钟/);assert.match(t,/60 分钟/);
  const none=productLedger(gated,[]);assert.match(none.products[0].states.competitor,/未开始：防火门暂无/);
 });
+
+import {competitorIntent,competitorAnswer} from '../supabase/functions/agent-conversation/public-research.mjs';
+test('competitor questions route to public evidence; news questions do not',()=>{
+ assert.equal(competitorIntent('防火门最新竞品动态'),null);assert.equal(competitorIntent('防火门参数是多少'),null);
+ const i=competitorIntent('沙特防火门竞品耐火等级对标');assert.deepEqual(i.categories,['fire_door']);assert.deepEqual(i.markets,['SA']);assert.equal(i.dimension,'fire_rating');
+ assert.equal(competitorIntent('有哪些竞品').explicitCategory,false);
+});
+test('competitor answer is public-only, sourced, unranked and honest about gaps',()=>{
+ const ev=validateEvidence(file([entry,{...entry,id:'z',market:'MX',value:'90 分钟',quote:'90 minutos'}]));
+ const t=competitorAnswer(competitorIntent('中东防火门竞品对标'),ev);
+ assert.match(t,/候选对标/);assert.match(t,/https:\/\/example.com/);assert.match(t,/其他市场/);assert.match(t,/不能直接排名/);assert.ok(!/优于|领先|第一/.test(t));
+ assert.match(competitorAnswer(competitorIntent('智能锁竞品'),ev),/没有收录公开竞品证据，不能据此判断没有竞品/);
+ const real=competitorAnswer(competitorIntent('防火门竞品'));assert.match(real,/Asturmex/);assert.match(real,/待人工逐字核对/);
+});

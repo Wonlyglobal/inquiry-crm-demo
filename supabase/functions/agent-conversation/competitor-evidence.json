@@ -43,6 +43,34 @@
       "source_type": "official_web_page",
       "accessed": "2026-09-28",
       "quote_check": "tool_extract"
+    },
+    {
+      "id": "asturmex-mx-ul-fire-rating",
+      "company": "Puertas Asturmex（墨西哥）",
+      "product": "UL 认证防火门",
+      "category": "fire_door",
+      "market": "MX",
+      "dimension": "fire_rating",
+      "value": "耐火 90 与 180 分钟",
+      "quote": "resistencia al fuego de 90 y 180 minutos",
+      "source_url": "https://puertasasturmex.com/puertas-contra-incendio-certificacion-ul/",
+      "source_type": "official_web_page",
+      "accessed": "2026-09-28",
+      "quote_check": "tool_extract"
+    },
+    {
+      "id": "hormann-de-od-rc3",
+      "company": "Hörmann（德国）",
+      "product": "OD 钢制工程门（单点锁）",
+      "category": "security_door",
+      "market": "DE",
+      "dimension": "security_class",
+      "value": "防盗等级 RC 3（抵御破门最长 5 分钟）",
+      "quote": "can withstand break-in attempts for up to 5 minutes in compliance with security class RC 3",
+      "source_url": "https://www.hoermann.de/en/innovations/detail/show/rc-3-security-with-single-point-locking/",
+      "source_type": "official_web_page",
+      "accessed": "2026-09-28",
+      "quote_check": "tool_extract"
     }
   ]
 }

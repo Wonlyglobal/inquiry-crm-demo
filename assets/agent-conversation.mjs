@@ -114,7 +114,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   await checkConnection();if(epoch!==version||!ready||document.hidden)return;
   void greeting('Grace').catch(()=>{});void greeting('Grace','ack').catch(()=>{});void greeting('Grace','offer').catch(()=>{});installing=true;sync();
   try{state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.install();if(epoch!==version||document.hidden)return;await wake.start()}
-  catch(e){if(epoch===version)state(e.message)}
+  catch(e){if(epoch===version)state(/user gesture|downloadable/i.test(String(e.message))?'首次使用语音唤醒需要下载本机语音包：请点“语音与连接”里的“安装本机语音包”（只需一次）。现在也可以直接用文字提问。':e.message)}
   finally{if(epoch===version){installing=false;sync()}}
  }
  mode.onchange=()=>{stopAll();lastTicket=null;state(mode.value==='bailian'?'仅输入非机密内容；按开始语音可说话':'CRM资料仅在本地分析');if(mode.value==='bailian')checkConnection()};

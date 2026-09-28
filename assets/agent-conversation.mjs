@@ -1,3 +1,5 @@
+// Emotion labels returned by the speech model; only these are forwarded, and only for voice questions.
+const VOICE_EMOTIONS=['neutral','happy','sad','angry','surprised','fearful','disgusted'];
 import {createResponsePreferences} from './agent-response-preferences.mjs?v=20260924-1';
 import {captureUtterance} from './agent-utterance.mjs?v=20260924-2';
 import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
@@ -46,14 +48,14 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(!ticket||version!==epoch)return;controller=new AbortController();busy=true;state('正在生成语音…','thinking');
   try{const blob=await call({action:'speech',persona,ticket},controller.signal);await playBlob(blob,epoch)}catch(e){if(version===epoch){busy=false;state(e.message)}if(wake?.isActive())throw e}
  }
- async function ask(question,{voice=false}={}){
+ async function ask(question,{voice=false,emotion=null}={}){
   if(mode.value!=='bailian')return false;
   if(!ready){state('请先完成百炼配置并检查连接');return true}
   if(busy||recorder||player)return true;
   if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question);showPending();return true}
   pending=null;reveal.hidden=true;
   stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state('收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
-  try{if(voice){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true;state('语音确认未播放，继续整理回答…','thinking')}busy=true;}const result=await call({action:'chat',persona,question,voice,preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:(histories.get(persona)||[]).slice(-8)},controller.signal);if(version!==epoch||persona!==getPersona())return true;
+  try{if(voice){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true;state('语音确认未播放，继续整理回答…','thinking')}busy=true;}const result=await call({action:'chat',persona,question,voice,...(voice&&VOICE_EMOTIONS.includes(emotion)?{voiceEmotion:emotion}:{}),preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:(histories.get(persona)||[]).slice(-8)},controller.signal);if(version!==epoch||persona!==getPersona())return true;
    if(result.provider==='internal'){if(result.context?.material_question)materialHistories.set(persona,[result.context.material_question])}else materialHistories.delete(persona);
    if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-8));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);feedback.hidden=false;renderFeedback();};lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice){pending=publish;reveal.hidden=false;try{await speak(result.ticket,epoch,persona);if(version===epoch){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('需要查看详细回答吗？可说“打开”或点击查看。')}}catch(e){if(version===epoch){showPending();state('声音未完成，已显示文字回答；可继续提问')}}}else publish();
   }catch(e){if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);if(version===epoch){busy=false;sync()}}return true;
@@ -68,7 +70,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    const mime=['audio/webm;codecs=opus','audio/ogg;codecs=opus'].find(t=>MediaRecorder.isTypeSupported(t));if(!mime)throw Error('此浏览器没有受支持的录音格式');
    recorder=new MediaRecorder(stream,{mimeType:mime});const chunks=[];let size=0;const current=recorder;
    current.ondataavailable=e=>{if(e.data.size){chunks.push(e.data);size+=e.data.size;if(size>2400000&&current.state==='recording')current.stop()}};
-   current.onstop=async()=>{recorder=null;release();if(version!==epoch)return;busy=true;state('正在转写…','thinking');controller=new AbortController();try{const form=new FormData();form.append('persona',persona);form.append('audio',new Blob(chunks,{type:mime}),'speech.'+(mime.includes('ogg')?'ogg':'webm'));const data=await call(form,controller.signal);if(version!==epoch)return;if(!data.text?.trim())throw Error('没有识别到说话内容');onTranscript(data.text);busy=false;await ask(data.text,{voice:true})}catch(e){if(version===epoch){busy=false;state(e.message)}}};
+   current.onstop=async()=>{recorder=null;release();if(version!==epoch)return;busy=true;state('正在转写…','thinking');controller=new AbortController();try{const form=new FormData();form.append('persona',persona);form.append('audio',new Blob(chunks,{type:mime}),'speech.'+(mime.includes('ogg')?'ogg':'webm'));const data=await call(form,controller.signal);if(version!==epoch)return;if(!data.text?.trim())throw Error('没有识别到说话内容');onTranscript(data.text);busy=false;await ask(data.text,{voice:true,emotion:data.emotion})}catch(e){if(version===epoch){busy=false;state(e.message)}}};
    current.onerror=()=>{stopAll();state('录音失败，请重试')};current.start(1000);busy=false;state('正在聆听 · 最长60秒，点击“结束并提问”','listening');timer=setTimeout(()=>{if(current.state==='recording')current.stop()},60000);
   }catch(e){release();busy=false;state(e.name==='NotAllowedError'?'麦克风未授权，可继续文字提问':e.message)}
  }

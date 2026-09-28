@@ -11,5 +11,5 @@ test('speech uses short opening without reading full report or links',()=>{
 test('material speech never leaks internal text or falsely claims a match',()=>{
  const d={status:'available',assets:[{name:'SECRET',text:'CONFIDENTIAL'}]};assert.doesNotMatch(materialSpokenReply(d),/SECRET|CONFIDENTIAL/);
  assert.match(materialSpokenReply({status:'available',assets:[]}),/没有找到/);assert.match(materialSpokenReply({status:'unavailable'}),/没能取得/);
- assert.match(conversationStyle,/不得声称从声线识别/);
+ assert.match(conversationStyle,/不从声音推断性格、健康或身份/);
 });

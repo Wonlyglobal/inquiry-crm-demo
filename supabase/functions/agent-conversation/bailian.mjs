@@ -1,7 +1,7 @@
 // Beijing-only fixed endpoints. No caller-supplied URLs or provider fallback.
 export const CHAT_URL='https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
 export const TTS_URL='https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
-export const MODELS={chat:'qwen-plus',transcribe:'qwen3-asr-flash',speech:'qwen3-tts-flash'};
+export const MODELS={chat:'qwen-plus',transcribe:'qwen3-asr-flash',speech:'qwen3-tts-flash',expressiveSpeech:'qwen3-tts-instruct-flash'};
 export async function boundedBytes(response,max=12*1024*1024){
  if(Number(response.headers.get('content-length')||0)>max)throw Error('服务响应过大');
  const reader=response.body?.getReader();if(!reader)throw Error('服务响应为空');let size=0;const parts=[];
@@ -15,7 +15,8 @@ export async function providerJson(url,body,key,fetcher=fetch){
  return JSON.parse(new TextDecoder().decode(await boundedBytes(response,1024*1024)));
 }
 export function completionText(payload){const c=payload?.choices?.[0];if(c?.finish_reason!=='stop')throw Error('模型未完成回答，请重试');if(typeof c.message?.content!=='string'||!c.message.content.trim())throw Error('模型没有返回文字回答');return c.message.content.trim().slice(0,6000)}
-export function speechBody(text,voice){if(typeof text!=='string'||!text.trim()||text.length>1800)throw Error('播报文字长度不支持');return {model:MODELS.speech,input:{text,voice,language_type:/[\u3400-\u9fff]/.test(text)?'Chinese':'English'}}}
+// With tone instructions the expressive model is used (qwen3-tts-instruct-flash); instructions are fixed templates, never user text.
+export function speechBody(text,voice,instructions=null){if(typeof text!=='string'||!text.trim()||text.length>1800)throw Error('播报文字长度不支持');const input={text,voice,language_type:/[\u3400-\u9fff]/.test(text)?'Chinese':'English'};if(typeof instructions==='string'&&instructions.trim()&&instructions.length<=200)return {model:MODELS.expressiveSpeech,input:{...input,instructions,optimize_instructions:false}};return {model:MODELS.speech,input}}
 export function audioUrl(value){
  const u=new URL(value);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||u.port||!/^dashscope-result-bj\.oss-cn-beijing\.aliyuncs\.com$/.test(u.hostname))throw Error('语音下载地址不允许');u.protocol='https:';return u.href;
 }

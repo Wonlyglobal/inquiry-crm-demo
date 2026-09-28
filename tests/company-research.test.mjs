@@ -26,7 +26,7 @@ test('no match or unavailable index returns null so the checklist path answers i
 test('detail fetch uses a strict domain path and failures degrade to index fields',async()=>{
  const urls=[];const f=async u=>{urls.push(u);return u.endsWith('index.json')?new Response(JSON.stringify(index)):new Response('no',{status:404})};
  const a=companyAnswer(await lookupCompanies('查一下 exampledoor.ae',f));
- assert.ok(urls.some(u=>u==='https://business.foreverdoodle.com/api/company/exampledoor.ae.json'));assert.match(a,/仅显示索引信息/);
+ assert.ok(urls.some(u=>u==='https://business.foreverdoodle.com/api/company/exampledoor.ae.json'));assert.match(a,/本次仅显示索引信息/);
  assert.equal(companyCard({},{company:'X',fitScore:null,domain:''}).includes('匹配度'),false);
 });
 test('companies without a domain show index fields and say so',async()=>{

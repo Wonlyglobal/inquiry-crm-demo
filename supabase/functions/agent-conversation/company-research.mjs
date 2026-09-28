@@ -46,7 +46,7 @@ export async function lookupCompanies(question,fetcher=fetch){
 export function companyAnswer(result){
  if(result.status!=='available'||!result.matches.length)return null;
  const head=`以下来自国家背调系统的研究记录${result.as_of?`（索引日期 ${result.as_of}）`:''}，是团队此前整理的资料，本次未独立核验，不代表对方当前真实采购意向或信用。联系人与联系方式不在智能体中展示，请到背调系统查看。本回答未发送给外部模型。`;
- const cards=result.matches.slice(0,2).map((m,i)=>`${i+1}. `+(m.detail?companyCard(m.detail,m):companyCard({countryName:m.countryName,city:m.city,categoryName:m.categoryName},m)+(m.domain?'\n（详细记录暂未读取成功，仅显示索引信息）':'\n（背调系统未收录该公司官网域名，只有索引信息）')));
+ const cards=result.matches.slice(0,2).map((m,i)=>`${i+1}. `+(m.detail?companyCard(m.detail,m):companyCard({countryName:m.countryName,city:m.city,categoryName:m.categoryName},m)+(m.domain?'\n（背调系统详细记录未对外开放，本次仅显示索引信息）':'\n（背调系统未收录该公司官网域名，只有索引信息）')));
  const more=result.matches.length>2?`\n\n另有 ${result.matches.length-2} 家名称相近，请提供官网域名以精确查找。`:'';
  const ambiguous=result.matches.length>1&&result.matches[0].rank<3?'\n\n按名称匹配到多家，请核对是否为你要找的公司；提供官网域名可精确匹配。':'';
  return head+'\n\n'+cards.join('\n\n')+more+ambiguous+'\n\n建议下一步：按核验清单复核官网与邮箱域名一致性、企业登记和实体地址，再决定报价或样品条款。';

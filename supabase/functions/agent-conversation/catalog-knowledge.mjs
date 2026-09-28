@@ -80,8 +80,9 @@ function conflictLines(question,catalog,models){
  const topics=Object.entries(CONFLICT_TOPICS).filter(([t,re])=>re.test(question)||models.some(m=>re.test(m))).map(([t])=>t);
  return (catalog.conflicts||[]).filter(c=>topics.includes(c.topic)).slice(0,3).map(c=>`注意：画册中“${c.label}”有不同说法——`+c.statements.map(s=>`${ref(s.catalog,s.page)}：“${s.text}”`).join('；')+'。对外使用前请产品负责人确认。');
 }
-const HEAD=catalog=>`以下摘自 ${catalog.sources?.[0]?.edition||'2026-08'} 版海外画册（Claude 逐页读取的摘录，尚待产品负责人抽检），页码为 PDF 页码。本回答未发送给外部模型。`;
-const TAIL='对外报价或投标前，请以原画册和产品负责人确认的参数为准；画册未写的参数我不会补充或推测。';
+const HEAD=catalog=>`按 ${String(catalog.sources?.[0]?.edition||'2026-08').replace(/^(\d{4})-(\d{2})$/,(m,y,mo)=>y+' 年 '+Number(mo)+' 月')}版海外画册：`;
+const NOTE='（画册摘录，尚待产品负责人抽检；页码是 PDF 页码；本回答未发送给外部模型。）';
+const TAIL='对外报价或投标前，以原画册和产品负责人确认的参数为准；画册没写的参数我不会补。'+NOTE;
 
 export function catalogAnswer(intent,catalog,question=''){
  if(!intent||!catalog)return null;
@@ -97,19 +98,19 @@ export function catalogAnswer(intent,catalog,question=''){
    if(!by.size)return `${CATEGORY_NAMES[cat]}：画册中没有找到带型号的产品。`;
    return `${CATEGORY_NAMES[cat]}（共 ${[...by.values()].reduce((n,m)=>n+m.size,0)} 个型号）：\n`+[...by.entries()].slice(0,8).map(([s,m])=>`- ${s}：${[...m.values()].slice(0,12).join('、')}${m.size>12?` 等 ${m.size} 个`:''}`).join('\n');
   });
-  return [HEAD(catalog),...blocks,'需要某个型号的参数，直接说型号即可，例如“X60 Pro 的参数”。'].join('\n\n');
+  return [HEAD(catalog),...blocks,'要看某个型号的参数，直接说型号，比如“X60 Pro 的参数”。'+NOTE].join('\n\n');
  }
  if(intent.kind==='facts'){
   const facts=(catalog.facts||[]).filter(f=>intent.topics.includes(f.topic)).slice(0,6);if(!facts.length)return null;
   const warn=conflictLines(question,catalog,[]);
-  return [HEAD(catalog),facts.map(f=>`- 画册原文：“${f.text}”（${ref(f.catalog,f.page)}）`).join('\n'),...warn,'以上是画册中的公司宣传口径，对外引用时保持原文，不要改写数字。'].join('\n\n');
+  return [HEAD(catalog),facts.map(f=>`- 画册原文：“${f.text}”（${ref(f.catalog,f.page)}）`).join('\n'),...warn,'这些是画册里的公司宣传口径，对外引用时保持原文，不要改数字。'+NOTE].join('\n\n');
  }
  if(intent.kind==='search'){
   const words=intent.words.map(w=>w.toLowerCase());
   const hits=(catalog.pages||[]).map(p=>{const t=p.text.toLowerCase();const n=words.filter(w=>t.includes(w)).length;return {p,n}}).filter(x=>x.n).sort((a,b)=>b.n-a.n).slice(0,4);
   if(!hits.length)return null;
   const snip=(t,w)=>{const i=t.toLowerCase().indexOf(w);return t.slice(Math.max(0,i-80),i+160).trim()};
-  return [HEAD(catalog)+'以下为画册页面文字检索结果（OCR 文字，可能有识别误差）。',...hits.map(({p})=>`- ${ref(p.catalog,p.page)}：…${snip(p.text,words.find(w=>p.text.toLowerCase().includes(w)))}…`),'如果要具体型号参数，请说出型号。'].join('\n\n');
+  return [HEAD(catalog)+'画册里这几页提到了（文字识别结果，可能有个别错字）：',...hits.map(({p})=>`- ${ref(p.catalog,p.page)}：…${snip(p.text,words.find(w=>p.text.toLowerCase().includes(w)))}…`),'要具体型号的参数，直接说型号就行。'+NOTE].join('\n\n');
  }
  return null;
 }

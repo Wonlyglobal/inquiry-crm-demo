@@ -16,6 +16,8 @@ import {conversationStyle} from '../supabase/functions/agent-conversation/conver
 import {emotionInstruction} from '../supabase/functions/agent-conversation/persona-dialogue.mjs';
 import {memoryInstruction} from '../supabase/functions/agent-conversation/memory.mjs';
 import {recallInstruction} from '../supabase/functions/agent-conversation/conversation-memory.mjs';
+import {legacySystem} from './legacy-prompt.mjs';
+import {PERSONAS} from '../supabase/functions/agent-conversation/policy.mjs';
 import {personaFramework} from '../supabase/functions/agent-conversation/persona-frameworks.mjs';
 // Production conversation style before the 2026-09-28 dialogue update, for --legacy baselines.
 const LEGACY_STYLE='像礼貌、可靠的同事一样自然对话，避免机械回执、过度恭维或假装有人的情感。根据用户明确表达和上下文调整语气：着急时先说重点，不满意时先承认具体问题再给改进建议，感谢时简短回应。不得声称从声线识别了情绪、性格、健康或身份，不做心理诊断。回答第一段用2至3个完整中文短句，约60至120字：直接回答当前问题，再给一个有依据的建议；证据不足先说明缺口，不编造结论。后续段落保留必要分析和证据。第一段不要标题、编号、链接或罗列明细。';
@@ -35,6 +37,7 @@ export function buildPrompt(c,s=suite,{legacy=false}={}){
  const background=legacy?{countryBriefs:[],instruction:''}:backgroundContext(c.question,{research:ctx.research,crm:ctx.crm});
  const knowledge={publicFeed:fn('public-knowledge.json'),marketPlaybooks:fn('market-playbooks.json'),marketingLearning:fn('marketing-learning.json'),socialBusinessContext:fn('social-business-context.json')};
  const voice=!!c.voiceEmotion,persona=c.persona||'Grace';const body=requestBody({question:c.question,persona,history:c.history||[],...voice?{voice:true,voiceEmotion:c.voiceEmotion}:{}},MODELS.chat,JSON.stringify({...knowledge,...ctx,socialPosts:skipped,socialLibrary:skipped,...background.countryBriefs.length?{countryBriefs:background.countryBriefs}:{},...seoExtra}));
+ if(legacy){const sys=body.messages[0].content,cut=sys.indexOf('\n以下为公开资料');body.messages[0].content=legacySystem(persona,PERSONAS[persona].role,voice,c.question)+sys.slice(cut)}
  if(background.instruction)body.messages[0].content+='\n'+background.instruction;
  if(!legacy&&marketingIntent(c.question))body.messages[0].content+='\n'+marketingFrameworkInstruction;
  if(seoExtra.seoOpportunities)body.messages[0].content+='\n'+seoFrameworkInstruction;

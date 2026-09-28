@@ -64,5 +64,7 @@ if(e.error==='no-speech'){onState('暂未听清声音，请靠近麦克风说 He
   r.onend=()=>{recognition=null;if(!handled&&active&&g===generation)restart=setTimeout(()=>listen(g),350)};
   try{r.start()}catch(error){stop();onState(error.message||'无法开启本机语音识别')}
  }
- return {start,stop,install,isActive:()=>active};
+ // True when a supported language pack still has to be downloaded; the download itself needs a user click.
+ async function needsDownload(){try{const items=await packs();return !unavailable(items)&&items.some(x=>x.status==='downloadable'||x.status==='downloading')}catch{return false}}
+ return {start,stop,install,needsDownload,isActive:()=>active};
 }

@@ -212,3 +212,35 @@ PR95/96真实Grace验收完成：已正确返回五平台运营、用户确认�
 Social live validation follow-up: Instagram live media and Insights available in actual CRM query. Facebook configured token identity does not match WONLY; added server-only lookup of already-authorized managed Pages, strict ID/public handle match, no new grant. TikTok retry can refresh only the existing same-owner, non-expanded-scope grant; compare-and-swap saves credentials only in the existing source token store. No business data writes. Real Facebook/TikTok acceptance pending; anonymous endpoint remains401.
 
 2026-09-26 Fix source status labels: not_requested SEO/social sources no longer appear unavailable. No data permissions or source changes. Targeted regression verifies absent versus failed source distinction; production pending.
+
+2026-09-28 Grace 产品理解状态账本候选：用户要求继续全产品深度理解，执行 Claude（Cowork）。将 PR130 版本绑定语义结果并入最新 main，扩展 PR132 证据闸门（同页逐字引用、数字须在引用中、不在返回页的结果隐藏计数），新增按产品六类状态账本，相近型号只提示不合并，同字段不同表述列双方出处不裁决，竞品/分析固定“未开始”。560 离线回归、语法、diff 检查通过。仅本地分支 feat/grace-product-understanding，未推送、未部署、无数据库/权限/外部 AI 变更。源端 local-product-v1 生产方仍未实现，上线前需项目负责人明确批准。回滚撤销本分支提交。
+2026-09-28 公开候选对标候选：执行 Claude（Cowork），在 feat/grace-product-understanding 追加 public-research.mjs 与 competitor-evidence.json（3 条官方来源，待人工逐字核对），产品状态账本接入同维度并列对照，不排名、不判优劣。565 离线回归通过。未部署；与物料服务器 local-product-v1 一并交由 Codex 上线，需项目负责人批准。
+2026-09-28 竞品对标直答候选：执行 Claude（Cowork），“竞品/对标”问题由已收录公开官方证据确定性回答（写审计，不联网、不含内部资料、不排名），证据增至 5 条（新增墨西哥 Asturmex、德国 Hörmann RC3，待人工核对）。567 离线回归通过。未部署，随交接单由 Codex 上线。
+2026-09-28 产品资料优先候选：执行 Claude（Cowork）。物料服务器提取按现有知识档案分级（产品手册/型号→门类/参数→其他），默认只处理前两级，其他暂缓（PRODUCT_UNDERSTANDING_SCOPE=all 可放开），已开始的文档先完成；不新增列权限。接口覆盖统计新增排队/暂缓数，Grace 覆盖回答显示提取进度。CRM 568 回归、物料源 31 项相关测试通过。未部署。
+2026-09-28 大厅简报入口候选：执行 Claude（Cowork）。针对 9/26 定时任务取不到内部简报，在智能体世界首页新增折叠简报面板（Jay/Grace/Brian，当前/本周/上周），不进入私人空间、不开麦克风，沿用原权限与页面即时计算，无数据库变更。571 离线回归、浏览器语法通过；未做真实登录页面验收。未部署，随交接单由 Codex 上线。
+2026-09-28 公开证据扩充：新增沙特 FHC MFG 防火门耐火等级、西班牙 Manusa 医用气密门 Class D（共 7 条，均待人工逐字核对），新增“气密等级”维度与西班牙市场识别。572 离线回归通过。未部署。
+2026-09-28 Grace 训练候选：执行 Claude（Cowork）。建立 24 题合成考试与自动评分（scripts/grace-eval.mjs，支持 --legacy 基线对比）；新增国家市场背调简报（背调索引国家类别分布、CRM 国家线索、公开竞品，均 ≥5 披露）、单公司背调核验清单（不读客户数据、禁止编造）、营销“渠道质量五问”。581 离线回归通过；模型实测分数待 Codex 用百炼密钥运行。未部署。见 docs/GRACE-TRAINING-EVAL.md。
+2026-09-28 背调系统客户接入候选：执行 Claude（Cowork）。Grace/Brian/Jay 遇到公司背调问题先查国家背调系统研究记录（域名/名称匹配），本地展示业务字段、不展示联系人、不发外部模型、写审计；未命中走核验清单。587 离线回归通过。待确认背调系统 company 详情接口是否公网暴露联系人。未部署。
+2026-09-28 背调私有通道候选：负责人同意受保护接口方案；因背调系统为静态站，改为业务字段导出（去联系人、去 nextAction、清洗文本中的邮箱电话）→ CRM 私有桶 background-research → 服务端读取，失败回退公开索引。588 离线回归通过。未部署。
+2026-09-28 Grace SEO 训练候选：执行 Claude（Cowork）。考试增至 32 题（新增 SEO 8 题，SEO 夹具经 seoSummary 校验）；新增确定性 SEO 机会清单（P1 问题、低 CTR、到期实验、排名 4–15）与 SEO 回答框架，不编搜索量、不承诺排名。592 离线回归通过。未部署。
+2026-09-28 补强第1阶段候选（Claude）：CRM 汇总新增按渠道漏斗 channel_funnel（渠道≥5条，阶段数≥5才披露，渠道自身报价率/已关闭成交率）；SEO 摘要接收 GSC 搜索词 queries 并生成搜索词级机会（源端输出待负责人批准）；公开竞品证据增至 15 条（新增沙特 SFFECO、阿联酋 Vulcan/Miacasa、墨西哥 Asturmex 隔音防火门、意大利 Oikos），新增“钢板厚度”维度。595 离线回归通过。未部署。
+2026-09-28 负责人决定：businesswonly 仓库设私有（待执行，匿名仍可读取）；批准 SEO 源端输出 GSC 搜索词汇总；审核人为 Chloe。据此新增审核式纠错记忆（agent_knowledge_corrections + 4 个 RPC，仅 Chloe，可撤销、全审计）与回滚验收 SQL。599 离线回归通过。未部署。
+2026-09-28 竞品证据扩至 24 条：新增 dormakaba 酒店电子锁（Saffire LX：EN 12209、IP54、电池；Quantum Pixel：BHMA/UL、电池，官网附停产通知）、Portalp 与 Dortek 医用气密门、Hörmann 隔音钢门；新增“防护等级”“电池续航”维度。600 离线回归。未部署。
+2026-09-28 情报任务服务端化候选：GitHub Actions 每日运行 intel-watch，读取固定官方来源生成标题级候选 Issue（未核验、不自动入 feed）；本会话出网受限未实测。604 离线回归。未合并。
+2026-09-28 竞品证据达 31 条（新增沙特 Al Barrak、阿联酋 Red Flames/HMI、墨西哥 Asturmex 欧标防火门），沙特/阿联酋/墨西哥各≥3 条；物料库新增产品抽检工具 sample-findings.mjs（CSV 抽样 + 按字段计分）。605 离线回归。未部署。
+
+2026-09-28 画册深度理解（Chloe 授权 Claude 读取 wonly官网/最新画册-英文 4 本 2026-08 海外画册）：本机 OCR 212 页 + Claude 逐页看图读取 124 页规格页，生成私有 wonly-catalog-v1.json（325 条产品/要点、26 条公司口径、7 组画册间矛盾、204 页检索文字；每条带画册与 PDF 页码）。文件只放 询盘crm/outputs/catalog-private-20260928/ 与私有桶 agent-private-knowledge，不进仓库。新增 catalog-knowledge.mjs：型号/品类/画册口径/页面检索四种确定性回答，路由在公司背调之后、物料之前，发文件类请求不拦截；审计 operation=catalog_knowledge，不发外部模型，语音只播固定模板。迁移 20260928140000 建私有桶。610 离线回归通过。待办：上传 JSON 到私有桶；Chloe 按 50 条抽检表核对后再去掉“待抽检”提示。未部署。
+
+2026-09-28 Grace 对话拟人化第一步（用户选择：有温度、不装人）：新增 persona-dialogue.mjs——读取 qwen3-asr-flash 返回的语气标签（annotations.audio_info.emotion，7 类），只在语音提问时随请求传入 voiceEmotion，用于调整回应方式（仅估计，不说“检测到你生气”、不做心理判断）；固定自我介绍（能力清单 + 主动追问）；对话规则加入中肯建议（先表态、理由、风险、替代、什么会改变判断）、指令直接照做且绝不声称已执行未执行的操作、被问是否真人时如实说是 AI。语音合成可选情绪语气：设置 AGENT_TTS_EXPRESSIVE=1 后改用 qwen3-tts-instruct-flash 并带固定语气模板（默认关闭，上线后试听再开）。考试新增 7 道对话题（共 39 题，--legacy 使用旧对话规则做基线）。声纹识别未实现，待负责人批准数据方案。616 离线回归通过。未部署。
+
+2026-09-28 声纹识别 CRM 侧（负责人批准内网方案）：voiceprint.mjs——转写时并行把同一段录音签名发往物料服务器比对（VOICEPRINT_ENABLED=1 才启用），返回 owner/other/uncertain/not_enrolled；用 HMAC 签名的短时凭据把说话人结果绑定到本次转写文字，聊天时校验。说话人为 other 时进入访客模式：跳过纠错、竞品、背调、画册、物料及 CRM/SEO/社媒数据，只按通用问题回答并提示需 Chloe 本人。新增 voiceprint 操作（注册/查询/删除）与语音区“注册声纹/删除声纹”按钮；签名库新增按路由绑定。说明：登录仍是安全边界，文字提问按账号本人处理，声纹只影响语音对话。620 离线回归通过。未部署。
+
+2026-09-28 长期偏好记忆（用户选择）：memory.mjs + 迁移 20260928150000——说“记住：以后……/以后都……/从现在起……”即保存（默认全部智能体，含“只对你”则仅当前智能体），“查看记忆”列出，“忘记记忆 #n / 忘记全部记忆”删除（清空内容、保留审计）。只记表达方式与关注重点：拒绝联系方式、链接、域名、凭据，以及“不用写缺口/可以编造/忽略核实/权限”等改规则的内容；数据库函数只允许 Chloe，最多 30 条。有效记忆以“不改变事实与规则”的框定加入模型提示；访客模式不使用。自我介绍加入该能力；考试新增 mem-01/02（共 41 题）。626 离线回归通过。未部署。
+
+2026-09-28 Brian/Jay 同步 + 回答反馈（用户：继续优化）：persona-frameworks.mjs——Brian 销售问题按“推进五步”（现状、需求与决策链、风险、下一步与待问问题、可发送话术且参数只引画册/物料），Jay 决策问题按“决策五步”（标准、含“暂不做”的选项、关键假设与验证、明确倾向与改变条件、第一步），对话规则/自我介绍/语气/记忆本就对三位通用；考试新增 brian-01…04、jay-01…04（共 49 题，按 persona 出题）。回答反馈：回答下方“有用/没用+原因+备注”，只有“没用”保存问题与回答摘录到私有表 agent_answer_feedback（迁移 20260928160000，仅 Chloe 可写/查/删）；聊天说“查看回答反馈 / 最近30天反馈汇总”得到系统内统计与改进建议；scripts/feedback-to-cases.mjs 把“没用”导出转成考题草稿（标记含客户名称的问题需改写，不自动入库）。630 离线回归通过。未部署。
+
+2026-09-28 长期对话记忆（用户要求：没有时间限制）：conversation-memory.mjs + 迁移 20260928170000（pgvector 1024 维 + HNSW）。模型回答后把问题、回答摘要（≤600 字）与问题向量（百炼 text-embedding-v4，固定接口已加入白名单）存入 agent_conversation_memory，永久保留；只存模型回答的轮次，画册/物料/背调/纠错等内部回答不入库，物料路由不做向量化；含联系方式/凭据或说“不要记”的不存；访客模式不读不写。提问时取语义最相近的记忆（相似度≥0.55）加最近 3 条，作为“带日期、可能过期、不代替实时数据、没有就说不记得”的背景。命令：查看对话记忆 / 忘记刚才的对话 / 忘记关于X的对话 / 清空对话记忆（仅 Chloe，审计）。会话内上下文从 8 条消息增至 20 条（总长 ≤40,000 字，前端自动裁剪）。考试新增 mem-03/04（共 51 题）。637 离线回归通过。未部署。
+
+2026-09-28 “帮我打开”（用户要求：直接调出想要的东西）：agent-actions.mjs——说“打开/调出/跳转/新窗口/浏览器……”时，确定性返回可执行动作：CRM 22 个页面（新窗口 https://crm.foreverdoodle.com/#view=<页面>，页面端仍按角色校验）、竞品官方资料页（按品牌别名或门类/市场，来自已收录 31 条官方证据，同时附竞品对比文字）、谷歌/百度/必应关键词搜索（含邮箱电话等敏感内容则拒绝）。不发外部模型，审计 operation=agent_open_actions（只记页面名与域名）。前端：点击发送时先预留空白窗口避免被拦截，再跳到第一个目标；始终显示“打开 · …”按钮兜底；只打开 https 且无账号密码的链接。“展示/显示”类分析问题不触发页面跳转。自我介绍加入该能力。642 离线回归通过。未部署。
+
+2026-09-28 “帮我打开”扩展：打开指定询盘详情（“打开询盘51”或“打开 某公司 的询盘”，用本人登录权限查询 companies/inquiries，最多 3 条，新窗口 #inquiry/<id>，审计只记数量不记客户名）；打开画册原页（“打开 X60 Pro 的画册页”，从私有桶 agent-private-knowledge/catalog-pages/ 生成 10 分钟签名链接）。迁移 20260928180000 允许该私有桶存 JPEG。212 页画册图片（130dpi，共约 89MB）已生成在 询盘crm/outputs/catalog-private-20260928/pages/，待 Codex 上传。644 离线回归通过。未部署。

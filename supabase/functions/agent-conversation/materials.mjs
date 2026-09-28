@@ -1,6 +1,7 @@
 import {materialQuery,normalizeDocument,documentEvidence,coverageSummary} from './document-knowledge.mjs';
 import {signMaterialRequest} from './material-request-proof.mjs';
 import {boundedBytes} from './bailian.mjs';
+import {productLedger,productLedgerText} from './product-coverage.mjs';
 export async function loadFullMaterials({actor,privateJwk,serviceUrl,secret,question},fetcher=fetch){
  if(!serviceUrl||!secret||!privateJwk||!actor)return {status:'not_configured',assets:[]};
  let url;try{url=new globalThis.URL(serviceUrl);if(url.protocol!=='https:'||!['file.foreverdoodle.com'].includes(url.hostname)||url.username||url.password)throw Error();url.pathname='/api/integrations/crm/knowledge';url.search='';url.hash=''}catch{return {status:'not_configured',assets:[]}}
@@ -11,7 +12,7 @@ export async function loadFullMaterials({actor,privateJwk,serviceUrl,secret,ques
 }
 export function fullMaterialAnswer(data){
  if(data.status!=='available')return (data.status==='not_configured'?'物料库连接尚未正确配置。':data.code==='signing_failed'?'物料库签名配置暂不可用。':data.code==='http_401'||data.code==='http_403'?'物料库未通过账号授权校验。':data.code==='http_404'?'物料库全库接口尚未就绪。':'物料库连接暂时未完成。')+'不能把营销资料目录当作全库，请稍后重试。';
- return `已查询你有权访问的物料库，第${data.page}页，本页${data.assets.length}项${data.match_total==null?'':`，匹配共${data.match_total}项`}。内部内容仅在公司系统内检索，没有发送给外部模型。\n\n`+coverageSummary(data.document_coverage)+'\n'+data.assets.map((a,i)=>`${i+1}. ${a.name}\n${a.language||'语言未标注'}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}｜更新：${a.updatedAt}\n${a.relativePath}\n${a.video?videoEvidence(a.video):a.document&&a.document.status!=='not_indexed'?documentEvidence(a.document):(a.excerpt?'已有检索索引摘录（非全文阅读）：'+a.excerpt:'没有可用正文索引，当前仅能按文件信息查找。')}`).join('\n\n')+`\n\n${data.has_more?'可能还有下一页，请说“物料第'+(data.page+1)+'页”。':''}公司资料更新不代表全部公司动态。`;
+ return `已查询你有权访问的物料库，第${data.page}页，本页${data.assets.length}项${data.match_total==null?'':`，匹配共${data.match_total}项`}。内部内容仅在公司系统内检索，没有发送给外部模型。\n\n`+coverageSummary(data.document_coverage)+productLedgerText(productLedger(data))+'\n'+data.assets.map((a,i)=>`${i+1}. ${a.name}\n${a.language||'语言未标注'}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}｜更新：${a.updatedAt}\n${a.relativePath}\n${a.video?videoEvidence(a.video):a.document&&a.document.status!=='not_indexed'?documentEvidence(a.document):(a.excerpt?'已有检索索引摘录（非全文阅读）：'+a.excerpt:'没有可用正文索引，当前仅能按文件信息查找。')}`).join('\n\n')+`\n\n${data.has_more?'可能还有下一页，请说“物料第'+(data.page+1)+'页”。':''}公司资料更新不代表全部公司动态。`;
 }
 
 export function videoEvidence(video){

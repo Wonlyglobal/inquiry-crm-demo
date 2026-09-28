@@ -1433,7 +1433,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=windows1-20260924-2" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=lobby-brief-20260928" />
 </head>
   <body>
     <section id="boot" class="boot-shell">
@@ -2484,9 +2484,9 @@
     </aside>
     <script type="module">
       import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20260926-voicefirst1';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20260928-open1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
-      import { mountIntelligence } from './assets/agent-intelligence.mjs?v=20260923-3';
+      import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=footerless-20260924-2";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
@@ -4901,7 +4901,7 @@
           if(['Grace','Brian','Jay'].includes(saved.room))$('#agent-world-page [data-advisor="'+saved.room+'"]').click();
         }catch{}
       }
-      let worldController=null,worldPersona=null,worldIntelligence=null;
+      let worldController=null,worldPersona=null,worldIntelligence=null,worldLobbyBrief=null;
       let agentDataRefreshFailed=false,worldModel=null;
       const assistantHome=document.createComment('AI assistant home');$('#ai-assistant-panel').before(assistantHome);
       const advisorHome=document.createComment('AI analysis home');$('#ai-advisor-page').before(advisorHome);
@@ -4946,6 +4946,7 @@
           }
         });
         if(!worldIntelligence)worldIntelligence=mountIntelligence($('#world-knowledge-slot'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),getContext:(question='')=>({...aiDataContext(question),ready:dashboardHasSuccessfulLoad,refreshFailed:agentDataRefreshFailed}),onQuestion:(name,question)=>{if(!canUseAgentWorld(profile,currentAuthUser)||$('#ai-assistant-form button[type="submit"]').disabled)return;$('#agent-world-page [data-advisor="'+name+'"]').click();$('#ai-assistant-input').value=question;$('#ai-assistant-form').requestSubmit()}});else worldIntelligence.refresh();
+        if(!worldLobbyBrief&&$('#agent-world-page #agents-view'))worldLobbyBrief=mountLobbyBrief($('#agent-world-page #agents-view'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),brief:(name,period)=>worldIntelligence?.brief(name,period)});else worldLobbyBrief?.render();
         const worldSwitch=$('#world-switch');worldSwitch.setAttribute('aria-pressed','true');worldSwitch.setAttribute('aria-label','返回 CRM');worldSwitch.title='返回 CRM';return true;
       }
       $('#world-switch').onclick=()=>{if(!canUseAgentWorld(profile,currentAuthUser))return;switchView($('#app').classList.contains('agent-world-active')?'dashboard':'agent-world')};
@@ -8868,6 +8869,12 @@
       const initialInquiry = location.hash.match(/^#inquiry\/(.+)$/);
       if (sessionReady && initialInquiry)
         await openInquiryDetail(initialInquiry[1]);
+      // Agent "open it for me" links: https://crm.foreverdoodle.com/#view=<view> opens that CRM page (role checks still apply).
+      const initialView = location.hash.match(/^#view=([a-z0-9-]{2,40})$/);
+      if (sessionReady && initialView && !initialInquiry) {
+        history.replaceState(null, "", location.pathname + location.search);
+        if (canAccessView(initialView[1])) await switchView(initialView[1]);
+      }
       icons();
     </script>
   </body>

@@ -1,3 +1,12 @@
+// Keeps the latest turns within the server limits (20 messages, 40,000 characters; each message ≤6,000).
+export function fitHistory(list,maxChars=38000){const out=[];let n=0;for(const m of [...list].reverse().slice(0,20)){const c=String(m.content).slice(0,6000);if(n+c.length>maxChars)break;n+=c.length;out.unshift({role:m.role,content:c})}if(out[0]?.role==='assistant')out.shift();return out}
+// "Open it for me" actions from the agent: CRM pages, competitors' official pages, keyword searches.
+// Only https links without credentials are opened; a blank window reserved during the click is reused
+// so the browser does not block it, and buttons are always shown as a fallback.
+export function safeActionUrl(u){try{const x=new URL(u);return x.protocol==='https:'&&!x.username&&!x.password&&!x.port?x.href:null}catch{return null}}
+export const OPEN_WORDS=/打开|调出|调取|弹出|跳转|给我看|展示|显示|新窗口|浏览器/;
+// Emotion labels returned by the speech model; only these are forwarded, and only for voice questions.
+const VOICE_EMOTIONS=['neutral','happy','sad','angry','surprised','fearful','disgusted'];
 import {createResponsePreferences} from './agent-response-preferences.mjs?v=20260924-1';
 import {captureUtterance} from './agent-utterance.mjs?v=20260924-2';
 import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
@@ -14,13 +23,36 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  for(const b of [wakeButton,installWake,mic,stop,replay,check])b.type='button';status.setAttribute('role','status');
  const note=el('p','智能推理仅发送你主动输入的非机密问题、该模式近期对话、公开资料、背调样本分布、近30天权限内脱敏统计，以及已批准的SEO与社媒只读摘要；Hello唤醒前录音不上传；唤醒后说话片段发送至阿里云语音服务转写；切换浏览器标签页继续，播报期间暂停录音，停止或退出私人空间即结束。请勿输入客户机密或凭证。声音由AI生成；语音回答优先播报简短结果，完整信息显示在窗口。');note.className='hint';
  stop.setAttribute('data-voice-stop','true');const startWake=el('button','恢复聆听');startWake.type='button';startWake.setAttribute('data-voice-start','true');startWake.hidden=true;bar.append(startWake);bar.append(mode,installWake,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
+ // Voiceprint (owner approved 2026-09-28): the template is stored only on the internal material server.
+ const enroll=el('button','注册声纹'),forget=el('button','删除声纹');enroll.type=forget.type='button';enroll.title='录一段 8 秒左右的话，共 3 段；只保存声纹特征数字，不保存录音';
+ const vpNote=el('span','');vpNote.className='hint';bar.append(enroll,forget,vpNote);let forgetArmed=null;
+ async function recordClip(ms){const s=await navigator.mediaDevices.getUserMedia({audio:true});try{const mime=['audio/webm;codecs=opus','audio/ogg;codecs=opus'].find(t=>MediaRecorder.isTypeSupported(t));if(!mime)throw Error('此浏览器没有受支持的录音格式');const r=new MediaRecorder(s,{mimeType:mime}),chunks=[];r.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};const done=new Promise(res=>r.onstop=res);r.start(500);await new Promise(res=>setTimeout(res,ms));r.stop();await done;return {blob:new Blob(chunks,{type:mime}),mime}}finally{s.getTracks().forEach(t=>t.stop())}}
+ async function voiceprint(op,clip){const form=new FormData();form.append('action','voiceprint');form.append('persona',getPersona());form.append('op',op);if(clip)form.append('audio',clip.blob,'voiceprint.'+(clip.mime.includes('ogg')?'ogg':'webm'));return call(form)}
+ enroll.onclick=async()=>{if(busy||recorder)return;stopAll();busy=true;enroll.disabled=true;try{state('请用正常语速说一段话（约 8 秒），例如介绍今天的工作…','listening');const clip=await recordClip(8000);state('正在登记声纹…','thinking');const r=await voiceprint('enroll',clip);vpNote.textContent=r.message||'';onMessage('assistant',r.message||'声纹操作已完成。');state('声纹：'+(r.status==='ok'?'已记录':'未完成'))}catch(e){state(e.name==='NotAllowedError'?'麦克风未授权':e.message)}finally{busy=false;enroll.disabled=false;sync()}};
+ forget.onclick=async()=>{if(!forgetArmed){forget.textContent='确认删除声纹';forgetArmed=setTimeout(()=>{forgetArmed=null;forget.textContent='删除声纹'},6000);return}clearTimeout(forgetArmed);forgetArmed=null;forget.textContent='删除声纹';try{const r=await voiceprint('delete');vpNote.textContent=r.message||'';onMessage('assistant',r.message||'已删除。')}catch(e){state(e.message)}};
  const reveal=el('button','查看详细回答');reveal.type='button';reveal.hidden=true;bar.append(reveal);let pending=null;function showPending(){if(!pending)return false;const fn=pending;pending=null;reveal.hidden=true;fn();return true}reveal.onclick=showPending;
  let wake=null,wakeTransition=false,installing=false;const greetings=new Map(),greetingLoads=new Map();
  let preferenceStorage;try{preferenceStorage=window.localStorage}catch{preferenceStorage={getItem:()=>null,setItem:()=>{throw Error('unavailable')},removeItem:()=>{throw Error('unavailable')}}}
  const preferenceStores=new Map();const preferences=()=>{const persona=getPersona();if(!preferenceStores.has(persona))preferenceStores.set(persona,createResponsePreferences(preferenceStorage,'wonly-agent-preferences-chloe-v1-'+persona));return preferenceStores.get(persona)};
  const feedback=el('div','');feedback.className='agent-response-feedback';feedback.hidden=true;feedback.style.cssText='padding:12px;border:1px solid #475569;border-radius:12px;margin:12px 0;color:#e2e8f0;background:#111827';const feedbackLabel=el('p','回答改进 · 仅保存本机表达偏好，不保存资料正文');feedback.append(feedbackLabel);
  const feedbackButtons=[];for(const [code,label] of [['concise','更简洁'],['evidence','加强依据'],['actions','明确下一步']]){const b=el('button',label);b.type='button';b.dataset.preference=code;b.onclick=()=>{const store=preferences(),enabled=!store.get().includes(code),saved=store.set(code,enabled);renderFeedback();feedbackLabel.textContent=(saved?'已保存本机偏好':'仅本次会话生效')+'，下次推理回答将使用；资料原文不会被改写。'};feedbackButtons.push(b);feedback.append(b)}
- const resetPreferences=el('button','清除回答偏好');resetPreferences.type='button';resetPreferences.onclick=()=>{const saved=preferences().clear();renderFeedback();feedbackLabel.textContent=saved?'已清除本机回答偏好':'本次会话已清除；浏览器存储不可用，无法确认持久记录删除。'};feedback.append(resetPreferences);host.querySelector('#ai-assistant-messages')?.after(feedback);
+ const resetPreferences=el('button','清除回答偏好');resetPreferences.type='button';resetPreferences.onclick=()=>{const saved=preferences().clear();renderFeedback();feedbackLabel.textContent=saved?'已清除本机回答偏好':'本次会话已清除；浏览器存储不可用，无法确认持久记录删除。'};feedback.append(resetPreferences);
+ // Answer rating (owner, 2026-09-28): "没用" keeps this question and answer in a private CRM table so weak spots can be fixed.
+ let lastAnswer=null;const rate=el('div','');rate.className='agent-answer-rating';const rateLabel=el('span','这条回答：');const up=el('button','有用'),down=el('button','没用');up.type=down.type='button';
+ const reasons=el('div','');reasons.hidden=true;const rateNote=el('input','');rateNote.maxLength=200;rateNote.placeholder='补充说明（可选，不要写联系方式）';rateNote.setAttribute('aria-label','反馈补充说明');
+ const REASONS=[['wrong_data','数据不对'],['off_topic','没答到点上'],['too_long','太长'],['too_vague','太空泛'],['tone','语气不对'],['other','其他']];
+ async function sendRating(rating,reason=null){if(!lastAnswer)return;const body={action:'feedback',persona:lastAnswer.persona,rating,reason,route:lastAnswer.route,model:lastAnswer.model,...(rating==='down'?{question:lastAnswer.question,answer:lastAnswer.answer,note:rateNote.value.trim()||null}:{})};try{await call(body);rateLabel.textContent=rating==='up'?'已记下：有用。':'已记下，这题会进入改进清单（问题和回答只存在 CRM 内部）。';up.disabled=down.disabled=true;reasons.hidden=true;lastAnswer=null}catch(e){rateLabel.textContent='反馈未保存：'+e.message}}
+ up.onclick=()=>sendRating('up');down.onclick=()=>{reasons.hidden=false;rateLabel.textContent='哪里不好？'};
+ for(const [code,label] of REASONS){const b=el('button',label);b.type='button';b.onclick=()=>sendRating('down',code);reasons.append(b)}reasons.append(rateNote);rate.append(rateLabel,up,down,reasons);feedback.prepend(rate);
+ function armRating(entry){lastAnswer=entry;rateLabel.textContent='这条回答：';up.disabled=down.disabled=false;reasons.hidden=true;rateNote.value=''}
+ host.querySelector('#ai-assistant-messages')?.after(feedback);
+ function runActions(actions,reserved){
+  const list=actions.map(a=>({...a,url:safeActionUrl(a.url)})).filter(a=>a.url).slice(0,6);if(!list.length){try{reserved?.close()}catch{}return}
+  if(reserved){try{reserved.location.href=list[0].url}catch{try{reserved.close()}catch{}}}
+  const box=el('div','');box.className='agent-actions';box.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:8px 0';
+  for(const a of list){const b=el('button','打开 · '+String(a.label||a.url).slice(0,60));b.type='button';b.className='button secondary';b.onclick=()=>window.open(a.url,'_blank','noopener');box.append(b)}
+  host.querySelector('#ai-assistant-messages')?.append(box);
+ }
  function renderFeedback(){for(const b of feedbackButtons)b.setAttribute('aria-pressed',String(preferences().get().includes(b.dataset.preference)))}
  const histories=new Map(),materialHistories=new Map();let ready=false,busy=false,version=0,recorder=null,stream=null,timer=null,player=null,audioUrl=null,lastTicket=null,lastGreeting=null,controller=null;
  function state(text,orb='idle'){text=String(text).replace(/百炼北京/g,'语音服务').replace(/百炼/g,'智能服务');status.textContent=text;onStatus?.(text);onMode(orb);sync()}
@@ -46,17 +78,19 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(!ticket||version!==epoch)return;controller=new AbortController();busy=true;state('正在生成语音…','thinking');
   try{const blob=await call({action:'speech',persona,ticket},controller.signal);await playBlob(blob,epoch)}catch(e){if(version===epoch){busy=false;state(e.message)}if(wake?.isActive())throw e}
  }
- async function ask(question,{voice=false}={}){
+ async function ask(question,{voice=false,emotion=null,voiceProof=null}={}){
   if(mode.value!=='bailian')return false;
   if(!ready){state('请先完成百炼配置并检查连接');return true}
   if(busy||recorder||player)return true;
   if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question);showPending();return true}
   pending=null;reveal.hidden=true;
+  let reserved=null;if(!voice&&OPEN_WORDS.test(question)){try{reserved=window.open('about:blank','_blank');if(reserved)reserved.opener=null}catch{reserved=null}}
+  const releaseReserved=()=>{try{reserved?.close()}catch{}reserved=null};
   stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state('收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
-  try{if(voice){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true;state('语音确认未播放，继续整理回答…','thinking')}busy=true;}const result=await call({action:'chat',persona,question,voice,preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:(histories.get(persona)||[]).slice(-8)},controller.signal);if(version!==epoch||persona!==getPersona())return true;
+  try{if(voice){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true;state('语音确认未播放，继续整理回答…','thinking')}busy=true;}const result=await call({action:'chat',persona,question,voice,...(voice&&VOICE_EMOTIONS.includes(emotion)?{voiceEmotion:emotion}:{}),...(voice&&voiceProof?.data&&voiceProof?.signature?{voiceProof}:{}),preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:fitHistory(histories.get(persona)||[])},controller.signal);if(version!==epoch||persona!==getPersona())return true;
    if(result.provider==='internal'){if(result.context?.material_question)materialHistories.set(persona,[result.context.material_question])}else materialHistories.delete(persona);
-   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-8));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);feedback.hidden=false;renderFeedback();};lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice){pending=publish;reveal.hidden=false;try{await speak(result.ticket,epoch,persona);if(version===epoch){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('需要查看详细回答吗？可说“打开”或点击查看。')}}catch(e){if(version===epoch){showPending();state('声音未完成，已显示文字回答；可继续提问')}}}else publish();
-  }catch(e){if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);if(version===epoch){busy=false;sync()}}return true;
+   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-20));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);if(Array.isArray(result.actions)&&result.actions.length){runActions(result.actions,reserved);reserved=null}else releaseReserved();feedback.hidden=false;renderFeedback();armRating({persona,question:String(question).slice(0,1000),answer:String(result.answer||'').slice(0,2000),route:String(result.context?.route||result.provider||'').slice(0,40),model:String(result.model||'').slice(0,60)});};lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice){pending=publish;reveal.hidden=false;try{await speak(result.ticket,epoch,persona);if(version===epoch){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('需要查看详细回答吗？可说“打开”或点击查看。')}}catch(e){if(version===epoch){showPending();state('声音未完成，已显示文字回答；可继续提问')}}}else publish();
+  }catch(e){if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);releaseReserved();if(version===epoch){busy=false;sync()}}return true;
  }
  async function record(){
   if(recorder){recorder.stop();return}
@@ -68,7 +102,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    const mime=['audio/webm;codecs=opus','audio/ogg;codecs=opus'].find(t=>MediaRecorder.isTypeSupported(t));if(!mime)throw Error('此浏览器没有受支持的录音格式');
    recorder=new MediaRecorder(stream,{mimeType:mime});const chunks=[];let size=0;const current=recorder;
    current.ondataavailable=e=>{if(e.data.size){chunks.push(e.data);size+=e.data.size;if(size>2400000&&current.state==='recording')current.stop()}};
-   current.onstop=async()=>{recorder=null;release();if(version!==epoch)return;busy=true;state('正在转写…','thinking');controller=new AbortController();try{const form=new FormData();form.append('persona',persona);form.append('audio',new Blob(chunks,{type:mime}),'speech.'+(mime.includes('ogg')?'ogg':'webm'));const data=await call(form,controller.signal);if(version!==epoch)return;if(!data.text?.trim())throw Error('没有识别到说话内容');onTranscript(data.text);busy=false;await ask(data.text,{voice:true})}catch(e){if(version===epoch){busy=false;state(e.message)}}};
+   current.onstop=async()=>{recorder=null;release();if(version!==epoch)return;busy=true;state('正在转写…','thinking');controller=new AbortController();try{const form=new FormData();form.append('persona',persona);form.append('audio',new Blob(chunks,{type:mime}),'speech.'+(mime.includes('ogg')?'ogg':'webm'));const data=await call(form,controller.signal);if(version!==epoch)return;if(!data.text?.trim())throw Error('没有识别到说话内容');onTranscript(data.text);busy=false;await ask(data.text,{voice:true,emotion:data.emotion,voiceProof:data.voiceProof})}catch(e){if(version===epoch){busy=false;state(e.message)}}};
    current.onerror=()=>{stopAll();state('录音失败，请重试')};current.start(1000);busy=false;state('正在聆听 · 最长60秒，点击“结束并提问”','listening');timer=setTimeout(()=>{if(current.state==='recording')current.stop()},60000);
   }catch(e){release();busy=false;state(e.name==='NotAllowedError'?'麦克风未授权，可继续文字提问':e.message)}
  }

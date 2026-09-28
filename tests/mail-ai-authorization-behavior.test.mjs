@@ -16,7 +16,7 @@ async function run(name,team) {
   const chain={select(v){q.fields=v;return chain},eq(k,v){q.filters[k]=v;return chain},single:async()=>result(),maybeSingle:async()=>result()};
   return chain;
  }};
- const source=stripTypeScriptTypes((await readFile(new URL(`../supabase/functions/${name}/index.ts`,import.meta.url),'utf8')).replace(/^import .*;\n/gm,''));
+ const source=stripTypeScriptTypes((await readFile(new URL(`../supabase/functions/${name}/index.ts`,import.meta.url),'utf8')).replace(/^import .*;\r?\n/gm,''));
  const env={SUPABASE_URL:'https://example.invalid',SUPABASE_ANON_KEY:'synthetic',SUPABASE_SERVICE_ROLE_KEY:'synthetic-service',DEEPSEEK_API_KEY:'synthetic-ai'};
  const evaluate=new Function('Deno','createClient','withReadOnlyGuard','canAccessInquiry','customerDataAiFetch','assertCustomerDataAiPolicy','fetch',source);
  evaluate({env:{get:k=>env[k]},serve:f=>{handler=f}},()=>db,f=>f,canAccessInquiry,customerDataAiFetch,assertCustomerDataAiPolicy,async()=>{externalCalls++;throw Error('unexpected external request')});

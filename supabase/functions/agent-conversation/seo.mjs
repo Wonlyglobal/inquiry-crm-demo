@@ -21,10 +21,13 @@ export function seoSummary(raw,now=Date.now()){
   funnel:Object.fromEntries(['organic_7d','organic_28d','all_channels_7d','all_channels_28d'].map(k=>[k,events(raw.funnel?.[k])])),
   markets:(Array.isArray(raw.markets)?raw.markets:[]).slice(0,20).filter(x=>/^[A-Z]{2}$/.test(x?.country)).map(x=>({country:x.country,status:state(x.status),gsc_7d:gsc(x.gsc_7d),ga4_7d:ga4(x.ga4_7d)})),
   pages:(Array.isArray(raw.pages)?raw.pages:[]).slice(0,20).filter(x=>path(x?.path)).map(x=>({path:x.path,role:['commercial','article'].includes(x.role)?x.role:null,gsc_7d:gsc(x.gsc_7d),gsc_28d:gsc(x.gsc_28d),issues:(Array.isArray(x.issues)?x.issues:[]).slice(0,8).map(i=>({code:/^[A-Z_]{1,50}$/.test(i?.code)?i.code:'UNVERIFIED',severity:['P1','P2'].includes(i?.severity)?i.severity:null,detected_at:time(i?.detected_at)}))})),experiments,
+  // GSC search queries (28d aggregates). Short plain text only; anything that looks like a URL,
+  // email, credential or a long free-text string is dropped rather than truncated.
+  queries:(Array.isArray(raw.queries)?raw.queries:[]).slice(0,50).filter(x=>typeof x?.query==='string'&&x.query.length<=80&&!/@|https?:|www\.|\d{7,}|sk-|Bearer/i.test(x.query)&&x.query.trim()).map(x=>({query:x.query.trim(),window:x.window==='7d'?'7d':'28d',country:/^[A-Z]{2}$/.test(x.country||'')?x.country:null,path:path(x.path),...gsc(x)})),
   competitors:(Array.isArray(raw.competitors)?raw.competitors:[]).filter(x=>BRANDS.has(x)),
   gaps:(Array.isArray(raw.gaps)?raw.gaps:[]).slice(0,30).map(x=>({field:/^[a-zA-Z0-9_.]{1,100}$/.test(x?.field)?x.field:'unspecified',reason:['not_acquired','permission','data_lag'].includes(x?.reason)?x.reason:'not_acquired',since:time(x?.since)})),
   sources:(Array.isArray(raw.sources)?raw.sources:[]).slice(0,10).filter(x=>['GA4','GSC','SEMrush','production_audit','worklog'].includes(x?.name)).map(x=>({name:x.name,captured_at:time(x.captured_at),through:date(x.through),status:state(x.status)})),
-  limits:'SEO源端摘要；不是实时全网。以各来源through为数据截止，不以generated_at替代。null为未取得，0仅代表源端明确零。CTR为0..1比例；平均排名不可用TopN简单平均反推。自然和全渠道、7天和28天不能混用；事件数不是唯一用户数或严格顺序漏斗，form_open只是展示，generate_lead不等于CRM成交。小样本、实验未满观察期不可断言因果。'};
+  limits:'SEO源端摘要；不是实时全网。以各来源through为数据截止，不以generated_at替代。null为未取得，0仅代表源端明确零。CTR为0..1比例；平均排名不可用TopN简单平均反推。queries为GSC搜索词汇总（最多50条，已过滤疑似网址、邮箱、凭据），只代表源端导出的范围，不是全部搜索词。自然和全渠道、7天和28天不能混用；事件数不是唯一用户数或严格顺序漏斗，form_open只是展示，generate_lead不等于CRM成交。小样本、实验未满观察期不可断言因果。'};
 }
 const b64=buffer=>btoa(String.fromCharCode(...new Uint8Array(buffer))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 export async function seoHeaders({keyId,secret,pathname,search='',timestamp=Math.floor(Date.now()/1000),nonce=crypto.randomUUID().replaceAll('-','')}){

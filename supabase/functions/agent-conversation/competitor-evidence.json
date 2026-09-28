@@ -1,0 +1,48 @@
+{
+  "schema": "public-competitor-evidence-v1",
+  "note": "仅收录可公开访问的官方来源事实；候选对标不等于已确认直接竞争者。quote 由工具从原文提取，quote_check=tool_extract 表示尚待人工打开原文逐字核对。",
+  "entries": [
+    {
+      "id": "assaabloy-me-prometal-fire-rating",
+      "company": "ASSA ABLOY（中东）",
+      "product": "Pro Metal 系列防火门",
+      "category": "fire_door",
+      "market": "AE",
+      "dimension": "fire_rating",
+      "value": "30/60/90/120 分钟（BS 与 UL 口径）",
+      "quote": "Fire Rated 30/ 60/ 90/ 120 minutes (BS and UL)",
+      "source_url": "https://www.assaabloy.com/ae/en/content-fragments/products/doors-and-door-hardware/security-doors/pro-metal-series/fire-rated-doors/document/AA_ProMetal_Fire_Rated_Door_datasheet_ME.pdf",
+      "source_type": "official_datasheet",
+      "accessed": "2026-09-28",
+      "quote_check": "tool_extract"
+    },
+    {
+      "id": "assaabloy-me-prometal-acoustic",
+      "company": "ASSA ABLOY（中东）",
+      "product": "Pro Metal 系列防火门",
+      "category": "fire_door",
+      "market": "AE",
+      "dimension": "acoustic",
+      "value": "隔声 Rw 最高 50 dB",
+      "quote": "Noise insulation properties Rw up to 50 dB",
+      "source_url": "https://www.assaabloy.com/ae/en/content-fragments/products/doors-and-door-hardware/security-doors/pro-metal-series/fire-rated-doors/document/AA_ProMetal_Fire_Rated_Door_datasheet_ME.pdf",
+      "source_type": "official_datasheet",
+      "accessed": "2026-09-28",
+      "quote_check": "tool_extract"
+    },
+    {
+      "id": "hormann-uk-sts-stu-fire-classes",
+      "company": "Hörmann（英国）",
+      "product": "STS / STU 钢制及不锈钢门",
+      "category": "fire_door",
+      "market": "GB",
+      "dimension": "fire_rating",
+      "value": "EI2-30 / EI2-60 / EI2-90（页面认证标识）",
+      "quote": "EI2-30, T30, EI2-60, T60, EI2-90, T90",
+      "source_url": "https://www.hormann.co.uk/industry-commerce-and-public-authorities/doors/steel-doors/",
+      "source_type": "official_web_page",
+      "accessed": "2026-09-28",
+      "quote_check": "tool_extract"
+    }
+  ]
+}

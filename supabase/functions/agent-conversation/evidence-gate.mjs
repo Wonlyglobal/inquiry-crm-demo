@@ -30,7 +30,9 @@ export function gateMaterialEvidence(data){
     product_understanding={...u,findings,hidden_findings:hidden,human_verified:false};
    }
    // Derived profiles cannot replace page evidence; avoid unsupported model/series claims.
-   a.document={...d,pages,product_understanding,knowledge_profile:null,warnings:[...(d.warnings||[]),'仅核对本次授权检索的页码摘录；未独立复验原文件当前哈希或产品事实。']};
+   // Category labels only route public research; they are not shown as product claims.
+   const research_categories=[...new Set((d.knowledge_profile?.categories||[]).map(x=>x?.value).filter(v=>['fire_door','security_door','medical_door','smart_lock'].includes(v)))];
+   a.document={...d,pages,product_understanding,research_categories,knowledge_profile:null,warnings:[...(d.warnings||[]),'仅核对本次授权检索的页码摘录；未独立复验原文件当前哈希或产品事实。']};
   }
   if(a.video){const usable=['ready','partial'].includes(a.video.status);a.video={...a.video,segments:usable?(a.video.segments||[]).filter(s=>Number.isFinite(s.start)&&s.start>=0&&typeof s.text==='string'&&s.text.trim()&&['speech','screen_text','visual_inference'].includes(s.kind)):[]};}
   return a;

@@ -643,6 +643,20 @@
    "must_not": [
     "Jay\\s*(已)?(批准|签字|同意)"
    ]
+  },
+  "recall_used": {
+   "must": [
+    "NOM",
+    "2026-0?9-0?1|9月1日"
+   ]
+  },
+  "no_false_recall": {
+   "must": [
+    "不记得|没有(找到|相关)?(的)?(记录|记忆)|记忆里没有"
+   ],
+   "must_not": [
+    "预算(是|为|定了|定为)\\s*\\d"
+   ]
   }
  },
  "cases": [
@@ -1401,6 +1415,38 @@
     "zh",
     "plain",
     "no_jay_approval"
+   ]
+  },
+  {
+   "id": "mem-03",
+   "category": "memory",
+   "question": "我们之前聊过墨西哥防火门认证要求，结论是什么？",
+   "context": [],
+   "recall": [
+    {
+     "created_at": "2026-09-01T08:00:00Z",
+     "persona": "Grace",
+     "question": "墨西哥防火门需要什么认证",
+     "answer_summary": "墨西哥防火门进入政府和大型项目通常要求符合 NOM 相关标准，需先向客户确认项目具体要求，再准备检测报告。",
+     "similarity": 0.86
+    }
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "recall_used"
+   ]
+  },
+  {
+   "id": "mem-04",
+   "category": "memory",
+   "question": "我们上次聊的迪拜展会预算定了多少？",
+   "context": [],
+   "recall": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "no_false_recall"
    ]
   }
  ]

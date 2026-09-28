@@ -1,5 +1,6 @@
 // Beijing-only fixed endpoints. No caller-supplied URLs or provider fallback.
 export const CHAT_URL='https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
+export const EMBED_URL='https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings';
 export const TTS_URL='https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
 export const MODELS={chat:'qwen-plus',transcribe:'qwen3-asr-flash',speech:'qwen3-tts-flash',expressiveSpeech:'qwen3-tts-instruct-flash'};
 export async function boundedBytes(response,max=12*1024*1024){
@@ -9,7 +10,7 @@ export async function boundedBytes(response,max=12*1024*1024){
  const out=new Uint8Array(size);let n=0;for(const p of parts){out.set(p,n);n+=p.length}return out;
 }
 export async function providerJson(url,body,key,fetcher=fetch){
- if(![CHAT_URL,TTS_URL].includes(url))throw Error('模型地址不允许');
+ if(![CHAT_URL,TTS_URL,EMBED_URL].includes(url))throw Error('模型地址不允许');
  const response=await fetcher(url,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(60000)});
  if(!response.ok)throw Error(response.status===401?'百炼密钥无效或地域不匹配':response.status===429?'百炼额度或速率受限':response.status===403?'百炼模型权限或账户状态受限':'百炼服务暂不可用');
  return JSON.parse(new TextDecoder().decode(await boundedBytes(response,1024*1024)));

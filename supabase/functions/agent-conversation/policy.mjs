@@ -8,7 +8,7 @@ export function validateDialogue(input){
  preferenceInstruction(input.preferences);
  if(!PERSONAS[input.persona])throw Error('智能体无效');
  if(typeof input.question!=='string'||!input.question.trim()||input.question.length>3000)throw Error('问题需为1—3000字');
- if(!Array.isArray(input.history)||input.history.length>8)throw Error('历史消息过长');
+ if(!Array.isArray(input.history)||input.history.length>20||input.history.reduce((n,x)=>n+String(x?.content||'').length,0)>40000)throw Error('历史消息过长');
  if(input.materialHistory!==undefined&&(!Array.isArray(input.materialHistory)||input.materialHistory.length>4||input.materialHistory.some(x=>typeof x!=='string'||x.length>500)))throw Error('内部检索历史格式不正确');
  const history=input.history.map(x=>{if(!['user','assistant'].includes(x?.role)||typeof x.content!=='string'||x.content.length>6000)throw Error('历史消息格式不正确');return {role:x.role,content:x.content}});
  // Defense in depth, NOT automatic classification or permission to send L3/L4.

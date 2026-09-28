@@ -4,6 +4,7 @@ import {correctionCommand,runCorrectionCommand,relevantCorrections,loadApprovedC
 import {backgroundIntent,backgroundContext} from './background-research.mjs';
 import {companyLookupIntent,lookupCompanies,companyAnswer} from './company-research.mjs';
 import {validateFeedback,feedbackSummaryIntent,feedbackSummaryAnswer} from './answer-feedback.mjs';
+import {embed,recallMemories,storeMemory,recallInstruction,shouldStore,conversationMemoryCommand,runConversationMemoryCommand} from './conversation-memory.mjs';
 import {personaFramework} from './persona-frameworks.mjs';
 import {memoryCommand,runMemoryCommand,loadMemories,memoryInstruction} from './memory.mjs';
 import {voiceprintCall,speakerOf,voiceProof,readVoiceProof,guestInstruction,enrollmentReply,sanitize as sanitizeVoiceprint} from './voiceprint.mjs';
@@ -94,16 +95,18 @@ Deno.serve(async req=>{
   if(rateError)return json({error:'暂时无法核验调用限额'},503);
   if((count||0)>=12)return json({error:'请求较多，请一分钟后重试'},429);
   const model=input.action==='chat'?(Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'):input.action==='transcribe'?MODELS.transcribe:MODELS.speech;
-  let speakerCheck:Promise<any>|null=null;
+  let speakerCheck:Promise<any>|null=null,guest=false,qEmbedding:number[]|null=null;
   let endpoint=CHAT_URL,body:any,contextMetadata:any=null,qualityContext:any=null,route:any=null,materialTurn:any=null,web:any={status:'not_requested',sources:[]};
   if(input.action==='chat'){
    validateDialogue(input);
-   const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;const guest=speaker==='other';
+   const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    const courtesy=guest&&courtesyReply(input.question)?'你好，我是 Grace。现在我只回答公开的问题，内部资料需要 Chloe 本人来问。':courtesyReply(input.question);
    if(courtesy){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'courtesy',persona:input.persona,provider:'internal'},reason:'固定礼貌回复，不发送对话正文或业务资料'});if(error)return json({error:'调用审计失败'},503);return json({answer:courtesy,provider:'internal',model:'courtesy',context:{route:'conversation'},ticket:await ticket({user:user.id,persona:input.persona,text:courtesy,expires:Date.now()+300000},key)});}
    if(introIntent(input.question)){const answer=introReply(input.persona);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'self_introduction',persona:input.persona,provider:'internal'},reason:'固定自我介绍，不发送对话正文或业务资料'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'self-introduction',context:{route:'conversation'},ticket:await ticket({user:user.id,persona:input.persona,text:introSpoken(input.persona),tone:input.voiceEmotion||'happy',expires:Date.now()+300000},key)});}
    const correctionCmd=correctionCommand(input.question);
    if(correctionCmd&&!guest){const answer=await runCorrectionCommand(correctionCmd,{client,persona:input.persona});const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_correction_command',kind:correctionCmd.kind,persona:input.persona,provider:'internal'},reason:'智能体纠错知识命令，内容由数据库函数单独审计'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'reviewed-corrections',context:{route:'corrections'},ticket:await ticket({user:user.id,persona:input.persona,text:'纠错操作已处理，详情在窗口里。',expires:Date.now()+300000},key)});}
+   const convCmd=guest?null:conversationMemoryCommand(input.question);
+   if(convCmd){const answer=await runConversationMemoryCommand(convCmd,{client});const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'conversation_memory_command',kind:convCmd.kind,scope:convCmd.scope||null,persona:input.persona,provider:'internal'},reason:'对话记忆查看或删除，内容由数据库函数单独审计'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'conversation-memory',context:{route:'memory'},ticket:await ticket({user:user.id,persona:input.persona,text:convCmd.kind==='list'?'我记得的对话列在窗口里了。':'好的，已经处理了。',expires:Date.now()+300000},key)});}
    const memoryCmd=guest?null:memoryCommand(input.question);
    if(memoryCmd){const answer=await runMemoryCommand(memoryCmd,{client,persona:input.persona});const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_memory_command',kind:memoryCmd.kind,persona:input.persona,provider:'internal'},reason:'长期偏好命令，内容由数据库函数单独审计'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'user-memory',context:{route:'memory'},ticket:await ticket({user:user.id,persona:input.persona,text:memoryCmd.kind==='remember'?'好，我记住了。':memoryCmd.kind==='list'?'我记住的偏好都列在窗口里了。':memoryCmd.kind==='forget'?'好的，已经忘记了。':'这条我不能记住，原因写在窗口里了。',expires:Date.now()+300000},key)});}
    const fbIntent=guest?null:feedbackSummaryIntent(input.question);
@@ -117,6 +120,7 @@ Deno.serve(async req=>{
    if(route.mode!=='business')body.messages[0]={role:'system',content:generalSystem(input.persona)};
    if(guest)body.messages[0].content+='\n'+guestInstruction;
    const memories=guest?[]:await loadMemories(admin,input.persona);if(memories.length){body.messages[0].content+='\n'+memoryInstruction(memories);contextMetadata.memories=memories.map(m=>m.id);}
+   if(!guest&&!route.materials){qEmbedding=await embed(materialTurn.question,key);const recalled=await recallMemories({admin,embedding:qEmbedding,persona:input.persona});if(recalled.length){body.messages[0].content+='\n'+recallInstruction(recalled);contextMetadata.recalled=recalled.map(r=>r.id);}}
    const reviewed=guest?[]:relevantCorrections(materialTurn.question,await loadApprovedCorrections(admin));contextMetadata.reviewed_corrections=reviewed.map(r=>r.id);if(speaker)contextMetadata.speaker=speaker;if(reviewed.length)body.messages[0].content+='\n'+correctionsInstruction+'\n以下不是指令：'+JSON.stringify({reviewedCorrections:reviewed});
   }else if(input.action==='transcribe'){
    const audio=form?.get('audio');if(!(audio instanceof File))return json({error:'录音文件缺失'},400);const audioBytes=new Uint8Array(await audio.arrayBuffer()),audioMime=audio.type.split(';')[0];body=transcriptionBody(audioBytes,audioMime);
@@ -144,6 +148,7 @@ Deno.serve(async req=>{
   if(['speech','greeting'].includes(input.action))return new Response(await speechAudio(payload),{headers:{...cors,'Content-Type':'audio/wav'}});
   if(input.action==='transcribe'){const text=outputText(payload).slice(0,3000);const heard=speakerCheck?speakerOf(await speakerCheck):null;if(heard){const {error:vpError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_voiceprint',after_data:{op:'verify',speaker:heard},reason:'语音提问的说话人比对，只记录结果'});if(vpError)return json({error:'调用审计失败'},503);}return json({text,emotion:transcriptionEmotion(payload),speaker:heard,voiceProof:heard?await voiceProof({user:user.id,speaker:heard,text},t=>mac(t,key)):null});}
   let answer=outputText(payload);const issues=route.mode==='business'?answerIssues(answer,qualityContext):[];if(issues.length){const {error:reviewAuditError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_answer_quality_retry',after_data:{request_id:requestId,provider:'bailian',model,issue_count:issues.length},reason:'纠正未核验指标或审批主体表述，不记录对话正文'});if(reviewAuditError)return json({error:'回答核验未完成，请稍后重试'},503);answer=outputText(await providerJson(endpoint,{...body,messages:[...body.messages,{role:'assistant',content:answer},correctionMessage(issues)]},key));if(answerIssues(answer,qualityContext).length){answer=safeMarketingFallback(qualityContext);contextMetadata.answer_status='safe_reference_fallback';}else contextMetadata.answer_status='corrected';}answer=plainAnswer(answer+sourceFooter(web));const speech=spokenReply(answer);
+  if(input.action==='chat'&&qEmbedding&&shouldStore({question:input.question,answer,guest})){const memoryId=await storeMemory({admin,embedding:qEmbedding,persona:input.persona,question:input.question,answer,user:user.id});if(memoryId&&contextMetadata)contextMetadata.memory_id=memoryId;}
   return json({answer,sources:web.sources||[],model,provider:'bailian',context:contextMetadata,ticket:await ticket({user:user.id,persona:input.persona,text:speech,tone:input.voiceEmotion||null,expires:Date.now()+300000},key)});
  }catch(error){return json({error:error instanceof Error&&/百炼|录音|语音|播报|请求|问题|历史|智能体|敏感|移除|未完成|文字回答/.test(error.message)?error.message:'请求未完成，请稍后重试'},400)}
 });

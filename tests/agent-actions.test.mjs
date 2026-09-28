@@ -44,8 +44,8 @@ test('catalogue opens as a flip-through viewer action; page links are signed per
  const catalog={sources:[{id:'c1',pages:61},{id:'c2',pages:70}],products:[{model:'X60 Pro',catalog:'c2',page:16},{model:'X60 Pro',catalog:'c1',page:18},{model:'X60 Pro',catalog:'c2',page:16}]};
  const a=await catalogPageActions(['x60-pro'],catalog);assert.equal(a.length,2);
  assert.deepEqual(a[0],{type:'catalog_view',catalog:'c2',page:16,pages:70,label:'X60 Pro · 零售画册 第16页'});assert.equal('url' in a[0],false);
- assert.equal(catalogNameIntent('打开零售画册'),'c2');assert.equal(catalogNameIntent('打开工程画册'),'c1');assert.equal(catalogNameIntent('零售画册有几页'),null);
- const r=catalogPagesRequest({catalog:'c2'},catalog);assert.equal(r.title,'零售画册');assert.equal(r.paths.length,70);assert.equal(r.paths[69],'catalog-pages/c2_p070.jpg');
+ assert.equal(catalogNameIntent('打开零售画册'),'c2');assert.equal(catalogNameIntent('给我零售画册的PDF'),'c2');assert.equal(catalogNameIntent('下载木门画册'),'c3');assert.equal(catalogNameIntent('零售画册里有哪些防火门，给我列一下'),null);assert.equal(catalogNameIntent('打开工程画册'),'c1');assert.equal(catalogNameIntent('零售画册有几页'),null);
+ const r=catalogPagesRequest({catalog:'c2'},catalog);assert.equal(r.title,'零售画册');assert.equal(r.paths.length,70);assert.equal(r.paths[69],'catalog-pages/c2_p070.jpg');assert.equal(r.pdfPath,'catalog-pdf/c2.pdf');assert.equal(r.pdfName,'WONLY-Retail-Catalogue-2026-08.pdf');
  assert.throws(()=>catalogPagesRequest({catalog:'c9'},catalog),/画册无效/);assert.throws(()=>catalogPagesRequest({catalog:'c3'},catalog),/页数未知/);
  assert.throws(()=>catalogPagesRequest({catalog:'../x'},catalog),/画册无效/);
 });

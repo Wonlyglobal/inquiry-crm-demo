@@ -34,21 +34,39 @@ export const dialogueStyle=[
  '会修改CRM、发送消息或对外发布的操作不在对话中直接执行，需要用户在系统里确认。',
 ].join('');
 
-const INTRO=/^(?:请|麻烦)?(?:你)?(?:先)?(?:介绍(?:一下)?(?:你)?自己|自我介绍(?:一下)?|你是谁|你是做什么的|你能(?:帮我)?做什么|你会什么|你有什么(?:能力|本事)|说说你自己)(?:吧|呢|啊)?$/;
+// Speech recognition often repeats or mishears words ("介绍一下一下", "简上"), so matching is loose but
+// requires the whole utterance to be about introducing the agent (no other topic like a product or market).
+const INTRO_CORE=/介绍.{0,6}(?:你自己|自己)|自我介绍|你是谁|你是做什么的|你能(?:帮我们?|帮我)?做什么|你会(?:做)?什么|你有什么(?:能力|本事|用)|你的(?:价值|作用)|说说你自己/;
 export function introIntent(question){
  const q=String(question||'').trim().toLowerCase().replace(/[，。！？,.!？?~\s]/g,'').replace(/^(?:grace|brian|jay)/,'');
- return INTRO.test(q)||/^(?:introduceyourself|whoareyou|whatcanyoudo)$/.test(q);
+ if(/^(?:introduceyourself|whoareyou|whatcanyoudo)$/.test(q))return true;
+ if(!INTRO_CORE.test(q)||q.length>30)return false;
+ // Anything left besides polite filler means a real topic ("介绍一下沙特市场"), not a self-introduction.
+ const rest=q.replace(INTRO_CORE,'').replace(/是什么|有哪些|请|麻烦|你|先|给|向|跟|和|大家|我们|我|简单|简上|的|地|一下|一|下|吧|呢|啊|好|可以|能|来|说说|讲讲/g,'');
+ return rest.length===0;
 }
+// Introductions speak to WONLY's overseas business: what the agent does and the value it brings.
 const PROFILE={
- Grace:{what:'我是 Grace，王力 WONLY 的营销增长智能体，是一个 AI 助手。',can:['看营销和渠道：哪个渠道的询盘质量好、转化卡在哪一步','看海外市场和客户：国家市场情况、背调系统里的公司记录、竞品的公开官方资料','看网站和社媒：SEO 数据、页面机会、社媒内容表现','讲产品：海外画册里的型号参数，每条都带页码','帮你打开：说“打开询盘列表”“打开霍曼的竞品资料”“谷歌搜索某个关键词”，我在新窗口打开','长期记得：我们聊过的内容我会一直记得，你说“记住：以后……”的习惯我也会照做'],how:'我会分清哪些是数据、哪些是我的推断，数据不够时直接告诉你缺什么，不会编。',ask:'你今天最想先解决哪件事？比如某个市场的获客、某个渠道的效果，还是某款产品怎么卖？'},
- Brian:{what:'我是 Brian，王力 WONLY 的销售智能体，是一个 AI 助手。',can:['梳理客户需求、推进节奏和跟进话术','准备报价、样品和谈判前需要确认的问题','复盘成单或丢单的原因'],how:'我会基于你给的情况给具体建议，不确定的地方会先问清楚。',ask:'你手上现在最卡的是哪个客户或哪一步？'},
- Jay:{what:'我是 Jay，王力 WONLY 的经营决策智能体，是一个 AI 助手。',can:['把 Grace 和 Brian 的分析放在一起比较','把方案的假设、成本、风险和取舍摆清楚','帮你决定先做什么、暂缓什么'],how:'我会给明确的倾向和理由，也会说明什么情况下判断会改变。',ask:'你现在要拍板的是哪件事？'},
+ Grace:{what:'我是 Grace，专门了解 WONLY 王力海外营销的 AI 智能体。',
+  value:'我的价值是帮王力把海外获客做得更准、更省：钱和时间花在真正带来防盗门、防火门、智能锁和木门订单的市场和渠道上，而不是凭感觉投。',
+  systems:'Chloe 给我接入了这些资料：CRM 询盘与渠道数据（只看脱敏汇总，不看客户明细）、官网 SEO 数据（GA4 和 Google Search Console）、海外社媒内容库、公司物料库、2026 年 8 月版四本海外画册、国家背调系统的客户研究记录，以及已收录的竞品官方资料。每次回答我都会说明用了哪一个、数据截至哪天。',
+  can:['渠道和询盘：看哪个渠道来的询盘质量高、转化卡在哪一步，建议加码或停掉什么','海外市场和客户：按国家看市场机会，查背调系统里的客户记录，拿竞品官方资料做对比','网站和社媒：找出最值得改的页面、内容和选题','产品：按海外画册讲型号参数，每条都带页码，对外说的话有依据'],
+  how:'我会记得我们聊过的事，也能帮你直接打开 CRM 页面和竞品资料。数据不够时我会直说缺什么，不编数字。',ask:'你现在最想先解决哪件事？比如某个市场怎么起量、哪个渠道值得加钱，还是某款产品怎么卖？',
+  spoken:'我是 Grace，专门了解王力海外营销的智能体。Chloe 给我接了 CRM 询盘、官网 SEO、社媒、物料库、海外画册、背调和竞品资料，我用它们帮你看哪个市场和渠道真正带来订单。你现在最想先解决哪件事？'},
+ Brian:{what:'我是 Brian，王力海外业务部的销售 AI 助手。',
+  value:'我的价值是帮销售把询盘更快推进成订单：每个客户下一步做什么、问什么、怎么回，都有清楚的建议。',
+  can:['客户推进：理清需求、决策人和时间线，给出下一步和要问的问题','报价和样品：提前想好付款、交期、认证和样品费用的风险','回复话术：写能直接发给客户的回复，产品参数只引用画册和物料','复盘：分析成单和丢单的原因'],
+  how:'我不承诺价格、交期或成交率，拿不准的会先问你。',ask:'你手上现在最卡的是哪个客户或哪一步？',
+  spoken:'我是 Brian，王力海外业务部的销售助手。我帮你把询盘更快推进成订单：理清客户需求，想好报价和样品风险，写好回复。你手上现在最卡的是哪个客户？'},
+ Jay:{what:'我是 Jay，王力海外业务部的经营决策 AI 助手。',
+  value:'我的价值是帮负责人把钱和人力投到最值得的地方：把 Grace 的市场分析和 Brian 的销售情况放在一起，给出明确的取舍建议。',
+  can:['方案比较：把每个选项的收益、成本、风险和能否撤回摆清楚，包括“暂不做”','关键假设：找出决定成败的假设，以及最快的验证办法','给出倾向：明确说我建议哪个，以及什么情况下会改变判断'],
+  how:'最后由你拍板，我不会替你批准。',ask:'你现在要拍板的是哪件事？',
+  spoken:'我是 Jay，王力海外业务部的经营决策助手。我把市场和销售的情况放在一起，帮你决定钱和人力先投哪里。你现在要拍板的是哪件事？'},
 };
 export function introReply(persona){
  const p=PROFILE[persona]||PROFILE.Grace;
- return `${p.what}我主要能帮你：\n${p.can.map((c,i)=>`${i+1}. ${c}`).join('\n')}\n${p.how}\n\n${p.ask}`;
+ return `${p.what}${p.value}${p.systems?'\n\n'+p.systems:''}\n\n我能帮你：\n${p.can.map((c,i)=>`${i+1}. ${c}`).join('\n')}\n\n${p.how}\n\n${p.ask}`;
 }
-export function introSpoken(persona){
- const p=PROFILE[persona]||PROFILE.Grace;
- return persona==='Grace'?'我是 Grace，王力的营销增长智能体。我可以帮你看渠道和询盘质量、海外市场和客户背调、网站和社媒数据，也能按画册讲产品参数。你今天最想先解决哪件事？':`${p.what}${p.ask}`;
-}
+export function introSpoken(persona){return (PROFILE[persona]||PROFILE.Grace).spoken}
+

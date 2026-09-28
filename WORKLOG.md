@@ -228,3 +228,5 @@ Social live validation follow-up: Instagram live media and Insights available in
 2026-09-28 竞品证据扩至 24 条：新增 dormakaba 酒店电子锁（Saffire LX：EN 12209、IP54、电池；Quantum Pixel：BHMA/UL、电池，官网附停产通知）、Portalp 与 Dortek 医用气密门、Hörmann 隔音钢门；新增“防护等级”“电池续航”维度。600 离线回归。未部署。
 2026-09-28 情报任务服务端化候选：GitHub Actions 每日运行 intel-watch，读取固定官方来源生成标题级候选 Issue（未核验、不自动入 feed）；本会话出网受限未实测。604 离线回归。未合并。
 2026-09-28 竞品证据达 31 条（新增沙特 Al Barrak、阿联酋 Red Flames/HMI、墨西哥 Asturmex 欧标防火门），沙特/阿联酋/墨西哥各≥3 条；物料库新增产品抽检工具 sample-findings.mjs（CSV 抽样 + 按字段计分）。605 离线回归。未部署。
+
+2026-09-28 画册深度理解（Chloe 授权 Claude 读取 wonly官网/最新画册-英文 4 本 2026-08 海外画册）：本机 OCR 212 页 + Claude 逐页看图读取 124 页规格页，生成私有 wonly-catalog-v1.json（325 条产品/要点、26 条公司口径、7 组画册间矛盾、204 页检索文字；每条带画册与 PDF 页码）。文件只放 询盘crm/outputs/catalog-private-20260928/ 与私有桶 agent-private-knowledge，不进仓库。新增 catalog-knowledge.mjs：型号/品类/画册口径/页面检索四种确定性回答，路由在公司背调之后、物料之前，发文件类请求不拦截；审计 operation=catalog_knowledge，不发外部模型，语音只播固定模板。迁移 20260928140000 建私有桶。610 离线回归通过。待办：上传 JSON 到私有桶；Chloe 按 50 条抽检表核对后再去掉“待抽检”提示。未部署。

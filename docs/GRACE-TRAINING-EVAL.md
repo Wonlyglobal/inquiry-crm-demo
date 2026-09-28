@@ -27,3 +27,10 @@ Grace 使用百炼 qwen-plus，不做模型微调。“训练”= 固定考题 +
 - 每次命中写 audit_logs（operation background_company_lookup，只记匹配域名与数量）。未命中则回到“单公司背调核验清单”。
 - 2026-09-28 用户确认：背调系统 api/company/*.json 公网打不开（联系人未公开暴露）。因此 CRM 函数同样读不到详细记录，当前只能展示公开索引字段（国家、城市、客户类型、匹配度、域名）。要显示产品方向、规模、风险等详细字段，需要背调系统提供受保护的业务字段接口（只返回白名单字段、签名校验，参照物料库一次性签名方案），待负责人决定。
 - 验证：587 项离线回归（新增 6 项，含联系人字段不外露、无域名降级、严格域名路径）。
+
+## 2026-09-28 补充：背调业务字段私有通道（未部署，负责人已同意方案）
+- 背调系统是 GitHub Pages 静态站，无法在其上加受保护接口；改为“导出业务字段 → CRM 私有存储桶 → 服务端读取”。
+- 导出：国家背调系统/scripts/export-crm-business.mjs（在 businesswonly 公开仓库之外），读取 crawler/leads.json，只保留业务字段，丢弃 email、phone、contactSource、decisionContact、keyContacts、keyContactMethods、contacts、nextAction，并把自由文本中的邮箱/电话替换为“[已移除联系方式]”；含邮箱形态文本即中止。输出 output/crm-export/background-business-v1.json（已加入该目录 .gitignore）。2026-09-28 试跑：2382 家，1537 家有域名，邮箱形态 0，替换 59 处。
+- CRM：迁移 20260928120000_background_research_private_bucket.sql 建私有桶 background-research（不授予 anon/authenticated 任何策略）；agent-conversation 用 service role 读取，失败时回退公开索引。审计记录 source（private_export / public_index）。
+- 同步频率：背调系统更新后重新导出并上传；文件带 generatedAt，回答显示数据日期。
+- 回滚：删除桶内对象与桶；函数自动回退公开索引。

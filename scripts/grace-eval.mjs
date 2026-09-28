@@ -8,6 +8,8 @@
 import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {requestBody} from '../supabase/functions/agent-conversation/policy.mjs';
 import {analysisIntent,evidencePlan,deepAnalysisInstruction,marketingIntent,marketingFrameworkInstruction} from '../supabase/functions/agent-conversation/deep-analysis.mjs';
+import {seoSummary} from '../supabase/functions/agent-conversation/seo.mjs';
+import {seoIntent,seoOpportunities,seoFrameworkInstruction} from '../supabase/functions/agent-conversation/seo-opportunities.mjs';
 import {backgroundContext} from '../supabase/functions/agent-conversation/background-research.mjs';
 import {CHAT_URL,MODELS,providerJson,completionText} from '../supabase/functions/agent-conversation/bailian.mjs';
 
@@ -19,12 +21,16 @@ export const suite=read('grace-eval-cases.json');
 // legacy=true reproduces the production prompt before this branch (no country brief, company checklist or channel framework).
 export function buildPrompt(c,s=suite,{legacy=false}={}){
  const skipped={status:'not_requested'};
- const ctx=Object.fromEntries(['research','crm','seo','social'].map(k=>[k,c.context.includes(k)?s.fixtures[k]:skipped]));
+ const NOW=Date.parse('2026-09-28T03:00:00Z');
+ const fixture=k=>k==='seo'?seoSummary(s.fixtures.seo_raw,NOW):s.fixtures[k];
+ const ctx=Object.fromEntries(['research','crm','seo','social'].map(k=>[k,c.context.includes(k)?fixture(k):skipped]));
+ const seoExtra=!legacy&&c.context.includes('seo')&&seoIntent(c.question)?{seoOpportunities:seoOpportunities(ctx.seo,NOW)}:{};
  const background=legacy?{countryBriefs:[],instruction:''}:backgroundContext(c.question,{research:ctx.research,crm:ctx.crm});
  const knowledge={publicFeed:fn('public-knowledge.json'),marketPlaybooks:fn('market-playbooks.json'),marketingLearning:fn('marketing-learning.json'),socialBusinessContext:fn('social-business-context.json')};
- const body=requestBody({question:c.question,persona:'Grace',history:[]},MODELS.chat,JSON.stringify({...knowledge,...ctx,socialPosts:skipped,socialLibrary:skipped,...background.countryBriefs.length?{countryBriefs:background.countryBriefs}:{}}));
+ const body=requestBody({question:c.question,persona:'Grace',history:[]},MODELS.chat,JSON.stringify({...knowledge,...ctx,socialPosts:skipped,socialLibrary:skipped,...background.countryBriefs.length?{countryBriefs:background.countryBriefs}:{},...seoExtra}));
  if(background.instruction)body.messages[0].content+='\n'+background.instruction;
  if(!legacy&&marketingIntent(c.question))body.messages[0].content+='\n'+marketingFrameworkInstruction;
+ if(seoExtra.seoOpportunities)body.messages[0].content+='\n'+seoFrameworkInstruction;
  if(analysisIntent(c.question))body.messages[0].content+='\n'+deepAnalysisInstruction+'\n证据可用性：'+JSON.stringify(evidencePlan(ctx,Date.parse('2026-09-28T03:00:00Z')));
  body.messages[0].content+='\n当前日期：2026-09-28。本轮没有联网资料。';
  return body;

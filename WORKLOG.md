@@ -222,3 +222,4 @@ Social live validation follow-up: Instagram live media and Insights available in
 2026-09-28 Grace 训练候选：执行 Claude（Cowork）。建立 24 题合成考试与自动评分（scripts/grace-eval.mjs，支持 --legacy 基线对比）；新增国家市场背调简报（背调索引国家类别分布、CRM 国家线索、公开竞品，均 ≥5 披露）、单公司背调核验清单（不读客户数据、禁止编造）、营销“渠道质量五问”。581 离线回归通过；模型实测分数待 Codex 用百炼密钥运行。未部署。见 docs/GRACE-TRAINING-EVAL.md。
 2026-09-28 背调系统客户接入候选：执行 Claude（Cowork）。Grace/Brian/Jay 遇到公司背调问题先查国家背调系统研究记录（域名/名称匹配），本地展示业务字段、不展示联系人、不发外部模型、写审计；未命中走核验清单。587 离线回归通过。待确认背调系统 company 详情接口是否公网暴露联系人。未部署。
 2026-09-28 背调私有通道候选：负责人同意受保护接口方案；因背调系统为静态站，改为业务字段导出（去联系人、去 nextAction、清洗文本中的邮箱电话）→ CRM 私有桶 background-research → 服务端读取，失败回退公开索引。588 离线回归通过。未部署。
+2026-09-28 Grace SEO 训练候选：执行 Claude（Cowork）。考试增至 32 题（新增 SEO 8 题，SEO 夹具经 seoSummary 校验）；新增确定性 SEO 机会清单（P1 问题、低 CTR、到期实验、排名 4–15）与 SEO 回答框架，不编搜索量、不承诺排名。592 离线回归通过。未部署。

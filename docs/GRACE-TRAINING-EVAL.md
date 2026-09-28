@@ -34,3 +34,10 @@ Grace 使用百炼 qwen-plus，不做模型微调。“训练”= 固定考题 +
 - CRM：迁移 20260928120000_background_research_private_bucket.sql 建私有桶 background-research（不授予 anon/authenticated 任何策略）；agent-conversation 用 service role 读取，失败时回退公开索引。审计记录 source（private_export / public_index）。
 - 同步频率：背调系统更新后重新导出并上传；文件带 generatedAt，回答显示数据日期。
 - 回滚：删除桶内对象与桶；函数自动回退公开索引。
+
+## 2026-09-28 补充：SEO 优化能力（未部署）
+- 考试新增 8 道 SEO 题（共 32 题）；SEO 测试数据改为按源端 schema 构造、再经 seoSummary 校验的合成快照（含 P1 NOINDEX、低 CTR 商品页、到期标题实验、墨西哥无数据）。
+- 新增 seo-opportunities.mjs：只基于 SEO 摘要确定性列机会——P1 技术问题 → 高展示低 CTR（28 天展示≥200 且 CTR 低于全站 28 天 CTR 六成）/ 已到观察期的实验 → 平均排名 4–15 且展示≥100 的内容补强；每条带页面、证据、指标、观察期；列出无数据市场。不编关键词搜索量、不承诺排名。
+- Grace 的 SEO 问题附带 seoOpportunities 与“SEO 回答框架”（数据截止→需求面→机会清单→转化面→实验→关键词假设需 GSC 验证）。
+- 新增评分项：数据截止日期、不承诺排名、引用具体页面、观察期、P1 优先、关键词须标待验证且不编搜索量。
+- 验证：592 项离线回归（新增 4 项）。模型实测仍待 Codex 用 --legacy 与新版对比。

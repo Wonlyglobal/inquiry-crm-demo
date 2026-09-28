@@ -77,25 +77,6 @@
    "overdue_count": 9,
    "limits": "只统计近30天新增批次；小于5条分组不披露。"
   },
-  "seo": {
-   "status": "available",
-   "generated_at": "2026-09-28T02:00:00Z",
-   "ga4": {
-    "through": "2026-09-26",
-    "organic_sessions_28d": 1820,
-    "form_submit_28d": 14
-   },
-   "gsc": {
-    "through": "2026-09-24",
-    "clicks_28d": 960,
-    "impressions_28d": 48200,
-    "ctr_28d": 0.0199
-   },
-   "missing": [
-    "按国家拆分的GSC"
-   ],
-   "limits": "合成测试数据"
-  },
   "social": {
    "status": "available",
    "generated_at": "2026-09-28T02:00:00Z",
@@ -168,6 +149,230 @@
     ]
    },
    "limits": "背调索引样本，非市场总量或成交概率。"
+  },
+  "seo_raw": {
+   "schema_version": "1.0",
+   "site": "wonlyglobal.com",
+   "generated_at": "2026-09-28T02:00:00Z",
+   "freshness": {
+    "ga4": {
+     "through": "2026-09-26",
+     "lag_days": 2,
+     "status": "ok"
+    },
+    "gsc": {
+     "through": "2026-09-24",
+     "lag_days": 4,
+     "status": "ok"
+    },
+    "semrush": {
+     "through": null,
+     "status": "missing"
+    }
+   },
+   "windows": {
+    "7d": {
+     "gsc": {
+      "clicks": 210,
+      "impressions": 11800,
+      "ctr": 0.0178,
+      "avg_position": 19.4
+     },
+     "ga4": {
+      "organic_sessions": 430
+     }
+    },
+    "28d": {
+     "gsc": {
+      "clicks": 960,
+      "impressions": 48200,
+      "ctr": 0.0199,
+      "avg_position": 18.7
+     },
+     "ga4": {
+      "organic_sessions": 1820
+     }
+    }
+   },
+   "funnel": {
+    "organic_28d": {
+     "cta_click": 120,
+     "form_open": 64,
+     "form_start": 31,
+     "form_submit": 14,
+     "generate_lead": 12,
+     "form_error": 5,
+     "form_abandon": 17,
+     "contact_click": 22
+    },
+    "all_channels_28d": {
+     "form_submit": 41,
+     "generate_lead": 36
+    }
+   },
+   "markets": [
+    {
+     "country": "SA",
+     "status": "ok",
+     "gsc_7d": {
+      "clicks": 22,
+      "impressions": 1900,
+      "ctr": 0.0116,
+      "avg_position": 21.0
+     }
+    },
+    {
+     "country": "AE",
+     "status": "ok",
+     "gsc_7d": {
+      "clicks": 18,
+      "impressions": 1300,
+      "ctr": 0.0138,
+      "avg_position": 17.5
+     }
+    },
+    {
+     "country": "MX",
+     "status": "missing"
+    }
+   ],
+   "pages": [
+    {
+     "path": "/products/fire-rated-doors",
+     "role": "commercial",
+     "gsc_7d": {
+      "clicks": 30,
+      "impressions": 2600,
+      "ctr": 0.0115,
+      "avg_position": 11.2
+     },
+     "gsc_28d": {
+      "clicks": 118,
+      "impressions": 10400,
+      "ctr": 0.0113,
+      "avg_position": 10.8
+     },
+     "issues": []
+    },
+    {
+     "path": "/products/steel-security-doors",
+     "role": "commercial",
+     "gsc_7d": {
+      "clicks": 12,
+      "impressions": 900,
+      "ctr": 0.0133,
+      "avg_position": 14.0
+     },
+     "gsc_28d": {
+      "clicks": 49,
+      "impressions": 3600,
+      "ctr": 0.0136,
+      "avg_position": 13.6
+     },
+     "issues": [
+      {
+       "code": "MISSING_HREFLANG",
+       "severity": "P2",
+       "detected_at": "2026-09-20T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "path": "/projects/hospital-doors",
+     "role": "commercial",
+     "gsc_7d": {
+      "clicks": 3,
+      "impressions": 400,
+      "ctr": 0.0075,
+      "avg_position": 24.0
+     },
+     "gsc_28d": {
+      "clicks": 11,
+      "impressions": 1500,
+      "ctr": 0.0073,
+      "avg_position": 23.1
+     },
+     "issues": [
+      {
+       "code": "NOINDEX_TAG",
+       "severity": "P1",
+       "detected_at": "2026-09-22T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "path": "/blog/fire-door-ratings-explained",
+     "role": "article",
+     "gsc_7d": {
+      "clicks": 40,
+      "impressions": 1800,
+      "ctr": 0.0222,
+      "avg_position": 7.9
+     },
+     "gsc_28d": {
+      "clicks": 170,
+      "impressions": 7200,
+      "ctr": 0.0236,
+      "avg_position": 8.3
+     },
+     "issues": []
+    }
+   ],
+   "experiments": [
+    {
+     "id": "fire-door-title-v2",
+     "target_paths": [
+      "/products/fire-rated-doors"
+     ],
+     "hypothesis": "更具体的标题提升点击率",
+     "status": "observing_14d",
+     "baseline": {
+      "gsc": {
+       "clicks": 90,
+       "impressions": 9800,
+       "ctr": 0.0092,
+       "avg_position": 11.5
+      }
+     },
+     "latest": {
+      "gsc": {
+       "clicks": 118,
+       "impressions": 10400,
+       "ctr": 0.0113,
+       "avg_position": 10.8
+      }
+     },
+     "launched_at": "2026-09-10T00:00:00Z",
+     "observe_7d_at": "2026-09-17T00:00:00Z",
+     "observe_14d_at": "2026-09-24T00:00:00Z",
+     "decision": null
+    }
+   ],
+   "competitors": [
+    "hormann.com"
+   ],
+   "gaps": [
+    {
+     "field": "gsc.queries",
+     "reason": "not_acquired"
+    },
+    {
+     "field": "semrush.keywords",
+     "reason": "permission"
+    }
+   ],
+   "sources": [
+    {
+     "name": "GA4",
+     "through": "2026-09-26",
+     "status": "ok"
+    },
+    {
+     "name": "GSC",
+     "through": "2026-09-24",
+     "status": "ok"
+    }
+   ]
   }
  },
  "rubrics": {
@@ -242,6 +447,41 @@
   "sample_caveat": {
    "must": [
     "样本"
+   ]
+  },
+  "seo_through": {
+   "must": [
+    "2026-09-2[46]|through|截至"
+   ]
+  },
+  "no_rank_promise": {
+   "must_not": [
+    "保证.{0,8}(排名|首页|第一)",
+    "一定(能|会).{0,6}(首页|第一|排名)"
+   ]
+  },
+  "page_path": {
+   "must": [
+    "/(products|projects|blog)/"
+   ]
+  },
+  "observe": {
+   "must": [
+    "7天|14天|28天|观察期"
+   ]
+  },
+  "p1_first": {
+   "must": [
+    "NOINDEX|P1|noindex"
+   ]
+  },
+  "kw_hypothesis": {
+   "must": [
+    "待GSC|待验证|假设"
+   ],
+   "must_not": [
+    "搜索量(为|约|达)\\s*\\d",
+    "月搜索\\s*\\d"
    ]
   }
  },
@@ -614,6 +854,131 @@
     "plain",
     "checklist",
     "no_company_facts"
+   ]
+  },
+  {
+   "id": "seo-01",
+   "category": "seo",
+   "question": "网站SEO现在最该先做哪三件事？",
+   "context": [
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "seo_through",
+    "p1_first",
+    "page_path",
+    "observe",
+    "no_rank_promise"
+   ]
+  },
+  {
+   "id": "seo-02",
+   "category": "seo",
+   "question": "防火门产品页的标题实验效果怎么样？可以下结论了吗？",
+   "context": [
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "seo_through",
+    "observe",
+    "no_rank_promise",
+    "hypothesis"
+   ]
+  },
+  {
+   "id": "seo-03",
+   "category": "seo",
+   "question": "哪些页面最有希望提升排名？给我具体动作",
+   "context": [
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "page_path",
+    "observe",
+    "metric",
+    "no_rank_promise"
+   ]
+  },
+  {
+   "id": "seo-04",
+   "category": "seo",
+   "question": "针对沙特市场做SEO，要写哪些关键词和页面？",
+   "context": [
+    "seo",
+    "crm"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "kw_hypothesis",
+    "no_rank_promise",
+    "gaps"
+   ]
+  },
+  {
+   "id": "seo-05",
+   "category": "seo",
+   "question": "网站自然流量带来多少询盘？转化怎么样？",
+   "context": [
+    "seo",
+    "crm"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "seo_through",
+    "gaps",
+    "no_zero_for_missing"
+   ]
+  },
+  {
+   "id": "seo-06",
+   "category": "seo",
+   "question": "墨西哥的网站数据怎么样？",
+   "context": [
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "gaps",
+    "no_zero_for_missing"
+   ]
+  },
+  {
+   "id": "seo-07",
+   "category": "seo",
+   "question": "医院门项目页为什么没流量？",
+   "context": [
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "p1_first",
+    "page_path"
+   ]
+  },
+  {
+   "id": "seo-08",
+   "category": "seo",
+   "question": "下个季度SEO目标怎么定？给个计划",
+   "context": [
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "baseline",
+    "metric",
+    "observe",
+    "no_rank_promise"
    ]
   }
  ]

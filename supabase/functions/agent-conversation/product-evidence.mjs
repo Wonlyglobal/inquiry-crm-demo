@@ -6,7 +6,7 @@ export function productEvidence(raw,sha){
  return {status:statuses.includes(raw.status)?raw.status:'partial',findings,human_verified:false};
 }
 export function productEvidenceText(data){
- if(!data)return '';
+ if(!data||!data.findings.length)return '';
  const status={processing:'内部语义整理中',processed:'内部语义提取已处理，未人工核验',partial:'内部语义提取存在缺口',limited:'内部语义结果达到上限',no_text:'没有可处理文字'}[data.status];
  return '\n'+status+'。不是完整产品理解或认证结论。\n'+data.findings.map(f=>`${f.product}｜第${f.page}页｜${f.field}\n机器解释（待核对）：${f.value}\n原文依据：${f.quote}`).join('\n');
 }

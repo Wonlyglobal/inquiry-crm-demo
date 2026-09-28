@@ -13,8 +13,24 @@ export function gateMaterialEvidence(data){
     return {...p,location:`第${p.page}页${p.kind==='sheet_cells'?'（单元格提取）':''}`,chunks,facts};
    }):[];
    if(!usable)rejected+=(d.pages||[]).length;
+   // Machine product interpretations survive only when their quote is on a page returned
+   // in this response; numbers in the interpretation must appear in the quote itself.
+   let product_understanding=null;
+   if(usable&&d.product_understanding){
+    const u=d.product_understanding;let hidden=0;
+    const findings=(u.findings||[]).filter(f=>{
+     const page=pages.find(p=>p.page===f.page);
+     if(!page){hidden++;return false}
+     const quoted=page.chunks.some(c=>c.includes(f.quote));
+     const numbers=(String(f.value).match(/\d+(?:\.\d+)?/g)||[]).every(n=>f.quote.includes(n));
+     const named=f.quote.includes(f.product);
+     if(!(quoted&&numbers&&named)){rejected++;return false}
+     return true;
+    }).map(f=>({...f,human_verified:false}));
+    product_understanding={...u,findings,hidden_findings:hidden,human_verified:false};
+   }
    // Derived profiles cannot replace page evidence; avoid unsupported model/series claims.
-   a.document={...d,pages,knowledge_profile:null,warnings:[...(d.warnings||[]),'仅核对本次授权检索的页码摘录；未独立复验原文件当前哈希或产品事实。']};
+   a.document={...d,pages,product_understanding,knowledge_profile:null,warnings:[...(d.warnings||[]),'仅核对本次授权检索的页码摘录；未独立复验原文件当前哈希或产品事实。']};
   }
   if(a.video){const usable=['ready','partial'].includes(a.video.status);a.video={...a.video,segments:usable?(a.video.segments||[]).filter(s=>Number.isFinite(s.start)&&s.start>=0&&typeof s.text==='string'&&s.text.trim()&&['speech','screen_text','visual_inference'].includes(s.kind)):[]};}
   return a;

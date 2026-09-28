@@ -212,3 +212,5 @@ PR95/96真实Grace验收完成：已正确返回五平台运营、用户确认�
 Social live validation follow-up: Instagram live media and Insights available in actual CRM query. Facebook configured token identity does not match WONLY; added server-only lookup of already-authorized managed Pages, strict ID/public handle match, no new grant. TikTok retry can refresh only the existing same-owner, non-expanded-scope grant; compare-and-swap saves credentials only in the existing source token store. No business data writes. Real Facebook/TikTok acceptance pending; anonymous endpoint remains401.
 
 2026-09-26 Fix source status labels: not_requested SEO/social sources no longer appear unavailable. No data permissions or source changes. Targeted regression verifies absent versus failed source distinction; production pending.
+
+2026-09-28 Grace 产品理解状态账本候选：用户要求继续全产品深度理解，执行 Claude（Cowork）。将 PR130 版本绑定语义结果并入最新 main，扩展 PR132 证据闸门（同页逐字引用、数字须在引用中、不在返回页的结果隐藏计数），新增按产品六类状态账本，相近型号只提示不合并，同字段不同表述列双方出处不裁决，竞品/分析固定“未开始”。560 离线回归、语法、diff 检查通过。仅本地分支 feat/grace-product-understanding，未推送、未部署、无数据库/权限/外部 AI 变更。源端 local-product-v1 生产方仍未实现，上线前需项目负责人明确批准。回滚撤销本分支提交。

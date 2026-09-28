@@ -1,11 +1,13 @@
 const enc=new TextEncoder();
 export const MATERIAL_ACTOR='c43bd3c2-6e3a-4228-99c7-dc95f33643f2';
-const audience='wonly-material-knowledge',path='/api/integrations/crm/knowledge';
+const audience='wonly-material-knowledge',KNOWLEDGE_PATH='/api/integrations/crm/knowledge';
+// Every signed CRM request names its route; the proof for one route is rejected on another.
+export const MATERIAL_PATHS=[KNOWLEDGE_PATH,'/api/integrations/crm/voiceprint'];
 const encode=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const decode=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
 const digest=async text=>encode(await crypto.subtle.digest('SHA-256',enc.encode(text)));
-export async function signMaterialRequest({body,actor,privateJwk,now=Date.now()}){
- if(actor!==MATERIAL_ACTOR)throw Error('actor_denied');
+export async function signMaterialRequest({body,actor,privateJwk,now=Date.now(),path=KNOWLEDGE_PATH}){
+ if(actor!==MATERIAL_ACTOR)throw Error('actor_denied');if(!MATERIAL_PATHS.includes(path))throw Error('path_denied');
  const key=await crypto.subtle.importKey('jwk',JSON.parse(privateJwk),{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
  const iat=Math.floor(now/1000);
  const claims={iss:'wonly-crm',aud:audience,sub:actor,method:'POST',path,body_sha256:await digest(body),iat,exp:iat+30,jti:crypto.randomUUID()};
@@ -13,8 +15,9 @@ export async function signMaterialRequest({body,actor,privateJwk,now=Date.now()}
  const signature=encode(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,enc.encode('v1.'+payload)));
  return 'v1.'+payload+'.'+signature;
 }
-export async function verifyMaterialRequest({proof,body,publicJwk,now=Date.now()}){
+export async function verifyMaterialRequest({proof,body,publicJwk,now=Date.now(),path=KNOWLEDGE_PATH}){
  try{
+  if(!MATERIAL_PATHS.includes(path))return null;
   if(typeof proof!=='string'||proof.length>2048||!publicJwk)return null;
   const parts=proof.split('.');if(parts.length!==3||parts[0]!=='v1'||parts.slice(1).some(s=>!s||!/^[A-Za-z0-9_-]+$/.test(s)))return null;
   const jwk=JSON.parse(publicJwk);if(jwk.d)return null;

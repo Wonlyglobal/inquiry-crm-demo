@@ -55,3 +55,48 @@ export function competitorLinksFromIntent(ci,entries=evidence.entries){
  const seen=new Set(),out=[];for(const e of rows){const url=safeUrl(e.source_url);if(!url||seen.has(url))continue;seen.add(url);out.push({type:'open_url',url,label:`${e.company} · ${e.product}（官方资料）`})}
  return out.slice(0,5);
 }
+
+// ---- Open a specific CRM record or catalogue page ----
+const STRONG=/打开|调出|调取|弹出|跳转|开一下|新窗口|浏览器/;
+const GENERIC=/^(?:列表|全部|所有|今天|今日|我的|新|最新|待分配|公海|管理|这个|那个|一下|客户|询盘)$/;
+export function recordIntent(question){
+ const q=String(question||'').trim();if(!STRONG.test(q)||q.length>120)return null;
+ let m=q.match(/询盘\s*(?:号|编号)?\s*#?\s*(\d{1,7})(?!\d)/)||q.match(/#\s*(\d{1,7})\s*号?\s*询盘/)||q.match(/(\d{1,7})\s*号询盘/);
+ if(m)return {kind:'inquiry_no',no:Number(m[1])};
+ m=q.match(/(?:打开|调出|调取|跳转到?)(?:一下)?\s*(.{2,40}?)\s*的?\s*(?:询盘|客户|商机|详情)(?:页|页面|详情)?[。！!]*$/);
+ if(!m)return null;const name=m[1].replace(/^(?:客户|公司)\s*/,'').trim();
+ if(name.length<2||GENERIC.test(name)||/[%_\\]/.test(name))return null;
+ return {kind:'company',name:name.slice(0,40)};
+}
+// `client` is the caller's own authenticated client, so row-level security decides what can be found.
+export async function resolveRecords(intent,client){
+ try{
+  if(intent.kind==='inquiry_no'){const {data}=await client.from('inquiries').select('id,inquiry_no,title,companies(name)').eq('inquiry_no',intent.no).limit(1);return (data||[]).map(r=>({id:r.id,no:r.inquiry_no,title:r.title,company:r.companies?.name||''}))}
+  const {data:companies}=await client.from('companies').select('id,name').ilike('name','%'+intent.name+'%').limit(5);
+  if(!companies?.length)return [];
+  const {data:rows}=await client.from('inquiries').select('id,inquiry_no,title,company_id,updated_at').in('company_id',companies.map(c=>c.id)).order('updated_at',{ascending:false}).limit(5);
+  const names=new Map(companies.map(c=>[c.id,c.name]));return (rows||[]).map(r=>({id:r.id,no:r.inquiry_no,title:r.title,company:names.get(r.company_id)||''}));
+ }catch{return []}
+}
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function recordAnswer(intent,records){
+ const list=records.filter(r=>UUID.test(String(r.id))).slice(0,3);
+ if(!list.length)return {answer:intent.kind==='inquiry_no'?`没有找到 #${intent.no} 号询盘，或你的账号没有查看权限。`:`CRM 里没有找到名称包含“${intent.name}”的客户询盘，或你的账号没有查看权限。可以换个名称关键词，或说“打开询盘 编号”。`,actions:[]};
+ const actions=list.map(r=>({type:'crm_record',url:CRM_ORIGIN+'#inquiry/'+r.id,label:`询盘 #${r.no}${r.company?' · '+r.company:''}`}));
+ return {answer:`我在新窗口打开${list.length>1?'这几条':'这条'}询盘详情：\n`+list.map(r=>`- #${r.no}｜${r.company||'未关联公司'}｜${String(r.title||'').slice(0,60)}`).join('\n')+(records.length>list.length?`\n\n还有 ${records.length-list.length} 条同名客户的询盘没列出，可以说“打开询盘 编号”精确打开。`:'')+'\n\n客户资料只在 CRM 内显示，没有发送给外部模型。',actions};
+}
+
+// Catalogue pages: private page images in agent-private-knowledge/catalog-pages/, opened through a
+// short-lived signed link (10 minutes). Requires the model code to be found in the catalogue extract.
+export const CATALOG_PAGE_PREFIX='catalog-pages/';
+export function catalogPageIntent(question){const q=String(question||'');return STRONG.test(q)&&/画册|产品页|型号页|目录页|catalog/i.test(q)}
+export function catalogPagePath(catalog,page){return /^c[1-4]$/.test(catalog)&&Number.isInteger(page)&&page>0&&page<1000?`${CATALOG_PAGE_PREFIX}${catalog}_p${String(page).padStart(3,'0')}.jpg`:null}
+export async function catalogPageActions(models,catalog,admin,names={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'}){
+ const norm=s=>String(s||'').toUpperCase().replace(/[\s\-_/]+/g,'');const seen=new Set(),out=[];
+ for(const m of models)for(const p of catalog.products.filter(p=>p.model&&norm(p.model)===norm(m))){
+  const path=catalogPagePath(p.catalog,p.page);if(!path||seen.has(path))continue;seen.add(path);
+  try{const {data,error}=await admin.storage.from('agent-private-knowledge').createSignedUrl(path,600);if(!error&&data?.signedUrl)out.push({type:'open_url',url:data.signedUrl,label:`${p.model} · ${names[p.catalog]||p.catalog} PDF第${p.page}页`})}catch{}
+  if(out.length>=4)return out;
+ }
+ return out;
+}

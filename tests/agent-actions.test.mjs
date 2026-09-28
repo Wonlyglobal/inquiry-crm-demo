@@ -26,3 +26,22 @@ test('answer lists what opens and explains the popup fallback; URLs re-checked i
 test('the CRM page handles #view= links with role checks',()=>{
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/#view=\(\[a-z0-9-\]\{2,40\}\)/);assert.match(html,/canAccessView\(initialView\[1\]\)/);
 });
+import {recordIntent,resolveRecords,recordAnswer,catalogPageIntent,catalogPagePath,catalogPageActions} from '../supabase/functions/agent-conversation/agent-actions.mjs';
+test('open a specific inquiry by number or customer name, through the caller RLS client',async()=>{
+ assert.deepEqual(recordIntent('打开询盘51'),{kind:'inquiry_no',no:51});assert.deepEqual(recordIntent('打开 #51 询盘'),{kind:'inquiry_no',no:51});
+ assert.deepEqual(recordIntent('帮我打开 Example Door Trading 的询盘'),{kind:'company',name:'Example Door Trading'});
+ for(const q of ['打开询盘列表','询盘51怎么样','打开我的客户','打开 100%_x 的询盘'])assert.equal(recordIntent(q),null,q);
+ const id='0b0f3c1e-1111-4222-8333-444455556666';const calls=[];
+ const q=()=>{const o={select:()=>o,ilike:(c,v)=>{calls.push(['ilike',v]);return o},in:()=>o,order:()=>o,eq:()=>o,limit:async()=>({data:calls.length?[{id:'c1',name:'Example Door Trading LLC'}]:[]})};return o};
+ const client={from:t=>{if(t==='companies')return q();const o={select:()=>o,in:()=>o,order:()=>o,eq:()=>o,limit:async()=>({data:[{id,inquiry_no:51,title:'Fire doors RFQ',company_id:'c1',companies:{name:'Example Door Trading LLC'}}]})};return o}};
+ const recs=await resolveRecords({kind:'company',name:'Example Door'},client);assert.equal(recs[0].company,'Example Door Trading LLC');assert.deepEqual(calls[0],['ilike','%Example Door%']);
+ const r=recordAnswer({kind:'company',name:'Example Door'},recs);assert.equal(r.actions[0].url,CRM_ORIGIN+'#inquiry/'+id);assert.match(r.answer,/#51｜Example Door Trading LLC/);assert.match(r.answer,/没有发送给外部模型/);
+ assert.match(recordAnswer({kind:'inquiry_no',no:9},[]).answer,/没有找到 #9/);assert.equal(recordAnswer({kind:'inquiry_no',no:9},[{id:'x',no:9}]).actions.length,0);
+});
+test('catalogue pages open via short-lived signed links from the private bucket only',async()=>{
+ assert.equal(catalogPageIntent('打开 X60 Pro 的画册页'),true);assert.equal(catalogPageIntent('X60 Pro 的参数'),false);
+ assert.equal(catalogPagePath('c2',16),'catalog-pages/c2_p016.jpg');assert.equal(catalogPagePath('c9',1),null);assert.equal(catalogPagePath('c2',0),null);
+ const signed=[];const admin={storage:{from:b=>{assert.equal(b,'agent-private-knowledge');return {createSignedUrl:async(p,ttl)=>{signed.push([p,ttl]);return {data:{signedUrl:'https://plhverjihjilnuhlhlxi.supabase.co/storage/v1/object/sign/'+p+'?token=t'},error:null}}}}}};
+ const catalog={products:[{model:'X60 Pro',catalog:'c2',page:16},{model:'X60 Pro',catalog:'c1',page:18},{model:'X60 Pro',catalog:'c2',page:16}]};
+ const a=await catalogPageActions(['X60 Pro'],catalog,admin);assert.equal(a.length,2);assert.deepEqual(signed[0],['catalog-pages/c2_p016.jpg',600]);assert.match(a[0].label,/零售画册 PDF第16页/);
+});

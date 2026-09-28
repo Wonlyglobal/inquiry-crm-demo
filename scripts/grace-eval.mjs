@@ -15,6 +15,7 @@ import {CHAT_URL,MODELS,providerJson,completionText} from '../supabase/functions
 import {conversationStyle} from '../supabase/functions/agent-conversation/conversation-style.mjs';
 import {emotionInstruction} from '../supabase/functions/agent-conversation/persona-dialogue.mjs';
 import {memoryInstruction} from '../supabase/functions/agent-conversation/memory.mjs';
+import {personaFramework} from '../supabase/functions/agent-conversation/persona-frameworks.mjs';
 // Production conversation style before the 2026-09-28 dialogue update, for --legacy baselines.
 const LEGACY_STYLE='像礼貌、可靠的同事一样自然对话，避免机械回执、过度恭维或假装有人的情感。根据用户明确表达和上下文调整语气：着急时先说重点，不满意时先承认具体问题再给改进建议，感谢时简短回应。不得声称从声线识别了情绪、性格、健康或身份，不做心理诊断。回答第一段用2至3个完整中文短句，约60至120字：直接回答当前问题，再给一个有依据的建议；证据不足先说明缺口，不编造结论。后续段落保留必要分析和证据。第一段不要标题、编号、链接或罗列明细。';
 
@@ -32,12 +33,12 @@ export function buildPrompt(c,s=suite,{legacy=false}={}){
  const seoExtra=!legacy&&c.context.includes('seo')&&seoIntent(c.question)?{seoOpportunities:seoOpportunities(ctx.seo,NOW)}:{};
  const background=legacy?{countryBriefs:[],instruction:''}:backgroundContext(c.question,{research:ctx.research,crm:ctx.crm});
  const knowledge={publicFeed:fn('public-knowledge.json'),marketPlaybooks:fn('market-playbooks.json'),marketingLearning:fn('marketing-learning.json'),socialBusinessContext:fn('social-business-context.json')};
- const voice=!!c.voiceEmotion;const body=requestBody({question:c.question,persona:'Grace',history:c.history||[],...voice?{voice:true,voiceEmotion:c.voiceEmotion}:{}},MODELS.chat,JSON.stringify({...knowledge,...ctx,socialPosts:skipped,socialLibrary:skipped,...background.countryBriefs.length?{countryBriefs:background.countryBriefs}:{},...seoExtra}));
+ const voice=!!c.voiceEmotion,persona=c.persona||'Grace';const body=requestBody({question:c.question,persona,history:c.history||[],...voice?{voice:true,voiceEmotion:c.voiceEmotion}:{}},MODELS.chat,JSON.stringify({...knowledge,...ctx,socialPosts:skipped,socialLibrary:skipped,...background.countryBriefs.length?{countryBriefs:background.countryBriefs}:{},...seoExtra}));
  if(background.instruction)body.messages[0].content+='\n'+background.instruction;
  if(!legacy&&marketingIntent(c.question))body.messages[0].content+='\n'+marketingFrameworkInstruction;
  if(seoExtra.seoOpportunities)body.messages[0].content+='\n'+seoFrameworkInstruction;
  if(analysisIntent(c.question))body.messages[0].content+='\n'+deepAnalysisInstruction+'\n证据可用性：'+JSON.stringify(evidencePlan(ctx,Date.parse('2026-09-28T03:00:00Z')));
- body.messages[0].content+='\n'+(legacy?LEGACY_STYLE:conversationStyle+(voice?'\n'+emotionInstruction(c.voiceEmotion):'')+(c.memories?.length?'\n'+memoryInstruction(c.memories.map((m,i)=>({id:i+1,content:m}))):''));
+ body.messages[0].content+='\n'+(legacy?LEGACY_STYLE:conversationStyle+(voice?'\n'+emotionInstruction(c.voiceEmotion):'')+(personaFramework(persona,c.question)?'\n'+personaFramework(persona,c.question):'')+(c.memories?.length?'\n'+memoryInstruction(c.memories.map((m,i)=>({id:i+1,content:m}))):''));
  body.messages[0].content+='\n当前日期：2026-09-28。本轮没有联网资料。';
  return body;
 }

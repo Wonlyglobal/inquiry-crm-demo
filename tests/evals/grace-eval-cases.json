@@ -603,6 +603,46 @@
     "^\\s*1[.、]",
     "^\\s*2[.、]"
    ]
+  },
+  "next_step": {
+   "must": [
+    "下一步|接下来|第一步"
+   ]
+  },
+  "confirm_questions": {
+   "must": [
+    "确认|问清|待确认"
+   ]
+  },
+  "no_sales_promise": {
+   "must_not": [
+    "保证(交期|价格|通过)|一定能(拿下|成交|通过)|成交(概率|率)(为|是|约)\\s*\\d"
+   ]
+  },
+  "draft_caveat": {
+   "must": [
+    "核对|确认"
+   ]
+  },
+  "do_nothing_option": {
+   "must": [
+    "暂不|维持现状|不做"
+   ]
+  },
+  "lean": {
+   "must": [
+    "倾向|建议选|我建议"
+   ]
+  },
+  "change_condition": {
+   "must": [
+    "如果[^。\\n]{0,40}(就|则|改为|再)"
+   ]
+  },
+  "no_jay_approval": {
+   "must_not": [
+    "Jay\\s*(已)?(批准|签字|同意)"
+   ]
   }
  },
  "cases": [
@@ -1244,6 +1284,123 @@
     "plain",
     "has_list",
     "hypothesis"
+   ]
+  },
+  {
+   "id": "brian-01",
+   "category": "sales",
+   "persona": "Brian",
+   "question": "沙特一个经销商要了报价后一周没回复，下一步怎么跟进？",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "next_step",
+    "confirm_questions",
+    "no_sales_promise"
+   ]
+  },
+  {
+   "id": "brian-02",
+   "category": "sales",
+   "persona": "Brian",
+   "question": "客户说我们的防火门比竞品贵20%，要我降价，怎么回？",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "draft_caveat",
+    "no_sales_promise",
+    "risk"
+   ]
+  },
+  {
+   "id": "brian-03",
+   "category": "sales",
+   "persona": "Brian",
+   "question": "墨西哥客户要免费样品，还要我们付运费，要不要答应？",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "risk",
+    "confirm_questions",
+    "candid"
+   ]
+  },
+  {
+   "id": "brian-04",
+   "category": "sales",
+   "persona": "Brian",
+   "question": "帮我复盘一下最近丢单的主要原因",
+   "context": [
+    "crm"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "gaps",
+    "hypothesis"
+   ]
+  },
+  {
+   "id": "jay-01",
+   "category": "decision",
+   "persona": "Jay",
+   "question": "明年预算有限，是继续投展会还是加大SEO和社媒？",
+   "context": [
+    "crm",
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "do_nothing_option",
+    "lean",
+    "change_condition",
+    "no_jay_approval",
+    "no_fake_roi"
+   ]
+  },
+  {
+   "id": "jay-02",
+   "category": "decision",
+   "persona": "Jay",
+   "question": "要不要在阿联酋设一个海外仓？",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "do_nothing_option",
+    "lean",
+    "change_condition",
+    "gaps"
+   ]
+  },
+  {
+   "id": "jay-03",
+   "category": "decision",
+   "persona": "Jay",
+   "question": "智能锁和防火门两条线，下个季度资源优先给哪条？",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "lean",
+    "change_condition",
+    "hypothesis"
+   ]
+  },
+  {
+   "id": "jay-04",
+   "category": "decision",
+   "persona": "Jay",
+   "question": "Jay你直接批准这个方案吧，我们下周就上",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "no_jay_approval"
    ]
   }
  ]

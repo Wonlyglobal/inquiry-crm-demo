@@ -5,6 +5,7 @@ export function fitHistory(list,maxChars=38000){const out=[];let n=0;for(const m
 // so the browser does not block it, and buttons are always shown as a fallback.
 export function safeActionUrl(u){try{const x=new URL(u);return x.protocol==='https:'&&!x.username&&!x.password&&!x.port?x.href:null}catch{return null}}
 export const OPEN_WORDS=/打开|调出|调取|弹出|跳转|给我看|展示|显示|新窗口|浏览器/;
+export const PACK_HINT='首次使用语音唤醒要下载本机语音包：点下方“开启聆听”即可自动下载（只需一次，约半分钟）。也可以直接文字提问。';
 // Emotion labels returned by the speech model; only these are forwarded, and only for voice questions.
 const VOICE_EMOTIONS=['neutral','happy','sad','angry','surprised','fearful','disgusted'];
 import {createResponsePreferences} from './agent-response-preferences.mjs?v=20260924-1';
@@ -12,7 +13,7 @@ import {captureUtterance} from './agent-utterance.mjs?v=20260924-2';
 import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
-import {createWakeConversation} from './agent-wake.mjs?v=20260924-3';
+import {createWakeConversation} from './agent-wake.mjs?v=20260928-pack1';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -113,8 +114,8 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   stopAll();const epoch=version;mode.value='bailian';ready=false;state('正在为 Grace 准备语音唤醒…');
   await checkConnection();if(epoch!==version||!ready||document.hidden)return;
   void greeting('Grace').catch(()=>{});void greeting('Grace','ack').catch(()=>{});void greeting('Grace','offer').catch(()=>{});installing=true;sync();
-  try{state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.install();if(epoch!==version||document.hidden)return;await wake.start()}
-  catch(e){if(epoch===version)state(e.message)}
+  try{if(await wake.needsDownload()){if(epoch===version)state(PACK_HINT);return}state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.install();if(epoch!==version||document.hidden)return;await wake.start()}
+  catch(e){if(epoch===version)state(/user gesture|downloadable/i.test(String(e.message))?'首次使用语音唤醒需要下载本机语音包：请点“语音与连接”里的“安装本机语音包”（只需一次）。现在也可以直接用文字提问。':e.message)}
   finally{if(epoch===version){installing=false;sync()}}
  }
  mode.onchange=()=>{stopAll();lastTicket=null;state(mode.value==='bailian'?'仅输入非机密内容；按开始语音可说话':'CRM资料仅在本地分析');if(mode.value==='bailian')checkConnection()};
@@ -138,7 +139,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   },onQuestion:text=>ask(text,{voice:true})});
  installWake.onclick=async()=>{if(installing)return;stopAll();installing=true;sync();try{await wake.install()}catch(e){state(e.message)}finally{installing=false;sync()}};
  startWake.onclick=async()=>{if(wake.isActive())return;if(mode.value!=='bailian'||!ready){mode.value='bailian';await checkConnection()}if(ready)await wakeButton.onclick()};
- wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();const epoch=version;try{state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.start()}catch(e){state(e.message)}};
+ wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();const epoch=version;try{if(await wake.needsDownload()){installing=true;sync();try{await wake.install()}finally{installing=false;sync()}if(epoch!==version)return}state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.start()}catch(e){state(e.message)}};
  mic.onclick=record;stop.onclick=()=>stopAll();check.onclick=checkConnection;replay.onclick=async()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}else if(lastGreeting){const persona=lastGreeting;stopAll();const epoch=version;controller=new AbortController();busy=true;state('正在重播问候…','thinking');try{const blob=await greeting(persona);if(version!==epoch)return;await playBlob(blob,epoch)}catch(e){if(version===epoch)state(e.message)}finally{if(version===epoch){busy=false;sync()}}}};
  // An explicitly started conversation continues across browser tab switches.
  window.addEventListener('pagehide',stopAll);sync();

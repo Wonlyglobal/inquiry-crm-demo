@@ -591,6 +591,18 @@
    "must_not": [
     "已(帮你)?(改|修改|更新|标记)(为|成)已成交|已完成修改|已经改好"
    ]
+  },
+  "gulf_focus": {
+   "must": [
+    "沙特",
+    "阿联酋"
+   ]
+  },
+  "has_list": {
+   "must": [
+    "^\\s*1[.、]",
+    "^\\s*2[.、]"
+   ]
   }
  },
  "cases": [
@@ -1200,6 +1212,38 @@
     "zh",
     "plain",
     "no_fake_action"
+   ]
+  },
+  {
+   "id": "mem-01",
+   "category": "memory",
+   "question": "下个季度中东市场重点怎么做",
+   "context": [
+    "crm"
+   ],
+   "memories": [
+    "分析市场时优先看沙特和阿联酋"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "gulf_focus",
+    "gaps"
+   ]
+  },
+  {
+   "id": "mem-02",
+   "category": "memory",
+   "question": "怎么提高官网询盘转化？",
+   "context": [],
+   "memories": [
+    "回答先给三条要点，再展开"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "has_list",
+    "hypothesis"
    ]
   }
  ]

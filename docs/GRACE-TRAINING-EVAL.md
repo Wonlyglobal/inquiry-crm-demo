@@ -41,3 +41,13 @@ Grace 使用百炼 qwen-plus，不做模型微调。“训练”= 固定考题 +
 - Grace 的 SEO 问题附带 seoOpportunities 与“SEO 回答框架”（数据截止→需求面→机会清单→转化面→实验→关键词假设需 GSC 验证）。
 - 新增评分项：数据截止日期、不承诺排名、引用具体页面、观察期、P1 优先、关键词须标待验证且不编搜索量。
 - 验证：592 项离线回归（新增 4 项）。模型实测仍待 Codex 用 --legacy 与新版对比。
+
+## 2026-09-28 补充：审核式纠错记忆（未部署；负责人批准，审核人 Chloe）
+- 在对话中输入“纠正：<正确说法>；原说法：<可省略>；出处：<来源>”→ 记为待审核；“查看待审核纠错”“批准纠错 #编号”“驳回纠错 #编号 原因”“撤销纠错 #编号 原因”。只有批准后才生效。
+- 数据库：agent_knowledge_corrections（anon/authenticated 无表权限），四个 security definer 函数只允许 Chloe 账号（与 agent-conversation 授权同一身份）；提交、批准、驳回、撤销都写 audit_logs；拒收含邮箱、电话、密钥的内容；待审核上限 50 条。
+- 生效方式：agent-conversation 以 service role 读取已批准条目，按问题相关度选最多 5 条放入上下文，要求引用“已审核纠错 #编号”与出处；不覆盖实时数据源数值。纠错内容由 Chloe 主动输入，属已批准的“主动非机密文字”发送范围。
+- 验收：tests/production-agent-corrections-rollback.sql（事务回滚）；599 项离线回归。
+
+## 2026-09-28 补充：GSC 搜索词（负责人批准输出，源端待改）
+- 负责人批准：SEO 源端向 CRM Grace 输出 GSC 搜索词 28 天汇总（查询词、展示、点击、CTR、平均排名，可含国家与落地页路径，最多 50 条），并随对话发送百炼北京。CRM 接收端已按此过滤（疑似网址/邮箱/凭据/长文本丢弃）。
+- 源端代码不在本机（SEO 摘要服务由 seo 任务维护）；输出契约见交接单 F 节，由 Codex 在 Mac 上改源端。现有 scripts/seo-report.mjs 已按 dimensions ['query'] 取前 25 条，可复用。

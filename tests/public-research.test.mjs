@@ -64,3 +64,10 @@ test('steel sheet thickness is not confused with leaf thickness',async()=>{
  assert.equal(dimensionOf('钢板厚度'),'steel_sheet');assert.equal(dimensionOf('门扇厚度'),'leaf_thickness');
  assert.ok(PUBLIC_EVIDENCE.length>=15);
 });
+test('smart locks and medical doors now have public evidence on their own dimensions',async()=>{
+ const {dimensionOf}=await import('../supabase/functions/agent-conversation/public-research.mjs');
+ assert.equal(dimensionOf('IP54'),'ip_rating');assert.equal(dimensionOf('电池续航'),'battery_life');
+ const lock=competitorAnswer(competitorIntent('智能锁竞品对标'));assert.match(lock,/IP54/);assert.match(lock,/电池续航/);
+ assert.match(competitorAnswer(competitorIntent('医用门竞品气密对标')),/Class 3 \/ Class 4/);
+ assert.ok(PUBLIC_EVIDENCE.length>=24);assert.ok(researchQueries('smart_lock').length>=3);
+});

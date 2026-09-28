@@ -18,7 +18,7 @@ export const deepAnalysisInstruction=`本轮执行证据驱动的深度分析，
 export function marketingIntent(question){return /渠道|投放|广告|Ads|展会|参展|SEO|网站|社媒|TikTok|Instagram|营销|漏斗|询盘质量|获客|增长方案|复盘/i.test(String(question));}
 export const marketingFrameworkInstruction=`营销分析按“渠道质量五问”核对，每问只用已提供数据并注明来源和统计期：
 1. 量：该渠道线索数及占比（只用crm.channels，小于5不披露）。
-2. 质：有效/报价/成交是否可按渠道拆分；不能拆分时明确写“当前汇总无法按渠道计算转化”，不得用整体成交率代替单渠道。
+2. 质：优先用crm.channel_funnel中该渠道自己的quote_rate与closed_win_rate；为null或渠道未列出时写“样本不足，无法按该渠道计算”，不得用整体成交率代替单渠道，也不把null当零。
 3. 速：跟进逾期等过程信号只能说明整体，不归因到单一渠道。
 4. 本：没有花费数据时不计算成本或ROI，写“未取得花费”。
 5. 因：网站、社媒与询盘之间没有UTM或归因证据时，只能提出关联实验，不写因果。

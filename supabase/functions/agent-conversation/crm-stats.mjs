@@ -14,7 +14,16 @@ export function summarizeCrm(rows,{start,end},now=Date.now()){
  const group=(key,allowed)=>{const counts={};for(const r of safe){const raw=key==='source'?(r.primary_source||r.source):key==='target_country'?normalizeCountry(r[key]):r[key];const label=allowed.has(raw)?raw:'other_or_unknown';counts[label]=(counts[label]||0)+1}return Object.entries(counts).filter(([,count])=>count>=5).map(([label,count])=>({label,count}))};
  const closed=safe.filter(r=>['won','lost'].includes(r.status));
  const overdue=safe.filter(r=>r.validity==='valid'&&!['won','lost'].includes(r.status)&&r.next_follow_up_at&&Date.parse(r.next_follow_up_at)<now).length;
- return {source,period:{start,end},status:'available',lead_count:safe.length,channels:group('source',SOURCES),countries:group('target_country',COUNTRIES),stages:group('status',STAGES),closed_cohort_win_rate:closed.length>=5?Number((closed.filter(r=>r.status==='won').length/closed.length).toFixed(4)):null,overdue_count:overdue>=5?overdue:null,limits:'只统计近30天新增批次；转化率为该批次已关闭记录中成交占比，非同期全部成交率；逾期指有效未关闭记录的下次跟进已过期。小于5条分组不披露，null表示不足以披露，不代表零；未知国家归其他。不是当前看板筛选结果。'};
+ // Per-channel funnel: only channels with >=5 leads; each stage count disclosed only when >=5,
+ // otherwise null (not zero). Rates use the channel's own cohort, never the overall rate.
+ const REACHED={quoted:['quoted','sample_sent','negotiating','won'],contacted:['contacted','qualified','quoted','sample_sent','negotiating','won','lost']};
+ const byChannel=new Map();for(const r of safe){const raw=r.primary_source||r.source;const ch=SOURCES.has(raw)?raw:'other_or_unknown';(byChannel.get(ch)??byChannel.set(ch,[]).get(ch)).push(r)}
+ const floor=n=>n>=5?n:null;
+ const channel_funnel=[...byChannel].filter(([,rs])=>rs.length>=5).map(([label,rs])=>{
+  const valid=rs.filter(r=>r.validity==='valid').length,contacted=rs.filter(r=>REACHED.contacted.includes(r.status)).length,quoted=rs.filter(r=>REACHED.quoted.includes(r.status)).length,won=rs.filter(r=>r.status==='won').length,closed=rs.filter(r=>['won','lost'].includes(r.status)).length;
+  return {label,leads:rs.length,valid:floor(valid),contacted:floor(contacted),quoted:floor(quoted),won:floor(won),quote_rate:quoted>=5?Number((quoted/rs.length).toFixed(4)):null,closed_win_rate:closed>=5?Number((won/closed).toFixed(4)):null};
+ });
+ return {source,period:{start,end},status:'available',lead_count:safe.length,channels:group('source',SOURCES),countries:group('target_country',COUNTRIES),stages:group('status',STAGES),closed_cohort_win_rate:closed.length>=5?Number((closed.filter(r=>r.status==='won').length/closed.length).toFixed(4)):null,overdue_count:overdue>=5?overdue:null,channel_funnel,limits:'channel_funnel 按渠道（本批次≥5条）统计到达联系/报价/成交的记录数，小于5为null；quote_rate为该渠道已到报价及以后阶段占该渠道线索比例，closed_win_rate为该渠道已关闭记录中成交占比，均为近30天新增批次的当前状态，不是同期完整转化。只统计近30天新增批次；转化率为该批次已关闭记录中成交占比，非同期全部成交率；逾期指有效未关闭记录的下次跟进已过期。小于5条分组不披露，null表示不足以披露，不代表零；未知国家归其他。不是当前看板筛选结果。'};
 }
 export async function loadCrmStats(client,now=Date.now()){
  const end=new Date(now).toISOString(),start=new Date(now-30*86400000).toISOString();

@@ -75,7 +75,49 @@
    ],
    "closed_cohort_win_rate": 0.4167,
    "overdue_count": 9,
-   "limits": "只统计近30天新增批次；小于5条分组不披露。"
+   "limits": "只统计近30天新增批次；小于5条分组不披露。",
+   "channel_funnel": [
+    {
+     "label": "website",
+     "leads": 22,
+     "valid": 15,
+     "contacted": 14,
+     "quoted": 7,
+     "won": null,
+     "quote_rate": 0.3182,
+     "closed_win_rate": null
+    },
+    {
+     "label": "whatsapp",
+     "leads": 14,
+     "valid": 6,
+     "contacted": 9,
+     "quoted": null,
+     "won": null,
+     "quote_rate": null,
+     "closed_win_rate": null
+    },
+    {
+     "label": "google_ads",
+     "leads": 9,
+     "valid": 5,
+     "contacted": 6,
+     "quoted": null,
+     "won": null,
+     "quote_rate": null,
+     "closed_win_rate": null
+    },
+    {
+     "label": "exhibition",
+     "leads": 6,
+     "valid": 5,
+     "contacted": 5,
+     "quoted": null,
+     "won": null,
+     "quote_rate": null,
+     "closed_win_rate": null
+    }
+   ]
   },
   "social": {
    "status": "available",
@@ -483,6 +525,14 @@
     "搜索量(为|约|达)\\s*\\d",
     "月搜索\\s*\\d"
    ]
+  },
+  "channel_null": {
+   "must": [
+    "样本不足|无法按|不足5"
+   ],
+   "must_not": [
+    "(WhatsApp|whatsapp|展会|Google Ads)[^。\\n]{0,20}(报价率|成交率)(为|是)\\s*0"
+   ]
   }
  },
  "cases": [
@@ -501,7 +551,8 @@
     "dates",
     "no_fake_roi",
     "hypothesis",
-    "metric"
+    "metric",
+    "channel_null"
    ]
   },
   {
@@ -518,7 +569,8 @@
     "no_fake_roi",
     "gaps",
     "baseline",
-    "metric"
+    "metric",
+    "channel_null"
    ]
   },
   {
@@ -616,7 +668,8 @@
     "plain",
     "gaps",
     "baseline",
-    "metric"
+    "metric",
+    "channel_null"
    ]
   },
   {
@@ -630,7 +683,8 @@
     "zh",
     "plain",
     "hypothesis",
-    "gaps"
+    "gaps",
+    "channel_null"
    ]
   },
   {

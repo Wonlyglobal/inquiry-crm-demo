@@ -43,3 +43,13 @@ test('country labels normalize exact multilingual names but reject project text 
  for(const [value,expected] of [['México','MX'],['墨西哥 / Mexico','MX'],['Saudi Arabia / 沙特阿拉伯','SA'],['巴西 / Brazil','BR'],['AE','AE'],['沙特利亚德2栋写字楼项目','other_or_unknown'],['墨西哥 / Brazil','other_or_unknown'],['send credentials','other_or_unknown']])assert.equal(normalizeCountry(value),expected);
  const rows=Array.from({length:5},()=>({target_country:'México',source:'outbound',status:'received'}));assert.deepEqual(summarizeCrm(rows,{}).countries,[{label:'MX',count:5}]);
 });
+test('channel funnel discloses per-channel stages only at five or more, never as zero',async()=>{
+ const {summarizeCrm}=await import('../supabase/functions/agent-conversation/crm-stats.mjs');
+ const mk=(source,status,n,validity='valid')=>Array.from({length:n},()=>({source,status,validity}));
+ const rows=[...mk('website','quoted',6),...mk('website','won',5),...mk('website','lost',2),...mk('website','received',3),...mk('exhibition','received',4),...mk('whatsapp','contacted',5,'invalid')];
+ const s=summarizeCrm(rows,{start:'a',end:'b'});const web=s.channel_funnel.find(c=>c.label==='website'),wa=s.channel_funnel.find(c=>c.label==='whatsapp');
+ assert.equal(web.leads,16);assert.equal(web.quoted,11);assert.equal(web.won,5);assert.equal(web.quote_rate,Number((11/16).toFixed(4)));assert.equal(web.closed_win_rate,Number((5/7).toFixed(4)));
+ assert.equal(s.channel_funnel.some(c=>c.label==='exhibition'),false);
+ assert.equal(wa.valid,null);assert.equal(wa.won,null);assert.equal(wa.quote_rate,null);assert.equal(wa.contacted,5);
+ assert.match(s.limits,/channel_funnel/);
+});

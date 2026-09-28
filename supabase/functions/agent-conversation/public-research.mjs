@@ -65,7 +65,7 @@ const MARKET_WORDS=[[/沙特/,['SA']],[/阿联酋|迪拜|阿布扎比/,['AE']],[
 // Latest-news questions are left to the existing feed/web path.
 export function competitorIntent(question){
  const q=String(question).slice(0,500);
- if(!/竞品|对标|竞争对手|同行|competitor/i.test(q)||/最新|动态|新闻|今天|近期|latest|news/i.test(q))return null;
+ if(!/竞品|对标|竞争对手|同行|competitor/i.test(q)||/最新|动态|新闻|今天|近期|latest|news/i.test(q)||/背调|市场分析|机会|打法|策略|方案/.test(q))return null;
  const categories=[...new Set(CATEGORY_WORDS.filter(([re])=>re.test(q)).map(([,c])=>c))];
  const markets=[...new Set(MARKET_WORDS.filter(([re])=>re.test(q)).flatMap(([,m])=>m))];
  const dimension=Object.entries(DIMENSIONS).find(([,d])=>d.match.test(q))?.[0]||null;

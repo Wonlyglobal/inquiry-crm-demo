@@ -24,3 +24,13 @@ export async function loadCrmStats(client,now=Date.now()){
   if(error||!Array.isArray(data)||count>5000)throw Error('incomplete');rows.push(...data);if(rows.length===count)return summarizeCrm(rows,{start,end},now);if(data.length<500)throw Error('incomplete');
  }throw Error('incomplete')}catch{return {source:'CRM',period:{start,end},status:'unavailable',limits:'权限内统计未完整读取，不可当作零线索或据此下结论。'}}
 }
+
+// Free-text country detection for routing a country brief. Only known ISO codes are returned.
+const ALIASES={'沙特':'SA','沙特阿拉伯':'SA','阿联酋':'AE','迪拜':'AE','阿布扎比':'AE','阿曼':'OM','卡塔尔':'QA','科威特':'KW','巴林':'BH','墨西哥':'MX','美国':'US','英国':'GB','德国':'DE','印尼':'ID','印度尼西亚':'ID','越南':'VN','马来西亚':'MY','菲律宾':'PH','泰国':'TH','尼日利亚':'NG','肯尼亚':'KE','埃及':'EG','南非':'ZA','巴西':'BR','秘鲁':'PE','哥伦比亚':'CO','智利':'CL','哈萨克斯坦':'KZ','乌兹别克斯坦':'UZ','土耳其':'TR','俄罗斯':'RU','印度':'IN','巴基斯坦':'PK','孟加拉':'BD','伊拉克':'IQ','约旦':'JO','黎巴嫩':'LB','西班牙':'ES','法国':'FR','波兰':'PL','澳大利亚':'AU','加拿大':'CA'};
+export function findCountries(text){
+ const q=String(text).slice(0,500),hits=new Map();
+ const add=(code,at)=>{if(at>=0&&(!hits.has(code)||at<hits.get(code)))hits.set(code,at)};
+ for(const [name,code] of Object.entries(ALIASES))add(code,q.indexOf(name));
+ for(const code of COUNTRIES){const en=new Intl.DisplayNames(['en'],{type:'region'}).of(code);if(!en)continue;const m=new RegExp('\\b'+en.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').exec(q);if(m)add(code,m.index)}
+ return [...hits].sort((a,b)=>a[1]-b[1]).map(([c])=>c).slice(0,3);
+}

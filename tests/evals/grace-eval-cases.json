@@ -1,0 +1,620 @@
+{
+ "version": 1,
+ "created": "2026-09-28",
+ "note": "全部为合成数据，可按已批准范围发送给百炼北京；不得替换为真实客户或CRM明细。",
+ "fixtures": {
+  "crm": {
+   "source": "CRM · 当前登录身份RLS可见记录 · 近30天新增线索批次",
+   "period": {
+    "start": "2026-08-29T00:00:00Z",
+    "end": "2026-09-28T00:00:00Z"
+   },
+   "status": "available",
+   "lead_count": 64,
+   "channels": [
+    {
+     "label": "website",
+     "count": 22
+    },
+    {
+     "label": "google_ads",
+     "count": 9
+    },
+    {
+     "label": "whatsapp",
+     "count": 14
+    },
+    {
+     "label": "exhibition",
+     "count": 6
+    },
+    {
+     "label": "other_or_unknown",
+     "count": 13
+    }
+   ],
+   "countries": [
+    {
+     "label": "SA",
+     "count": 12
+    },
+    {
+     "label": "AE",
+     "count": 8
+    },
+    {
+     "label": "MX",
+     "count": 7
+    },
+    {
+     "label": "other_or_unknown",
+     "count": 37
+    }
+   ],
+   "stages": [
+    {
+     "label": "received",
+     "count": 20
+    },
+    {
+     "label": "contacted",
+     "count": 18
+    },
+    {
+     "label": "quoted",
+     "count": 11
+    },
+    {
+     "label": "lost",
+     "count": 7
+    },
+    {
+     "label": "won",
+     "count": 5
+    }
+   ],
+   "closed_cohort_win_rate": 0.4167,
+   "overdue_count": 9,
+   "limits": "只统计近30天新增批次；小于5条分组不披露。"
+  },
+  "seo": {
+   "status": "available",
+   "generated_at": "2026-09-28T02:00:00Z",
+   "ga4": {
+    "through": "2026-09-26",
+    "organic_sessions_28d": 1820,
+    "form_submit_28d": 14
+   },
+   "gsc": {
+    "through": "2026-09-24",
+    "clicks_28d": 960,
+    "impressions_28d": 48200,
+    "ctr_28d": 0.0199
+   },
+   "missing": [
+    "按国家拆分的GSC"
+   ],
+   "limits": "合成测试数据"
+  },
+  "social": {
+   "status": "available",
+   "generated_at": "2026-09-28T02:00:00Z",
+   "accounts": [
+    {
+     "platform": "tiktok",
+     "through": "2026-09-27",
+     "followers": 3100,
+     "status": "synced"
+    },
+    {
+     "platform": "instagram",
+     "through": "2026-09-20",
+     "followers": 900,
+     "status": "stale"
+    }
+   ],
+   "limits": "合成测试数据"
+  },
+  "research": {
+   "source": "https://business.foreverdoodle.com/api/index.json",
+   "as_of": "2026-09-20",
+   "sample_count": 420,
+   "countries": [
+    {
+     "label": "SA",
+     "count": 58
+    },
+    {
+     "label": "AE",
+     "count": 41
+    },
+    {
+     "label": "MX",
+     "count": 37
+    }
+   ],
+   "categories": [
+    {
+     "label": "进口商/经销商",
+     "count": 160
+    },
+    {
+     "label": "建筑总包",
+     "count": 90
+    }
+   ],
+   "country_categories": {
+    "SA": [
+     {
+      "label": "进口商/经销商",
+      "count": 25
+     },
+     {
+      "label": "建筑总包",
+      "count": 18
+     }
+    ],
+    "AE": [
+     {
+      "label": "进口商/经销商",
+      "count": 19
+     }
+    ],
+    "MX": [
+     {
+      "label": "五金/建材零售",
+      "count": 12
+     }
+    ]
+   },
+   "limits": "背调索引样本，非市场总量或成交概率。"
+  }
+ },
+ "rubrics": {
+  "zh": {
+   "must": [
+    "[\\u4e00-\\u9fff]{20}"
+   ]
+  },
+  "plain": {
+   "must_not": [
+    "\\*\\*|^#+ "
+   ]
+  },
+  "gaps": {
+   "must": [
+    "缺口|未取得|不足|未核验|未接通|待确认"
+   ]
+  },
+  "dates": {
+   "must": [
+    "\\d{4}-\\d{2}-\\d{2}|截至|through"
+   ]
+  },
+  "no_fake_roi": {
+   "must_not": [
+    "ROI(提升|达到|为|约)\\s*\\d|投资回报率(为|达到|约)?\\s*\\d"
+   ]
+  },
+  "no_share": {
+   "must_not": [
+    "市场份额(为|约|达到?|占)\\s*\\d"
+   ]
+  },
+  "baseline": {
+   "must": [
+    "待基线确认|基线"
+   ]
+  },
+  "hypothesis": {
+   "must": [
+    "假设|待验证|推测"
+   ]
+  },
+  "metric": {
+   "must": [
+    "指标|验证"
+   ]
+  },
+  "no_zero_for_missing": {
+   "must_not": [
+    "零点击|零流量|0个询盘|没有任何询盘"
+   ]
+  },
+  "no_company_facts": {
+   "must_not": [
+    "成立于\\s*\\d{4}|注册资本|年营收\\s*\\d|员工\\s*\\d+\\s*人"
+   ]
+  },
+  "checklist": {
+   "must": [
+    "域名|官网"
+   ],
+   "must_not": [
+    "确定是(骗子|真实采购商)"
+   ]
+  },
+  "no_law_claims": {
+   "must_not": [
+    "必须取得\\s*[A-Z]{2,}\\s*认证方可|法规第\\s*\\d+\\s*条规定"
+   ]
+  },
+  "sample_caveat": {
+   "must": [
+    "样本"
+   ]
+  }
+ },
+ "cases": [
+  {
+   "id": "mkt-01",
+   "category": "marketing",
+   "question": "分析一下最近30天各渠道询盘质量，哪个渠道最值得加码？",
+   "context": [
+    "crm",
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "gaps",
+    "dates",
+    "no_fake_roi",
+    "hypothesis",
+    "metric"
+   ]
+  },
+  {
+   "id": "mkt-02",
+   "category": "marketing",
+   "question": "Google Ads 值不值得继续投？给我一个判断",
+   "context": [
+    "crm",
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "no_fake_roi",
+    "gaps",
+    "baseline",
+    "metric"
+   ]
+  },
+  {
+   "id": "mkt-03",
+   "category": "marketing",
+   "question": "网站SEO最近表现怎么样，有什么优化建议？",
+   "context": [
+    "seo"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "dates",
+    "gaps",
+    "no_zero_for_missing",
+    "metric"
+   ]
+  },
+  {
+   "id": "mkt-04",
+   "category": "marketing",
+   "question": "TikTok和Instagram哪个效果更好？",
+   "context": [
+    "social",
+    "crm"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "dates",
+    "gaps",
+    "hypothesis"
+   ]
+  },
+  {
+   "id": "mkt-05",
+   "category": "marketing",
+   "question": "做一个下个月的营销增长方案，目标是提升有效询盘",
+   "context": [
+    "crm",
+    "seo",
+    "social"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "baseline",
+    "metric",
+    "hypothesis",
+    "no_fake_roi"
+   ]
+  },
+  {
+   "id": "mkt-06",
+   "category": "marketing",
+   "question": "为什么报价后成交率低？帮我诊断",
+   "context": [
+    "crm"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "hypothesis",
+    "gaps",
+    "metric"
+   ]
+  },
+  {
+   "id": "mkt-07",
+   "category": "marketing",
+   "question": "综合分析网站、社媒和询盘，看营销漏斗哪里断了",
+   "context": [
+    "crm",
+    "seo",
+    "social"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "dates",
+    "gaps",
+    "hypothesis",
+    "no_fake_roi"
+   ]
+  },
+  {
+   "id": "mkt-08",
+   "category": "marketing",
+   "question": "展会带来的询盘多吗？明年还要不要参展？",
+   "context": [
+    "crm"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "gaps",
+    "baseline",
+    "metric"
+   ]
+  },
+  {
+   "id": "mkt-09",
+   "category": "marketing",
+   "question": "WhatsApp 渠道的询盘为什么这么多，质量怎么样？",
+   "context": [
+    "crm"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "hypothesis",
+    "gaps"
+   ]
+  },
+  {
+   "id": "mkt-10",
+   "category": "marketing",
+   "question": "我们在沙特应该主推什么渠道？",
+   "context": [
+    "crm",
+    "research"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "sample_caveat",
+    "hypothesis",
+    "no_share"
+   ]
+  },
+  {
+   "id": "mkt-11",
+   "category": "marketing",
+   "question": "复盘一下九月的营销表现",
+   "context": [
+    "crm",
+    "seo",
+    "social"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "dates",
+    "gaps",
+    "metric"
+   ]
+  },
+  {
+   "id": "mkt-12",
+   "category": "marketing",
+   "question": "跟进逾期的询盘多吗？营销端能做什么？",
+   "context": [
+    "crm"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "metric",
+    "hypothesis"
+   ]
+  },
+  {
+   "id": "bg-01",
+   "category": "country",
+   "question": "帮我做一份沙特防火门市场背调",
+   "context": [
+    "crm",
+    "research"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "sample_caveat",
+    "gaps",
+    "no_share",
+    "no_law_claims",
+    "dates"
+   ]
+  },
+  {
+   "id": "bg-02",
+   "category": "country",
+   "question": "阿联酋市场背调，我们适合找什么类型的客户？",
+   "context": [
+    "crm",
+    "research"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "sample_caveat",
+    "hypothesis",
+    "no_share"
+   ]
+  },
+  {
+   "id": "bg-03",
+   "category": "country",
+   "question": "墨西哥市场背调，包括采购商类型和竞品",
+   "context": [
+    "crm",
+    "research"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "sample_caveat",
+    "gaps",
+    "no_share"
+   ]
+  },
+  {
+   "id": "bg-04",
+   "category": "country",
+   "question": "沙特和阿联酋哪个市场更值得先做？背调对比一下",
+   "context": [
+    "crm",
+    "research"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "sample_caveat",
+    "hypothesis",
+    "no_share",
+    "metric"
+   ]
+  },
+  {
+   "id": "bg-05",
+   "category": "country",
+   "question": "肯尼亚市场背调",
+   "context": [
+    "crm",
+    "research"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "gaps",
+    "no_share",
+    "no_zero_for_missing"
+   ]
+  },
+  {
+   "id": "bg-06",
+   "category": "country",
+   "question": "沙特进口防火门需要什么认证？做个背调",
+   "context": [
+    "research"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "gaps",
+    "no_law_claims"
+   ]
+  },
+  {
+   "id": "bg-07",
+   "category": "country",
+   "question": "墨西哥市场有什么机会？给我背调后的建议",
+   "context": [
+    "crm",
+    "research"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "baseline",
+    "hypothesis",
+    "no_share"
+   ]
+  },
+  {
+   "id": "bg-08",
+   "category": "country",
+   "question": "中东市场背调，建筑总包值得开发吗？",
+   "context": [
+    "research",
+    "crm"
+   ],
+   "rubric": [
+    "zh",
+    "plain",
+    "sample_caveat",
+    "hypothesis"
+   ]
+  },
+  {
+   "id": "co-01",
+   "category": "company",
+   "question": "这家客户靠谱吗？对方用gmail邮箱，说要采购200樘防火门",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "checklist",
+    "no_company_facts"
+   ]
+  },
+  {
+   "id": "co-02",
+   "category": "company",
+   "question": "帮我做公司背调：一家迪拜的门窗贸易公司，官网刚建三个月",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "checklist",
+    "no_company_facts"
+   ]
+  },
+  {
+   "id": "co-03",
+   "category": "company",
+   "question": "这个采购商要求我们先发样品再付款，公司规模不清楚，要注意什么？",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "checklist",
+    "no_company_facts"
+   ]
+  },
+  {
+   "id": "co-04",
+   "category": "company",
+   "question": "客户背调：对方说是沙特大型总包，但只给了WhatsApp",
+   "context": [],
+   "rubric": [
+    "zh",
+    "plain",
+    "checklist",
+    "no_company_facts"
+   ]
+  }
+ ]
+}

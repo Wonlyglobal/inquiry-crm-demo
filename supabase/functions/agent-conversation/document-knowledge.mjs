@@ -24,5 +24,5 @@ export function documentEvidence(d){
 export function coverageSummary(c){
  if(!c||typeof c!=='object')return '';
  const n=k=>boundedInt(c[k]);
- return `文档/图片覆盖：共 ${n('total')} 项，文字提取完成 ${n('ready')}，部分提取 ${n('partial')}，处理中 ${n('processing')}，排队 ${n('queued')}，失败 ${n('failed')}，未解析/暂不支持 ${n('not_indexed')}。提取完成不等于产品知识已全部核验。\n`;
+ return `文档/图片覆盖：共 ${n('total')} 项，文字提取完成 ${n('ready')}，部分提取 ${n('partial')}，处理中 ${n('processing')}，排队 ${n('queued')}，失败 ${n('failed')}，未解析/暂不支持 ${n('not_indexed')}。提取完成不等于产品知识已全部核验。\n`+(['semantic_processed','semantic_processing','semantic_partial','semantic_waiting','semantic_deferred'].some(k=>k in c)?`产品信息提取（内部模型，未人工核验）：完成 ${n('semantic_processed')}，进行中 ${n('semantic_processing')}，有缺口 ${n('semantic_partial')}，产品资料排队 ${n('semantic_waiting')}，暂缓 ${n('semantic_deferred')}（未识别出产品手册、型号、门类或参数，暂不处理，不代表与产品无关）。\n`:'');
 }

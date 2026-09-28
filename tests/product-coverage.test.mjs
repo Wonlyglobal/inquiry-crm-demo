@@ -56,3 +56,9 @@ test('renderers include the ledger only when gated findings exist',()=>{
  const c=conciseMaterialAnswer(none,'TEST-X1 厚度');assert.ok(!c.includes('产品理解状态'));assert.match(c,/已隐藏/);
  assert.ok(!fullMaterialAnswer(none).includes('内部语义提取已处理'));
 });
+import {coverageSummary} from '../supabase/functions/agent-conversation/document-knowledge.mjs';
+test('coverage reports product-first extraction progress and deferred documents honestly',()=>{
+ const t=coverageSummary({total:10,ready:8,semantic_processed:2,semantic_processing:1,semantic_partial:0,semantic_waiting:3,semantic_deferred:2});
+ assert.match(t,/完成 2，进行中 1，有缺口 0，产品资料排队 3，暂缓 2/);assert.match(t,/不代表与产品无关/);
+ assert.ok(!coverageSummary({total:1,ready:1}).includes('产品信息提取'));
+});

@@ -6,6 +6,8 @@ const id='0b0f3c1e-1111-4222-8333-444455556666';
 test('pipeline stages and labels come from the answer',()=>{
  assert.deepEqual(STAGES.map(s=>s[1]),['听懂需求','调取资料','执行动作','给出回答']);
  assert.deepEqual(sourceLabels({context:{route:'catalog'}}),['海外画册']);
+ assert.deepEqual(sourceLabels({provider:'local',context:{route:'crm_local',labels:['DeepSeek 推理']}}),['CRM 本地统计','DeepSeek 推理']);
+ assert.deepEqual(sourceLabels({provider:'local',context:{route:'intelligence'}}),['智能体情报简报']);
  assert.deepEqual(sourceLabels({provider:'bailian',context:{},materials:[{id}],sources:[{url:'https://a.test'}]}),['CRM 脱敏汇总','物料 1 份','联网来源 1 条']);
 });
 test('every action becomes an in-page window; nothing is a popup',()=>{
@@ -30,6 +32,7 @@ test('server keeps only safe descriptors for the timeline',()=>{
 test('embed mode: same-origin only, no agent world inside the iframe',()=>{
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(html,/window\.top\.location\.origin===location\.origin/);assert.match(html,/function enterAgentWorld\(\)\{\n\s+if\(window\.CRM_EMBED/);assert.match(html,/if\(window\.CRM_EMBED\|\|!canUseAgentWorld/);
+ assert.match(html,/timelineEntry=worldModel\?\.beginTimeline\(question\)/);assert.equal((html.match(/timelineEntry\?\.done\(/g)||[]).length,3);
  const conv=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');assert.doesNotMatch(conv,/window\.open\(/);
  const tl=readFileSync(new URL('../assets/agent-timeline.mjs',import.meta.url),'utf8');assert.doesNotMatch(tl,/window\.open\(|win\.open\(/);
 });

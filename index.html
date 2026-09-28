@@ -2487,7 +2487,7 @@
     </aside>
     <script type="module">
       import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20260928-tl1';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20260928-tl2';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=timeline-20260928";
@@ -8803,18 +8803,20 @@
       $("#ai-export-pdf").addEventListener("click",openControlledExportCenter);
       $$("[data-ai-question]").forEach(button=>button.addEventListener("click",()=>{$("#ai-assistant-input").value=button.dataset.aiQuestion;$("#ai-assistant-form").requestSubmit();}));
       $("#ai-assistant-form").addEventListener("submit",async event=>{
-        event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;
+        event.preventDefault();const input=$("#ai-assistant-input"),question=input.value.trim();if(!question)return;let timelineEntry=null;
         if(worldPersona&&canUseAgentWorld(profile,currentAuthUser)){
           if(worldModel?.isModel()){await worldModel.ask(question);return;}
-          const brief=worldIntelligence?.answer(question)||aiAnswer(question);
-          if(brief){addAiMessage("user",question);input.value="";addAiMessage("assistant",brief);aiLastQuestion=question;aiLastContext=aiDataContext(question);aiConversation.push({role:"user",content:question},{role:"assistant",content:brief});return;}
+          // CRM资料分析 mode also goes into the Grace request timeline (owner 2026-09-28).
+          timelineEntry=worldModel?.beginTimeline(question)||null;
+          const intel=worldIntelligence?.answer(question),brief=intel||aiAnswer(question);
+          if(brief){addAiMessage("user",question);input.value="";addAiMessage("assistant",brief);timelineEntry?.done({provider:'local',context:{route:intel?'intelligence':'crm_local'}});timelineEntry=null;aiLastQuestion=question;aiLastContext=aiDataContext(question);aiConversation.push({role:"user",content:question},{role:"assistant",content:brief});return;}
         }
         addAiMessage("user",question);input.value="";aiLastQuestion=question;aiLastContext=aiDataContext(question);const grounded=aiAnswer(question),evidence=aiEvidence(question),submit=event.submitter||$("#ai-assistant-form button[type='submit']");submit.disabled=true;submit.textContent="分析中…";worldController?.setMode("thinking");
-        if(/进行中|询盘编号|列出编号|下一步建议/.test(question.toLowerCase())){submit.disabled=false;submit.textContent="提问";worldController?.setMode("idle");addAiMessage("assistant",grounded);aiConversation.push({role:"user",content:question},{role:"assistant",content:grounded});return;}
+        if(/进行中|询盘编号|列出编号|下一步建议/.test(question.toLowerCase())){submit.disabled=false;submit.textContent="提问";worldController?.setMode("idle");addAiMessage("assistant",grounded);timelineEntry?.done({provider:'local',context:{route:'crm_local'}});aiConversation.push({role:"user",content:question},{role:"assistant",content:grounded});return;}
         let answer=grounded,fallbackReason="";
         try{const {data,error}=await supabase.functions.invoke("crm-ai-assistant",{body:{question,grounded_answer:evidence,history:aiConversation.slice(-6)}});if(!error&&data?.answer)answer=data.answer;else{fallbackReason=data?.error||error?.message||"DeepSeek 服务未返回答案";if(error?.context)try{fallbackReason=(await error.context.clone().json())?.error||fallbackReason;}catch{}}}catch(error){fallbackReason=error?.message||String(error);}
         if(fallbackReason){console.warn("DeepSeek 暂不可用，已使用 CRM 本地可验证统计",fallbackReason);answer+=`\n\n⚠️ DeepSeek 暂未生效，本次使用 CRM 本地统计：${fallbackReason}`;}
-        submit.disabled=false;submit.textContent="提问";worldController?.setMode("idle");addAiMessage("assistant",answer);aiConversation.push({role:"user",content:question},{role:"assistant",content:answer});
+        submit.disabled=false;submit.textContent="提问";worldController?.setMode("idle");addAiMessage("assistant",answer);timelineEntry?.done({provider:'local',context:{route:'crm_local',labels:fallbackReason?['推理服务未生效']:['DeepSeek 推理']}});aiConversation.push({role:"user",content:question},{role:"assistant",content:answer});
       });
       bindMetricHelp();
       const openRecoveryPassword = () => {

@@ -15,7 +15,7 @@ import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
 import {createWakeConversation} from './agent-wake.mjs?v=20260928-voice1';
 import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20260928-tl1';
-import {createTimeline} from './agent-timeline.mjs?v=20260928-tl1';
+import {createTimeline} from './agent-timeline.mjs?v=20260928-tl2';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,timelineRoot=null,materialRow=null}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -153,5 +153,5 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  mic.onclick=record;stop.onclick=()=>stopAll();check.onclick=checkConnection;replay.onclick=async()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}else if(lastGreeting){const persona=lastGreeting;stopAll();const epoch=version;controller=new AbortController();busy=true;state('正在重播问候…','thinking');try{const blob=await greeting(persona);if(version!==epoch)return;await playBlob(blob,epoch)}catch(e){if(version===epoch)state(e.message)}finally{if(version===epoch){busy=false;sync()}}}};
  // An explicitly started conversation continues across browser tab switches.
  window.addEventListener('pagehide',stopAll);sync();
- return {ask,enter,loadTimeline:()=>timeline?.load(),isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){pending=null;reveal.hidden=true;feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){pending=null;reveal.hidden=true;histories.delete(getPersona());materialHistories.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
+ return {ask,enter,loadTimeline:()=>timeline?.load(),beginTimeline:question=>timeline?.begin(question)||null,isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){pending=null;reveal.hidden=true;feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){pending=null;reveal.hidden=true;histories.delete(getPersona());materialHistories.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
 }

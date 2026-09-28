@@ -5,7 +5,7 @@
 import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20260928-tl1';
 
 export const STAGES=[['need','听懂需求'],['data','调取资料'],['act','执行动作'],['answer','给出回答']];
-const ROUTES={conversation:'对话',materials:'物料库',general:'通用知识',research:'公开资料',catalog:'海外画册',actions:'CRM 页面与动作',memory:'长期记忆',feedback:'回答反馈',corrections:'纠错知识',company:'背调系统',competitor:'竞品证据'};
+const ROUTES={conversation:'对话',materials:'物料库',general:'通用知识',research:'公开资料',catalog:'海外画册',actions:'CRM 页面与动作',memory:'长期记忆',feedback:'回答反馈',corrections:'纠错知识',company:'背调系统',competitor:'竞品证据',crm_local:'CRM 本地统计',intelligence:'智能体情报简报'};
 const KIND_LABEL={catalog:'画册',crm_view:'CRM 页面',crm_record:'询盘详情',evidence:'竞品证据',search:'搜索结果',material:'物料',link:'链接'};
 const CSS=`.gt{display:flex;flex-direction:column;min-height:0;max-height:65vh;border:1px solid #ffffff20;border-radius:18px;background:#0d1524;color:#e5ebf5;font:13px/1.5 system-ui,sans-serif}
 .gt-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #ffffff15}.gt-head strong{flex:1;font-size:15px;color:#f4e2bb}
@@ -47,6 +47,7 @@ const safeHttps=u=>{try{const x=new URL(u);return x.protocol==='https:'&&!x.user
 export function sourceLabels(result){
  const out=[],route=result?.context?.route;
  if(route&&ROUTES[route])out.push(ROUTES[route]);else if(result?.provider==='bailian')out.push('CRM 脱敏汇总');
+ for(const l of Array.isArray(result?.context?.labels)?result.context.labels:[])if(typeof l==='string'&&l)out.push(l.slice(0,20));
  if(result?.context?.seo_status||result?.context?.seo)out.push('官网 SEO');
  if(result?.context?.social_status||result?.context?.social)out.push('社媒');
  if(Array.isArray(result?.materials)&&result.materials.length)out.push(`物料 ${result.materials.length} 份`);

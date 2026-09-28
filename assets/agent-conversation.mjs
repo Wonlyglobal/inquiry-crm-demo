@@ -1,5 +1,10 @@
 // Keeps the latest turns within the server limits (20 messages, 40,000 characters; each message ≤6,000).
 export function fitHistory(list,maxChars=38000){const out=[];let n=0;for(const m of [...list].reverse().slice(0,20)){const c=String(m.content).slice(0,6000);if(n+c.length>maxChars)break;n+=c.length;out.unshift({role:m.role,content:c})}if(out[0]?.role==='assistant')out.shift();return out}
+// "Open it for me" actions from the agent: CRM pages, competitors' official pages, keyword searches.
+// Only https links without credentials are opened; a blank window reserved during the click is reused
+// so the browser does not block it, and buttons are always shown as a fallback.
+export function safeActionUrl(u){try{const x=new URL(u);return x.protocol==='https:'&&!x.username&&!x.password&&!x.port?x.href:null}catch{return null}}
+export const OPEN_WORDS=/打开|调出|调取|弹出|跳转|给我看|展示|显示|新窗口|浏览器/;
 // Emotion labels returned by the speech model; only these are forwarded, and only for voice questions.
 const VOICE_EMOTIONS=['neutral','happy','sad','angry','surprised','fearful','disgusted'];
 import {createResponsePreferences} from './agent-response-preferences.mjs?v=20260924-1';
@@ -41,6 +46,13 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  for(const [code,label] of REASONS){const b=el('button',label);b.type='button';b.onclick=()=>sendRating('down',code);reasons.append(b)}reasons.append(rateNote);rate.append(rateLabel,up,down,reasons);feedback.prepend(rate);
  function armRating(entry){lastAnswer=entry;rateLabel.textContent='这条回答：';up.disabled=down.disabled=false;reasons.hidden=true;rateNote.value=''}
  host.querySelector('#ai-assistant-messages')?.after(feedback);
+ function runActions(actions,reserved){
+  const list=actions.map(a=>({...a,url:safeActionUrl(a.url)})).filter(a=>a.url).slice(0,6);if(!list.length){try{reserved?.close()}catch{}return}
+  if(reserved){try{reserved.location.href=list[0].url}catch{try{reserved.close()}catch{}}}
+  const box=el('div','');box.className='agent-actions';box.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:8px 0';
+  for(const a of list){const b=el('button','打开 · '+String(a.label||a.url).slice(0,60));b.type='button';b.className='button secondary';b.onclick=()=>window.open(a.url,'_blank','noopener');box.append(b)}
+  host.querySelector('#ai-assistant-messages')?.append(box);
+ }
  function renderFeedback(){for(const b of feedbackButtons)b.setAttribute('aria-pressed',String(preferences().get().includes(b.dataset.preference)))}
  const histories=new Map(),materialHistories=new Map();let ready=false,busy=false,version=0,recorder=null,stream=null,timer=null,player=null,audioUrl=null,lastTicket=null,lastGreeting=null,controller=null;
  function state(text,orb='idle'){text=String(text).replace(/百炼北京/g,'语音服务').replace(/百炼/g,'智能服务');status.textContent=text;onStatus?.(text);onMode(orb);sync()}
@@ -72,11 +84,13 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(busy||recorder||player)return true;
   if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question);showPending();return true}
   pending=null;reveal.hidden=true;
+  let reserved=null;if(!voice&&OPEN_WORDS.test(question)){try{reserved=window.open('about:blank','_blank');if(reserved)reserved.opener=null}catch{reserved=null}}
+  const releaseReserved=()=>{try{reserved?.close()}catch{}reserved=null};
   stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state('收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
   try{if(voice){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true;state('语音确认未播放，继续整理回答…','thinking')}busy=true;}const result=await call({action:'chat',persona,question,voice,...(voice&&VOICE_EMOTIONS.includes(emotion)?{voiceEmotion:emotion}:{}),...(voice&&voiceProof?.data&&voiceProof?.signature?{voiceProof}:{}),preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:fitHistory(histories.get(persona)||[])},controller.signal);if(version!==epoch||persona!==getPersona())return true;
    if(result.provider==='internal'){if(result.context?.material_question)materialHistories.set(persona,[result.context.material_question])}else materialHistories.delete(persona);
-   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-20));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);feedback.hidden=false;renderFeedback();armRating({persona,question:String(question).slice(0,1000),answer:String(result.answer||'').slice(0,2000),route:String(result.context?.route||result.provider||'').slice(0,40),model:String(result.model||'').slice(0,60)});};lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice){pending=publish;reveal.hidden=false;try{await speak(result.ticket,epoch,persona);if(version===epoch){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('需要查看详细回答吗？可说“打开”或点击查看。')}}catch(e){if(version===epoch){showPending();state('声音未完成，已显示文字回答；可继续提问')}}}else publish();
-  }catch(e){if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);if(version===epoch){busy=false;sync()}}return true;
+   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-20));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);if(Array.isArray(result.actions)&&result.actions.length){runActions(result.actions,reserved);reserved=null}else releaseReserved();feedback.hidden=false;renderFeedback();armRating({persona,question:String(question).slice(0,1000),answer:String(result.answer||'').slice(0,2000),route:String(result.context?.route||result.provider||'').slice(0,40),model:String(result.model||'').slice(0,60)});};lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice){pending=publish;reveal.hidden=false;try{await speak(result.ticket,epoch,persona);if(version===epoch){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('需要查看详细回答吗？可说“打开”或点击查看。')}}catch(e){if(version===epoch){showPending();state('声音未完成，已显示文字回答；可继续提问')}}}else publish();
+  }catch(e){if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);releaseReserved();if(version===epoch){busy=false;sync()}}return true;
  }
  async function record(){
   if(recorder){recorder.stop();return}

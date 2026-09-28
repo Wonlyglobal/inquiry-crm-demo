@@ -2484,7 +2484,7 @@
     </aside>
     <script type="module">
       import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20260928-rate1';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20260928-open1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=footerless-20260924-2";
@@ -8869,6 +8869,12 @@
       const initialInquiry = location.hash.match(/^#inquiry\/(.+)$/);
       if (sessionReady && initialInquiry)
         await openInquiryDetail(initialInquiry[1]);
+      // Agent "open it for me" links: https://crm.foreverdoodle.com/#view=<view> opens that CRM page (role checks still apply).
+      const initialView = location.hash.match(/^#view=([a-z0-9-]{2,40})$/);
+      if (sessionReady && initialView && !initialInquiry) {
+        history.replaceState(null, "", location.pathname + location.search);
+        if (canAccessView(initialView[1])) await switchView(initialView[1]);
+      }
       icons();
     </script>
   </body>

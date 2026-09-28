@@ -91,12 +91,22 @@ export function recordAnswer(intent,records){
 export const CATALOG_PAGE_PREFIX='catalog-pages/';
 export function catalogPageIntent(question){const q=String(question||'');return STRONG.test(q)&&/画册|产品页|型号页|目录页|catalog/i.test(q)}
 export function catalogPagePath(catalog,page){return /^c[1-4]$/.test(catalog)&&Number.isInteger(page)&&page>0&&page<1000?`${CATALOG_PAGE_PREFIX}${catalog}_p${String(page).padStart(3,'0')}.jpg`:null}
-export async function catalogPageActions(models,catalog,admin,names={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'}){
+export const CATALOG_TITLES={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
+const CATALOG_WORDS=[['c1',/工程画册|项目画册|工程方案画册|project solutions/i],['c2',/零售画册|零售产品画册|retail/i],['c3',/木门画册|静音木门|soundproof/i],['c4',/智能锁画册|真智能锁|smart locks? catalog/i]];
+export function catalogNameIntent(question){const q=String(question||'');return STRONG.test(q)?CATALOG_WORDS.find(([,re])=>re.test(q))?.[0]||null:null}
+// Opening a catalogue returns a viewer action; the browser then asks for short-lived page links (catalog-pages).
+export async function catalogPageActions(models,catalog){
  const norm=s=>String(s||'').toUpperCase().replace(/[\s\-_/]+/g,'');const seen=new Set(),out=[];
  for(const m of models)for(const p of catalog.products.filter(p=>p.model&&norm(p.model)===norm(m))){
-  const path=catalogPagePath(p.catalog,p.page);if(!path||seen.has(path))continue;seen.add(path);
-  try{const {data,error}=await admin.storage.from('agent-private-knowledge').createSignedUrl(path,600);if(!error&&data?.signedUrl)out.push({type:'open_url',url:data.signedUrl,label:`${p.model} · ${names[p.catalog]||p.catalog} PDF第${p.page}页`})}catch{}
+  if(!catalogPagePath(p.catalog,p.page)||seen.has(p.catalog+p.page))continue;seen.add(p.catalog+p.page);
+  const total=catalog.sources?.find(s=>s.id===p.catalog)?.pages||null;
+  out.push({type:'catalog_view',catalog:p.catalog,page:p.page,pages:total,label:`${p.model} · ${CATALOG_TITLES[p.catalog]} 第${p.page}页`});
   if(out.length>=4)return out;
  }
  return out;
+}
+export function catalogPagesRequest(input,catalog){
+ if(!/^c[1-4]$/.test(input?.catalog||''))throw Error('画册无效');
+ const total=Number(catalog?.sources?.find(s=>s.id===input.catalog)?.pages);if(!Number.isInteger(total)||total<1||total>200)throw Error('画册页数未知');
+ return {catalog:input.catalog,title:CATALOG_TITLES[input.catalog],paths:Array.from({length:total},(_,i)=>catalogPagePath(input.catalog,i+1))};
 }

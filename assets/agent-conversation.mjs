@@ -14,6 +14,7 @@ import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
 import {createWakeConversation} from './agent-wake.mjs?v=20260928-voice1';
+import {openCatalogViewer,viewerDocument} from './agent-catalog-viewer.mjs?v=20260928-cat1';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -47,10 +48,19 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  for(const [code,label] of REASONS){const b=el('button',label);b.type='button';b.onclick=()=>sendRating('down',code);reasons.append(b)}reasons.append(rateNote);rate.append(rateLabel,up,down,reasons);feedback.prepend(rate);
  function armRating(entry){lastAnswer=entry;rateLabel.textContent='这条回答：';up.disabled=down.disabled=false;reasons.hidden=true;rateNote.value=''}
  host.querySelector('#ai-assistant-messages')?.after(feedback);
+ // Catalogue actions open a flip-through viewer (all pages, 30-minute signed links); url actions open pages.
+ async function openCatalog(a,win=null){
+  let data;try{data=await call({action:'catalog-pages',persona:getPersona(),catalog:a.catalog})}catch(e){try{win?.close()}catch{}onMessage('assistant','画册暂时打不开：'+e.message);return}
+  const urls=Array.isArray(data?.urls)?data.urls:[],title=String(data?.title||a.label||'画册');
+  if(win){try{win.document.open();win.document.write(viewerDocument(title,urls,a.page||1));win.document.close();return}catch{try{win.close()}catch{}}}
+  try{openCatalogViewer({title,urls,start:a.page||1})}catch(e){onMessage('assistant',e.message)}
+ }
  function runActions(actions,reserved){
-  const list=actions.map(a=>({...a,url:safeActionUrl(a.url)})).filter(a=>a.url).slice(0,6);if(!list.length){try{reserved?.close()}catch{}return}
-  if(reserved){try{reserved.location.href=list[0].url}catch{try{reserved.close()}catch{}}}
+  const catalogs=actions.filter(a=>a?.type==='catalog_view'&&/^c[1-4]$/.test(a.catalog||'')).slice(0,4);
+  const list=actions.filter(a=>a?.type!=='catalog_view').map(a=>({...a,url:safeActionUrl(a.url)})).filter(a=>a.url).slice(0,6);if(!list.length&&!catalogs.length){try{reserved?.close()}catch{}return}
+  if(catalogs.length){openCatalog(catalogs[0],reserved)}else if(reserved){try{reserved.location.href=list[0].url}catch{try{reserved.close()}catch{}}}
   const box=el('div','');box.className='agent-actions';box.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:8px 0';
+  for(const a of catalogs){const b=el('button','打开画册 · '+String(a.label||'画册').slice(0,60));b.type='button';b.className='button secondary';b.onclick=()=>openCatalog(a);box.append(b)}
   for(const a of list){const b=el('button','打开 · '+String(a.label||a.url).slice(0,60));b.type='button';b.className='button secondary';b.onclick=()=>window.open(a.url,'_blank','noopener');box.append(b)}
   host.querySelector('#ai-assistant-messages')?.append(box);
  }

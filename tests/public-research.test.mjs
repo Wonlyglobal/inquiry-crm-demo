@@ -54,3 +54,8 @@ test('competitor answer is public-only, sourced, unranked and honest about gaps'
  assert.match(competitorAnswer(competitorIntent('智能锁竞品'),ev),/没有收录公开竞品证据，不能据此判断没有竞品/);
  const real=competitorAnswer(competitorIntent('防火门竞品'));assert.match(real,/Asturmex/);assert.match(real,/待人工逐字核对/);
 });
+test('medical doors research air tightness and Saudi fire doors have local evidence',()=>{
+ assert.ok(researchQueries('medical_door').some(q=>q.dimension==='air_tightness'));
+ const sa=competitorAnswer(competitorIntent('沙特防火门竞品对标'));assert.match(sa,/FHC MFG/);assert.ok(!sa.includes('其他市场（仅供参考')||sa.indexOf('FHC')<sa.indexOf('其他市场'));
+ assert.match(competitorAnswer(competitorIntent('医用门竞品气密对标')),/Class D/);
+});

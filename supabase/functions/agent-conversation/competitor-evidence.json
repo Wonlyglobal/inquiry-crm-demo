@@ -71,6 +71,34 @@
       "source_type": "official_web_page",
       "accessed": "2026-09-28",
       "quote_check": "tool_extract"
+    },
+    {
+      "id": "fhc-sa-hollow-metal-fire-rating",
+      "company": "FHC MFG（沙特）",
+      "product": "钢质空心门及门框",
+      "category": "fire_door",
+      "market": "SA",
+      "dimension": "fire_rating",
+      "value": "耐火 3/4 小时、1.5 小时、3 小时（UL10b/UL10c 测试）",
+      "quote": "Fire Rated for ¾ Hours, 1 ½ Hour, and 3 Hours.",
+      "source_url": "https://www.fhcmfg.com/hollow-metal-doors-frames",
+      "source_type": "official_web_page",
+      "accessed": "2026-09-28",
+      "quote_check": "tool_extract"
+    },
+    {
+      "id": "manusa-es-hermetic-air-class",
+      "company": "Manusa（西班牙）",
+      "product": "自动气密平移门",
+      "category": "medical_door",
+      "market": "ES",
+      "dimension": "air_tightness",
+      "value": "气密 EN 12207:2017 Class D",
+      "quote": "Class D according to international standard UNE-EN 12207:2017",
+      "source_url": "https://www.manusa.com/en/products/sliding-hermetic-doors",
+      "source_type": "official_web_page",
+      "accessed": "2026-09-28",
+      "quote_check": "tool_extract"
     }
   ]
 }

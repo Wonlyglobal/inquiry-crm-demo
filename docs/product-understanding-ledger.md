@@ -26,5 +26,5 @@
 
 ## 2026-09-28 补充：竞品对标直答（未部署）
 - 问题含“竞品/对标/竞争对手”且不是“最新/动态/新闻”时，Grace 直接用已收录公开证据回答（provider internal，model public-competitor-evidence），按门类、市场（沙特/阿联酋/中东/墨西哥/英国/德国/欧洲）和维度筛选，列原文与来源；不引用内部资料、不联网、不排名。最新动态类问题仍走原公开情报/联网路径。
-- 公开证据增至 5 条：新增 Puertas Asturmex（墨西哥）UL 防火门 90/180 分钟、Hörmann（德国）OD 钢制工程门 RC 3。均待人工逐字核对。
+- 公开证据（2026-09-28 晚）增至 7 条：新增 FHC MFG（沙特）钢质门耐火 3/4、1.5、3 小时；Manusa（西班牙）气密平移门 EN 12207 Class D；新增维度“气密等级”（医用门）。此前 5 条：新增 Puertas Asturmex（墨西哥）UL 防火门 90/180 分钟、Hörmann（德国）OD 钢制工程门 RC 3。均待人工逐字核对。
 - 每次直答写 audit_logs（operation public_competitor_evidence，仅记录门类与市场）。567 项离线回归通过。

@@ -14,9 +14,10 @@ import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
 import {createWakeConversation} from './agent-wake.mjs?v=20260928-voice1';
-import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20260928-cat2';
+import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20260928-tl1';
+import {createTimeline} from './agent-timeline.mjs?v=20260928-tl1';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
-export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials}){
+export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,timelineRoot=null,materialRow=null}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
  const bar=el('div','');bar.className='agent-conversation-tools';
  const mode=el('select','');mode.setAttribute('aria-label','回答方式');for(const [v,t] of [['local','CRM资料分析'],['bailian','智能推理']]){const o=el('option',t);o.value=v;mode.append(o)}
@@ -48,24 +49,16 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  for(const [code,label] of REASONS){const b=el('button',label);b.type='button';b.onclick=()=>sendRating('down',code);reasons.append(b)}reasons.append(rateNote);rate.append(rateLabel,up,down,reasons);feedback.prepend(rate);
  function armRating(entry){lastAnswer=entry;rateLabel.textContent='这条回答：';up.disabled=down.disabled=false;reasons.hidden=true;rateNote.value=''}
  host.querySelector('#ai-assistant-messages')?.after(feedback);
- // Catalogue actions open a small viewer inside the conversation (never a new browser window), with a PDF download.
- async function openCatalog(a){
-  const box=host.querySelector('#ai-assistant-messages');
-  let data;try{data=await call({action:'catalog-pages',persona:getPersona(),catalog:a.catalog})}catch(e){onMessage('assistant','画册暂时打不开：'+e.message);return}
-  try{openCatalogViewer({title:String(data?.title||a.label||'画册'),urls:Array.isArray(data?.urls)?data.urls:[],pdf:data?.pdf||null,start:a.page||1,container:box})}catch(e){onMessage('assistant',e.message)}
- }
- function runActions(actions,reserved){
-  const catalogs=actions.filter(a=>a?.type==='catalog_view'&&/^c[1-4]$/.test(a.catalog||'')).slice(0,4);
-  const list=actions.filter(a=>a?.type!=='catalog_view').map(a=>({...a,url:safeActionUrl(a.url)})).filter(a=>a.url).slice(0,6);
-  if(catalogs.length)openCatalog(catalogs[0]);
-  if(reserved){if(list.length&&!catalogs.length){try{reserved.location.href=list[0].url}catch{try{reserved.close()}catch{}}}else{try{reserved.close()}catch{}}}
-  if(!list.length&&catalogs.length<2)return;
+ // Without a timeline (the small AI panel), action windows render inside the conversation; links open only on click.
+ function runActions(actions){
   const box=el('div','');box.className='agent-actions';box.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:8px 0';
-  for(const a of catalogs.slice(1)){const b=el('button','看画册 · '+String(a.label||'画册').slice(0,60));b.type='button';b.className='button secondary';b.onclick=()=>openCatalog(a);box.append(b)}
-  for(const a of list){const b=el('button','打开 · '+String(a.label||a.url).slice(0,60));b.type='button';b.className='button secondary';b.onclick=()=>window.open(a.url,'_blank','noopener');box.append(b)}
-  host.querySelector('#ai-assistant-messages')?.append(box);
+  for(const a of actions.slice(0,6)){
+   if(a?.type==='catalog_view'&&/^c[1-4]$/.test(a.catalog||'')){const b=el('button','看画册 · '+String(a.label||'画册').slice(0,60));b.type='button';b.className='button secondary';b.onclick=async()=>{try{const d=await call({action:'catalog-pages',persona:getPersona(),catalog:a.catalog});openCatalogViewer({title:String(d?.title||a.label),urls:d?.urls||[],pdf:d?.pdf||null,start:a.page||1,container:host.querySelector('#ai-assistant-messages')})}catch(e){onMessage('assistant',e.message)}};box.append(b);continue}
+   const url=safeActionUrl(a?.url);if(!url)continue;const link=el('a','打开 · '+String(a.label||url).slice(0,60));link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.className='button secondary';box.append(link)}
+  if(box.children.length)host.querySelector('#ai-assistant-messages')?.append(box);
  }
  function renderFeedback(){for(const b of feedbackButtons)b.setAttribute('aria-pressed',String(preferences().get().includes(b.dataset.preference)))}
+ const timeline=timelineRoot?createTimeline(timelineRoot,{call,getPersona,materialRow}):null;
  const histories=new Map(),materialHistories=new Map();let ready=false,busy=false,version=0,recorder=null,stream=null,timer=null,player=null,audioUrl=null,lastTicket=null,lastGreeting=null,controller=null;
  function state(text,orb='idle'){text=String(text).replace(/百炼北京/g,'语音服务').replace(/百炼/g,'智能服务');status.textContent=text;onStatus?.(text);onMode(orb);sync()}
  function sync(){installWake.disabled=installing||busy||!!recorder||!!wake?.isActive();installWake.textContent=installing?'正在准备语音包…':'安装本机语音包';wakeButton.disabled=installing||!ready||mode.value!=='bailian'||busy;wakeButton.textContent=wake?.isActive()?'关闭 Hello 唤醒':'开启 Hello 唤醒';mic.disabled=!ready||mode.value!=='bailian'||busy;mic.textContent=recorder?'结束并提问':'开始语音';stop.disabled=!installing&&!busy&&!recorder&&!player&&!wake?.isActive();replay.disabled=(!lastTicket&&!lastGreeting)||busy||!!recorder||mode.value!=='bailian';}
@@ -96,16 +89,17 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(busy||recorder||player)return true;
   if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question);showPending();return true}
   pending=null;reveal.hidden=true;
-  let reserved=null;if(!voice&&OPEN_WORDS.test(question)&&!/画册|catalog/i.test(question)){try{reserved=window.open('about:blank','_blank');if(reserved)reserved.opener=null}catch{reserved=null}}
-  const releaseReserved=()=>{try{reserved?.close()}catch{}reserved=null};
   stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state(voice?'':'收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
+  // Owner 2026-09-28: every request becomes a step in the Grace timeline; nothing opens a new browser window.
+  const entry=timeline?.begin(question)||null;
   try{const pendingCall=call({action:'chat',persona,question,voice,...(voice&&VOICE_EMOTIONS.includes(emotion)?{voiceEmotion:emotion}:{}),...(voice&&voiceProof?.data&&voiceProof?.signature?{voiceProof}:{}),preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:fitHistory(histories.get(persona)||[])},controller.signal);
    // Like a person: only say "let me look" when the answer is not ready within 1.5 s.
    if(voice){const quick=await Promise.race([pendingCall.then(()=>true,()=>true),new Promise(r=>setTimeout(()=>r(false),1500))]);if(!quick&&version===epoch){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true}busy=true;state('','thinking')}}
-   const result=await pendingCall;if(version!==epoch||persona!==getPersona())return true;
+   const result=await pendingCall;if(version!==epoch||persona!==getPersona()){entry?.fail('已停止或切换了智能体');return true}
+   entry?.done(result);
    if(result.provider==='internal'){if(result.context?.material_question)materialHistories.set(persona,[result.context.material_question])}else materialHistories.delete(persona);
-   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-20));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);if(Array.isArray(result.actions)&&result.actions.length){runActions(result.actions,reserved);reserved=null}else releaseReserved();feedback.hidden=false;renderFeedback();armRating({persona,question:String(question).slice(0,1000),answer:String(result.answer||'').slice(0,2000),route:String(result.context?.route||result.provider||'').slice(0,40),model:String(result.model||'').slice(0,60)});};lastTicket={ticket:result.ticket,persona};busy=false;state(voice?'':'回答完成');if(voice){let spoken=0;try{spoken=String(JSON.parse(result.ticket?.data||'{}').text||'').length}catch{}const hasMore=String(result.answer||'').length>spoken*1.6+60;if(hasMore){pending=publish;reveal.hidden=false}else publish();try{await speak(result.ticket,epoch,persona);if(version===epoch&&hasMore){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('想看完整内容，说“打开”或点“查看详细回答”')}else if(version===epoch)state('')}catch(e){if(version===epoch){showPending();state('声音没播出来，文字回答已经显示；可以继续问')}}}else publish();
-  }catch(e){if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);releaseReserved();if(version===epoch){busy=false;sync()}}return true;
+   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-20));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(!entry){if(Array.isArray(result.materials))onMaterials?.(result.materials);if(Array.isArray(result.actions)&&result.actions.length)runActions(result.actions)}feedback.hidden=false;renderFeedback();armRating({persona,question:String(question).slice(0,1000),answer:String(result.answer||'').slice(0,2000),route:String(result.context?.route||result.provider||'').slice(0,40),model:String(result.model||'').slice(0,60)});};lastTicket={ticket:result.ticket,persona};busy=false;state(voice?'':'回答完成');if(voice){let spoken=0;try{spoken=String(JSON.parse(result.ticket?.data||'{}').text||'').length}catch{}const hasMore=String(result.answer||'').length>spoken*1.6+60;if(hasMore){pending=publish;reveal.hidden=false}else publish();try{await speak(result.ticket,epoch,persona);if(version===epoch&&hasMore){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('想看完整内容，说“打开”或点“查看详细回答”')}else if(version===epoch)state('')}catch(e){if(version===epoch){showPending();state('声音没播出来，文字回答已经显示；可以继续问')}}}else publish();
+  }catch(e){entry?.fail(String(e?.message||'').replace(/百炼/g,'智能服务'));if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);if(version===epoch){busy=false;sync()}}return true;
  }
  async function record(){
   if(recorder){recorder.stop();return}
@@ -159,5 +153,5 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  mic.onclick=record;stop.onclick=()=>stopAll();check.onclick=checkConnection;replay.onclick=async()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}else if(lastGreeting){const persona=lastGreeting;stopAll();const epoch=version;controller=new AbortController();busy=true;state('正在重播问候…','thinking');try{const blob=await greeting(persona);if(version!==epoch)return;await playBlob(blob,epoch)}catch(e){if(version===epoch)state(e.message)}finally{if(version===epoch){busy=false;sync()}}}};
  // An explicitly started conversation continues across browser tab switches.
  window.addEventListener('pagehide',stopAll);sync();
- return {ask,enter,isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){pending=null;reveal.hidden=true;feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){pending=null;reveal.hidden=true;histories.delete(getPersona());materialHistories.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
+ return {ask,enter,loadTimeline:()=>timeline?.load(),isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){pending=null;reveal.hidden=true;feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){pending=null;reveal.hidden=true;histories.delete(getPersona());materialHistories.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
 }

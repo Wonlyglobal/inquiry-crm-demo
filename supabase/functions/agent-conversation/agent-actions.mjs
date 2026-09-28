@@ -20,10 +20,14 @@ const SENSITIVE=/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|(?:\+|00)\d[\d \
 const baseName=c=>String(c).replace(/（.*?）|\(.*?\)/g,'').trim().toLowerCase();
 
 export function safeUrl(u){try{const x=new URL(u);return x.protocol==='https:'&&!x.username&&!x.password&&!x.port?x.href:null}catch{return null}}
+// Competitor evidence shows as a card in the Grace timeline (official quote + date); the original page
+// only opens when the user clicks its link.
+export function evidenceCard(e,url=safeUrl(e.source_url)){return {type:'evidence',id:e.id,company:e.company,product:e.product,market:e.market||null,value:e.value,quote:e.quote,accessed:e.accessed,source_type:e.source_type,url,label:`${e.company} · ${e.product}`}}
+export function evidenceById(id,entries=evidence.entries){const e=entries.find(x=>x.id===id);return e?evidenceCard(e):null}
 export function competitorLinks(question,entries=evidence.entries){
  const q=String(question);const hit=entries.filter(e=>{const k=baseName(e.company);const re=ALIASES[k];return re?re.test(q):q.toLowerCase().includes(k)});
  const seen=new Set(),out=[];
- for(const e of hit){const url=safeUrl(e.source_url);if(!url||seen.has(url))continue;seen.add(url);out.push({type:'open_url',url,label:`${e.company} · ${e.product}（官方资料）`})}
+ for(const e of hit){const url=safeUrl(e.source_url);if(!url||seen.has(e.id))continue;seen.add(e.id);out.push(evidenceCard(e,url))}
  return out.slice(0,5);
 }
 export function actionIntent(question){
@@ -32,7 +36,7 @@ export function actionIntent(question){
  const views=!strong?[]:CRM_VIEWS.filter(([,,re])=>re.test(q)).slice(0,2).map(([view,label])=>({type:'crm_view',view,label,url:CRM_ORIGIN+'#view='+view}));
  const m=q.match(/(?:谷歌|google|百度|必应|bing|网上|网页)?(?:搜索|搜一下|搜|查一下)[:：\s]*(.{2,80})$/i);
  let search=null;
- if(m&&/搜/.test(q)){const words=m[1].replace(/^(一下|下)/,'').replace(/[。！!？?]+$/,'').trim();if(words.length>=2&&!SENSITIVE.test(words)){const engine=/百度/.test(q)?'https://www.baidu.com/s?wd=':/必应|bing/i.test(q)?'https://www.bing.com/search?q=':'https://www.google.com/search?q=';search={type:'open_url',url:engine+encodeURIComponent(words),label:`搜索：${words}`}}}
+ if(m&&/搜/.test(q)){const words=m[1].replace(/^(一下|下)/,'').replace(/[。！!？?]+$/,'').trim();if(words.length>=2&&!SENSITIVE.test(words)){const engine=/百度/.test(q)?'https://www.baidu.com/s?wd=':/必应|bing/i.test(q)?'https://www.bing.com/search?q=':'https://www.google.com/search?q=';search={type:'web_search',query:words,url:engine+encodeURIComponent(words),label:`搜索：${words}`}}}
  const competitors=competitorLinks(q);
  const blocked=!!(m&&/搜/.test(q)&&!search);
  if(!views.length&&!search&&!competitors.length&&!blocked)return null;
@@ -42,17 +46,17 @@ export function actionAnswer(intent){
  const actions=[...intent.views,...(intent.search?[intent.search]:[]),...intent.competitors].slice(0,6);
  if(!actions.length)return intent.blocked?{answer:'这个搜索内容里有联系方式或敏感信息，我不会把它放进搜索网址。请换成公司名或产品关键词再试。',actions:[]}:null;
  const lines=actions.map(a=>`- ${a.label}`).join('\n');
- const answer=`我在新窗口为你打开：\n${lines}\n\n如果窗口没有自动弹出（浏览器可能拦截了弹窗），点下面的按钮即可；也可以在浏览器地址栏右侧允许 crm.foreverdoodle.com 弹出窗口，以后就会自动打开。`+(intent.competitors.length?'\n\n竞品页面都是官方原文，参数请以页面为准。':'')+(intent.search?'\n\n搜索只包含你给的关键词，不含客户资料。':'');
+ const answer=`放在左边需求时间线的窗口里了：\n${lines}`+(intent.competitors.length?'\n\n竞品卡片摘自官方资料原文并标了核验日期，参数以原网页为准，需要时点卡片里的链接看原页。':'')+(intent.search?'\n\n搜索只包含你给的关键词，不含客户资料。':'');
  return {answer,actions};
 }
-export const actionsSpoken='好的，已经帮你打开了。如果没有弹出新窗口，点一下窗口里的按钮就行。';
+export const actionsSpoken='好的，放在左边的需求时间线里了，直接在这个页面就能看。';
 // Browser-side re-check uses the same rule set.
 export const ALLOWED_HOSTS=[...new Set([...evidence.entries.map(e=>{try{return new URL(e.source_url).hostname}catch{return null}}).filter(Boolean),'www.google.com','www.baidu.com','www.bing.com','crm.foreverdoodle.com'])];
 // Category / market requests ("打开沙特防火门竞品") pick sources the same way competitorAnswer does.
 export function competitorLinksFromIntent(ci,entries=evidence.entries){
  if(!ci)return [];let rows=entries.filter(e=>ci.categories.includes(e.category)&&(!ci.dimension||e.dimension===ci.dimension));
  if(ci.markets?.length){const inMarket=rows.filter(e=>ci.markets.includes(e.market));if(inMarket.length)rows=inMarket}
- const seen=new Set(),out=[];for(const e of rows){const url=safeUrl(e.source_url);if(!url||seen.has(url))continue;seen.add(url);out.push({type:'open_url',url,label:`${e.company} · ${e.product}（官方资料）`})}
+ const seen=new Set(),out=[];for(const e of rows){const url=safeUrl(e.source_url);if(!url||seen.has(e.id))continue;seen.add(e.id);out.push(evidenceCard(e,url))}
  return out.slice(0,5);
 }
 
@@ -82,8 +86,8 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function recordAnswer(intent,records){
  const list=records.filter(r=>UUID.test(String(r.id))).slice(0,3);
  if(!list.length)return {answer:intent.kind==='inquiry_no'?`没有找到 #${intent.no} 号询盘，或你的账号没有查看权限。`:`CRM 里没有找到名称包含“${intent.name}”的客户询盘，或你的账号没有查看权限。可以换个名称关键词，或说“打开询盘 编号”。`,actions:[]};
- const actions=list.map(r=>({type:'crm_record',url:CRM_ORIGIN+'#inquiry/'+r.id,label:`询盘 #${r.no}${r.company?' · '+r.company:''}`}));
- return {answer:`我在新窗口打开${list.length>1?'这几条':'这条'}询盘详情：\n`+list.map(r=>`- #${r.no}｜${r.company||'未关联公司'}｜${String(r.title||'').slice(0,60)}`).join('\n')+(records.length>list.length?`\n\n还有 ${records.length-list.length} 条同名客户的询盘没列出，可以说“打开询盘 编号”精确打开。`:'')+'\n\n客户资料只在 CRM 内显示，没有发送给外部模型。',actions};
+ const actions=list.map(r=>({type:'crm_record',id:r.id,url:CRM_ORIGIN+'#inquiry/'+r.id,label:`询盘 #${r.no}${r.company?' · '+r.company:''}`}));
+ return {answer:`${list.length>1?'这几条':'这条'}询盘详情放在左边需求时间线的窗口里：\n`+list.map(r=>`- #${r.no}｜${r.company||'未关联公司'}｜${String(r.title||'').slice(0,60)}`).join('\n')+(records.length>list.length?`\n\n还有 ${records.length-list.length} 条同名客户的询盘没列出，可以说“打开询盘 编号”精确打开。`:'')+'\n\n客户资料只在 CRM 内显示，没有发送给外部模型。',actions};
 }
 
 // Catalogue pages: private page images in agent-private-knowledge/catalog-pages/, opened through a

@@ -59,3 +59,8 @@ test('medical doors research air tightness and Saudi fire doors have local evide
  const sa=competitorAnswer(competitorIntent('沙特防火门竞品对标'));assert.match(sa,/FHC MFG/);assert.ok(!sa.includes('其他市场（仅供参考')||sa.indexOf('FHC')<sa.indexOf('其他市场'));
  assert.match(competitorAnswer(competitorIntent('医用门竞品气密对标')),/Class D/);
 });
+test('steel sheet thickness is not confused with leaf thickness',async()=>{
+ const {dimensionOf}=await import('../supabase/functions/agent-conversation/public-research.mjs');
+ assert.equal(dimensionOf('钢板厚度'),'steel_sheet');assert.equal(dimensionOf('门扇厚度'),'leaf_thickness');
+ assert.ok(PUBLIC_EVIDENCE.length>=15);
+});

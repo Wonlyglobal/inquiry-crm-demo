@@ -9,11 +9,12 @@ export const DIMENSIONS={
  fire_rating:{label:'耐火等级',match:/耐火|防火等级|防火时间|耐火时间|fire/i,query:'fire resistance rating EI2 UL 10C BS 476'},
  acoustic:{label:'隔声',match:/隔音|隔声|acoustic|sound|rw/i,query:'sound insulation Rw dB'},
  security_class:{label:'防盗等级',match:/防盗等级|防破坏|RC\d|burglar/i,query:'burglar resistance class EN 1627'},
+ steel_sheet:{label:'钢板厚度',match:/钢板|板厚|钢材厚度|sheet|gauge/i,query:'steel sheet thickness gauge'},
  leaf_thickness:{label:'门扇厚度',match:/门扇厚度|门板厚度|厚度|thickness/i,query:'door leaf thickness mm'},
  air_tightness:{label:'气密等级',match:/气密|密闭等级|air ?tight|12207/i,query:'air tightness class EN 12207'},
  certification:{label:'认证',match:/认证|证书|certif|listed/i,query:'certification third party listing'}
 };
-const DIMS_BY_CATEGORY={fire_door:['fire_rating','acoustic','leaf_thickness','certification'],security_door:['security_class','leaf_thickness','acoustic','certification'],medical_door:['air_tightness','acoustic','certification'],smart_lock:['certification']};
+const DIMS_BY_CATEGORY={fire_door:['fire_rating','acoustic','leaf_thickness','steel_sheet','certification'],security_door:['security_class','leaf_thickness','steel_sheet','acoustic','certification'],medical_door:['air_tightness','acoustic','certification'],smart_lock:['certification']};
 const MARKET=/^[A-Z]{2}$/;
 const DATE=/^\d{4}-\d{2}-\d{2}$/;
 const text=(v,max)=>typeof v==='string'&&v.trim()&&v.length<=max?v.trim():null;
@@ -60,7 +61,7 @@ export function comparisonText(rows){
 }
 
 const CATEGORY_WORDS=[[/防火门|防火|fire/i,'fire_door'],[/防盗门|安全门|防盗|security door/i,'security_door'],[/医用门|医疗门|手术室|气密门|hospital/i,'medical_door'],[/智能锁|门锁|电子锁|smart lock/i,'smart_lock']];
-const MARKET_WORDS=[[/沙特/,['SA']],[/阿联酋|迪拜|阿布扎比/,['AE']],[/中东|海湾/,['SA','AE','OM','QA','KW','BH']],[/墨西哥/,['MX']],[/英国/,['GB']],[/德国/,['DE']],[/西班牙/,['ES']],[/欧洲/,['DE','GB','FR','IT','ES','PL']]];
+const MARKET_WORDS=[[/沙特/,['SA']],[/阿联酋|迪拜|阿布扎比/,['AE']],[/中东|海湾/,['SA','AE','OM','QA','KW','BH']],[/墨西哥/,['MX']],[/英国/,['GB']],[/德国/,['DE']],[/西班牙/,['ES']],[/意大利/,['IT']],[/欧洲/,['DE','GB','FR','IT','ES','PL']]];
 // Deterministic public-only answer for "竞品/对标" questions about a product category.
 // Latest-news questions are left to the existing feed/web path.
 export function competitorIntent(question){

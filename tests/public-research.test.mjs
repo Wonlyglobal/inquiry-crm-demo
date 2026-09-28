@@ -71,3 +71,7 @@ test('smart locks and medical doors now have public evidence on their own dimens
  assert.match(competitorAnswer(competitorIntent('医用门竞品气密对标')),/Class 3 \/ Class 4/);
  assert.ok(PUBLIC_EVIDENCE.length>=24);assert.ok(researchQueries('smart_lock').length>=3);
 });
+test('public evidence reaches the 30-item target with Gulf and Mexico coverage',()=>{
+ assert.ok(PUBLIC_EVIDENCE.length>=30);
+ for(const m of ['SA','AE','MX'])assert.ok(PUBLIC_EVIDENCE.filter(e=>e.market===m).length>=3,m);
+});

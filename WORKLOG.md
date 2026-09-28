@@ -226,3 +226,4 @@ Social live validation follow-up: Instagram live media and Insights available in
 2026-09-28 补强第1阶段候选（Claude）：CRM 汇总新增按渠道漏斗 channel_funnel（渠道≥5条，阶段数≥5才披露，渠道自身报价率/已关闭成交率）；SEO 摘要接收 GSC 搜索词 queries 并生成搜索词级机会（源端输出待负责人批准）；公开竞品证据增至 15 条（新增沙特 SFFECO、阿联酋 Vulcan/Miacasa、墨西哥 Asturmex 隔音防火门、意大利 Oikos），新增“钢板厚度”维度。595 离线回归通过。未部署。
 2026-09-28 负责人决定：businesswonly 仓库设私有（待执行，匿名仍可读取）；批准 SEO 源端输出 GSC 搜索词汇总；审核人为 Chloe。据此新增审核式纠错记忆（agent_knowledge_corrections + 4 个 RPC，仅 Chloe，可撤销、全审计）与回滚验收 SQL。599 离线回归通过。未部署。
 2026-09-28 竞品证据扩至 24 条：新增 dormakaba 酒店电子锁（Saffire LX：EN 12209、IP54、电池；Quantum Pixel：BHMA/UL、电池，官网附停产通知）、Portalp 与 Dortek 医用气密门、Hörmann 隔音钢门；新增“防护等级”“电池续航”维度。600 离线回归。未部署。
+2026-09-28 情报任务服务端化候选：GitHub Actions 每日运行 intel-watch，读取固定官方来源生成标题级候选 Issue（未核验、不自动入 feed）；本会话出网受限未实测。604 离线回归。未合并。

@@ -217,3 +217,4 @@ Social live validation follow-up: Instagram live media and Insights available in
 2026-09-28 公开候选对标候选：执行 Claude（Cowork），在 feat/grace-product-understanding 追加 public-research.mjs 与 competitor-evidence.json（3 条官方来源，待人工逐字核对），产品状态账本接入同维度并列对照，不排名、不判优劣。565 离线回归通过。未部署；与物料服务器 local-product-v1 一并交由 Codex 上线，需项目负责人批准。
 2026-09-28 竞品对标直答候选：执行 Claude（Cowork），“竞品/对标”问题由已收录公开官方证据确定性回答（写审计，不联网、不含内部资料、不排名），证据增至 5 条（新增墨西哥 Asturmex、德国 Hörmann RC3，待人工核对）。567 离线回归通过。未部署，随交接单由 Codex 上线。
 2026-09-28 产品资料优先候选：执行 Claude（Cowork）。物料服务器提取按现有知识档案分级（产品手册/型号→门类/参数→其他），默认只处理前两级，其他暂缓（PRODUCT_UNDERSTANDING_SCOPE=all 可放开），已开始的文档先完成；不新增列权限。接口覆盖统计新增排队/暂缓数，Grace 覆盖回答显示提取进度。CRM 568 回归、物料源 31 项相关测试通过。未部署。
+2026-09-28 大厅简报入口候选：执行 Claude（Cowork）。针对 9/26 定时任务取不到内部简报，在智能体世界首页新增折叠简报面板（Jay/Grace/Brian，当前/本周/上周），不进入私人空间、不开麦克风，沿用原权限与页面即时计算，无数据库变更。571 离线回归、浏览器语法通过；未做真实登录页面验收。未部署，随交接单由 Codex 上线。

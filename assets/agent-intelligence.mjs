@@ -61,5 +61,30 @@ export function mountIntelligence(host,{getContext,isAllowed,onQuestion}){
   const previous=memories.get(persona),intent=classifyQuestion(question,persona,previous?.intent),effectiveQuestion=intent.followup?previous.question:question;
   const result=answerQuestion({question,persona,context:context(effectiveQuestion),feed,previous:previous?.intent});
   memories.set(persona,{intent:result.intent,question:effectiveQuestion});return result.text;
- },refresh:refreshFeed,refreshContext:render};
+ },refresh:refreshFeed,refreshContext:render,
+ // Read-only brief for the lobby; same permission check and data as the private-room panel.
+ brief(name='Jay',periodValue=''){if(!isAllowed()||!questions[name])return null;return buildBrief(name,getContext(periodValue),feed)}};
+}
+
+// Lobby brief: readable without entering a private room, so no wake word or microphone starts.
+// Page-computed only; it is not a stored report and does not write anything.
+export function mountLobbyBrief(host,{brief,isAllowed,now=()=>new Date()}){
+ const el=(tag,text,className)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(className)n.className=className;return n};
+ const box=el('details',null,'world-lobby-brief');box.id='world-lobby-brief';
+ const summary=el('summary','今日自动信息简报（大厅查看，不进入私人空间、不开启麦克风）');
+ const bar=el('div',null,'intelligence-toolbar'),period=el('select'),stamp=el('p'),text=el('pre');
+ period.setAttribute('aria-label','大厅简报统计周期');for(const [value,label] of [['','当前看板周期'],['本周','本周'],['上周','上周']]){const o=el('option',label);o.value=value;period.append(o)}
+ text.id='lobby-brief-text';stamp.setAttribute('role','status');let persona='Jay';const buttons=[];
+ for(const name of ['Jay','Grace','Brian']){const b=el('button',name+' 简报');b.type='button';b.dataset.briefPersona=name;b.onclick=()=>{persona=name;render()};buttons.push(b);bar.append(b)}
+ bar.append(period);box.append(summary,bar,stamp,text);host.append(box);
+ function render(){
+  if(!isAllowed()){box.hidden=true;text.textContent='';return}
+  const value=brief(persona,period.value);box.hidden=false;
+  for(const b of buttons)b.setAttribute('aria-pressed',String(b.dataset.briefPersona===persona));
+  const at=now();text.dataset.generatedAt=at.toISOString();text.dataset.persona=persona;text.dataset.period=period.value||'current';
+  stamp.textContent=`页面即时生成 ${at.toLocaleString('zh-CN',{hour12:false})}；不是后台留档报告。数据未加载完成时请稍后重新点击。`;
+  text.textContent=value||'当前账号无权查看简报。';
+ }
+ period.onchange=render;box.addEventListener?.('toggle',()=>{if(box.open)render()});render();
+ return {render,select(name,value=''){if(!['Jay','Grace','Brian'].includes(name))return null;persona=name;period.value=value;render();return text.textContent}};
 }

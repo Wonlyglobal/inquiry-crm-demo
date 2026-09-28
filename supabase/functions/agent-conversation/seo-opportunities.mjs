@@ -17,11 +17,15 @@ export function seoOpportunities(seo,now=Date.now()){
   const due=e.status==='observing_7d'?e.observe_7d_at:e.status==='observing_14d'?e.observe_14d_at:null;
   if(due&&Date.parse(due)<=now)items.push({type:'review_experiment',priority:2,path:(e.target_paths||[])[0]||null,evidence:`实验 ${e.id} 已到${e.status==='observing_7d'?'7天':'14天'}复盘时间（${due.slice(0,10)}）`,metric:'对比baseline与latest的同口径指标',observe:'复盘结论不足时继续观察，不提前判胜负'});
  }
+ for(const q of (seo.queries||[]).filter(q=>q.window==='28d')){
+  if(q.impressions!=null&&q.impressions>=100&&q.ctr!=null&&siteCtr!=null&&q.ctr<siteCtr*0.6)items.push({type:'query_snippet',priority:2,path:q.path,query:q.query,evidence:`搜索词“${q.query}”28天展示 ${q.impressions}、CTR ${(q.ctr*100).toFixed(2)}%${q.country?`（${q.country}）`:''}`,metric:'该搜索词28天CTR与点击',observe:'改对应页面标题/描述后观察14天再看28天'});
+  else if(q.avg_position!=null&&q.avg_position>=4&&q.avg_position<=15&&(q.impressions??0)>=50)items.push({type:'query_striking',priority:3,path:q.path,query:q.query,evidence:`搜索词“${q.query}”28天平均排名 ${q.avg_position.toFixed(1)}、展示 ${q.impressions}`,metric:'该搜索词平均排名与点击',observe:'内容补强后观察28天'});
+ }
  const markets=(seo.markets||[]).filter(m=>m.status==='missing').map(m=>m.country);
  const seen=new Set();
- const unique=items.filter(x=>{const k=x.type+'|'+x.path;if(seen.has(k))return false;seen.add(k);return true}).sort((a,b)=>a.priority-b.priority).slice(0,10);
+ const unique=items.filter(x=>{const k=x.type+'|'+x.path+'|'+(x.query||'');if(seen.has(k))return false;seen.add(k);return true}).sort((a,b)=>a.priority-b.priority).slice(0,10);
  return {status:'available',site_ctr_28d:siteCtr,items:unique,markets_without_data:markets,
-  rule:'机会清单只基于SEO摘要中的页面、问题和实验；排序为P1技术问题→高展示低CTR/到期实验→排名4–15内容补强。不承诺排名，不编造关键词搜索量；关键词想法必须标为待GSC查询验证。'};
+  queries_available:(seo.queries||[]).length>0,rule:'机会清单只基于SEO摘要中的页面、搜索词、问题和实验；排序为P1技术问题→高展示低CTR/到期实验→排名4–15内容补强。不承诺排名，不编造关键词搜索量；关键词想法必须标为待GSC查询验证。'};
 }
 
 export const seoFrameworkInstruction=`SEO问题按以下顺序回答，缺数据写“未取得”，不用generated_at代替through：
@@ -30,5 +34,5 @@ export const seoFrameworkInstruction=`SEO问题按以下顺序回答，缺数据
 3. 机会清单：优先使用seoOpportunities中的条目及其证据，逐条写页面路径、证据、动作、主要指标、观察期、停止条件；P1技术问题排最前。
 4. 转化面：自然渠道事件只说明站内行为，不等于唯一用户或CRM成交；form_open不是高意向。
 5. 实验：只在到观察期后复盘；未满期不下结论。
-6. 关键词与内容：可提出按国家/语言和采购意图（制造商、防火等级、认证、工程项目）的关键词假设，但必须写“待GSC查询验证”，不得编造搜索量、难度或排名。
+6. 关键词与内容：seo.queries有数据时，只引用其中真实搜索词及其展示、点击、CTR、排名；超出其范围的新关键词想法必须写“待GSC查询验证”。不得编造搜索量、难度或排名。
 不承诺排名或流量增长，目标数值无基线写“待基线确认”；不要建议未经证实的产品参数或认证写进页面。`;

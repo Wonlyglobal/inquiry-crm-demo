@@ -26,3 +26,16 @@ test('SEO questions get the framework and exam prompts carry the opportunities',
  assert.ok(!buildPrompt(suite.cases.find(c=>c.id==='seo-01'),suite,{legacy:true}).messages[0].content.includes('seoOpportunities'));
  assert.ok(suite.cases.filter(c=>c.category==='seo').length>=8);
 });
+test('GSC queries are validated and turned into query-level opportunities',()=>{
+ const raw=JSON.parse(readFileSync(new URL('./evals/grace-eval-cases.json',import.meta.url))).fixtures.seo_raw;
+ const withQ={...raw,queries:[
+  {query:'fire rated door manufacturer',country:'SA',path:'/products/fire-rated-doors',clicks:4,impressions:900,ctr:0.0044,avg_position:9.2},
+  {query:'steel security door price',path:'/products/steel-security-doors',clicks:6,impressions:300,ctr:0.02,avg_position:7.5},
+  {query:'buyer@example.com door',impressions:500,ctr:0.001},{query:'https://evil.example',impressions:500},{query:'x'.repeat(81),impressions:500}]};
+ const s=seoSummary(withQ,NOW);assert.equal(s.queries.length,2);assert.match(s.limits,/queries/);
+ const o=seoOpportunities(s,NOW);const q=o.items.filter(i=>i.query);
+ assert.ok(q.some(i=>i.type==='query_snippet'&&i.query==='fire rated door manufacturer'));
+ assert.ok(q.some(i=>i.type==='query_striking'&&i.query==='steel security door price'));
+ assert.equal(o.queries_available,true);assert.equal(seoOpportunities(seo,NOW).queries_available,false);
+ assert.ok(!JSON.stringify(o).includes('@'));
+});

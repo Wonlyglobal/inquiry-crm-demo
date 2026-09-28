@@ -657,6 +657,16 @@
    "must_not": [
     "预算(是|为|定了|定为)\\s*\\d"
    ]
+  },
+  "no_field_names": {
+   "must_not": [
+    "records_read|total_records|generated_at|platform_counts|not_configured|all_stored_records_read|\\bthrough\\b"
+   ]
+  },
+  "no_cliche": {
+   "must_not": [
+    "根据您提供的|作为一个?AI|综上所述|希望(这|以上)?对(你|您)有(所)?帮助"
+   ]
   }
  },
  "cases": [
@@ -676,7 +686,9 @@
     "no_fake_roi",
     "hypothesis",
     "metric",
-    "channel_null"
+    "channel_null",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -694,7 +706,9 @@
     "gaps",
     "baseline",
     "metric",
-    "channel_null"
+    "channel_null",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -710,7 +724,9 @@
     "dates",
     "gaps",
     "no_zero_for_missing",
-    "metric"
+    "metric",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -726,7 +742,9 @@
     "plain",
     "dates",
     "gaps",
-    "hypothesis"
+    "hypothesis",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -744,7 +762,9 @@
     "baseline",
     "metric",
     "hypothesis",
-    "no_fake_roi"
+    "no_fake_roi",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -759,7 +779,9 @@
     "plain",
     "hypothesis",
     "gaps",
-    "metric"
+    "metric",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -777,7 +799,9 @@
     "dates",
     "gaps",
     "hypothesis",
-    "no_fake_roi"
+    "no_fake_roi",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -793,7 +817,9 @@
     "gaps",
     "baseline",
     "metric",
-    "channel_null"
+    "channel_null",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -808,7 +834,9 @@
     "plain",
     "hypothesis",
     "gaps",
-    "channel_null"
+    "channel_null",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -824,7 +852,9 @@
     "plain",
     "sample_caveat",
     "hypothesis",
-    "no_share"
+    "no_share",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -841,7 +871,9 @@
     "plain",
     "dates",
     "gaps",
-    "metric"
+    "metric",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -855,7 +887,9 @@
     "zh",
     "plain",
     "metric",
-    "hypothesis"
+    "hypothesis",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -873,7 +907,9 @@
     "gaps",
     "no_share",
     "no_law_claims",
-    "dates"
+    "dates",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -889,7 +925,9 @@
     "plain",
     "sample_caveat",
     "hypothesis",
-    "no_share"
+    "no_share",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -905,7 +943,9 @@
     "plain",
     "sample_caveat",
     "gaps",
-    "no_share"
+    "no_share",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -922,7 +962,9 @@
     "sample_caveat",
     "hypothesis",
     "no_share",
-    "metric"
+    "metric",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -938,7 +980,9 @@
     "plain",
     "gaps",
     "no_share",
-    "no_zero_for_missing"
+    "no_zero_for_missing",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -952,7 +996,9 @@
     "zh",
     "plain",
     "gaps",
-    "no_law_claims"
+    "no_law_claims",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -968,7 +1014,9 @@
     "plain",
     "baseline",
     "hypothesis",
-    "no_share"
+    "no_share",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -983,7 +1031,9 @@
     "zh",
     "plain",
     "sample_caveat",
-    "hypothesis"
+    "hypothesis",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -995,7 +1045,9 @@
     "zh",
     "plain",
     "checklist",
-    "no_company_facts"
+    "no_company_facts",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1007,7 +1059,9 @@
     "zh",
     "plain",
     "checklist",
-    "no_company_facts"
+    "no_company_facts",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1019,7 +1073,9 @@
     "zh",
     "plain",
     "checklist",
-    "no_company_facts"
+    "no_company_facts",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1031,7 +1087,9 @@
     "zh",
     "plain",
     "checklist",
-    "no_company_facts"
+    "no_company_facts",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1048,7 +1106,9 @@
     "p1_first",
     "page_path",
     "observe",
-    "no_rank_promise"
+    "no_rank_promise",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1064,7 +1124,9 @@
     "seo_through",
     "observe",
     "no_rank_promise",
-    "hypothesis"
+    "hypothesis",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1080,7 +1142,9 @@
     "page_path",
     "observe",
     "metric",
-    "no_rank_promise"
+    "no_rank_promise",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1096,7 +1160,9 @@
     "plain",
     "kw_hypothesis",
     "no_rank_promise",
-    "gaps"
+    "gaps",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1112,7 +1178,9 @@
     "plain",
     "seo_through",
     "gaps",
-    "no_zero_for_missing"
+    "no_zero_for_missing",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1126,7 +1194,9 @@
     "zh",
     "plain",
     "gaps",
-    "no_zero_for_missing"
+    "no_zero_for_missing",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1140,7 +1210,9 @@
     "zh",
     "plain",
     "p1_first",
-    "page_path"
+    "page_path",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1156,7 +1228,9 @@
     "baseline",
     "metric",
     "observe",
-    "no_rank_promise"
+    "no_rank_promise",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1171,7 +1245,9 @@
     "plain",
     "candid",
     "risk",
-    "no_fake_roi"
+    "no_fake_roi",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1197,7 +1273,9 @@
     "plain",
     "acknowledge",
     "no_detect_claim",
-    "gaps"
+    "gaps",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1208,7 +1286,9 @@
    "rubric": [
     "zh",
     "plain",
-    "honest_ai"
+    "honest_ai",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1229,7 +1309,9 @@
    "rubric": [
     "zh",
     "plain",
-    "three_items"
+    "three_items",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1242,7 +1324,9 @@
     "zh",
     "plain",
     "gentle_start",
-    "no_detect_claim"
+    "no_detect_claim",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1254,7 +1338,9 @@
     "zh",
     "plain",
     "ends_question",
-    "hypothesis"
+    "hypothesis",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1265,7 +1351,9 @@
    "rubric": [
     "zh",
     "plain",
-    "no_fake_action"
+    "no_fake_action",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1282,7 +1370,9 @@
     "zh",
     "plain",
     "gulf_focus",
-    "gaps"
+    "gaps",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1297,7 +1387,9 @@
     "zh",
     "plain",
     "has_list",
-    "hypothesis"
+    "hypothesis",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1311,7 +1403,9 @@
     "plain",
     "next_step",
     "confirm_questions",
-    "no_sales_promise"
+    "no_sales_promise",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1325,7 +1419,9 @@
     "plain",
     "draft_caveat",
     "no_sales_promise",
-    "risk"
+    "risk",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1339,7 +1435,9 @@
     "plain",
     "risk",
     "confirm_questions",
-    "candid"
+    "candid",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1354,7 +1452,9 @@
     "zh",
     "plain",
     "gaps",
-    "hypothesis"
+    "hypothesis",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1373,7 +1473,9 @@
     "lean",
     "change_condition",
     "no_jay_approval",
-    "no_fake_roi"
+    "no_fake_roi",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1388,7 +1490,9 @@
     "do_nothing_option",
     "lean",
     "change_condition",
-    "gaps"
+    "gaps",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1402,7 +1506,9 @@
     "plain",
     "lean",
     "change_condition",
-    "hypothesis"
+    "hypothesis",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1414,7 +1520,9 @@
    "rubric": [
     "zh",
     "plain",
-    "no_jay_approval"
+    "no_jay_approval",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1434,7 +1542,9 @@
    "rubric": [
     "zh",
     "plain",
-    "recall_used"
+    "recall_used",
+    "no_field_names",
+    "no_cliche"
    ]
   },
   {
@@ -1446,7 +1556,9 @@
    "rubric": [
     "zh",
     "plain",
-    "no_false_recall"
+    "no_false_recall",
+    "no_field_names",
+    "no_cliche"
    ]
   }
  ]

@@ -36,7 +36,7 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion,re
   if(!active||g!==generation)return;
   if(phase==='dialogue'&&readQuestion){void dialogue(g);return}
   const r=new Recognition();recognition=r;r.processLocally=true;r.lang=phase==='wake'?'en-US':'zh-CN';r.continuous=false;r.interimResults=false;let handled=false;
-  onState('正在启动本机识别…');r.onstart=()=>{if(active&&g===generation)onState(phase==='wake'?'正在聆听唤醒词：Hello Grace / Brian / Jay':'正在聆听你的问题；说“结束对话”退出','listening')};
+  onState('正在启动本机识别…');r.onstart=()=>{if(active&&g===generation)onState(phase==='wake'?'说“Hello Grace”叫我':'我在听，直接说就行（说“结束对话”可以结束）','listening')};
   r.onresult=async e=>{
    if(handled||!active||g!==generation)return;
    const text=Array.from(e.results).filter(x=>x.isFinal).map(x=>x[0].transcript).join(' ').trim();if(!text)return;

@@ -13,7 +13,7 @@ import {captureUtterance} from './agent-utterance.mjs?v=20260924-2';
 import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
-import {createWakeConversation} from './agent-wake.mjs?v=20260928-pack1';
+import {createWakeConversation} from './agent-wake.mjs?v=20260928-voice1';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -73,10 +73,10 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   const current=player,url=audioUrl;
   try{await playWithDeadline(current,controller?.signal,{onPlaying:()=>{if(version===epoch){busy=false;state('正在说话 · 可点击停止','speaking')}}})}
   finally{URL.revokeObjectURL(url);if(version===epoch){player=null;audioUrl=null;busy=false}}
-  if(version===epoch)state('播报结束');
+  if(version===epoch)state(voice?'':'播报结束');
  }
  async function speak(ticket,epoch,persona){
-  if(!ticket||version!==epoch)return;controller=new AbortController();busy=true;state('正在生成语音…','thinking');
+  if(!ticket||version!==epoch)return;controller=new AbortController();busy=true;state('','thinking');
   try{const blob=await call({action:'speech',persona,ticket},controller.signal);await playBlob(blob,epoch)}catch(e){if(version===epoch){busy=false;state(e.message)}if(wake?.isActive())throw e}
  }
  async function ask(question,{voice=false,emotion=null,voiceProof=null}={}){
@@ -87,10 +87,13 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   pending=null;reveal.hidden=true;
   let reserved=null;if(!voice&&OPEN_WORDS.test(question)){try{reserved=window.open('about:blank','_blank');if(reserved)reserved.opener=null}catch{reserved=null}}
   const releaseReserved=()=>{try{reserved?.close()}catch{}reserved=null};
-  stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state('收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
-  try{if(voice){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true;state('语音确认未播放，继续整理回答…','thinking')}busy=true;}const result=await call({action:'chat',persona,question,voice,...(voice&&VOICE_EMOTIONS.includes(emotion)?{voiceEmotion:emotion}:{}),...(voice&&voiceProof?.data&&voiceProof?.signature?{voiceProof}:{}),preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:fitHistory(histories.get(persona)||[])},controller.signal);if(version!==epoch||persona!==getPersona())return true;
+  stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state(voice?'':'收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
+  try{const pendingCall=call({action:'chat',persona,question,voice,...(voice&&VOICE_EMOTIONS.includes(emotion)?{voiceEmotion:emotion}:{}),...(voice&&voiceProof?.data&&voiceProof?.signature?{voiceProof}:{}),preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:fitHistory(histories.get(persona)||[])},controller.signal);
+   // Like a person: only say "let me look" when the answer is not ready within 1.5 s.
+   if(voice){const quick=await Promise.race([pendingCall.then(()=>true,()=>true),new Promise(r=>setTimeout(()=>r(false),1500))]);if(!quick&&version===epoch){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true}busy=true;state('','thinking')}}
+   const result=await pendingCall;if(version!==epoch||persona!==getPersona())return true;
    if(result.provider==='internal'){if(result.context?.material_question)materialHistories.set(persona,[result.context.material_question])}else materialHistories.delete(persona);
-   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-20));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);if(Array.isArray(result.actions)&&result.actions.length){runActions(result.actions,reserved);reserved=null}else releaseReserved();feedback.hidden=false;renderFeedback();armRating({persona,question:String(question).slice(0,1000),answer:String(result.answer||'').slice(0,2000),route:String(result.context?.route||result.provider||'').slice(0,40),model:String(result.model||'').slice(0,60)});};lastTicket={ticket:result.ticket,persona};busy=false;state('回答完成');if(voice){pending=publish;reveal.hidden=false;try{await speak(result.ticket,epoch,persona);if(version===epoch){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('需要查看详细回答吗？可说“打开”或点击查看。')}}catch(e){if(version===epoch){showPending();state('声音未完成，已显示文字回答；可继续提问')}}}else publish();
+   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-20));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(Array.isArray(result.materials))onMaterials?.(result.materials);if(Array.isArray(result.actions)&&result.actions.length){runActions(result.actions,reserved);reserved=null}else releaseReserved();feedback.hidden=false;renderFeedback();armRating({persona,question:String(question).slice(0,1000),answer:String(result.answer||'').slice(0,2000),route:String(result.context?.route||result.provider||'').slice(0,40),model:String(result.model||'').slice(0,60)});};lastTicket={ticket:result.ticket,persona};busy=false;state(voice?'':'回答完成');if(voice){let spoken=0;try{spoken=String(JSON.parse(result.ticket?.data||'{}').text||'').length}catch{}const hasMore=String(result.answer||'').length>spoken*1.6+60;if(hasMore){pending=publish;reveal.hidden=false}else publish();try{await speak(result.ticket,epoch,persona);if(version===epoch&&hasMore){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('想看完整内容，说“打开”或点“查看详细回答”')}else if(version===epoch)state('')}catch(e){if(version===epoch){showPending();state('声音没播出来，文字回答已经显示；可以继续问')}}}else publish();
   }catch(e){if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);releaseReserved();if(version===epoch){busy=false;sync()}}return true;
  }
  async function record(){
@@ -119,15 +122,17 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   finally{if(epoch===version){installing=false;sync()}}
  }
  mode.onchange=()=>{stopAll();lastTicket=null;state(mode.value==='bailian'?'仅输入非机密内容；按开始语音可说话':'CRM资料仅在本地分析');if(mode.value==='bailian')checkConnection()};
+ let lastVoiceMeta=null;
  async function readQuestion(signal){
   const epoch=version,persona=getPersona();
   const blob=await captureUtterance({signal,onState:state});
   if(signal.aborted||epoch!==version||!isAllowed())throw Error('对话已停止');
   if(!blob)return '';
-  state('正在识别你的问题…','thinking');
+  state('','thinking');
   const form=new FormData();form.append('persona',persona);form.append('audio',blob,'speech.'+(blob.type.includes('ogg')?'ogg':'webm'));
   const result=await call(form,signal);
   if(signal.aborted||epoch!==version)throw Error('对话已停止');
+  lastVoiceMeta={emotion:result.emotion,voiceProof:result.voiceProof};
   return result.text?.trim()||'';
  }
  wake=createWakeConversation({readQuestion,Recognition:window.SpeechRecognition||window.webkitSpeechRecognition,onState:state,
@@ -135,8 +140,8 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    wakeTransition=true;try{onSelectPersona(persona)}finally{wakeTransition=false}
    if(getPersona()!==persona)throw Error('当前对话未结束，无法切换智能体');
    const epoch=version;controller=new AbortController();busy=true;lastTicket=null;lastGreeting=persona;state("I'm here, Chloe.",'speaking');onMessage('assistant',persona==='Grace'?"I'm here, Chloe.":'Hello Chloe');
-   try{const blob=await greeting(persona);if(version!==epoch)return;state('问候已准备，正在播放…','speaking');await playBlob(blob,epoch)}catch(e){if(version===epoch){busy=false;onMessage('assistant','已听到你的唤醒词，但问候声音未完成：'+e.message+'。可以继续说出问题。')}throw e}
-  },onQuestion:text=>ask(text,{voice:true})});
+   try{const blob=await greeting(persona);if(version!==epoch)return;state('','speaking');await playBlob(blob,epoch)}catch(e){if(version===epoch){busy=false;onMessage('assistant','已听到你的唤醒词，但问候声音未完成：'+e.message+'。可以继续说出问题。')}throw e}
+  },onQuestion:text=>{const meta=lastVoiceMeta||{};lastVoiceMeta=null;return ask(text,{voice:true,emotion:meta.emotion,voiceProof:meta.voiceProof})}});
  installWake.onclick=async()=>{if(installing)return;stopAll();installing=true;sync();try{await wake.install()}catch(e){state(e.message)}finally{installing=false;sync()}};
  startWake.onclick=async()=>{if(wake.isActive())return;if(mode.value!=='bailian'||!ready){mode.value='bailian';await checkConnection()}if(ready)await wakeButton.onclick()};
  wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();const epoch=version;try{if(await wake.needsDownload()){installing=true;sync();try{await wake.install()}finally{installing=false;sync()}if(epoch!==version)return}state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.start()}catch(e){state(e.message)}};

@@ -26,10 +26,10 @@ test('expressive speech uses the instruct model only with a fixed tone template'
  assert.equal(speechBody('你好','Cherry','x'.repeat(300)).model,MODELS.speech);
 });
 test('self-introduction is recognised and ends with a follow-up question',()=>{
- for(const q of ['介绍一下你自己','Grace，介绍一下自己吧','你是谁？','你能做什么','自我介绍一下','who are you'])assert.equal(introIntent(q),true,q);
- for(const q of ['介绍一下沙特市场','你是谁的客户经理负责的这个询盘','介绍一下X60 Pro'])assert.equal(introIntent(q),false,q);
- for(const p of ['Grace','Brian','Jay']){const a=introReply(p);assert.match(a,/AI 助手/);assert.match(a,/？$/);assert.match(introSpoken(p),/？$/)}
- assert.match(introReply('Grace'),/画册/);assert.ok(introSpoken('Grace').length<=120);
+ for(const q of ['介绍一下你自己','Grace，介绍一下自己吧','你是谁？','你能做什么','自我介绍一下','who are you','向大家简上简单介绍一下一下你自己。','给我们介绍一下你自己','你能帮我们做什么','你的价值是什么'])assert.equal(introIntent(q),true,q);
+ for(const q of ['介绍一下沙特市场','你是谁的客户经理负责的这个询盘','介绍一下X60 Pro','介绍一下你自己对沙特市场的看法'])assert.equal(introIntent(q),false,q);
+ for(const p of ['Grace','Brian','Jay']){const a=introReply(p);assert.match(a,/AI (助手|智能体)/);assert.match(a,/？$/);assert.match(introSpoken(p),/？$/)}
+ assert.match(introReply('Grace'),/画册/);assert.match(introReply('Grace'),/王力/);assert.match(introReply('Grace'),/价值/);assert.match(introSpoken('Brian'),/王力/);assert.ok(introSpoken('Grace').length<=120);
 });
 test('dialogue style: warm but honest AI, candid advice, follows instructions without claiming actions',()=>{
  assert.match(dialogueStyle,/如实说自己是AI智能体/);assert.match(dialogueStyle,/不附和/);assert.match(dialogueStyle,/先明确表态/);

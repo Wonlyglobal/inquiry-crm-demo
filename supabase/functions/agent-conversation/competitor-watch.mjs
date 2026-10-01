@@ -120,9 +120,17 @@ export function readTranslations(payload,n){try{const t=payload?.choices?.[0]?.m
 export function intelIntent(question){
  const q=String(question||'');
  if(/刷新|更新|重新巡检|马上查/.test(q)&&/竞品|情报|对手/.test(q))return {refresh:true};
+ const rival=/竞品|竞争对手|对手|同行/.test(q);
+ if(rival&&MARKETING_Q.test(q))return {refresh:false,focus:'marketing'};
  return /(竞品|竞争对手|对手|同行).{0,10}(动态|新闻|最新|情报|消息|发布|变化|汇报)|(竞品|竞争)情报|情报汇报|汇报.{0,4}竞品/.test(q)?{refresh:false}:null;
 }
-export function intelAnswer(report,{days=14}={}){
+// Owner 2026-10-01: "最近竞品有哪些重大的营销活动" -> marketing view of the same watch results.
+const MARKETING_Q=/营销|市场活动|推广|促销|打折|广告|展会|展览|发布会|新品|活动|campaign/i;
+export const MARKETING_ITEM=/展会|展览|博览|参展|expo|exhibit|feria|fair|big ?5|intersec|batimat|bau\b|launch|发布|新品|nuevo|nueva|lanza|\bpresenta\b|promo|促销|折扣|descuento|oferta|sale\b|campaign|活动|event|evento|award|获奖|奖|webinar|sponsor|赞助|partner|合作|showroom|展厅|开业|inaugur|\bnew\b|alliance|\bmou\b|signs?\b.{0,30}(deal|agreement)|collezione|collection|colección|talks|podcast|security month|certificate|شهادة/i;
+// Off-topic consumer lines that share a brand with a door/lock competitor (phones, coffee machines, power tools).
+export const OFF_TOPIC=/espresso|إسبريسو|قهوة|coffee|スマホ|エアフライヤー|掃除機|空気清浄機|家電|REDMI|FUJIWARA|smartphone|rotomartillo|traspaleta|prensa de|extractor|surtek/i;
+export function intelAnswer(report,{days=14,focus=null}={}){
+ if(focus==='marketing')return marketingAnswer(report,days);
  const run=report?.last_run,items=Array.isArray(report?.items)?report.items:[];
  const when=run?new Date(run.started_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):null;
  const head=run?`竞品巡检：最近一次 ${when}（读取官方网站 ${run.sources_ok} 个、失败 ${run.sources_failed} 个，核对证据页面 ${run.evidence_checked} 个${run.channels_known!=null?`，跟踪 YouTube 频道 ${run.channels_known} 个`:''}）。每 4 小时自动巡检一次，看各公司官网和官网上挂的 YouTube 频道。`:'竞品巡检还没有运行过：上线后每 4 小时自动跑一次，也可以说“刷新竞品情报”立刻跑。';
@@ -134,4 +142,30 @@ export function intelAnswer(report,{days=14}={}){
   (videos.length?`\n\nYouTube 新视频 ${videos.length} 条：\n`+videos.slice(0,10).map(v=>`  ${v.published_on||''}｜${v.company}｜${v.title_zh?v.title_zh+'（原文：'+v.title+'）':v.title}\n  ${v.url}`).join('\n'):'')+
   (changed.length?`\n\n证据变化 ${changed.length} 条（官网上已找不到之前收录的原文，可能是改版或参数调整，需要人工打开确认）：\n`+changed.slice(0,8).map(c=>`  ${c.company}｜${c.title}\n  ${c.url}`).join('\n'):'')+
   '\n\n以上是官网标题级候选，还没有人工核验；中文是机器翻译，以原文为准。需要深入哪一家，直接说公司名。';
+}
+
+// Heavier signals: trade shows, deals/alliances, launches of a new range. Ranked before everyday content.
+export const MAJOR_ITEM=/展会|展览|博览|参展|expo|exhibit|feria|fair\b|big ?5|intersec|batimat|\bmou\b|alliance|deal|agreement|award|获奖|sponsor|赞助|开业|inaugur|launch|新品|new .{0,25}(range|line|collection|series)|collezione|colección|certificate|شهادة/i;
+const seriesKey=title=>String(title).replace(/\s*[-–|]?\s*(EP\.?|episodio|episode|ep)\s*\d+.*$/i,'').trim();
+function marketingAnswer(report,days){
+ const run=report?.last_run,items=(Array.isArray(report?.items)?report.items:[]).filter(i=>i.kind!=='evidence_changed');
+ const t=i=>`${i.title} ${i.title_zh||''}`;
+ const relevant=items.filter(i=>!OFF_TOPIC.test(t(i))),hits=relevant.filter(i=>MARKETING_ITEM.test(t(i))),rest=relevant.length-hits.length,off=items.length-relevant.length;
+ const when=run?new Date(run.started_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):null;
+ const head=`近 ${days} 天竞品营销动作（从竞品官网新闻和官方 YouTube 频道里挑出展会、签约合作、新品发布、促销、内容栏目类标题${when?'；最近一次巡检 '+when:''}）：`;
+ const scope='\n\n范围说明：只看得到对方官网和 YouTube 上自己公布的内容；Facebook/Instagram/TikTok/LinkedIn 广告投放、线下促销和海关出货量目前不在巡检范围，要接公司在用的第三方工具才能看到。标题级候选，未人工核验，中文为机器翻译。';
+ if(!items.length)return (run?head+'\n\n这段时间官网和 YouTube 都没有新内容。':'竞品巡检还没有运行过，可以说“刷新竞品情报”立刻跑一轮。')+scope;
+ if(!hits.length)return head+`\n\n没有找到明显的营销活动类标题（共 ${relevant.length} 条相关新内容，多为产品介绍或公司新闻）。说“汇报竞品动态”可以看全部。`+scope;
+ const label=i=>`${i.published_on||'日期未标'}｜${i.kind==='video'?'[视频] ':''}${i.title_zh?i.title_zh+'（原文：'+i.title+'）':i.title}\n    ${i.url}`;
+ // Collapse episodic series (podcasts, "EP. 24/25/26…") into one line per company.
+ const groups=new Map();
+ for(const i of hits){const k=i.company+'|'+seriesKey(i.title);groups.set(k,[...(groups.get(k)||[]),i])}
+ const entries=[...groups.values()].map(v=>({company:v[0].company,major:v.some(i=>MAJOR_ITEM.test(t(i))),text:v.length>1?`${v.map(i=>i.published_on).filter(Boolean).sort()[0]||''}起｜${v[0].kind==='video'?'[视频] ':''}${seriesKey(v[0].title)} 系列，共 ${v.length} 期（持续做内容栏目）\n    ${v[0].url}`:label(v[0])}));
+ const major=entries.filter(e=>e.major),other=entries.filter(e=>!e.major);
+ const block=list=>{const by=new Map();for(const e of list)by.set(e.company,[...(by.get(e.company)||[]),e.text]);return [...by].sort((a,b)=>b[1].length-a[1].length).slice(0,8).map(([c,v])=>`■ ${c}\n`+v.slice(0,5).map(x=>'  · '+x).join('\n')).join('\n')};
+ return head+
+  (major.length?`\n\n【重点：展会 / 签约合作 / 新品系列】\n`+block(major):'\n\n没有发现展会、签约或新品发布类动作。')+
+  (other.length?`\n\n【其他营销内容】\n`+block(other):'')+
+  (rest?`\n\n另有 ${rest} 条一般动态没列出，说“汇报竞品动态”看全部。`:'')+(off?`（已略过 ${off} 条与门锁无关的内容，如同品牌的手机、咖啡机、电动工具）`:'')+
+  (hits.some(i=>!i.published_on)?'\n\n注意：“日期未标”是对方官网没写日期，这类条目是巡检近期第一次看到，不一定是近期发生的（比如展会可能是年初的）。':'')+'\n\n“重大”是按展会、签约、新品这类动作归的，不代表我判断了影响大小；需要深挖哪家，直接说公司名。'+scope;
 }

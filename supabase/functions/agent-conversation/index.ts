@@ -184,7 +184,7 @@ Deno.serve(async req=>{
    const intel=guest?null:intelIntent(input.question);
    if(intel){let ran=null;if(intel.refresh&&user.id===MATERIAL_ACTOR){const svc=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});const {data:recent}=await svc.from('competitor_watch_runs').select('id').gte('started_at',new Date(Date.now()-600000).toISOString()).limit(1);if(!recent?.length)ran=await competitorWatchPass(svc,'owner',{companies:12,evidenceChecks:20});}
     const {data:rep,error:repError}=await client.rpc('competitor_intel_report',{p_days:14,p_company:null});
-    const answer=repError?'竞品情报读取失败：'+String(repError.message||'').slice(0,80):(ran?`刚刚巡检了一轮，新发现 ${ran.new_items} 条。\n\n`:intel.refresh?'10 分钟内已经巡检过，直接给你最新结果。\n\n':'')+intelAnswer(rep);
+    const answer=repError?'竞品情报读取失败：'+String(repError.message||'').slice(0,80):(ran?`刚刚巡检了一轮，新发现 ${ran.new_items} 条。\n\n`:intel.refresh?'10 分钟内已经巡检过，直接给你最新结果。\n\n':'')+intelAnswer(rep,{focus:intel.focus||null});
     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'competitor_intel_report',persona:input.persona,provider:'internal',refreshed:!!ran},reason:'查看竞品官网巡检结果（公开信息）'});if(error)return json({error:'调用审计失败'},503);
     return json({answer,provider:'internal',model:'competitor-watch',context:{route:'competitor'},ticket:await ticket({user:user.id,persona:input.persona,text:'竞品最新动态整理在窗口里了，都附了官网原文链接。',expires:Date.now()+300000},key)});}
    // Owner 2026-10-01: "王力 vs 竞品" comparisons use WONLY's own catalogue next to public competitor evidence, in-house only.

@@ -39,3 +39,20 @@ test('YouTube: channel found on the official site, new uploads from the public f
  assert.deepEqual(r.newChannels,[{company:'ACME',channel_id:'UCabcdefghijklmnopqrstuv'}]);assert.equal(r.items.filter(i=>i.kind==='video').length,1);assert.equal(r.channelsRead,1);
  assert.match(intelAnswer({last_run:{started_at:'2026-10-01T01:00:00Z',sources_ok:1,sources_failed:0,evidence_checked:0,channels_known:1},items:[{company:'ACME',kind:'video',title:'New UL fire door',url:'https://www.youtube.com/watch?v=abcdefghijk',published_on:'2026-09-20'}]}),/YouTube 新视频 1 条/);
 });
+
+test('marketing question goes to the watch results, filtered to marketing items',async()=>{
+ const {intelIntent,intelAnswer}=await import('../supabase/functions/agent-conversation/competitor-watch.mjs');
+ const {competitorIntent}=await import('../supabase/functions/agent-conversation/public-research.mjs');
+ const q='最近竞品有哪些重大的营销活动';
+ assert.deepEqual(intelIntent(q),{refresh:false,focus:'marketing'});
+ assert.equal(competitorIntent(q),null,'no spec dump');
+ const rep={last_run:{started_at:'2026-10-01T08:17:00Z',sources_ok:10,sources_failed:1,evidence_checked:5},items:[
+  {company:'Hörmann（中东）',kind:'news',title:'Hörmann at The Big 5 Dubai 2026',url:'https://www.hoermann.ae/a',published_on:'2026-09-20'},
+  {company:'Yale Home México（ASSA ABLOY）',kind:'video',title:'Nueva cerradura Yale Gemini',title_zh:'新款 Gemini 锁',url:'https://www.youtube.com/watch?v=x'},
+  {company:'NAFFCO（阿联酋）',kind:'news',title:'Quarterly maintenance notice',url:'https://www.naffco.com/b'},
+  {company:'NAFFCO（阿联酋）',kind:'evidence_changed',title:'quote gone',url:'https://www.naffco.com/c'}]};
+ const a=intelAnswer(rep,{focus:'marketing'});
+ assert.match(a,/Big 5/);assert.match(a,/\[视频\] 新款 Gemini 锁/);assert.doesNotMatch(a,/maintenance/);
+ assert.match(a,/另有 1 条一般动态/);assert.match(a,/Facebook\/Instagram/);
+ assert.match(intelAnswer({items:[]},{focus:'marketing'}),/还没有运行过/);
+});

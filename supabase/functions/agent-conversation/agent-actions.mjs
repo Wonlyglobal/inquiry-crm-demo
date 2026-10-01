@@ -112,6 +112,17 @@ export async function catalogPageActions(models,catalog){
  }
  return out;
 }
+// The catalogue PDFs live in the material library; Grace downloads the original from there (owner 2026-10-01)
+// instead of keeping copies in Supabase. Picks the best-matching current PDF; null when nothing clearly matches.
+const CATALOG_MATCH={c1:/工程|project\s*solution/i,c2:/零售|retail/i,c3:/木门|soundproof|wooden/i,c4:/智能锁|smart\s*lock/i};
+export const CATALOG_QUERIES={c1:['海外工程画册','Project Solutions'],c2:['海外零售画册','Retail Product Catalogue'],c3:['静音木门画册','Soundproof Wooden Doors'],c4:['智能锁画册','True Smart Locks']};
+export function pickCatalogAsset(catalogId,assets){
+ const re=CATALOG_MATCH[catalogId];if(!re)return null;
+ const scored=(Array.isArray(assets)?assets:[]).map(a=>{const name=String(a?.name||''),where=name+' '+String(a?.relativePath||'');
+  if(!a?.id||!/\.pdf$/i.test(name)||!re.test(where)||!/画册|catalog|catalogue|brochure|project\s*solutions|wooden\s*doors|smart\s*locks/i.test(where))return null;
+  return {a,score:(a.isCurrentVersion?4:0)+(/2026/.test(where)?2:0)+(/海外|overseas|global/i.test(where)?1:0)+(/2026[-.]?0?8|8月|aug/i.test(where)?1:0)};}).filter(Boolean).sort((x,y)=>y.score-x.score);
+ return scored[0]?{id:String(scored[0].a.id),name:String(scored[0].a.name).slice(0,200)}:null;
+}
 export function catalogPagesRequest(input,catalog){
  if(!/^c[1-4]$/.test(input?.catalog||''))throw Error('画册无效');
  const total=Number(catalog?.sources?.find(s=>s.id===input.catalog)?.pages);if(!Number.isInteger(total)||total<1||total>200)throw Error('画册页数未知');

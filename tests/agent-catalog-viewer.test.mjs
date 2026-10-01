@@ -30,3 +30,9 @@ test('compact viewer (inside the timeline) keeps one row: prev / page / next / P
  const bar=v.root.children[0];const labels=bar.children.map(n=>n.textContent).filter(Boolean);
  assert.deepEqual(labels,['零售画册','上一页','下一页','下载 PDF']);assert.equal(v.root.classList.contains('acv-compact'),true);
 });
+test('PDF download goes to the material library when the original is found there',async()=>{
+ const doc=fakeDoc(),container=doc.createElement('div');const got=[];
+ const v=openCatalogViewer({title:'零售画册',urls:['https://x.test/p1.jpg'],pdf:'https://x.test/c2.pdf',material:{id:'m1',name:'Retail.pdf'},onMaterialDownload:async a=>got.push(a.id),container,compact:true,doc,win:{Image:function(){}}});
+ const btn=doc.all.find(n=>n.tag==='button'&&n.textContent==='下载 PDF');assert.ok(btn);assert.equal(doc.all.filter(n=>n.tag==='a').length,0);
+ await btn.onclick();assert.deepEqual(got,['m1']);assert.match(v.root.children[2].textContent,/物料库/);
+});

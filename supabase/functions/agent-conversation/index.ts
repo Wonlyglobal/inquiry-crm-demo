@@ -6,7 +6,7 @@ import {companyLookupIntent,lookupCompanies,companyAnswer} from './company-resea
 import {validateFeedback,feedbackSummaryIntent,feedbackSummaryAnswer} from './answer-feedback.mjs';
 import {embed,recallMemories,storeMemory,recallInstruction,shouldStore,conversationMemoryCommand,runConversationMemoryCommand} from './conversation-memory.mjs';
 import {validateTimelineEntry,expandTimeline,searchQuery} from './request-timeline.mjs';
-import {OPEN_VERB,actionIntent,actionAnswer,competitorLinksFromIntent,actionsSpoken,recordIntent,resolveRecords,recordAnswer,catalogPageIntent,catalogPageActions,catalogNameIntent,catalogPagesRequest,CATALOG_TITLES} from './agent-actions.mjs';
+import {OPEN_VERB,actionIntent,actionAnswer,competitorLinksFromIntent,actionsSpoken,recordIntent,resolveRecords,recordAnswer,catalogPageIntent,catalogPageActions,catalogNameIntent,catalogPagesRequest,pickCatalogAsset,CATALOG_QUERIES,CATALOG_TITLES} from './agent-actions.mjs';
 import {personaFramework} from './persona-frameworks.mjs';
 import {memoryCommand,runMemoryCommand,loadMemories,memoryInstruction} from './memory.mjs';
 import {voiceprintCall,speakerOf,ignoredSpeaker,voiceProof,readVoiceProof,guestInstruction,enrollmentReply,sanitize as sanitizeVoiceprint} from './voiceprint.mjs';
@@ -79,7 +79,9 @@ Deno.serve(async req=>{
    if(auditError)return json({error:'画册访问审计失败'},503);
    // Whole-catalogue PDF (optional upload: catalog-pdf/cN.pdf); missing file just hides the download button.
    const {data:pdfData}=await svc.storage.from('agent-private-knowledge').createSignedUrl(req.pdfPath,1800,{download:req.pdfName});
-   return json({catalog:req.catalog,title:req.title,urls:data.map((d:any)=>typeof d?.signedUrl==='string'?d.signedUrl:null),pdf:typeof pdfData?.signedUrl==='string'?pdfData.signedUrl:null});
+   const found=await Promise.all(CATALOG_QUERIES[req.catalog].map(q=>loadFullMaterials({...materialConfig,question:q}).catch(()=>({assets:[]}))));
+   const material=pickCatalogAsset(req.catalog,found.flatMap((f:any)=>f.assets||[]));
+   return json({catalog:req.catalog,title:req.title,urls:data.map((d:any)=>typeof d?.signedUrl==='string'?d.signedUrl:null),pdf:typeof pdfData?.signedUrl==='string'?pdfData.signedUrl:null,material});
   }
   if(input.action==='timeline'){
    if(input.op==='add'){let args;try{args=validateTimelineEntry(input)}catch(e){return json({error:e instanceof Error?e.message:'时间线格式不正确'},400)}

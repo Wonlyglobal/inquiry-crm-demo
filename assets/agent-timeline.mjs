@@ -2,7 +2,7 @@
 // 听懂需求 → 调取资料 → 执行动作 → 给出回答 - and every resource or action opens as a window inside that
 // step (catalogue pages, CRM pages, inquiry details, competitor evidence, search results, materials).
 // Nothing opens a new browser window. History is kept in a private CRM table (descriptors only).
-import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261001-ui2';
+import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261001-mat1';
 
 export const STAGES=[['need','听懂需求'],['data','调取资料'],['act','执行动作'],['answer','给出回答']];
 const ROUTES={conversation:'对话',materials:'物料库',general:'通用知识',research:'公开资料',catalog:'海外画册',actions:'CRM 页面与动作',memory:'长期记忆',feedback:'回答反馈',corrections:'纠错知识',company:'背调系统',competitor:'竞品证据',crm_local:'CRM 本地统计',intelligence:'智能体情报简报'};
@@ -73,7 +73,7 @@ export function windowsFrom(result){
 // What is stored: no signed links, card bodies or material objects.
 export function storable(w){const {card,asset,...rest}=w;return rest.kind==='link'?null:rest}
 
-export function createTimeline(root,{call,getPersona,materialRow,origin=location.origin,doc=document,win=window}){
+export function createTimeline(root,{call,getPersona,materialRow,materialFile=null,origin=location.origin,doc=document,win=window}){
  if(!doc.getElementById('gt-style')){const st=doc.createElement('style');st.id='gt-style';st.textContent=CSS;doc.head.append(st)}
  const mk=(tag,cls,text)=>{const n=doc.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n};
  const box=mk('section','gt');box.setAttribute('aria-label','需求时间线');
@@ -86,7 +86,7 @@ export function createTimeline(root,{call,getPersona,materialRow,origin=location
 
  async function render(w,body,item){
   const persona=getPersona();
-  if(w.kind==='catalog'){const d=await call({action:'catalog-pages',persona,catalog:w.catalog});openCatalogViewer({title:String(d?.title||w.label),urls:Array.isArray(d?.urls)?d.urls:[],pdf:d?.pdf||null,start:w.page||1,container:body,compact:true,doc,win});return}
+  if(w.kind==='catalog'){const d=await call({action:'catalog-pages',persona,catalog:w.catalog});openCatalogViewer({title:String(d?.title||w.label),urls:Array.isArray(d?.urls)?d.urls:[],pdf:d?.pdf||null,material:d?.material||null,onMaterialDownload:materialFile?a=>materialFile(a,'download',body):null,start:w.page||1,container:body,compact:true,doc,win});return}
   if(w.kind==='crm_view'||w.kind==='crm_record'){
    const base=safeHttps(origin);if(!base)throw Error('页面地址无效');
    const f=mk('iframe');f.title=w.label||KIND_LABEL[w.kind];f.loading='lazy';f.referrerPolicy='same-origin';

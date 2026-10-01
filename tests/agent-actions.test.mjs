@@ -52,3 +52,11 @@ test('catalogue opens as a flip-through viewer action; page links are signed per
  assert.throws(()=>catalogPagesRequest({catalog:'c9'},catalog),/画册无效/);assert.throws(()=>catalogPagesRequest({catalog:'c3'},catalog),/页数未知/);
  assert.throws(()=>catalogPagesRequest({catalog:'../x'},catalog),/画册无效/);
 });
+import {pickCatalogAsset,CATALOG_QUERIES} from '../supabase/functions/agent-conversation/agent-actions.mjs';
+test('catalogue PDF comes from the material library: best current matching PDF, nothing when unsure',()=>{
+ const assets=[{id:'a1',name:'王力海外零售产品画册-2025.pdf',isCurrentVersion:false},{id:'a2',name:'WONLY Retail Product Catalogue 2026.pdf',isCurrentVersion:true},{id:'a3',name:'零售画册封面.jpg',isCurrentVersion:true},{id:'a4',name:'WONLY Project Solutions 2026.pdf',isCurrentVersion:true}];
+ assert.deepEqual(pickCatalogAsset('c2',assets),{id:'a2',name:'WONLY Retail Product Catalogue 2026.pdf'});
+ assert.equal(pickCatalogAsset('c1',assets).id,'a4');assert.equal(pickCatalogAsset('c3',assets),null);assert.equal(pickCatalogAsset('c9',assets),null);
+ assert.equal(pickCatalogAsset('c2',[{id:'x',name:'零售价格表.pdf',isCurrentVersion:true}]),null);
+ assert.equal(CATALOG_QUERIES.c4.length,2);
+});

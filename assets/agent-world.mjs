@@ -95,7 +95,7 @@ ctx.restore();}
   const lv=externalLevel??speechLevel(time);level+=(lv-level)*(1-Math.exp(-dt*18));
   paint(dt);if(selected&&!room.hidden&&(liveTimer+=dt)>15){liveTimer=0;renderLive()}}last=ts;raf=requestAnimationFrame(frame)}
  // The private room fits one screen: its height is the space left below the page header.
- function fitRoom(){const top=root.getBoundingClientRect().top+scrollY;let h=Math.max(560,innerHeight-top-14);root.style.setProperty('--room-h',h+'px');if(!root.classList.contains('in-private-room'))return;const extra=document.documentElement.scrollHeight-innerHeight;if(extra>0){h=Math.max(560,h-extra);root.style.setProperty('--room-h',h+'px')}}
+ function fitRoom(){const top=root.getBoundingClientRect().top+scrollY;let h=Math.max(460,innerHeight-top-14);root.style.setProperty('--room-h',h+'px');if(!root.classList.contains('in-private-room'))return;const extra=document.documentElement.scrollHeight-innerHeight;if(extra>0){h=Math.max(460,h-extra);root.style.setProperty('--room-h',h+'px')}}
  addEventListener('resize',fitRoom,{passive:true});fitRoom();
  const resize=new ResizeObserver(paint);resize.observe(host);paint();raf=requestAnimationFrame(frame);
  return {showResponse(){if(selected){room.dataset.settings='false';showWindow(true)}},closeWindow(){showWindow(false)},restoreComposer,setStatus(text){room.querySelector('#room-voice-status').textContent=text},setMode(mode){state.mode=mode;room.dataset.mode=mode},setLevel(value){externalLevel=Number.isFinite(value)?Math.max(0,Math.min(1,value)):null},refreshLive:renderLive,dispose(){cancelAnimationFrame(raf);resize.disconnect()}};

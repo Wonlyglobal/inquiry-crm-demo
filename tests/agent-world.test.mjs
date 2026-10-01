@@ -41,7 +41,7 @@ test('private room shows a live board from page data and Grace opens into voice 
 });
 
 test('private room fits one desktop screen with panels scrolling inside',()=>{
- assert.match(world,/function fitRoom\(\)\{const top=root\.getBoundingClientRect\(\)\.top\+scrollY;let h=Math\.max\(560,innerHeight-top-14\);root\.style\.setProperty\('--room-h'/);
+ assert.match(world,/function fitRoom\(\)\{const top=root\.getBoundingClientRect\(\)\.top\+scrollY;let h=Math\.max\(460,innerHeight-top-14\);root\.style\.setProperty\('--room-h'/);
  assert.match(css,/#agent-world\.in-private-room\{height:var\(--room-h/);
  assert.match(css,/#agent-world \.room-left #room-timeline\{flex:1;min-height:0;overflow:auto\}/);
 });

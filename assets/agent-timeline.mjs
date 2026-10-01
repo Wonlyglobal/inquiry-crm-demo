@@ -139,6 +139,7 @@ export function createTimeline(root,{call,getPersona,materialRow,origin=location
     settle.then(()=>{if(windows.length)li.stage('act','done');save('done',String(result?.context?.route||result?.provider||''),labels,windows)});
     return settle;
    },
+   discard(){saved=true;li.remove();refresh()},
    fail(message){li.stage('need','done');for(const k of ['data','act','answer'])li.stage(k,'fail');li.dataset.status='failed';li.querySelector('.gt-src').append(mk('div','gt-err',String(message||'没有完成')));save('failed','',[],[])},
    addWindow:w=>addWindow(li,w,{open:true}),
   };

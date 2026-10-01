@@ -1,3 +1,4 @@
+import {readFileSync} from "node:fs";
 import test from 'node:test';import assert from 'node:assert/strict';import {webcrypto} from 'node:crypto';
 import {voiceprintCall,voiceprintUrl,sanitize,speakerOf,voiceProof,readVoiceProof,enrollmentReply,guestInstruction,VOICEPRINT_PATH} from '../supabase/functions/agent-conversation/voiceprint.mjs';
 import {signMaterialRequest,verifyMaterialRequest,MATERIAL_ACTOR} from '../supabase/functions/agent-conversation/material-request-proof.mjs';
@@ -42,4 +43,14 @@ test('policy accepts a voice proof only for voice questions; guest mode wording'
  assert.match(guestInstruction,/只能回答公开、通用/);assert.match(guestInstruction,/Chloe 本人/);
  assert.match(enrollmentReply({status:'ok',samples:1,required:3}),/还需要 2 段/);assert.match(enrollmentReply({status:'ok',samples:3,required:3}),/注册完成/);
  assert.match(enrollmentReply({status:'ok',deleted:3}),/已删除/);assert.match(enrollmentReply({status:'not_configured'}),/没有接通/);
+});
+import {ignoredSpeaker} from '../supabase/functions/agent-conversation/voiceprint.mjs';
+test('only Chloe is processed: others, uncertain and unverifiable voices are dropped before transcription',()=>{
+ for(const s of ['other','uncertain','unavailable'])assert.equal(ignoredSpeaker(s),true,s);
+ for(const s of ['owner','not_enrolled'])assert.equal(ignoredSpeaker(s),false,s);
+ const src=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');
+ const i=src.indexOf("if(ignoredSpeaker(heard))return json({text:''"),j=src.indexOf('transcriptionBody(audioBytes');
+ assert.ok(i>0&&j>0,'gate present');
+ assert.match(src,/input\.voice===true&&Deno\.env\.get\('VOICEPRINT_ENABLED'\)==='1'&&\(speaker===null\|\|ignoredSpeaker\(speaker\)\)\)return json\(\{ignored/);
+ assert.match(enrollmentReply({status:'ok',samples:3,required:3}),/别人的声音我不转写、不回答、不记录/);
 });

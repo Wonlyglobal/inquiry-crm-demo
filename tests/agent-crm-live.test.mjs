@@ -14,3 +14,8 @@ test('live answer is computed locally, says so, and opens the matching CRM page 
  const conv=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');assert.match(conv,/crmAnswer\?\.\(question\)/);assert.match(conv,/action:'local-ticket'/);
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/crmAnswer:question=>crmLiveAnswer\(question,\{compute:aiAnswer,ready:dashboardHasSuccessfulLoad\}\)/);
 });
+import {spokenNames,speechBody} from '../supabase/functions/agent-conversation/bailian.mjs';
+test('TTS says Chloe the way she says it; on-screen text unchanged',()=>{
+ assert.equal(spokenNames('好的，Chloe，我来帮你看看。'),'好的，克洛伊，我来帮你看看。');assert.equal(spokenNames("I'm here, Chloe."),"I'm here, Kloey.");
+ assert.match(JSON.stringify(speechBody('你好 Chloe','Cherry')),/克洛伊/);assert.equal(spokenNames('Chloeee'),'Chloeee');
+});

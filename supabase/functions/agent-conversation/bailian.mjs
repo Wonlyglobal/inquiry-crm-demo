@@ -17,7 +17,10 @@ export async function providerJson(url,body,key,fetcher=fetch){
 }
 export function completionText(payload){const c=payload?.choices?.[0];if(c?.finish_reason!=='stop')throw Error('模型未完成回答，请重试');if(typeof c.message?.content!=='string'||!c.message.content.trim())throw Error('模型没有返回文字回答');return c.message.content.trim().slice(0,6000)}
 // With tone instructions the expressive model is used (qwen3-tts-instruct-flash); instructions are fixed templates, never user text.
-export function speechBody(text,voice,instructions=null){if(typeof text!=='string'||!text.trim()||text.length>1800)throw Error('播报文字长度不支持');const input={text,voice,language_type:/[\u3400-\u9fff]/.test(text)?'Chinese':'English'};if(typeof instructions==='string'&&instructions.trim()&&instructions.length<=200)return {model:MODELS.expressiveSpeech,input:{...input,instructions,optimize_instructions:false}};return {model:MODELS.speech,input}}
+// The TTS voices read the name "Chloe" letter by letter; speak it the way she says it (owner, 2026-10-01).
+// Only the audio changes - the text on screen keeps "Chloe".
+export function spokenNames(text){const zh=/[\u3400-\u9fff]/.test(text);return String(text).replace(/\bChloe\b/gi,zh?'克洛伊':'Kloey')}
+export function speechBody(text,voice,instructions=null){if(typeof text!=='string'||!text.trim()||text.length>1800)throw Error('播报文字长度不支持');text=spokenNames(text);const input={text,voice,language_type:/[\u3400-\u9fff]/.test(text)?'Chinese':'English'};if(typeof instructions==='string'&&instructions.trim()&&instructions.length<=200)return {model:MODELS.expressiveSpeech,input:{...input,instructions,optimize_instructions:false}};return {model:MODELS.speech,input}}
 export function audioUrl(value){
  const u=new URL(value);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||u.port||!/^dashscope-result-bj\.oss-cn-beijing\.aliyuncs\.com$/.test(u.hostname))throw Error('语音下载地址不允许');u.protocol='https:';return u.href;
 }

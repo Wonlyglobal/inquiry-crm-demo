@@ -47,3 +47,13 @@ end; $$;
 revoke all on function public.competitor_intel_report(integer,text) from public,anon;
 grant execute on function public.competitor_intel_report(integer,text) to authenticated,service_role;
 -- Rollback: drop function public.competitor_intel_report(integer,text); drop table public.competitor_intel, public.competitor_watch_runs;
+
+-- Watch secret: generated inside the database (vault), checked here; never typed, copied or stored elsewhere.
+create or replace function public.verify_competitor_watch_secret(p_secret text)
+returns boolean
+language sql stable security definer set search_path='' as $$
+  select coalesce(char_length(p_secret) between 32 and 200,false)
+     and exists(select 1 from vault.decrypted_secrets where name='competitor_watch_secret' and decrypted_secret=p_secret);
+$$;
+revoke all on function public.verify_competitor_watch_secret(text) from public,anon,authenticated;
+grant execute on function public.verify_competitor_watch_secret(text) to service_role;

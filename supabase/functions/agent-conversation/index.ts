@@ -68,9 +68,11 @@ Deno.serve(async req=>{
  if(req.headers.get('origin')&&req.headers.get('origin')!=='https://crm.foreverdoodle.com')return json({error:'来源不允许'},403);
  // Scheduled competitor watch (Supabase Cron, every 4 hours): authenticated by a long shared secret, no user data.
  const watchSecret=req.headers.get('x-watch-secret');
- if(watchSecret!==null){const expected=Deno.env.get('COMPETITOR_WATCH_SECRET')||'';let diff=expected.length<24?1:expected.length^watchSecret.length;for(let i=0;i<expected.length;i++)diff|=expected.charCodeAt(i)^(watchSecret.charCodeAt(i)||0);
-  if(diff)return json({error:'forbidden'},403);
-  try{const svc=createClient(Deno.env.get('SUPABASE_URL')||'',envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});return json(await competitorWatchPass(svc,'schedule'))}catch(e){console.error('competitor_watch_failure',e instanceof Error?e.name:'unknown');return json({error:'watch failed'},500)}}
+ if(watchSecret!==null){if(watchSecret.length<32||watchSecret.length>200)return json({error:'forbidden'},403);
+  try{const svc=createClient(Deno.env.get('SUPABASE_URL')||'',envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+   // The secret is generated and kept inside the database (vault); nobody types or copies it.
+   const {data:ok,error:vErr}=await svc.rpc('verify_competitor_watch_secret',{p_secret:watchSecret});if(vErr||ok!==true)return json({error:'forbidden'},403);
+   return json(await competitorWatchPass(svc,'schedule'))}catch(e){console.error('competitor_watch_failure',e instanceof Error?e.name:'unknown');return json({error:'watch failed'},500)}}
  try{
   const url=Deno.env.get('SUPABASE_URL')||'',authorization=req.headers.get('authorization')||'';
   const client=createClient(url,envKey('SUPABASE_PUBLISHABLE_KEYS','SUPABASE_ANON_KEY'),{global:{headers:{Authorization:authorization}},auth:{persistSession:false}});

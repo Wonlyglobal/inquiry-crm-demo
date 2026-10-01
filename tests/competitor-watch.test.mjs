@@ -20,5 +20,5 @@ test('Grace report: intent, refresh, honest wording',()=>{
  const a=intelAnswer({last_run:{started_at:'2026-10-01T01:17:00Z',sources_ok:18,sources_failed:2,evidence_checked:40},items:[{company:'ACME',kind:'news',title:'ACME launches',title_zh:'ACME 发布',url:'https://acme.ae/n',published_on:'2026-09-12'},{company:'ACME',kind:'evidence_changed',title:'官方页面上已找不到这条原文：耐火4小时',url:'https://acme.ae/p'}]});
  assert.match(a,/ACME 发布（原文：ACME launches）/);assert.match(a,/证据变化 1 条/);assert.match(a,/还没有人工核验/);
  assert.deepEqual(readTranslations({choices:[{message:{content:'["一","二"]'}}]},2),['一','二']);assert.equal(readTranslations({choices:[{message:{content:'oops'}}]},2),null);
- const src=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');assert.match(src,/COMPETITOR_WATCH_SECRET/);assert.match(src,/expected\.length<24\?1/);
+ const src=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');assert.match(src,/verify_competitor_watch_secret/);
 });

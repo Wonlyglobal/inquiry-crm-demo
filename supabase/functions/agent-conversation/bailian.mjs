@@ -15,6 +15,9 @@ export async function providerJson(url,body,key,fetcher=fetch){
  if(!response.ok)throw Error(response.status===401?'百炼密钥无效或地域不匹配':response.status===429?'百炼额度或速率受限':response.status===403?'百炼模型权限或账户状态受限':'百炼服务暂不可用');
  return JSON.parse(new TextDecoder().decode(await boundedBytes(response,1024*1024)));
 }
+// Speech recognition of silence or background noise legitimately returns no text: that is an empty
+// utterance, not an error (it must not stop listening).
+export function transcriptText(payload){const c=payload?.choices?.[0];const t=c?.message?.content;return typeof t==='string'?t.trim().slice(0,3000):''}
 export function completionText(payload){const c=payload?.choices?.[0];if(c?.finish_reason!=='stop')throw Error('模型未完成回答，请重试');if(typeof c.message?.content!=='string'||!c.message.content.trim())throw Error('模型没有返回文字回答');return c.message.content.trim().slice(0,6000)}
 // With tone instructions the expressive model is used (qwen3-tts-instruct-flash); instructions are fixed templates, never user text.
 // The TTS voices read the name "Chloe" letter by letter; speak it the way she says it (owner, 2026-10-01).

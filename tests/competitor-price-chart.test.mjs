@@ -37,3 +37,12 @@ test('chart DOM: one bar per price, links only to https sources, sources listed'
  assert.ok(doc.all.some(n=>n.tag==='style'),'chart carries its own CSS');
  const bad=priceChart({...a.chart,bars:[{...a.chart.bars[0],url:'javascript:alert(1)'}]},fakeDoc());assert.ok(bad);
 });
+test('silence transcribes to empty text instead of an error',async()=>{
+ const {transcriptText}=await import('../supabase/functions/agent-conversation/bailian.mjs');
+ assert.equal(transcriptText({choices:[{finish_reason:'stop',message:{content:''}}]}),'');
+ assert.equal(transcriptText({}),'');assert.equal(transcriptText({choices:[{message:{content:' 你好 '}}]}),'你好');
+});
+test('timeline pops out the first chart like the catalogue',async()=>{
+ const {readFileSync}=await import('node:fs');const tl=readFileSync(new URL('../assets/agent-timeline.mjs',import.meta.url),'utf8');
+ assert.match(tl,/firstBig=windows\.findIndex\(w=>w\.kind==='chart'\)/);assert.match(tl,/w\.kind==='catalog'\|\|w\.kind==='chart'\)&&autoBig/);
+});

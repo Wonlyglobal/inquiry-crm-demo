@@ -8,7 +8,7 @@ const edge=await readFile(new URL("../supabase/functions/material-library/index.
 test("sales knowledge merges live material records with CRM articles",()=>{
   assert.match(html,/supabase\.functions\.invoke\("material-library",\{body:\{action:"list"/);
   assert.match(html,/knowledgeSource:"material"/);
-  assert.match(html,/查看 \/ 添加附件/);
+  assert.match(html,/actions:\[\{label:"查看",onClick:\(\)=>openMaterialAsset\(item\)\},\{label:"添加附件",disabled:materialOversized\(item\)/);
 });
 
 test("sales knowledge shows uploader and safe thumbnails instead of source",()=>{
@@ -91,4 +91,16 @@ test("material proxy authenticates CRM users and keeps the integration secret se
   assert.doesNotMatch(html,/MATERIAL_LIBRARY_SECRET|CRM_INTEGRATION_SECRET/);
   assert.match(edge,/bytes\.length>50\*1024\*1024/);
   assert.match(edge,/material_attachment_loaded/);
+});
+
+test("material library UX: lazy thumbnails, oversized files and folder-aware titles",()=>{
+  assert.match(html,/new IntersectionObserver\(entries=>entries\.forEach/);
+  assert.match(html,/while\(materialThumbnailActive<4&&materialThumbnailQueue\.length\)/);
+  assert.match(html,/const materialOversized=asset=>Number\(asset\?\.sizeBytes\)>MAIL_ATTACHMENT_LIMIT_BYTES/);
+  assert.match(html,/function materialNameParts\(name\)/);
+  assert.match(html,/label==="标题"&&row\.materialAsset/);
+  assert.match(html,/material-size-flag/);
+  assert.match(html,/async function addMaterialToMail\(asset\)\{\s*if\(materialOversized\(asset\)\)return toast/);
+  assert.match(html,/event\.key!=="Escape"/);
+  assert.match(html,/!modal\.querySelector\("form"\)/);
 });

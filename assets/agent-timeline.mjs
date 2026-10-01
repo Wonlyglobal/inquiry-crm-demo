@@ -61,7 +61,8 @@ const CHART_CSS=`.gt-chart{background:#0b1320;color:#dbe3ef;border:1px solid #2c
 .gt-bar .gt-bl{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gt-bar .gt-bv{font-size:12px;font-variant-numeric:tabular-nums;color:#f4e2bb;text-align:right}
 .gt-bar .gt-bt{grid-column:1/-1;height:8px;border-radius:4px;background:#1b2740;overflow:hidden}.gt-bar .gt-bf{height:100%;border-radius:4px;background:linear-gradient(90deg,#3b82f6,#60a5fa)}.gt-bar[data-promo] .gt-bf{background:linear-gradient(90deg,#d97706,#f4c46b)}
 .gt-legend{display:flex;gap:10px;font-size:11px;color:#8f9bb0;margin:6px 0}.gt-legend i{display:inline-block;width:10px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
-.gt-chart ul{margin:4px 0 0;padding-left:18px;font-size:12px}`;
+.gt-chart ul{margin:4px 0 0;padding-left:18px;font-size:12px}
+.gt-big .gt-chart{font-size:15px}.gt-big .gt-bar .gt-bl,.gt-big .gt-bar .gt-bv{font-size:14px}.gt-big .gt-bar .gt-bt{height:14px}.gt-big .gt-bars{gap:8px}`;
 const nf=n=>Number(n).toLocaleString('en-US');
 // Horizontal bar chart of official posted prices; every bar links to its official source page.
 export function priceChart(c,doc=document){
@@ -136,7 +137,7 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
   const big=mk('button','gt-mini','放大');big.type='button';big.onclick=e=>{e.preventDefault();const on=!d.classList.contains('gt-big');d.classList.toggle('gt-big',on);big.textContent=on?'缩小':'放大';if(on)d.open=true};
   sum.append(big);const body=mk('div','gt-body');d.append(sum,body);item.querySelector('.gt-wins').append(d);
   d.addEventListener('keydown',e=>{if(e.key==='Escape'&&d.classList.contains('gt-big')){d.classList.remove('gt-big');big.textContent='放大'}});
-  if(open&&w.kind==='catalog'&&autoBig){d.classList.add('gt-big');big.textContent='缩小'}
+  if(open&&(w.kind==='catalog'||w.kind==='chart')&&autoBig){d.classList.add('gt-big');big.textContent='缩小'}
   let loaded=null;const load=()=>{if(!loaded)loaded=render(w,body,item).catch(e=>{body.replaceChildren(mk('div','gt-err',String(e?.message||'打不开')))});return loaded};
   if(open)load();else d.addEventListener('toggle',()=>{if(d.open)load()});
   return load;
@@ -162,8 +163,9 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
    done(result){
     li.stage('need','done');const labels=sourceLabels(result);li.sources(labels);li.stage('data',labels.length?'done':'skip');
     const windows=windowsFrom(result);li.stage('act',windows.length?'active':'skip');
-    const firstCatalog=windows.findIndex(w=>w.kind==='catalog');
-    const loads=windows.map((w,i)=>addWindow(li,w,{open:true,autoBig:i===firstCatalog}));
+    // Catalogues and charts pop out enlarged (like the retail catalogue); Esc or 缩小 puts them back.
+    let firstBig=windows.findIndex(w=>w.kind==='catalog');if(firstBig<0)firstBig=windows.findIndex(w=>w.kind==='chart');
+    const loads=windows.map((w,i)=>addWindow(li,w,{open:true,autoBig:i===firstBig}));
     li.stage('answer','done');li.dataset.status='done';
     const settle=Promise.race([Promise.allSettled(loads.map(l=>l())),new Promise(r=>setTimeout(r,20000))]);
     settle.then(()=>{if(windows.length)li.stage('act','done');save('done',String(result?.context?.route||result?.provider||''),labels,windows)});

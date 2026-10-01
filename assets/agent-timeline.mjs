@@ -56,7 +56,7 @@ export function sourceLabels(result){
  return [...new Set(out)].slice(0,6);
 }
 const CHART_CSS=`.gt-chart{background:#0b1320;color:#dbe3ef;border:1px solid #2c3950;border-radius:10px;padding:8px;margin-top:8px;font:13px/1.5 system-ui,sans-serif}.gt-chart .gt-note{color:#8f9bb0;font-size:12px;margin-top:6px}.gt-chart a{color:#93c5fd;overflow-wrap:anywhere}
-.gt-chart .gt-stat{color:#c9d3e4;font-size:12px;margin-bottom:6px}.gt-bars{display:flex;flex-direction:column;gap:5px}
+.gt-chart .gt-title{color:#f4e2bb;font-weight:600;margin-bottom:2px}.gt-chart .gt-stat{color:#c9d3e4;font-size:12px;margin-bottom:6px}.gt-bars{display:flex;flex-direction:column;gap:5px}
 .gt-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;text-decoration:none;color:#dbe3ef;padding:3px 4px;border-radius:6px}.gt-bar:hover{background:#16233a}
 .gt-bar .gt-bl{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gt-bar .gt-bv{font-size:12px;font-variant-numeric:tabular-nums;color:#f4e2bb;text-align:right}
 .gt-bar .gt-bt{grid-column:1/-1;height:8px;border-radius:4px;background:#1b2740;overflow:hidden}.gt-bar .gt-bf{height:100%;border-radius:4px;background:linear-gradient(90deg,#3b82f6,#60a5fa)}.gt-bar[data-promo] .gt-bf{background:linear-gradient(90deg,#d97706,#f4c46b)}
@@ -65,22 +65,37 @@ const CHART_CSS=`.gt-chart{background:#0b1320;color:#dbe3ef;border:1px solid #2c
 .gt-big .gt-chart{font-size:15px}.gt-big .gt-bar .gt-bl,.gt-big .gt-bar .gt-bv{font-size:14px}.gt-big .gt-bar .gt-bt{height:14px}.gt-big .gt-bars{gap:8px}`;
 const nf=n=>Number(n).toLocaleString('en-US');
 // Horizontal bar chart of official posted prices; every bar links to its official source page.
-export function priceChart(c,doc=document){
+// Generic bar chart for any data Grace pulls up. spec = {title, stat, unit, bars:[{label,value,text?,url?,alt?}],
+// legend?:[[color,label]], sources:[{label,url?}], note?}. Bars with an https url open their source.
+export function dataChart(spec,doc=document){
  const mk=(t,cls,txt)=>{const n=doc.createElement(t);if(cls)n.className=cls;if(txt!=null)n.textContent=txt;return n};
  if(!doc.getElementById('gt-chart-css')){const st=doc.createElement('style');st.id='gt-chart-css';st.textContent=CHART_CSS;(doc.head||doc.documentElement).append(st)}
- const box=mk('div','gt-chart');if(!c||!Array.isArray(c.bars)||!c.bars.length){box.append(mk('div','gt-note','这组价格已不在证据库。'));return box}
- box.append(mk('div','gt-stat',`${c.label}（${c.currency}）：${c.bars.length} 个型号 · 最低 ${nf(c.min)} · 中位 ${nf(c.median)} · 最高 ${nf(c.max)}`));
- const lg=mk('div','gt-legend');const a=mk('span');const ia=mk('i');ia.style.background='#60a5fa';a.append(ia,'官网标价');const b=mk('span');const ib=mk('i');ib.style.background='#f4c46b';b.append(ib,'促销价');lg.append(a,b);box.append(lg);
- const bars=mk('div','gt-bars'),max=Math.max(...c.bars.map(x=>x.price))||1;
- for(const x of c.bars){const url=safeHttps(x.url);const row=mk(url?'a':'div','gt-bar');if(url){row.href=url;row.target='_blank';row.rel='noopener noreferrer';row.title='打开官方来源：'+(x.source||url)}
-  if(x.promo)row.dataset.promo='1';const t=mk('div','gt-bt'),f=mk('div','gt-bf');f.style.width=Math.max(2,Math.round(x.price/max*100))+'%';t.append(f);
-  row.append(mk('span','gt-bl',`${x.company} · ${x.product}`),mk('span','gt-bv',nf(x.price)),t);bars.append(row)}
- box.append(bars);
- const hosts=[...new Map(c.bars.map(x=>[x.source,x])).values()];const ul=mk('ul');
- for(const h of hosts){const li=mk('li');const url=safeHttps(h.url);const l=mk(url?'a':'span','',h.source);if(url){l.href=url;l.target='_blank';l.rel='noopener noreferrer'}li.append(l,` — ${[...new Set(c.bars.filter(x=>x.source===h.source).map(x=>x.company))].join('、')}`);ul.append(li)}
- box.append(mk('div','gt-note',`来源（对方官网商城，${c.accessed||''} 访问；价格由工具提取，待人工核对）：`),ul);
+ const box=mk('div','gt-chart');const bars=Array.isArray(spec?.bars)?spec.bars.filter(x=>Number.isFinite(Number(x?.value))):[];
+ if(!bars.length){box.append(mk('div','gt-note',spec?.empty||'这组数据现在没有可画的数值。'));return box}
+ if(spec.title)box.append(mk('div','gt-title',String(spec.title)));
+ if(spec.stat)box.append(mk('div','gt-stat',String(spec.stat)));
+ if(Array.isArray(spec.legend)&&spec.legend.length){const lg=mk('div','gt-legend');for(const [color,label] of spec.legend){const it=mk('span');const i=mk('i');i.style.background=color;it.append(i,String(label));lg.append(it)}box.append(lg)}
+ const wrap=mk('div','gt-bars'),max=Math.max(...bars.map(x=>Math.abs(Number(x.value))))||1;
+ for(const x of bars){const url=safeHttps(x.url);const row=mk(url?'a':'div','gt-bar');if(url){row.href=url;row.target='_blank';row.rel='noopener noreferrer';row.title='打开来源：'+(x.source||url)}
+  if(x.alt)row.dataset.promo='1';const t=mk('div','gt-bt'),f=mk('div','gt-bf');f.style.width=(Number(x.value)?Math.max(2,Math.round(Math.abs(Number(x.value))/max*100)):0)+'%';t.append(f);
+  row.append(mk('span','gt-bl',String(x.label)),mk('span','gt-bv',x.text!=null?String(x.text):nf(x.value)+(spec.unit?' '+spec.unit:'')),t);wrap.append(row)}
+ box.append(wrap);
+ const sources=(Array.isArray(spec.sources)?spec.sources:[]).filter(x=>x?.label);
+ box.append(mk('div','gt-note','来源：'));const ul=mk('ul');
+ for(const src of sources.length?sources:[{label:'未注明来源'}]){const li=mk('li');const url=safeHttps(src.url);const l=mk(url?'a':'span','',String(src.label));if(url){l.href=url;l.target='_blank';l.rel='noopener noreferrer'}li.append(l);if(src.detail)li.append(' — '+String(src.detail));ul.append(li)}
+ box.append(ul);if(spec.note)box.append(mk('div','gt-note',String(spec.note)));
  return box;
 }
+// Competitor official prices -> generic chart.
+export function priceSpec(c){
+ if(!c||!Array.isArray(c.bars)||!c.bars.length)return {bars:[],empty:'这组价格已不在证据库。'};
+ const hosts=[...new Map(c.bars.map(x=>[x.source,x])).values()];
+ return {title:c.label,stat:`${c.currency}：${c.bars.length} 个型号 · 最低 ${nf(c.min)} · 中位 ${nf(c.median)} · 最高 ${nf(c.max)}`,legend:[['#60a5fa','官网标价'],['#f4c46b','促销价']],
+  bars:c.bars.map(x=>({label:`${x.company} · ${x.product}`,value:x.price,url:x.url,source:x.source,alt:x.promo})),
+  sources:hosts.map(h=>({label:h.source,url:h.url,detail:[...new Set(c.bars.filter(x=>x.source===h.source).map(x=>x.company))].join('、')})),
+  note:`对方官网商城零售价，${c.accessed||''} 访问；价格由工具提取，待人工核对。点柱子打开对应官方页面。`};
+}
+export function priceChart(c,doc=document){return dataChart(priceSpec(c),doc)}
 // Answer → window descriptors (what gets rendered now and stored for history).
 export function windowsFrom(result){
  const w=[];
@@ -90,6 +105,7 @@ export function windowsFrom(result){
   else if(a?.type==='crm_record'&&/^[0-9a-f-]{36}$/i.test(a.id||''))w.push({kind:'crm_record',id:a.id,label:String(a.label||'询盘')});
   else if(a?.type==='evidence'&&a.id)w.push({kind:'evidence',id:a.id,card:a});
   else if(a?.type==='price_chart'&&a.chart&&Array.isArray(a.chart.bars))w.push({kind:'chart',market:a.market,category:a.category,companies:Array.isArray(a.companies)?a.companies:[],label:String(a.label||a.chart.label||'价格图表'),chart:a.chart});
+  else if(a?.type==='data_chart'&&a.chart&&Array.isArray(a.chart.bars))w.push({kind:'chart',source:String(a.source||'crm'),metric:String(a.metric||''),question:String(a.question||'').slice(0,200),label:String(a.label||a.chart.title||'数据图表'),chart:a.chart});
   else if(a?.type==='web_search'&&a.query)w.push({kind:'search',query:String(a.query),sources:[]});
   else if(safeHttps(a?.url))w.push({kind:'link',url:safeHttps(a.url),label:String(a.label||a.url)});
  }
@@ -98,9 +114,9 @@ export function windowsFrom(result){
  return w.slice(0,8);
 }
 // What is stored: no signed links, card bodies or material objects.
-export function storable(w){const {card,asset,chart,...rest}=w;return rest.kind==='link'?null:rest}
+export function storable(w){const {card,asset,chart,...rest}=w;if(rest.kind==='chart'&&['intel','crm_stats'].includes(rest.source))return null;return rest.kind==='link'?null:rest}
 
-export function createTimeline(root,{call,getPersona,materialRow,materialFile=null,origin=location.origin,doc=document,win=window}){
+export function createTimeline(root,{call,getPersona,materialRow,materialFile=null,crmChart=null,origin=location.origin,doc=document,win=window}){
  if(!doc.getElementById('gt-style')){const st=doc.createElement('style');st.id='gt-style';st.textContent=CSS;doc.head.append(st)}
  const mk=(tag,cls,text)=>{const n=doc.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n};
  const box=mk('section','gt');box.setAttribute('aria-label','需求时间线');
@@ -128,7 +144,9 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
     body.append(mk('div','gt-note',d.status==='available'?`搜索时间 ${timeLabel(d.checked_at)} · 搜索服务返回的来源，未逐页核验`:'这次没有取得可核对的来源，稍后可以再试。'))}
    if(w.sources?.length){const ol=mk('ol','gt-results');for(const s of w.sources){const li=mk('li');const a=mk('a','',s.title||s.url);a.href=s.url;a.target='_blank';a.rel='noopener noreferrer';li.append(a);ol.append(li)}body.append(ol)}
    return}
-  if(w.kind==='chart'){body.append(priceChart(w.chart,doc));return}
+  if(w.kind==='chart'){
+   if(w.source==='crm'){const spec=w.chart||crmChart?.(w.question||'');body.append(spec?dataChart(spec,doc):mk('div','gt-note','CRM 数据还在加载，稍后点开再看。'));return}
+   body.append(w.chart&&!w.chart.currency&&w.chart.bars&&w.chart.bars[0]&&'value' in w.chart.bars[0]?dataChart(w.chart,doc):priceChart(w.chart,doc));return}
   if(w.kind==='material'){const row=materialRow?.(w.asset||{id:w.id,name:w.name});if(row)body.append(row);else body.append(mk('div','',w.name));return}
   if(w.kind==='link'){const a=mk('a','',w.label);a.href=w.url;a.target='_blank';a.rel='noopener noreferrer';body.append(a);return}
  }

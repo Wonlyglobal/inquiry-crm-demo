@@ -2497,8 +2497,8 @@
     </aside>
     <script type="module">
       import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20261001-chart2';
-      import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261001-crm1';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20261001-chart3';
+      import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261001-chart3';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=hologram-20261001";
@@ -5033,7 +5033,7 @@
         },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}saveAgentLocation();worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
-          timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,materialFile:agentMaterialFile,crmAnswer:question=>crmLiveAnswer(question,{compute:aiAnswer,ready:dashboardHasSuccessfulLoad}),onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
+          timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,materialFile:agentMaterialFile,crmAnswer:question=>crmLiveAnswer(question,{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad}),crmChart:aiChart,onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');
             const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';
@@ -5569,6 +5569,18 @@
         if(/漏斗|阶段|商机|转化/.test(q)) return `${header}\n\n当前商机阶段：\n${c.stages.map(x=>`• ${x.name}：${x.count} 条`).join('\n')||'暂无商机'}\n成交率：${pct(c.won.length,c.closed.length)}\n成交额：${moneyLine}\n\n口径：成交率=统计期内成交数÷已关闭数（成交+丢单）。`;
         if(/来源|渠道|roi/.test(q)) return `${header}\n\n渠道询盘分布：\n${c.sources.map(x=>`• ${x.name}：${x.count} 条`).join('\n')||'暂无渠道数据'}\n\nROI 需结合市场部录入的月度渠道成本，详见经营看板“渠道表现与 ROI”。`;
         return `${header}\n\n经营摘要：\n• 新增询盘 ${c.created.length} 条，较上期${change(c.created.length,c.comparison.created)}\n• 已分配 ${c.assigned.length} 条，30 分钟内首次有效响应率 ${pct(c.fast.length,c.assigned.length)}（上期 ${pct(c.comparison.fast,c.comparison.assigned)}），超时未响应 ${c.overdue.length} 条\n• 成交 ${c.won.length} 单，较上期${change(c.won.length,c.comparison.won)}；成交率 ${pct(c.won.length,c.closed.length)}（上期 ${pct(c.comparison.won,c.comparison.closed)}）\n• 团队成交额 ${moneyLine}，较上期${change(c.totalCny,c.comparison.totalCny)}\n• 高风险或逾期商机 ${c.risky.length} 条\n• 当前销售额第一：${c.salesStats[0]?.name||'暂无'}${c.salesStats[0]?` （${money(c.salesStats[0].amount,'CNY')}）`:''}\n\n你可继续问：销售额排名、风险询盘、商机漏斗或渠道分布。`;
+      }
+      // Grace data charts (owner, 2026-10-01: "调出任何数据都要说明来源并生成图表"). Same live data and scope as aiAnswer.
+      function aiChartMetric(question){const q=String(question).toLowerCase();return /排名|排行|销售额|成交额|业绩|ranking/.test(q)?'sales':/风险|超时|预警|未跟进|逾期/.test(q)?'risk':/漏斗|阶段|商机|转化|进行中/.test(q)?'stages':/来源|渠道|roi/.test(q)?'sources':'summary'}
+      function aiChart(question){
+        if(!dashboardHasSuccessfulLoad)return null;
+        const c=aiDataContext(question),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,metric=aiChartMetric(question);
+        const src=[{label:'CRM 实时数据（询盘与成交记录）',detail:`统计周期 ${period}；范围 ${c.scope}`},{label:'计算方式',detail:'在你的浏览器里按你的权限计算，没有发送给外部模型'}];
+        if(metric==='sales')return {title:'业务员成交额排名',stat:`团队合计 ${money(c.totalCny,'CNY')} · ${c.won.length} 单`,unit:'',bars:c.salesStats.filter(x=>x.amount||x.won).map(x=>({label:`${x.name}（${x.won} 单）`,value:Math.round(x.amount),text:money(x.amount,'CNY')})),sources:[...src,{label:'口径',detail:'按成交时间与成交日锁定汇率折算人民币'}],empty:'统计期内还没有成交记录。'};
+        if(metric==='risk')return {title:'风险与超时',stat:`统计周期 ${period}`,unit:'条',bars:[{label:'超时未首次响应',value:c.overdue.length},{label:'高风险/逾期商机',value:c.risky.length}],sources:src};
+        if(metric==='stages')return {title:'商机阶段分布',stat:`成交率 ${pct(c.won.length,c.closed.length)}`,unit:'条',bars:c.stages.map(x=>({label:x.name,value:x.count})),sources:src,empty:'当前没有商机。'};
+        if(metric==='sources')return {title:'渠道询盘分布',stat:`新增询盘 ${c.created.length} 条`,unit:'条',bars:c.sources.map(x=>({label:x.name,value:x.count})),sources:src,empty:'统计期内没有新增询盘。'};
+        return {title:'经营摘要',stat:`统计周期 ${period}`,unit:'',bars:[{label:'新增询盘',value:c.created.length,text:c.created.length+' 条'},{label:'已分配',value:c.assigned.length,text:c.assigned.length+' 条'},{label:'30 分钟内响应',value:c.fast.length,text:c.fast.length+' 条'},{label:'超时未响应',value:c.overdue.length,text:c.overdue.length+' 条'},{label:'成交',value:c.won.length,text:c.won.length+' 单'},{label:'风险/逾期商机',value:c.risky.length,text:c.risky.length+' 条'}],sources:src};
       }
       function aiEvidence(question=""){
         const c=aiDataContext(question),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,valid=c.created.filter(x=>x.validity!=="pending"),validCount=valid.filter(x=>x.validity==="valid").length;

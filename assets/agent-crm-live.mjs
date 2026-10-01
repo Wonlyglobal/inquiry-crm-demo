@@ -21,9 +21,12 @@ export function crmDataIntent(question){
 }
 
 // Builds the answer object the conversation shows; `compute` is the CRM's own local statistics.
-export function crmLiveAnswer(question,{compute,ready}){
+export function crmLiveAnswer(question,{compute,ready,chart=null,metric=null}){
  const intent=crmDataIntent(question);if(!intent)return null;
  if(!ready)return {answer:'CRM 实时数据还在加载，稍等几秒再问我一次。',windows:[],labels:['CRM 实时数据']};
  const text=String(compute(question)||'').trim();if(!text)return null;
- return {answer:text+'\n\n以上是 CRM 实时数据，在你的浏览器里按你的权限计算，没有发送给外部模型。',windows:[{type:'crm_view',view:intent.view,label:intent.label}],labels:['CRM 实时数据']};
+ // Every data answer says where it came from and comes with a chart (owner, 2026-10-01).
+ let spec=null;try{spec=chart?.(question)||null}catch{spec=null}
+ const windows=[...(spec?[{type:'data_chart',source:'crm',metric:String(metric?.(question)||''),question:String(question).slice(0,200),label:spec.title||'数据图表',chart:spec}]:[]),{type:'crm_view',view:intent.view,label:intent.label}];
+ return {answer:text+'\n\n来源：CRM 实时数据（询盘与成交记录），在你的浏览器里按你的权限计算，没有发送给外部模型。'+(spec?'图表已在窗口里打开。':''),windows,labels:['CRM 实时数据']};
 }

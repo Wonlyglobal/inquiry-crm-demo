@@ -6,6 +6,8 @@ import {companyLookupIntent,lookupCompanies,companyAnswer} from './company-resea
 import {validateFeedback,feedbackSummaryIntent,feedbackSummaryAnswer} from './answer-feedback.mjs';
 import {embed,recallMemories,storeMemory,recallInstruction,shouldStore,conversationMemoryCommand,runConversationMemoryCommand} from './conversation-memory.mjs';
 import {compareIntent,compareAnswer} from './wonly-compare.mjs';
+import {runWatch,translateBody,readTranslations,intelIntent,intelAnswer} from './competitor-watch.mjs';
+import {PUBLIC_EVIDENCE} from './public-research.mjs';
 import {validateTimelineEntry,expandTimeline,searchQuery} from './request-timeline.mjs';
 import {competitorLinks} from './agent-actions.mjs';
 import {OPEN_VERB,actionIntent,actionAnswer,competitorLinksFromIntent,actionsSpoken,recordIntent,resolveRecords,recordAnswer,catalogPageIntent,catalogPageActions,catalogNameIntent,catalogPagesRequest,pickCatalogAsset,CATALOG_QUERIES,CATALOG_TITLES} from './agent-actions.mjs';
@@ -22,7 +24,7 @@ import {plainAnswer} from './answer-format.mjs';
 import {seriesCatalogueAnswer} from './knowledge-profile.mjs';
 import {filterMaterialResults} from './material-relevance.mjs';
 import {preferenceInstruction} from './response-preferences.mjs';
-import {signMaterialFileRequest} from './material-file-proof.mjs';
+import {signMaterialFileRequest,MATERIAL_ACTOR} from './material-file-proof.mjs';
 import {resolveMaterialTurn,conciseMaterialAnswer} from './material-dialogue.mjs';
 import {loadFullMaterials,fullMaterialAnswer} from './materials.mjs';
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
@@ -46,10 +48,29 @@ const encoder=new TextEncoder();
 async function mac(text:string,secret:string){const key=await crypto.subtle.importKey('raw',encoder.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return Array.from(new Uint8Array(await crypto.subtle.sign('HMAC',key,encoder.encode(text)))).map(x=>x.toString(16).padStart(2,'0')).join('')}
 async function ticket(data:unknown,key:string){const text=JSON.stringify(data);return {data:text,signature:await mac(text,key)}}
 async function readLimited(req:Request,max:number){const reader=req.body?.getReader();if(!reader)throw Error('请求为空');let size=0;const parts=[];for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>max){await reader.cancel();throw Error('请求过大')}parts.push(value)}const bytes=new Uint8Array(size);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.length}return bytes}
+// Competitor watch pass (owner 2026-10-01): official websites only; results stored for Grace's reports.
+async function competitorWatchPass(svc:any,trigger:'schedule'|'owner',size:{companies:number,evidenceChecks:number}={companies:20,evidenceChecks:40}){
+ const {data:last}=await svc.from('competitor_watch_runs').select('id').order('id',{ascending:false}).limit(1);
+ const runNo=Number(last?.[0]?.id||0);
+ const {data:seen}=await svc.from('competitor_intel').select('kind,url').order('id',{ascending:false}).limit(3000);
+ const known=new Set((seen||[]).map((r:any)=>r.kind+'|'+r.url));
+ const res=await runWatch({evidence:PUBLIC_EVIDENCE,known,offset:runNo*size.companies,...size});
+ const news=res.items.filter((i:any)=>i.kind==='news');const key=Deno.env.get('DASHSCOPE_API_KEY')||'';
+ if(news.length&&key){try{const r=await fetch(CHAT_URL,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(translateBody(news.map((n:any)=>n.title))),signal:AbortSignal.timeout(15000)});
+  if(r.ok){const zh=readTranslations(await r.json(),news.length);if(zh)news.forEach((n:any,i:number)=>n.title_zh=zh[i])}}catch{}}
+ if(res.items.length){await svc.from('competitor_intel').upsert(res.items.map((i:any)=>({company:String(i.company).slice(0,120),kind:i.kind,title:String(i.title).slice(0,300),title_zh:i.title_zh||null,url:i.url,published_on:i.published_on||null,evidence_id:i.evidence_id||null})),{onConflict:'kind,url',ignoreDuplicates:true});}
+ await svc.from('competitor_watch_runs').insert({trigger,sources_ok:res.sourcesOk,sources_failed:res.sourcesFailed,evidence_checked:res.evidenceChecked,new_items:res.items.length});
+ return {new_items:res.items.length,sources_ok:res.sourcesOk,sources_failed:res.sourcesFailed,evidence_checked:res.evidenceChecked};
+}
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
  if(req.method!=='POST')return json({error:'仅支持POST'},405);
  if(req.headers.get('origin')&&req.headers.get('origin')!=='https://crm.foreverdoodle.com')return json({error:'来源不允许'},403);
+ // Scheduled competitor watch (Supabase Cron, every 4 hours): authenticated by a long shared secret, no user data.
+ const watchSecret=req.headers.get('x-watch-secret');
+ if(watchSecret!==null){const expected=Deno.env.get('COMPETITOR_WATCH_SECRET')||'';let diff=expected.length<24?1:expected.length^watchSecret.length;for(let i=0;i<expected.length;i++)diff|=expected.charCodeAt(i)^(watchSecret.charCodeAt(i)||0);
+  if(diff)return json({error:'forbidden'},403);
+  try{const svc=createClient(Deno.env.get('SUPABASE_URL')||'',envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});return json(await competitorWatchPass(svc,'schedule'))}catch(e){console.error('competitor_watch_failure',e instanceof Error?e.name:'unknown');return json({error:'watch failed'},500)}}
  try{
   const url=Deno.env.get('SUPABASE_URL')||'',authorization=req.headers.get('authorization')||'';
   const client=createClient(url,envKey('SUPABASE_PUBLISHABLE_KEYS','SUPABASE_ANON_KEY'),{global:{headers:{Authorization:authorization}},auth:{persistSession:false}});
@@ -154,6 +175,12 @@ Deno.serve(async req=>{
    if(memoryCmd){const answer=await runMemoryCommand(memoryCmd,{client,persona:input.persona});const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_memory_command',kind:memoryCmd.kind,persona:input.persona,provider:'internal'},reason:'长期偏好命令，内容由数据库函数单独审计'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'user-memory',context:{route:'memory'},ticket:await ticket({user:user.id,persona:input.persona,text:memoryCmd.kind==='remember'?'好，我记住了。':memoryCmd.kind==='list'?'我记住的偏好都列在窗口里了。':memoryCmd.kind==='forget'?'好的，已经忘记了。':'这条我不能记住，原因写在窗口里了。',expires:Date.now()+300000},key)});}
    const fbIntent=guest?null:feedbackSummaryIntent(input.question);
    if(fbIntent){const {data,error:fbError}=await client.rpc('agent_feedback_summary',{p_days:fbIntent.days});const answer=fbError?'反馈统计读取失败：'+String(fbError.message||'').slice(0,80):feedbackSummaryAnswer(data);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_feedback_summary',days:fbIntent.days,persona:input.persona,provider:'internal'},reason:'查看回答反馈统计，系统内计算'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'answer-feedback',context:{route:'feedback'},ticket:await ticket({user:user.id,persona:input.persona,text:'反馈统计放在窗口里了，我也写了一条改进建议。',expires:Date.now()+300000},key)});}
+   const intel=guest?null:intelIntent(input.question);
+   if(intel){let ran=null;if(intel.refresh&&user.id===MATERIAL_ACTOR){const svc=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});const {data:recent}=await svc.from('competitor_watch_runs').select('id').gte('started_at',new Date(Date.now()-600000).toISOString()).limit(1);if(!recent?.length)ran=await competitorWatchPass(svc,'owner',{companies:12,evidenceChecks:20});}
+    const {data:rep,error:repError}=await client.rpc('competitor_intel_report',{p_days:14,p_company:null});
+    const answer=repError?'竞品情报读取失败：'+String(repError.message||'').slice(0,80):(ran?`刚刚巡检了一轮，新发现 ${ran.new_items} 条。\n\n`:intel.refresh?'10 分钟内已经巡检过，直接给你最新结果。\n\n':'')+intelAnswer(rep);
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'competitor_intel_report',persona:input.persona,provider:'internal',refreshed:!!ran},reason:'查看竞品官网巡检结果（公开信息）'});if(error)return json({error:'调用审计失败'},503);
+    return json({answer,provider:'internal',model:'competitor-watch',context:{route:'competitor'},ticket:await ticket({user:user.id,persona:input.persona,text:'竞品最新动态整理在窗口里了，都附了官网原文链接。',expires:Date.now()+300000},key)});}
    // Owner 2026-10-01: "王力 vs 竞品" comparisons use WONLY's own catalogue next to public competitor evidence, in-house only.
    const vs=guest?null:compareIntent(input.question);
    if(vs){const catalog=await loadCatalog(admin);if(catalog){const answer=compareAnswer(vs,catalog);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'wonly_competitor_compare',persona:input.persona,provider:'internal',categories:vs.categories,markets:vs.markets,companies:vs.companies.slice(0,6)},reason:'王力画册与公开竞品证据对照，系统内生成，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);

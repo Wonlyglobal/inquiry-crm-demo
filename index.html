@@ -629,6 +629,15 @@
       .knowledge-thumbnail img { width:100%; height:100%; display:block; object-fit:cover; }
       .knowledge-thumbnail.video { background:linear-gradient(145deg,#e8f1ed,#cfdfd5); }
       .knowledge-thumbnail.document { background:linear-gradient(145deg,#f5f3ed,#e9e3d7); color:#786444; }
+      .knowledge-thumbnail.large { width:100%; height:auto; min-height:120px; max-height:360px; aspect-ratio:16/9; border-radius:12px; font-size:14px; }
+      .knowledge-thumbnail.large img { object-fit:contain; background:#0f1a15; }
+      .material-title-cell { min-width:220px; max-width:420px; }
+      .material-title-name { font-weight:700; color:var(--ink); line-height:1.4; word-break:break-all; }
+      .material-title-folder { display:block; margin-top:3px; color:var(--muted); font-size:11px; line-height:1.35; word-break:break-all; }
+      .nowrap-cell { white-space:nowrap; }
+      .material-size-flag { display:inline-block; width:fit-content; justify-self:start; margin-left:6px; padding:1px 7px; border-radius:999px; background:#fff1e6; color:#a24b0b; font-size:10px; font-weight:800; white-space:nowrap; }
+      @media (max-width:720px){#module-table.knowledge-table{min-width:0;width:100%}.knowledge-table th:nth-child(2),.knowledge-table td:nth-child(2),.knowledge-table th:nth-child(4),.knowledge-table td:nth-child(4),.knowledge-table th:nth-child(5),.knowledge-table td:nth-child(5),.knowledge-table th:nth-child(7),.knowledge-table td:nth-child(7){display:none}.knowledge-table .material-title-cell{min-width:150px}.knowledge-table .knowledge-thumbnail:not(.large){width:56px;height:40px}}
+      .material-limit-note { margin-top:12px; padding:10px 12px; border-radius:10px; background:#fff6ee; color:#8a4510; font-size:13px; line-height:1.5; }
       .module-state-title { display:block; margin-bottom:5px; color:var(--ink); }
       .module-retry { margin-top:14px; }
       .module-loading-icon { animation:module-spin .9s linear infinite; }
@@ -3201,8 +3210,9 @@
       function renderModuleTable(columns, rows, onRowClick, filtered = false) {
         if (!filtered) { moduleColumns = columns; moduleRows = rows; moduleRowClick = onRowClick; }
         const head = $("#module-head"), body = $("#module-body");
+        body.closest("table")?.classList.toggle("knowledge-table",activeModuleView==="knowledge");
         head.replaceChildren(); body.replaceChildren();
-        columns.forEach((label) => { const th = document.createElement("th"); th.textContent = label; const definition=inquiryManagementDefinitions[label]; if(activeModuleView==="inquiries"&&definition){const help=document.createElement("button");help.type="button";help.className="metric-help";help.textContent="?";help.title=definition[0];help.addEventListener("click",event=>{event.stopPropagation();openInquiryDefinition(label)});th.append(" ",help)} head.append(th); });
+        columns.forEach((label) => { const th = document.createElement("th"); th.textContent = label; if(activeModuleView==="knowledge")th.classList.add("nowrap-cell"); const definition=inquiryManagementDefinitions[label]; if(activeModuleView==="inquiries"&&definition){const help=document.createElement("button");help.type="button";help.className="metric-help";help.textContent="?";help.title=definition[0];help.addEventListener("click",event=>{event.stopPropagation();openInquiryDefinition(label)});th.append(" ",help)} head.append(th); });
         rows.forEach((row) => {
           const tr = document.createElement("tr");
           row.cells.forEach((value, index) => {
@@ -3212,6 +3222,16 @@
               const preview=row.preview||{},box=document.createElement("div");box.className=`knowledge-thumbnail ${preview.kind||"document"}`;box.setAttribute("aria-label",preview.alt||"文件缩略图");
               fillKnowledgePreview(box,preview);
               td.append(box);tr.append(td);return;
+            }
+            if(activeModuleView==="knowledge"&&label==="标题"&&row.materialAsset){
+              const {folder,file}=materialNameParts(value),name=document.createElement("div");name.className="material-title-name";name.textContent=file||"未命名文件";td.className="material-title-cell";td.title=String(value||"");td.append(name);
+              if(folder){const path=document.createElement("small");path.className="material-title-folder";path.textContent=`文件夹 · ${folder}`;td.append(path)}
+              tr.append(td);return;
+            }
+            if(activeModuleView==="knowledge"&&label==="大小 / 标签"&&row.materialAsset){
+              td.className="nowrap-cell";td.textContent=value??"—";
+              if(materialOversized(row.materialAsset)){const flag=document.createElement("span");flag.className="material-size-flag";flag.textContent="超邮件上限";flag.title="超过阿里邮箱普通附件 50MB 上限，不能直接作为邮件附件";td.append(flag)}
+              tr.append(td);return;
             }
             if (activeModuleView === "inquiries" && label === "询盘主题") td.className = "module-cell-primary";
             if (activeModuleView === "inquiries" && ["阶段", "有效性"].includes(label)) {
@@ -3243,6 +3263,7 @@
               action.addEventListener("keydown", event => event.stopPropagation());
               td.append(action);
             }
+            if(activeModuleView==="knowledge"&&["分类 / 类型","上传人","语言","更新时间"].includes(label))td.classList.add("nowrap-cell");
             tr.append(td);
           });
           const actions = activeModuleView === "assignment" ? (row.actions || []).slice(1) : row.actions || (row.action ? [row.action] : []);
@@ -3724,6 +3745,8 @@
       }
       const knowledgeCategoryNames={product:"产品参数",certification:"认证资料",faq:"常见问题",quotation:"报价规范",case:"成功案例"};
       const MAIL_ATTACHMENT_LIMIT_BYTES=50*1024*1024,MAIL_ATTACHMENT_COUNT_LIMIT=100;
+      const materialOversized=asset=>Number(asset?.sizeBytes)>MAIL_ATTACHMENT_LIMIT_BYTES;
+      function materialNameParts(name){const text=String(name||""),index=text.lastIndexOf("/");return index>0?{folder:text.slice(0,index),file:text.slice(index+1)}:{folder:"",file:text}}
       const materialThumbnailCache=new Map();
       const materialSize=bytes=>Number(bytes)>=1048576?`${(Number(bytes)/1048576).toFixed(1)} MB`:`${Math.max(1,Math.round(Number(bytes)/1024))} KB`;
       function materialUploaderName(asset={}){
@@ -3748,8 +3771,19 @@
         const mount=url=>{box.replaceChildren();if(!url){box.textContent=preview.fallback||"文件";return}const img=document.createElement("img");img.src=url;img.alt=preview.alt||"文件缩略图";img.loading="lazy";img.referrerPolicy="no-referrer";img.addEventListener("error",()=>{box.textContent=preview.fallback||"文件"});box.append(img)};
         if(preview.url)return mount(preview.url);
         box.textContent=preview.fallback||"文件";
-        if(preview.canLoadThumbnail&&preview.assetId)void materialThumbnailDataUrl(preview.assetId).then(mount);
+        if(!preview.canLoadThumbnail||!preview.assetId)return;
+        const cached=materialThumbnailCache.get(preview.assetId);
+        if(typeof cached==="string")return mount(cached);
+        // Only rows near the viewport request thumbnails, at most 4 at a time, instead of one edge call per loaded row.
+        const job={id:preview.assetId,box,mount};
+        if(materialThumbnailObserver){box.__materialThumbnailJob=job;materialThumbnailObserver.observe(box)}else queueMaterialThumbnail(job);
       }
+      const materialThumbnailQueue=[];let materialThumbnailActive=0;
+      function pumpMaterialThumbnails(){
+        while(materialThumbnailActive<4&&materialThumbnailQueue.length){const job=materialThumbnailQueue.shift();if(!job.box.isConnected)continue;materialThumbnailActive+=1;materialThumbnailDataUrl(job.id).then(url=>{if(job.box.isConnected)job.mount(url)}).finally(()=>{materialThumbnailActive-=1;pumpMaterialThumbnails()})}
+      }
+      function queueMaterialThumbnail(job){materialThumbnailQueue.push(job);pumpMaterialThumbnails()}
+      const materialThumbnailObserver=typeof IntersectionObserver==="function"?new IntersectionObserver(entries=>entries.forEach(entry=>{if(!entry.isIntersecting)return;materialThumbnailObserver.unobserve(entry.target);const job=entry.target.__materialThumbnailJob;delete entry.target.__materialThumbnailJob;if(job)queueMaterialThumbnail(job)}),{rootMargin:"300px 0px"}):null;
       function knowledgePreviewMarkup(item={}){
         const preview=knowledgePreview(item);
         return `<div class="knowledge-thumbnail ${preview.kind}" aria-label="${esc(preview.alt)}" data-material-thumbnail="${esc(preview.assetId)}">${preview.url?`<img src="${esc(preview.url)}" alt="${esc(preview.alt)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(document.createTextNode('${esc(preview.fallback)}'))">`:esc(preview.fallback)}</div>`;
@@ -3768,10 +3802,15 @@
         if(Number(asset.sizeBytes)>MAIL_ATTACHMENT_LIMIT_BYTES||total>MAIL_ATTACHMENT_LIMIT_BYTES)return toast("该物料超出阿里邮箱普通附件 50MB 限制，请改发超大附件或下载链接");
         selectedMaterialAttachments.push(asset);renderSelectedMaterialAttachments();updateMailAttachmentSummary();toast("已加入邮件附件");
       }
+      async function addMaterialToMail(asset){
+        if(materialOversized(asset))return toast("该物料超过阿里邮箱普通附件 50MB 上限，不能直接作为附件发送");
+        $("#dashboard-modal").classList.add("hidden");if($("#mail-compose-modal").classList.contains("hidden"))await openMailComposer();await addMaterialAttachment(asset);
+      }
       function openMaterialAsset(asset){
-        openDashboardModal(asset.name,`<div style="margin-bottom:16px">${knowledgePreviewMarkup(asset)}</div><div class="legacy-detail-grid"><div class="legacy-detail-item"><span>上传人</span><div>${esc(materialUploaderName(asset))}</div></div><div class="legacy-detail-item"><span>类型</span><div>${esc(asset.type||"文件")}</div></div><div class="legacy-detail-item"><span>语言 / 地区</span><div>${esc(asset.language||"—")} / ${esc(asset.region||"—")}</div></div><div class="legacy-detail-item"><span>文件大小</span><div>${esc(materialSize(asset.sizeBytes))}</div></div><div class="legacy-detail-item"><span>版本</span><div>${esc(asset.versionLabel||"当前版本")}</div></div><div class="legacy-detail-item"><span>更新时间</span><div>${esc(fmtDate(asset.updatedAt))}</div></div></div><div class="form-actions"><button id="material-add-mail" class="primary" type="button">作为附件添加到邮件</button></div>`);
+        const {folder,file}=materialNameParts(asset.name),oversized=materialOversized(asset);
+        openDashboardModal(file||asset.name,`<div style="margin-bottom:16px">${knowledgePreviewMarkup(asset).replace('class="knowledge-thumbnail ','class="knowledge-thumbnail large ')}</div><div class="legacy-detail-grid">${folder?`<div class="legacy-detail-item" style="grid-column:1/-1"><span>所在文件夹</span><div>${esc(folder)}</div></div>`:""}<div class="legacy-detail-item"><span>上传人</span><div>${esc(materialUploaderName(asset))}</div></div><div class="legacy-detail-item"><span>类型</span><div>${esc(asset.type||"文件")}</div></div><div class="legacy-detail-item"><span>语言 / 地区</span><div>${esc(asset.language||"—")} / ${esc(asset.region||"—")}</div></div><div class="legacy-detail-item"><span>文件大小</span><div>${esc(materialSize(asset.sizeBytes))}${oversized?'<span class="material-size-flag">超邮件上限</span>':""}</div></div><div class="legacy-detail-item"><span>版本</span><div>${esc(asset.versionLabel||"当前版本")}</div></div><div class="legacy-detail-item"><span>更新时间</span><div>${esc(fmtDate(asset.updatedAt))}</div></div></div>${oversized?`<div class="material-limit-note" role="note">该文件 ${esc(materialSize(asset.sizeBytes))}，超过阿里邮箱普通附件 50MB 上限，不能直接作为邮件附件。请改用超大附件或下载链接发送。</div>`:""}<div class="form-actions"><button id="material-add-mail" class="primary" type="button" ${oversized?'disabled title="超过 50MB 普通附件上限"':""}>作为附件添加到邮件</button></div>`);
         hydrateMaterialThumbnailElements($("#dashboard-modal"));
-        $("#material-add-mail").onclick=async()=>{$("#dashboard-modal").classList.add("hidden");if($("#mail-compose-modal").classList.contains("hidden"))await openMailComposer();await addMaterialAttachment(asset)};
+        $("#material-add-mail").onclick=()=>addMaterialToMail(asset);
       }
       async function chooseMaterialForMail(){
         openDashboardModal("从物料库选择",'<p class="hint">正在读取最新销售资料…</p>');
@@ -4347,7 +4386,7 @@
             return {data:[...materialAssets.map(item=>({...item,uploaderName:materialUploaderName(item),knowledgeSource:"material"})),...(articles.data||[]).map(item=>({...item,uploaderName:creatorNames[item.created_by]||(item.created_by===profile.id?profile.full_name:"未提供"),knowledgeSource:"article"}))],error:null,knowledgeCount:{materialLoaded:materialAssets.length,materialTotal,articleCount:(articles.data||[]).length,limited:!materialError&&materialTotal===null&&materialAssets.length>=materialLimit}};
           })();
           columns=["缩略图","分类 / 类型","标题","上传人","语言","大小 / 标签","更新时间","操作"];
-          mapper=item=>item.knowledgeSource==="material"?({id:item.id,materialAsset:item,preview:knowledgePreview(item),meta:{searchText:`${(item.tags||[]).join(" ")} ${item.uploaderName||""}`,knowledgeKind:"material",knowledgeCategory:item.type||"文件",knowledgeUploader:item.uploaderName||"未提供",knowledgeLanguage:item.language||"—"},cells:[null,item.type||"文件",item.name,item.uploaderName||"未提供",item.language||"—",materialSize(item.sizeBytes),fmtDate(item.updatedAt)],actions:[{label:"查看 / 添加附件",onClick:()=>openMaterialAsset(item)}]}):({id:item.id,knowledgeArticle:item,preview:{kind:"document",alt:`${item.title||"知识条目"}缩略图`,fallback:"知识"},meta:{searchText:`${item.content||""} ${item.uploaderName||""}`,knowledgeKind:"article",knowledgeCategory:knowledgeCategoryNames[item.category]||item.category,knowledgeUploader:item.uploaderName||"未提供",knowledgeLanguage:item.language||"—"},cells:[null,knowledgeCategoryNames[item.category]||item.category,item.title,item.uploaderName||"未提供",item.language||"—",(item.tags||[]).join("、")||"—",fmtDate(item.updated_at)],actions:[{label:"查看并插入",onClick:()=>openKnowledgeArticle(item)}]});
+          mapper=item=>item.knowledgeSource==="material"?({id:item.id,materialAsset:item,preview:knowledgePreview(item),meta:{searchText:`${(item.tags||[]).join(" ")} ${item.uploaderName||""}`,knowledgeKind:"material",knowledgeCategory:item.type||"文件",knowledgeUploader:item.uploaderName||"未提供",knowledgeLanguage:item.language||"—"},cells:[null,item.type||"文件",item.name,item.uploaderName||"未提供",item.language||"—",materialSize(item.sizeBytes),fmtDate(item.updatedAt)],actions:[{label:"查看",onClick:()=>openMaterialAsset(item)},{label:"添加附件",disabled:materialOversized(item),title:materialOversized(item)?"超过 50MB 普通邮件附件上限，不能直接添加":"作为附件加入邮件",onClick:()=>addMaterialToMail(item)}]}):({id:item.id,knowledgeArticle:item,preview:{kind:"document",alt:`${item.title||"知识条目"}缩略图`,fallback:"知识"},meta:{searchText:`${item.content||""} ${item.uploaderName||""}`,knowledgeKind:"article",knowledgeCategory:knowledgeCategoryNames[item.category]||item.category,knowledgeUploader:item.uploaderName||"未提供",knowledgeLanguage:item.language||"—"},cells:[null,knowledgeCategoryNames[item.category]||item.category,item.title,item.uploaderName||"未提供",item.language||"—",(item.tags||[]).join("、")||"—",fmtDate(item.updated_at)],actions:[{label:"查看并插入",onClick:()=>openKnowledgeArticle(item)}]});
           clickable=true;
         } else if(view==="fulfillment"){
           let inquiryQuery=(from,to)=>{let q=supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,estimated_amount,currency,won_amount,won_currency,created_at,updated_at,companies(name)").eq("validity","valid").not("status","in","(lost)").eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).range(from,to);if(profile.role==="sales")q=q.eq("owner_id",profile.id);return q};
@@ -8804,6 +8843,7 @@
       $("#dashboard-apply").addEventListener("click", () => renderDashboard(dashboardState.rows,dashboardState.profiles,dashboardState.history,dashboardState.followups));
       $("#dashboard-channel-cost").addEventListener("click", openChannelCostEditor);
       $("#dashboard-modal-close").addEventListener("click",()=>$("#dashboard-modal").classList.add("hidden"));
+      document.addEventListener("keydown",event=>{if(event.key!=="Escape"||event.defaultPrevented)return;const modal=$("#dashboard-modal");if(modal&&!modal.classList.contains("hidden")&&!modal.querySelector("form")){modal.classList.add("hidden");event.preventDefault()}});
       $("#inquiry-definitions").addEventListener("click",openInquiryDefinitions);
       $("#ai-assistant-open").addEventListener("click",openAiAssistant);
       $("#ai-assistant-close").addEventListener("click",()=>{if(worldPersona){worldController?.closeWindow();return;}worldModel?.reset();$("#ai-assistant-panel").classList.add("hidden")});

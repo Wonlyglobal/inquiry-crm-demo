@@ -6,6 +6,7 @@ import {companyLookupIntent,lookupCompanies,companyAnswer} from './company-resea
 import {validateFeedback,feedbackSummaryIntent,feedbackSummaryAnswer} from './answer-feedback.mjs';
 import {embed,recallMemories,storeMemory,recallInstruction,shouldStore,conversationMemoryCommand,runConversationMemoryCommand} from './conversation-memory.mjs';
 import {compareIntent,compareAnswer} from './wonly-compare.mjs';
+import {briefIntent,briefAnswer,priceIntent,priceAnswer} from './competitor-brief.mjs';
 import {runWatch,translateBody,readTranslations,intelIntent,intelAnswer} from './competitor-watch.mjs';
 import {PUBLIC_EVIDENCE} from './public-research.mjs';
 import {validateTimelineEntry,expandTimeline,searchQuery} from './request-timeline.mjs';
@@ -190,6 +191,10 @@ Deno.serve(async req=>{
    const vs=guest?null:compareIntent(input.question);
    if(vs){const catalog=await loadCatalog(admin);if(catalog){const answer=compareAnswer(vs,catalog);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'wonly_competitor_compare',persona:input.persona,provider:'internal',categories:vs.categories,markets:vs.markets,companies:vs.companies.slice(0,6)},reason:'王力画册与公开竞品证据对照，系统内生成，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);
     const cards=vs.companies.length?competitorLinks(input.question):[];return json({answer,actions:cards,provider:'internal',model:'wonly-compare',context:{route:'competitor'},ticket:await ticket({user:user.id,persona:input.persona,text:'对照表放在窗口里了：左边是王力画册里的数据，右边是竞品官方资料，画册没写的我也标出来了。',expires:Date.now()+300000},key)});}}
+   // Owner 2026-10-01: competitor battle cards and official price bands, from public official evidence only.
+   const brief=guest?null:briefIntent(input.question),price=brief||guest?null:priceIntent(input.question);
+   if(brief||price){const catalog=brief?await loadCatalog(admin):null;const answer=brief?briefAnswer(brief,catalog):priceAnswer(price);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:brief?'competitor_brief':'competitor_prices',persona:input.persona,provider:'internal',companies:(brief||price).companies.slice(0,6)},reason:'竞品作战卡/官网价格带，来自公开官方资料，系统内生成，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);
+    const cards=(brief||price).companies.length?competitorLinks(input.question):[];return json({answer,actions:cards,provider:'internal',model:brief?'competitor-brief':'competitor-prices',context:{route:'competitor'},ticket:await ticket({user:user.id,persona:input.persona,text:brief?'作战卡放在窗口里了：公司概况、渠道、价格和可以切入的点，都附了官网来源。':'竞品官网价格带整理在窗口里了，按市场从低到高排好了。',expires:Date.now()+300000},key)});}
    const competitor=competitorIntent(input.question);
    const rec=guest?null:recordIntent(input.question);
    if(rec){const records=await resolveRecords(rec,client);const res=recordAnswer(rec,records);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_open_record',persona:input.persona,provider:'internal',kind:rec.kind,found:records.length},reason:'按用户要求打开CRM询盘详情；本人权限内查询，不记录客户名称，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json({answer:res.answer,actions:res.actions,provider:'internal',model:'agent-actions',context:{route:'actions'},ticket:await ticket({user:user.id,persona:input.persona,text:res.actions.length?actionsSpoken:'没有找到这条询盘，详情写在窗口里了。',expires:Date.now()+300000},key)});}

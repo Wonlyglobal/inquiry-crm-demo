@@ -17,7 +17,11 @@ export const DIMENSIONS={
  certification:{label:'认证',match:/认证|证书|certif|listed/i,query:'certification third party listing'},
  unlock_methods:{label:'开锁方式',match:/开锁方式|开锁|解锁|指纹|人脸|掌静脉|unlock/i,query:'unlock methods fingerprint face palm vein'},
  material:{label:'材质/芯材',match:/材质|芯材|门芯|填充|material|core/i,query:'door core material'},
- market_presence:{label:'市场布局',match:/市场布局|多少国家|覆盖.{0,6}国家|销量|规模|出口额|产能|布局/,query:'countries served export'}
+ market_presence:{label:'市场布局',match:/市场布局|多少国家|覆盖.{0,6}国家|销量|出口额|布局/,query:'countries served export'},
+ price:{label:'官网价格',match:/价格|售价|多少钱|价位|定价|标价|price/i,query:'price'},
+ channel:{label:'销售渠道',match:/渠道|经销商|代理商|分销|门店|展厅|哪里买|在哪买|电商|distributor|dealer/i,query:'where to buy distributors'},
+ product_range:{label:'产品线',match:/产品线|产品范围|卖什么|做什么产品|品类/,query:'product range'},
+ company_profile:{label:'公司概况',match:/公司概况|成立|创立|历史|员工|工厂|产能|规模|总部/,query:'company profile founded factory'}
 };
 const DIMS_BY_CATEGORY={fire_door:['fire_rating','acoustic','leaf_thickness','steel_sheet','certification'],security_door:['security_class','leaf_thickness','steel_sheet','acoustic','certification'],medical_door:['air_tightness','fire_rating','acoustic','certification'],smart_lock:['certification','unlock_methods','ip_rating','battery_life'],wooden_door:['acoustic','fire_rating','leaf_thickness','material','certification']};
 const MARKET=/^[A-Z]{2}$/;

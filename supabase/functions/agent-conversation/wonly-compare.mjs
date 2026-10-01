@@ -9,6 +9,7 @@ const KEY_DIM=[
  [/^(grade|burglary resistance)$/i,'security_class'],[/^standard$/i,'certification'],[/^thickness$/i,'leaf_thickness'],
  [/^(material|front panel|core fill|door leaf)$/i,'material'],[/^(standard features|unlocking)$/i,'unlock_methods'],[/^power$/i,'battery_life']
 ];
+const NON_SPEC=new Set(['market_presence','price','channel','product_range','company_profile']);
 const CATALOG_NAME={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 
 // Catalogue products -> {category: {dimension: [{value, models[], ref}]}} (distinct values, most common first).
@@ -49,7 +50,7 @@ export function compareAnswer(intent,catalog,evidence=PUBLIC_EVIDENCE){
  for(const cat of cats){
   let rows=pool.filter(e=>e.category===cat);
   if(intent.markets.length){const m=rows.filter(e=>intent.markets.includes(e.market));if(m.length)rows=m}
-  const dims=[...new Set([...Object.keys(ours[cat]||{}),...rows.map(e=>e.dimension)])].filter(d=>DIMENSIONS[d]&&d!=='market_presence');
+  const dims=[...new Set([...Object.keys(ours[cat]||{}),...rows.map(e=>e.dimension)])].filter(d=>DIMENSIONS[d]&&!NON_SPEC.has(d));
   const lines=[],gaps=[];
   for(const d of dims){
    const w=ours[cat]?.[d]||[],c=rows.filter(e=>e.dimension===d).slice(0,3);

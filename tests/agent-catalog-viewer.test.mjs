@@ -7,7 +7,7 @@ test('viewer only loads https links and clamps pages',()=>{
 });
 // Minimal DOM stub: enough to drive the inline viewer.
 function fakeDoc(){const mk=tag=>{const cls=new Set(),listeners={};const n={tag,children:[],attrs:{},textContent:'',value:'',disabled:false,className:'',id:'',href:'',
- classList:{toggle:(c,on)=>{on?cls.add(c):cls.delete(c)},contains:c=>cls.has(c)},listeners,addEventListener:(t,f)=>{listeners[t]=f},
+ classList:{add:c=>cls.add(c),toggle:(c,on)=>{on?cls.add(c):cls.delete(c)},contains:c=>cls.has(c)},listeners,addEventListener:(t,f)=>{listeners[t]=f},
  append(...c){this.children.push(...c)},remove(){n.removed=true},setAttribute(k,v){this.attrs[k]=v}};return n};
  const all=[];return {body:mk('body'),head:mk('head'),createElement:t=>{const n=mk(t);all.push(n);return n},createTextNode:t=>({text:t}),getElementById:()=>null,all};}
 test('inline viewer stays inside the conversation, flips pages, enlarges in place and offers the PDF',()=>{
@@ -22,4 +22,11 @@ test('inline viewer stays inside the conversation, flips pages, enlarges in plac
  assert.equal(doc.all.filter(n=>n.tag==='a').length,1);
  assert.throws(()=>openCatalogViewer({title:'x',urls:[],container,doc,win}),/打不开/);
  assert.throws(()=>openCatalogViewer({title:'x',urls,doc,win}),/显示位置/);
+});
+test('compact viewer (inside the timeline) keeps one row: prev / page / next / PDF, no duplicate enlarge or close',()=>{
+ const doc=fakeDoc(),container=doc.createElement('div');const win={Image:function(){}};
+ const urls=Array.from({length:3},(_,i)=>`https://x.test/p${i+1}.jpg`);
+ const v=openCatalogViewer({title:'零售画册',urls,pdf:'https://x.test/c2.pdf',container,compact:true,doc,win});
+ const bar=v.root.children[0];const labels=bar.children.map(n=>n.textContent).filter(Boolean);
+ assert.deepEqual(labels,['零售画册','上一页','下一页','下载 PDF']);assert.equal(v.root.classList.contains('acv-compact'),true);
 });

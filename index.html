@@ -2487,7 +2487,8 @@
     </aside>
     <script type="module">
       import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20260928-tl2';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20261001-crm1';
+      import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261001-crm1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=timeline-20260928";
@@ -4941,7 +4942,7 @@
         },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}saveAgentLocation();worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
-          timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
+          timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,crmAnswer:question=>crmLiveAnswer(question,{compute:aiAnswer,ready:dashboardHasSuccessfulLoad}),onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');
             const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';

@@ -109,6 +109,12 @@ Deno.serve(async req=>{
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});
   if(!enabled)return json({error:'百炼数据范围尚未批准启用',code:'POLICY_PENDING'},503);
   if(!key)return json({error:'百炼服务密钥尚未配置',code:'KEY_MISSING'},503);
+  // Voice line for answers computed in the browser from live CRM data: a fixed sentence only, never the data itself.
+  if(input.action==='local-ticket'){
+   const LINES:Record<string,string>={crm_data:'CRM 里的实时数据放在窗口里了，你看一下；要我分析原因或给建议，直接问我。'};
+   const text=LINES[String(input.kind)];if(!text||!PERSONAS[input.persona])return json({error:'语音请求无效'},400);
+   return json({ticket:await ticket({user:user.id,persona:input.persona,text,expires:Date.now()+300000},key)});
+  }
   if(input.action==='web-search'){
    let q;try{q=searchQuery(input)}catch(e){return json({error:e instanceof Error?e.message:'搜索无效'},400)}
    const audit=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});

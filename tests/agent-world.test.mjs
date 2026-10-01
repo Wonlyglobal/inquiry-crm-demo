@@ -18,3 +18,23 @@ test('world switch is one subtle icon-only toggle',()=>{
  assert.match(css,/\.world-switch\{display:grid;place-items:center;width:38px;height:38px/);
  assert.match(html,/classList\.contains\('agent-world-active'\)\?'dashboard':'agent-world'/);
 });
+
+const world=await readFile(new URL('../assets/agent-world.mjs',import.meta.url),'utf8');
+const holo=await readFile(new URL('../assets/agent-hologram.mjs',import.meta.url),'utf8');
+const surface=await readFile(new URL('../assets/agent-hologram-surface.bin',import.meta.url));
+test('agent world renders precomputed particle holograms with a 2D fallback',()=>{
+ assert.equal(new DataView(surface.buffer,surface.byteOffset).getUint32(0,true),0x484f4c4f);
+ assert.match(world,/loadHologram\(new URL\('\.\/agent-hologram-surface\.bin',import\.meta\.url\)\)/);
+ assert.match(world,/if\(holo===null\)return;/);
+ assert.match(world,/if\(!v\)\{drawOrb\(c,id\);return\}/);
+ assert.match(world,/querySelectorAll\('canvas\[data-role\]'\)/);
+ assert.match(holo,/getContext\('webgl2'/);
+ assert.match(html,/assets\/agent-world\.mjs\?v=hologram-20261001/);
+});
+test('private room shows a live board from page data and Grace opens into voice only after a real click',()=>{
+ assert.match(world,/id="room-live"/);
+ assert.match(world,/getLive\?\.\(selected\)/);
+ assert.match(world,/if\(next==='Grace'&&event\?\.isTrusted\)/);
+ assert.match(html,/getLive:name=>canUseAgentWorld\(profile,currentAuthUser\)\?worldLiveBoard\(name\):null/);
+ assert.match(html,/function worldLiveBoard\(name\)\{\s*const c=aiDataContext\(""\)/);
+});

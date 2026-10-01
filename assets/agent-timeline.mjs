@@ -2,7 +2,7 @@
 // 听懂需求 → 调取资料 → 执行动作 → 给出回答 - and every resource or action opens as a window inside that
 // step (catalogue pages, CRM pages, inquiry details, competitor evidence, search results, materials).
 // Nothing opens a new browser window. History is kept in a private CRM table (descriptors only).
-import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20260928-tl1';
+import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261001-ui2';
 
 export const STAGES=[['need','听懂需求'],['data','调取资料'],['act','执行动作'],['answer','给出回答']];
 const ROUTES={conversation:'对话',materials:'物料库',general:'通用知识',research:'公开资料',catalog:'海外画册',actions:'CRM 页面与动作',memory:'长期记忆',feedback:'回答反馈',corrections:'纠错知识',company:'背调系统',competitor:'竞品证据',crm_local:'CRM 本地统计',intelligence:'智能体情报简报'};
@@ -37,7 +37,8 @@ const CSS=`.gt{display:flex;flex-direction:column;min-height:0;max-height:65vh;b
 .gt-card .gt-meta,.gt-note{color:#8f9bb0;font-size:12px}.gt a{color:#93c5fd;overflow-wrap:anywhere}
 .gt-results{margin:6px 0 0;padding-left:18px}.gt-results li{margin:3px 0}
 .gt-summary{white-space:pre-wrap;max-height:220px;overflow:auto;color:#dbe3ef}
-.gt .acv{margin:0}.gt .acv .acv-stage{height:260px}.gt .acv .acv-bar button:last-child{display:none}`;
+.gt .acv{margin:0}.gt .acv .acv-stage{height:260px}
+.gt-win.gt-big .gt-body{display:flex;flex-direction:column;height:calc(100vh - 72px);box-sizing:border-box}.gt-win.gt-big .acv{flex:1;display:flex;flex-direction:column;min-height:0}.gt-win.gt-big .acv .acv-stage{flex:1;height:auto;min-height:0}`;
 
 const two=n=>String(n).padStart(2,'0');
 export function timeLabel(iso,now=new Date()){const d=new Date(iso);if(Number.isNaN(+d))return '';const hm=two(d.getHours())+':'+two(d.getMinutes());return d.toDateString()===now.toDateString()?hm:`${d.getMonth()+1}/${d.getDate()} ${hm}`}
@@ -85,7 +86,7 @@ export function createTimeline(root,{call,getPersona,materialRow,origin=location
 
  async function render(w,body,item){
   const persona=getPersona();
-  if(w.kind==='catalog'){const d=await call({action:'catalog-pages',persona,catalog:w.catalog});openCatalogViewer({title:String(d?.title||w.label),urls:Array.isArray(d?.urls)?d.urls:[],pdf:d?.pdf||null,start:w.page||1,container:body,doc,win});return}
+  if(w.kind==='catalog'){const d=await call({action:'catalog-pages',persona,catalog:w.catalog});openCatalogViewer({title:String(d?.title||w.label),urls:Array.isArray(d?.urls)?d.urls:[],pdf:d?.pdf||null,start:w.page||1,container:body,compact:true,doc,win});return}
   if(w.kind==='crm_view'||w.kind==='crm_record'){
    const base=safeHttps(origin);if(!base)throw Error('页面地址无效');
    const f=mk('iframe');f.title=w.label||KIND_LABEL[w.kind];f.loading='lazy';f.referrerPolicy='same-origin';
@@ -103,11 +104,12 @@ export function createTimeline(root,{call,getPersona,materialRow,origin=location
   if(w.kind==='material'){const row=materialRow?.(w.asset||{id:w.id,name:w.name});if(row)body.append(row);else body.append(mk('div','',w.name));return}
   if(w.kind==='link'){const a=mk('a','',w.label);a.href=w.url;a.target='_blank';a.rel='noopener noreferrer';body.append(a);return}
  }
- function addWindow(item,w,{open=true}={}){
+ function addWindow(item,w,{open=true,autoBig=false}={}){
   const d=mk('details','gt-win');d.open=open;const sum=mk('summary');sum.append(mk('b','',KIND_LABEL[w.kind]||'窗口'),mk('span','',w.kind==='search'?w.query:w.kind==='evidence'?(w.card?.label||'竞品证据'):w.kind==='material'?w.name:(w.label||'')));
   const big=mk('button','gt-mini','放大');big.type='button';big.onclick=e=>{e.preventDefault();const on=!d.classList.contains('gt-big');d.classList.toggle('gt-big',on);big.textContent=on?'缩小':'放大';if(on)d.open=true};
   sum.append(big);const body=mk('div','gt-body');d.append(sum,body);item.querySelector('.gt-wins').append(d);
   d.addEventListener('keydown',e=>{if(e.key==='Escape'&&d.classList.contains('gt-big')){d.classList.remove('gt-big');big.textContent='放大'}});
+  if(open&&w.kind==='catalog'&&autoBig){d.classList.add('gt-big');big.textContent='缩小'}
   let loaded=null;const load=()=>{if(!loaded)loaded=render(w,body,item).catch(e=>{body.replaceChildren(mk('div','gt-err',String(e?.message||'打不开')))});return loaded};
   if(open)load();else d.addEventListener('toggle',()=>{if(d.open)load()});
   return load;
@@ -133,7 +135,8 @@ export function createTimeline(root,{call,getPersona,materialRow,origin=location
    done(result){
     li.stage('need','done');const labels=sourceLabels(result);li.sources(labels);li.stage('data',labels.length?'done':'skip');
     const windows=windowsFrom(result);li.stage('act',windows.length?'active':'skip');
-    const loads=windows.map(w=>addWindow(li,w,{open:true}));
+    const firstCatalog=windows.findIndex(w=>w.kind==='catalog');
+    const loads=windows.map((w,i)=>addWindow(li,w,{open:true,autoBig:i===firstCatalog}));
     li.stage('answer','done');li.dataset.status='done';
     const settle=Promise.race([Promise.allSettled(loads.map(l=>l())),new Promise(r=>setTimeout(r,20000))]);
     settle.then(()=>{if(windows.length)li.stage('act','done');save('done',String(result?.context?.route||result?.provider||''),labels,windows)});
@@ -152,6 +155,7 @@ export function createTimeline(root,{call,getPersona,materialRow,origin=location
   }catch(e){empty.textContent='历史需求暂时读不到：'+e.message}
   refresh();
  }
+ doc.addEventListener('keydown',e=>{if(e.key!=='Escape')return;for(const d of box.querySelectorAll('.gt-win.gt-big')){d.classList.remove('gt-big');const b=d.querySelector('summary .gt-mini');if(b)b.textContent='放大'}});
  refresh();
  return {begin,load,el:box};
 }

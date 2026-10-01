@@ -13,9 +13,9 @@ import {captureUtterance} from './agent-utterance.mjs?v=20260924-2';
 import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
-import {createWakeConversation} from './agent-wake.mjs?v=20260928-voice1';
+import {createWakeConversation} from './agent-wake.mjs?v=20261001-onewake';
 import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261001-mat1';
-import {createTimeline} from './agent-timeline.mjs?v=20261001-mat1';
+import {createTimeline,priceChart} from './agent-timeline.mjs?v=20261001-chart1';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,timelineRoot=null,materialRow=null,materialFile=null,crmAnswer=null}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -49,6 +49,11 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  for(const [code,label] of REASONS){const b=el('button',label);b.type='button';b.onclick=()=>sendRating('down',code);reasons.append(b)}reasons.append(rateNote);rate.append(rateLabel,up,down,reasons);feedback.prepend(rate);
  function armRating(entry){lastAnswer=entry;rateLabel.textContent='这条回答：';up.disabled=down.disabled=false;reasons.hidden=true;rateNote.value=''}
  host.querySelector('#ai-assistant-messages')?.after(feedback);
+ // Charts (e.g. competitor price bands) are shown right under the answer, with their official sources.
+ function showCharts(actions){
+  const msgs=host.querySelector('#ai-assistant-messages');if(!msgs||!Array.isArray(actions))return;
+  for(const a of actions)if(a?.type==='price_chart'&&a.chart){const target=msgs.lastElementChild?.querySelector?.('.question-window-body')||msgs;target.append(priceChart(a.chart,document))}
+ }
  // Without a timeline (the small AI panel), action windows render inside the conversation; links open only on click.
  function runActions(actions){
   const box=el('div','');box.className='agent-actions';box.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:8px 0';
@@ -106,7 +111,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    if(!String(result?.answer||'').trim()){const why=String(result?.error||'').replace(/百炼/g,'智能服务').slice(0,80);entry?.fail(why||'服务没有返回内容');busy=false;onMessage('assistant','这次没有生成回答'+(why?'（'+why+'）':'（服务没有返回内容）')+'，可以再问一次，或者换个说法。');state(voice?'':'回答未完成，可重试');return true}
    entry?.done(result);
    if(result.provider==='internal'){if(result.context?.material_question)materialHistories.set(persona,[result.context.material_question])}else materialHistories.delete(persona);
-   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-20));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(!entry){if(Array.isArray(result.materials))onMaterials?.(result.materials);if(Array.isArray(result.actions)&&result.actions.length)runActions(result.actions)}feedback.hidden=false;renderFeedback();armRating({persona,question:String(question).slice(0,1000),answer:String(result.answer||'').slice(0,2000),route:String(result.context?.route||result.provider||'').slice(0,40),model:String(result.model||'').slice(0,60)});};lastTicket={ticket:result.ticket,persona};busy=false;state(voice?'':'回答完成');if(voice){let spoken=0;try{spoken=String(JSON.parse(result.ticket?.data||'{}').text||'').length}catch{}const hasMore=String(result.answer||'').length>spoken*1.6+60;if(hasMore){pending=publish;reveal.hidden=false}else publish();try{await speak(result.ticket,epoch,persona);if(version===epoch&&hasMore){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('想看完整内容，说“打开”或点“查看详细回答”')}else if(version===epoch)state('')}catch(e){if(version===epoch){showPending();state('声音没播出来，文字回答已经显示；可以继续问')}}}else publish();
+   if(result.provider!=='internal')histories.set(persona,[...(histories.get(persona)||[]),{role:'user',content:question},{role:'assistant',content:result.answer}].slice(-20));const publish=()=>{onMessage('assistant',result.answer+'\n\n'+(result.context?.route==='conversation'?'':result.context?.route==='materials'?' 物料库检索':result.context?.route==='general'?' 通用知识':result.context?.route==='research'?' 公开资料检索':'权限内业务资料'+seoContextLabel(result.context)+socialContextLabel(result.context)));if(!entry){if(Array.isArray(result.materials))onMaterials?.(result.materials);if(Array.isArray(result.actions)&&result.actions.length)runActions(result.actions)}showCharts(result.actions);feedback.hidden=false;renderFeedback();armRating({persona,question:String(question).slice(0,1000),answer:String(result.answer||'').slice(0,2000),route:String(result.context?.route||result.provider||'').slice(0,40),model:String(result.model||'').slice(0,60)});};lastTicket={ticket:result.ticket,persona};busy=false;state(voice?'':'回答完成');if(voice){let spoken=0;try{spoken=String(JSON.parse(result.ticket?.data||'{}').text||'').length}catch{}const hasMore=String(result.answer||'').length>spoken*1.6+60;if(hasMore){pending=publish;reveal.hidden=false}else publish();try{await speak(result.ticket,epoch,persona);if(version===epoch&&hasMore){await playBlob(await greeting(persona,'offer'),epoch);if(version!==epoch)return true;state('想看完整内容，点“查看详细回答”，或先说 Hello Grace 再说“打开”')}else if(version===epoch)state('')}catch(e){if(version===epoch){showPending();state('声音没播出来，文字回答已经显示；可以继续问')}}}else publish();
   }catch(e){entry?.fail(String(e?.message||'').replace(/百炼/g,'智能服务'));if(version===epoch){busy=false;onMessage('assistant','本次回答未完成：'+String(e.message).replace(/百炼/g,'智能服务')+'。请重试。');state('回答未完成，可重试');if(wake?.isActive())throw e}}finally{clearTimeout(progress);if(version===epoch){busy=false;sync()}}return true;
  }
  async function record(){

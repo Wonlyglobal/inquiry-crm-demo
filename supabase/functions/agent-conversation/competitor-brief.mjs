@@ -79,16 +79,32 @@ export function priceIntent(question){
  if(!companies.length&&!/竞品|对手|同行|市场|当地/.test(q))return null;
  return {companies,categories,markets};
 }
-export function priceAnswer(intent,evidence=PUBLIC_EVIDENCE){
- let rows=evidence.filter(e=>e.dimension==='price'&&(!intent.companies.length||intent.companies.includes(e.company))&&(!intent.categories.length||intent.categories.includes(e.category)));
- if(intent.markets.length)rows=rows.filter(e=>intent.markets.includes(e.market));
- if(!rows.length)return `证据库里还没有${intent.markets.map(m=>MARKET_NAME[m]).join('/')}${intent.categories.map(c=>CATEGORIES[c]).join('/')}的竞品官网公开价格。目前收录的价格来自墨西哥和沙特的官网商城（智能锁为主）；阿联酋和防火门/工程门大多不公开标价，需要询价或看招标结果。`;
- const groups=[...new Set(rows.map(e=>e.market+'|'+e.category))].map(k=>{
-  const [m,c]=k.split('|');const v=rows.filter(e=>e.market===m&&e.category===c).map(e=>({e,p:priceOf(e)})).filter(x=>x.p).sort((a,b)=>a.p-b.p);
-  if(!v.length)return null;const mid=v[Math.floor(v.length/2)].p;
-  return `■ ${MARKET_NAME[m]||m}·${CATEGORIES[c]}（${CURRENCY[m]||''}，${v.length} 个型号）：最低 ${fmt(v[0].p)}，中位 ${fmt(mid)}，最高 ${fmt(v.at(-1).p)}\n`+
-   v.map(({e,p})=>`  ${fmt(p).padStart(6)}｜${base(e.company)} ${e.product}${/促销价|折扣/.test(e.value)&&!/非促销/.test(e.value)?'（促销价）':''}`).join('\n');
+const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return ''}};
+const promo=e=>/促销价|折扣/.test(e.value)&&!/非促销/.test(e.value);
+// Chart-ready groups (one per market x category): every bar keeps its official source page.
+export function priceGroups(intent,evidence=PUBLIC_EVIDENCE){
+ let rows=evidence.filter(e=>e.dimension==='price'&&(!intent.companies?.length||intent.companies.includes(e.company))&&(!intent.categories?.length||intent.categories.includes(e.category)));
+ if(intent.markets?.length)rows=rows.filter(e=>intent.markets.includes(e.market));
+ return [...new Set(rows.map(e=>e.market+'|'+e.category))].map(k=>{
+  const [m,c]=k.split('|');
+  const bars=rows.filter(e=>e.market===m&&e.category===c).map(e=>({company:base(e.company),product:e.product.slice(0,60),price:priceOf(e),promo:promo(e),url:e.source_url,source:host(e.source_url),id:e.id})).filter(b=>b.price).sort((a,b)=>a.price-b.price);
+  if(!bars.length)return null;
+  return {market:m,category:c,label:`${MARKET_NAME[m]||m}·${CATEGORIES[c]}竞品官网价格`,currency:CURRENCY[m]||'',accessed:latest(rows.filter(e=>e.market===m&&e.category===c)),
+   min:bars[0].price,median:bars[Math.floor(bars.length/2)].price,max:bars.at(-1).price,bars};
  }).filter(Boolean);
- return `竞品官网公开标价（${latest(rows)} 访问；只含对方官网商城挂出的零售价，不含工程/批发价，促销会变化）：\n\n`+groups.join('\n\n')+
-  '\n\n怎么用：这是当地终端零售参照，不是我们的出厂价；比较时要看配置（是否带 WiFi 网关、人脸、摄像头）。原文由工具提取，待人工逐字核对；系统内生成，没有发送给外部模型。';
+}
+export function priceChartActions(intent,evidence=PUBLIC_EVIDENCE){
+ return priceGroups(intent,evidence).slice(0,3).map(g=>({type:'price_chart',market:g.market,category:g.category,companies:(intent.companies||[]).slice(0,6),label:g.label,chart:g}));
+}
+export function priceAnswer(intent,evidence=PUBLIC_EVIDENCE){
+ const groups=priceGroups(intent,evidence);
+ if(!groups.length)return `证据库里还没有${(intent.markets||[]).map(m=>MARKET_NAME[m]).join('/')}${(intent.categories||[]).map(c=>CATEGORIES[c]).join('/')}的竞品官网公开价格。目前收录的价格来自墨西哥和沙特的官网商城（智能锁为主）；阿联酋和防火门/工程门大多不公开标价，需要询价或看招标结果。`;
+ const text=groups.map(g=>{
+  const src=[...new Set(g.bars.map(b=>b.source))].map(h=>`${h}（${[...new Set(g.bars.filter(b=>b.source===h).map(b=>b.company))].join('、')}）`);
+  return `■ ${g.label}（${g.currency}，${g.bars.length} 个型号）：最低 ${fmt(g.min)}，中位 ${fmt(g.median)}，最高 ${fmt(g.max)}\n`+
+   g.bars.map(b=>`  ${fmt(b.price).padStart(6)}｜${b.company} ${b.product}${b.promo?'（促销价）':''}｜${b.source}`).join('\n')+
+   `\n  来源：${src.join('；')}，${g.accessed} 访问`;
+ });
+ return `竞品官网公开标价（只含对方官网商城挂出的零售价，不含工程/批发价，促销会变化）。下面窗口里有柱状图，点每根柱子可以打开对应的官方页面核对：\n\n`+text.join('\n\n')+
+  '\n\n怎么用：这是当地终端零售参照，不是我们的出厂价；比较时要看配置（是否带 WiFi 网关、人脸、摄像头）。价格由工具从官网页面提取，待人工逐字核对；系统内生成，没有发送给外部模型。';
 }

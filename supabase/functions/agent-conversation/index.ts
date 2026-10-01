@@ -54,13 +54,16 @@ async function competitorWatchPass(svc:any,trigger:'schedule'|'owner',size:{comp
  const runNo=Number(last?.[0]?.id||0);
  const {data:seen}=await svc.from('competitor_intel').select('kind,url').order('id',{ascending:false}).limit(3000);
  const known=new Set((seen||[]).map((r:any)=>r.kind+'|'+r.url));
- const res=await runWatch({evidence:PUBLIC_EVIDENCE,known,offset:runNo*size.companies,...size});
- const news=res.items.filter((i:any)=>i.kind==='news');const key=Deno.env.get('DASHSCOPE_API_KEY')||'';
+ const {data:ch}=await svc.from('competitor_channels').select('company,channel_id').eq('platform','youtube');
+ const channels=new Map((ch||[]).map((r:any)=>[r.company,r.channel_id]));
+ const res=await runWatch({evidence:PUBLIC_EVIDENCE,known,offset:runNo*size.companies,channels,...size});
+ if(res.newChannels.length)await svc.from('competitor_channels').upsert(res.newChannels.map((c:any)=>({company:String(c.company).slice(0,120),platform:'youtube',channel_id:c.channel_id})),{onConflict:'company,platform',ignoreDuplicates:true});
+ const news=res.items.filter((i:any)=>i.kind==='news'||i.kind==='video').slice(0,40);const key=Deno.env.get('DASHSCOPE_API_KEY')||'';
  if(news.length&&key){try{const r=await fetch(CHAT_URL,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(translateBody(news.map((n:any)=>n.title))),signal:AbortSignal.timeout(15000)});
   if(r.ok){const zh=readTranslations(await r.json(),news.length);if(zh)news.forEach((n:any,i:number)=>n.title_zh=zh[i])}}catch{}}
  if(res.items.length){await svc.from('competitor_intel').upsert(res.items.map((i:any)=>({company:String(i.company).slice(0,120),kind:i.kind,title:String(i.title).slice(0,300),title_zh:i.title_zh||null,url:i.url,published_on:i.published_on||null,evidence_id:i.evidence_id||null})),{onConflict:'kind,url',ignoreDuplicates:true});}
- await svc.from('competitor_watch_runs').insert({trigger,sources_ok:res.sourcesOk,sources_failed:res.sourcesFailed,evidence_checked:res.evidenceChecked,new_items:res.items.length});
- return {new_items:res.items.length,sources_ok:res.sourcesOk,sources_failed:res.sourcesFailed,evidence_checked:res.evidenceChecked};
+ await svc.from('competitor_watch_runs').insert({trigger,sources_ok:res.sourcesOk,sources_failed:res.sourcesFailed,evidence_checked:res.evidenceChecked,new_items:res.items.length,channels_read:res.channelsRead});
+ return {new_items:res.items.length,sources_ok:res.sourcesOk,sources_failed:res.sourcesFailed,evidence_checked:res.evidenceChecked,channels_read:res.channelsRead,new_channels:res.newChannels.length};
 }
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response('ok',{headers:cors});

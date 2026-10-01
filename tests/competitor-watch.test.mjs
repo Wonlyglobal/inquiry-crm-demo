@@ -25,3 +25,17 @@ test('Grace report: intent, refresh, honest wording',()=>{
  assert.deepEqual(readTranslations({choices:[{message:{content:'["一","二"]'}}]},2),['一','二']);assert.equal(readTranslations({choices:[{message:{content:'oops'}}]},2),null);
  const src=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');assert.match(src,/verify_competitor_watch_secret/);
 });
+import {youtubeLinks,channelIdFromPage,parseFeed,resolveChannel} from '../supabase/functions/agent-conversation/competitor-watch.mjs';
+test('YouTube: channel found on the official site, new uploads from the public feed',async()=>{
+ const home='<a href="https://www.youtube.com/@AcmeDoors">YouTube</a><a href="https://youtube.com/channel/UCabcdefghijklmnopqrstuv">x</a>';
+ assert.deepEqual(youtubeLinks(home),[{type:'handle',value:'AcmeDoors'},{type:'channel',value:'UCabcdefghijklmnopqrstuv'}]);
+ assert.equal(channelIdFromPage('..."externalId":"UCabcdefghijklmnopqrstuv"...'),'UCabcdefghijklmnopqrstuv');
+ const feed='<feed><entry><yt:videoId>abcdefghijk</yt:videoId><title>New UL fire door &amp; frame</title><published>2026-09-20T10:00:00+00:00</published></entry></feed>';
+ assert.deepEqual(parseFeed(feed),[{title:'New UL fire door & frame',url:'https://www.youtube.com/watch?v=abcdefghijk',published_on:'2026-09-20'}]);
+ const pages={'https://acme.ae/':home,'https://www.youtube.com/@AcmeDoors':'"channelId":"UCabcdefghijklmnopqrstuv"','https://www.youtube.com/feeds/videos.xml?channel_id=UCabcdefghijklmnopqrstuv':feed};
+ const f=async url=>pages[url]==null?{ok:false,status:404,url}:{ok:true,url,headers:{get:()=>'text/html'},arrayBuffer:async()=>new TextEncoder().encode(pages[url]).buffer};
+ assert.equal(await resolveChannel({type:'handle',value:'AcmeDoors'},f),'UCabcdefghijklmnopqrstuv');
+ const r=await runWatch({evidence:[{id:'x',company:'ACME',source_url:'https://acme.ae/a.pdf',quote:'q',value:'v'}],known:new Set(),fetcher:f,now:Date.parse('2026-10-01')});
+ assert.deepEqual(r.newChannels,[{company:'ACME',channel_id:'UCabcdefghijklmnopqrstuv'}]);assert.equal(r.items.filter(i=>i.kind==='video').length,1);assert.equal(r.channelsRead,1);
+ assert.match(intelAnswer({last_run:{started_at:'2026-10-01T01:00:00Z',sources_ok:1,sources_failed:0,evidence_checked:0,channels_known:1},items:[{company:'ACME',kind:'video',title:'New UL fire door',url:'https://www.youtube.com/watch?v=abcdefghijk',published_on:'2026-09-20'}]}),/YouTube 新视频 1 条/);
+});

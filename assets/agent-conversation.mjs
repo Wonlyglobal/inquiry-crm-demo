@@ -17,7 +17,7 @@ import {createWakeConversation} from './agent-wake.mjs?v=20260928-voice1';
 import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20260928-tl1';
 import {createTimeline} from './agent-timeline.mjs?v=20260928-tl2';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
-export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,timelineRoot=null,materialRow=null}){
+export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,timelineRoot=null,materialRow=null,crmAnswer=null}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
  const bar=el('div','');bar.className='agent-conversation-tools';
  const mode=el('select','');mode.setAttribute('aria-label','回答方式');for(const [v,t] of [['local','CRM资料分析'],['bailian','智能推理']]){const o=el('option',t);o.value=v;mode.append(o)}
@@ -92,6 +92,11 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state(voice?'':'收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
   // Owner 2026-09-28: every request becomes a step in the Grace timeline; nothing opens a new browser window.
   const entry=timeline?.begin(question)||null;
+  // Owner 2026-10-01: CRM number/list questions are answered from the live CRM data in this browser (never sent out).
+  let live=null;try{live=crmAnswer?.(question)||null}catch{live=null}
+  if(live){try{onMessage('assistant',live.answer);entry?.done({provider:'local',context:{route:'crm_live',labels:live.labels},actions:live.windows});busy=false;state(voice?'':'回答完成');
+    if(voice&&version===epoch){try{const t=await call({action:'local-ticket',persona,kind:'crm_data'});await speak(t.ticket,epoch,persona)}catch{}}}
+   finally{clearTimeout(progress);if(version===epoch){busy=false;sync()}}return true}
   try{const pendingCall=call({action:'chat',persona,question,voice,...(voice&&VOICE_EMOTIONS.includes(emotion)?{voiceEmotion:emotion}:{}),...(voice&&voiceProof?.data&&voiceProof?.signature?{voiceProof}:{}),preferences:preferences().get(),materialHistory:materialHistories.get(persona)||[],history:fitHistory(histories.get(persona)||[])},controller.signal);
    // Like a person: only say "let me look" when the answer is not ready within 1.5 s.
    if(voice){const quick=await Promise.race([pendingCall.then(()=>true,()=>true),new Promise(r=>setTimeout(()=>r(false),1500))]);if(!quick&&version===epoch){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true}busy=true;state('','thinking')}}

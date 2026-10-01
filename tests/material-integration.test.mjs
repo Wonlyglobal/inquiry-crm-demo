@@ -102,5 +102,30 @@ test("material library UX: lazy thumbnails, oversized files and folder-aware tit
   assert.match(html,/material-size-flag/);
   assert.match(html,/async function addMaterialToMail\(asset\)\{\s*if\(materialOversized\(asset\)\)return toast/);
   assert.match(html,/event\.key!=="Escape"/);
-  assert.match(html,/!modal\.querySelector\("form"\)/);
+  assert.match(html,/!modal\.querySelector\("form:not\(\[data-esc-close\]\)"\)/);
+});
+
+test("knowledge search also queries the whole material library server-side",()=>{
+  assert.match(html,/async function searchMaterialLibrary\(term\)/);
+  assert.match(html,/action:"list",limit:500,query:term/);
+  assert.match(html,/if\(token!==knowledgeSearchToken\|\|activeModuleView!=="knowledge"/);
+  assert.match(html,/if\(view==="knowledge"\)knowledgeRowMapper=mapper;/);
+  assert.match(edge,/assets\?q=\$\{encodeURIComponent\(query\)\}/);
+});
+
+test("knowledge materials expose tag-based topic and folder filters",()=>{
+  assert.match(html,/id="knowledge-topic-filter"/);
+  assert.match(html,/id="knowledge-folder-filter"/);
+  assert.match(html,/function materialTagValue\(asset,prefix\)/);
+  assert.match(html,/materialTagValue\(asset,"二级分类"\),third=materialTagValue\(asset,"三级分类"\)/);
+  assert.match(html,/knowledgeTopic:materialTopic\(item\),knowledgeFolder:materialFolder\(item\)/);
+  assert.match(html,/row\.meta\?\.knowledgeFolder===knowledgeFolder/);
+});
+
+test("mail material picker searches the whole library and keeps pending selections",()=>{
+  assert.match(html,/async function chooseMaterialForMail\(query="",carried=null\)/);
+  assert.match(html,/action:"list",limit:200,\.\.\.term\?\{query:term\}:\{\}/);
+  assert.match(html,/pending=carried instanceof Map\?carried:new Map\(\)/);
+  assert.match(html,/chooseMaterialForMail\(\$\("#material-picker-query"\)\.value,pending\)/);
+  assert.match(html,/form:not\(\[data-esc-close\]\)/);
 });

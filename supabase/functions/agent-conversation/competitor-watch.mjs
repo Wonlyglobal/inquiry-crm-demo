@@ -1,0 +1,100 @@
+// Continuous competitor watch (owner, 2026-10-01). Reads only the tracked competitors' OFFICIAL websites
+// (hosts taken from the evidence file): their news/press lists, and the pages behind each evidence quote to
+// spot changed or removed claims. Results are candidates for a person to read, never verified facts.
+// No CRM data is involved; the only external model call translates public headline text to Chinese.
+const MAX_BYTES=2*1024*1024;
+export const NEWSY=/news|press|media|release|newsroom|noticias|prensa|blog|articles?|insights|stories|events|新闻|动态|资讯/i;
+const decode=s=>String(s).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&#39;|&rsquo;|&lsquo;/g,"'").replace(/&quot;|&ldquo;|&rdquo;/g,'"').replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n))).replace(/\s+/g,' ').trim();
+const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return ''}};
+const sameSite=(a,b)=>{const x=host(a),y=host(b);return !!x&&!!y&&(x===y||x.endsWith('.'+y)||y.endsWith('.'+x))};
+
+// Companies to watch, with their official hosts and evidence pages.
+export function watchList(evidence){
+ const map=new Map();
+ for(const e of evidence){let u;try{u=new URL(e.source_url)}catch{continue}if(u.protocol!=='https:')continue;
+  const c=map.get(e.company)||{company:e.company,origins:new Set(),evidence:[]};c.origins.add(u.origin);c.evidence.push(e);map.set(e.company,c)}
+ return [...map.values()].map(c=>({...c,origins:[...c.origins].slice(0,2)}));
+}
+export function rotate(list,offset,size){if(!list.length)return [];const out=[];for(let i=0;i<Math.min(size,list.length);i++)out.push(list[(offset+i)%list.length]);return out}
+
+const MONTHS={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,ene:1,abr:4,ago:8,dic:12};
+function iso(y,m,d){const s=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;return Number(m)>=1&&Number(m)<=12&&Number(d)>=1&&Number(d)<=31&&Number.isFinite(Date.parse(s))?s:null}
+export function findDate(t){
+ let m=String(t).match(/\b(20\d{2})[-./年](\d{1,2})[-./月](\d{1,2})/);if(m)return iso(m[1],m[2],m[3]);
+ m=String(t).match(/\b(\d{1,2})\s+([A-Za-z]{3,9})\.?\s+(20\d{2})\b/);if(m&&MONTHS[m[2].slice(0,3).toLowerCase()])return iso(m[3],MONTHS[m[2].slice(0,3).toLowerCase()],m[1]);
+ m=String(t).match(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(20\d{2})\b/);if(m&&MONTHS[m[1].slice(0,3).toLowerCase()])return iso(m[3],MONTHS[m[1].slice(0,3).toLowerCase()],m[2]);
+ return null;
+}
+// News-list pages linked from a homepage (same site, path looks like news/press).
+export function newsPages(html,pageUrl,limit=2){
+ const out=[];const re=/<a\b[^>]*\bhref\s*=\s*["']([^"'#]+)["']/gi;let m;
+ while((m=re.exec(html))&&out.length<limit){let u;try{u=new URL(m[1],pageUrl)}catch{continue}
+  if(u.protocol!=='https:'||!sameSite(u.href,pageUrl)||!NEWSY.test(u.pathname)||u.pathname.split('/').filter(Boolean).length>3)continue;
+  u.search='';u.hash='';if(!out.includes(u.href))out.push(u.href)}
+ return out;
+}
+// Headline links on a news-list page.
+export function headlines(html,pageUrl,limit=10){
+ const out=[],seen=new Set();const re=/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;let m;
+ while((m=re.exec(html))&&out.length<limit){let u;try{u=new URL(m[1],pageUrl)}catch{continue}
+  if(u.protocol!=='https:'||!sameSite(u.href,pageUrl))continue;
+  const title=decode(m[2]);if(title.length<18||title.length>200||/^(read more|more|leer más|ver más|learn more|查看更多|了解更多)$/i.test(title))continue;
+  if(!NEWSY.test(u.pathname)&&!/\/20\d{2}\//.test(u.pathname))continue;
+  u.hash='';u.search='';if(u.pathname.replace(/\/$/,'')===new URL(pageUrl).pathname.replace(/\/$/,'')||seen.has(u.href))continue;seen.add(u.href);
+  const near=decode(html.slice(Math.max(0,m.index-160),Math.min(html.length,re.lastIndex+160)));
+  out.push({title,url:u.href,published_on:findDate(title)||findDate(near)});
+ }
+ return out;
+}
+const norm=s=>decode(s).toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'');
+// Is the evidence quote still on its page? Uses the first 60 meaningful characters.
+export function quoteStillThere(html,quote){const q=norm(quote).slice(0,60);return q.length<8||norm(html).includes(q)}
+
+async function getText(url,fetcher){
+ const r=await fetcher(url,{redirect:'follow',headers:{'user-agent':'WONLY-competitor-watch/1.0 (official public pages only)','accept-language':'en,zh;q=0.8,es;q=0.6'},signal:AbortSignal.timeout(10000)});
+ if(!r.ok)throw Error('HTTP '+r.status);if(r.url&&!sameSite(r.url,url))throw Error('redirected off site');
+ const buf=new Uint8Array(await r.arrayBuffer());if(buf.length>MAX_BYTES)throw Error('too large');return new TextDecoder().decode(buf);
+}
+async function pool(items,n,fn){const out=[];let i=0;await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(i<items.length){const k=i++;out[k]=await fn(items[k]).catch(e=>({error:String(e?.message||e)}))}}));return out}
+
+// One watch pass over a slice of companies and evidence pages. Returns new items (not yet stored).
+export async function runWatch({evidence,known,offset=0,companies=20,evidenceChecks=40,fetcher=fetch,now=Date.now()}){
+ const list=watchList(evidence),slice=rotate(list,offset,companies),items=[];let ok=0,failed=0;
+ await pool(slice,6,async c=>{
+  let found=false;
+  for(const origin of c.origins){
+   try{const home=await getText(origin+'/',fetcher);ok++;
+    for(const page of newsPages(home,origin+'/')){try{const html=await getText(page,fetcher);
+      for(const h of headlines(html,page))if(!known.has('news|'+h.url)&&(!h.published_on||now-Date.parse(h.published_on)<=60*864e5)){items.push({company:c.company,kind:'news',...h});known.add('news|'+h.url)}found=true}catch{failed++}}
+   }catch{failed++}
+   if(found)break;
+  }
+ });
+ const pages=rotate(evidence,offset*2,evidenceChecks);let checked=0;
+ await pool(pages,6,async e=>{try{const html=await getText(e.source_url,fetcher);checked++;
+  if(!quoteStillThere(html,e.quote)&&!known.has('evidence_changed|'+e.source_url)){items.push({company:e.company,kind:'evidence_changed',title:`官方页面上已找不到这条原文：${e.value}`.slice(0,300),url:e.source_url,published_on:null,evidence_id:e.id});known.add('evidence_changed|'+e.source_url)}}catch{}});
+ return {items:items.slice(0,80),sourcesOk:ok,sourcesFailed:failed,evidenceChecked:checked,nextOffset:(offset+companies)%Math.max(1,list.length)};
+}
+
+// Chinese gist of public headline text (best effort; original title is always kept).
+export function translateBody(titles){return {model:'qwen-plus',messages:[{role:'system',content:'把下面每条公开新闻标题翻译成简洁中文，保留品牌和型号原文。只返回JSON数组，元素顺序与输入一致，不添加内容。'},{role:'user',content:JSON.stringify(titles)}],temperature:0.1,max_tokens:1500}}
+export function readTranslations(payload,n){try{const t=payload?.choices?.[0]?.message?.content||'';const arr=JSON.parse(t.slice(t.indexOf('['),t.lastIndexOf(']')+1));return Array.isArray(arr)&&arr.length===n?arr.map(x=>String(x).slice(0,300)):null}catch{return null}}
+
+// Grace's report.
+export function intelIntent(question){
+ const q=String(question||'');
+ if(/刷新|更新|重新巡检|马上查/.test(q)&&/竞品|情报|对手/.test(q))return {refresh:true};
+ return /(竞品|竞争对手|对手|同行).{0,10}(动态|新闻|最新|情报|消息|发布|变化|汇报)|(竞品|竞争)情报|情报汇报|汇报.{0,4}竞品/.test(q)?{refresh:false}:null;
+}
+export function intelAnswer(report,{days=14}={}){
+ const run=report?.last_run,items=Array.isArray(report?.items)?report.items:[];
+ const when=run?new Date(run.started_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):null;
+ const head=run?`竞品巡检：最近一次 ${when}（读取官方网站 ${run.sources_ok} 个、失败 ${run.sources_failed} 个，核对证据页面 ${run.evidence_checked} 个）。每 4 小时自动巡检一次，只看各公司官网。`:'竞品巡检还没有运行过：上线后每 4 小时自动跑一次，也可以说“刷新竞品情报”立刻跑。';
+ if(!items.length)return head+`\n\n近 ${days} 天没有发现新的官网动态或证据变化。官网没有发新闻不代表对方没有动作，社媒和展会消息不在巡检范围内。`;
+ const news=items.filter(i=>i.kind==='news'),changed=items.filter(i=>i.kind==='evidence_changed');
+ const by=new Map();for(const n of news){const k=n.company;by.set(k,[...(by.get(k)||[]),n])}
+ const lines=[...by].slice(0,12).map(([c,v])=>`■ ${c}\n`+v.slice(0,4).map(n=>`  ${n.published_on||'日期未标'}｜${n.title_zh?n.title_zh+'（原文：'+n.title+'）':n.title}\n  ${n.url}`).join('\n'));
+ return head+`\n\n近 ${days} 天新动态 ${news.length} 条`+(news.length?`：\n`+lines.join('\n'):'。')+
+  (changed.length?`\n\n证据变化 ${changed.length} 条（官网上已找不到之前收录的原文，可能是改版或参数调整，需要人工打开确认）：\n`+changed.slice(0,8).map(c=>`  ${c.company}｜${c.title}\n  ${c.url}`).join('\n'):'')+
+  '\n\n以上是官网标题级候选，还没有人工核验；中文是机器翻译，以原文为准。需要深入哪一家，直接说公司名。';
+}

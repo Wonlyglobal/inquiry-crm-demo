@@ -38,18 +38,27 @@ export function headlines(html,pageUrl,limit=10){
  const out=[],seen=new Set();const re=/<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;let m;
  while((m=re.exec(html))&&out.length<limit){let u;try{u=new URL(m[1],pageUrl)}catch{continue}
   if(u.protocol!=='https:'||!sameSite(u.href,pageUrl))continue;
-  const title=decode(m[2]);if(title.length<18||title.length>200||/^(read more|more|leer más|ver más|learn more|查看更多|了解更多)$/i.test(title))continue;
+  const title=decode(m[2]);if(title.length<18||title.length>200||/^(read more|more|leer más|ver más|learn more|查看更多|了解更多)$/i.test(title)||CTA.test(title))continue;
   if(!NEWSY.test(u.pathname)&&!/\/20\d{2}\//.test(u.pathname))continue;
   u.hash='';u.search='';if(u.pathname.replace(/\/$/,'')===new URL(pageUrl).pathname.replace(/\/$/,'')||seen.has(u.href))continue;seen.add(u.href);
   const near=decode(html.slice(Math.max(0,m.index-160),Math.min(html.length,re.lastIndex+160)));
-  out.push({title,url:u.href,published_on:findDate(title)||findDate(near)});
+  const published_on=findDate(title)||findDate(near),slug=decodeURIComponent(u.pathname.split('/').filter(Boolean).at(-1)||'');
+  // A real article has a date or a descriptive slug; menu links like /news/events are skipped.
+  if(!published_on&&slug.split(/[-_]+/).filter(w=>w.length>1).length<3)continue;
+  out.push({title,url:u.href,published_on});
  }
  return out;
 }
+const CTA=/order now|free sample|subscribe|sign up|register|contact us|download (the )?(brochure|catalog)|book a|get a quote|events? (and|&) announcements|立即|免费订购|联系我们|订阅/i;
 const norm=s=>decode(s).toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'');
 // Is the evidence quote still on its page? Uses the first 60 meaningful characters.
 export function quoteStillThere(html,quote){const q=norm(quote).slice(0,60);return q.length<8||norm(html).includes(q)}
 
+async function getPage(url,fetcher){
+ const r=await fetcher(url,{redirect:'follow',headers:{'user-agent':'WONLY-competitor-watch/1.0 (official public pages only)','accept-language':'en,zh;q=0.8,es;q=0.6'},signal:AbortSignal.timeout(10000)});
+ if(!r.ok)throw Error('HTTP '+r.status);if(r.url&&!sameSite(r.url,url))throw Error('redirected off site');
+ const type=String(r.headers?.get?.('content-type')||'text/html');const buf=new Uint8Array(await r.arrayBuffer());if(buf.length>MAX_BYTES)throw Error('too large');return {type,html:new TextDecoder().decode(buf)};
+}
 async function getText(url,fetcher){
  const r=await fetcher(url,{redirect:'follow',headers:{'user-agent':'WONLY-competitor-watch/1.0 (official public pages only)','accept-language':'en,zh;q=0.8,es;q=0.6'},signal:AbortSignal.timeout(10000)});
  if(!r.ok)throw Error('HTTP '+r.status);if(r.url&&!sameSite(r.url,url))throw Error('redirected off site');
@@ -71,7 +80,9 @@ export async function runWatch({evidence,known,offset=0,companies=20,evidenceChe
   }
  });
  const pages=rotate(evidence,offset*2,evidenceChecks);let checked=0;
- await pool(pages,6,async e=>{try{const html=await getText(e.source_url,fetcher);checked++;
+ await pool(pages,6,async e=>{try{if(/\.pdf($|\?)/i.test(e.source_url))return;const {type,html}=await getPage(e.source_url,fetcher);
+  // Only server-rendered HTML with real text can be checked; PDFs and script-built pages are skipped, not flagged.
+  if(!/html/i.test(type)||decode(html).length<800)return;checked++;
   if(!quoteStillThere(html,e.quote)&&!known.has('evidence_changed|'+e.source_url)){items.push({company:e.company,kind:'evidence_changed',title:`官方页面上已找不到这条原文：${e.value}`.slice(0,300),url:e.source_url,published_on:null,evidence_id:e.id});known.add('evidence_changed|'+e.source_url)}}catch{}});
  return {items:items.slice(0,80),sourcesOk:ok,sourcesFailed:failed,evidenceChecked:checked,nextOffset:(offset+companies)%Math.max(1,list.length)};
 }

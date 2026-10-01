@@ -3,8 +3,8 @@
 // fixed vocabularies, and evidence comes only from the bundled public file.
 import evidenceFile from './competitor-evidence.json' with {type:'json'};
 
-export const CATEGORIES={fire_door:'防火门',security_door:'防盗门',medical_door:'医用门',smart_lock:'智能锁'};
-const CATEGORY_EN={fire_door:'fire rated steel door',security_door:'security steel door',medical_door:'hospital hermetic door',smart_lock:'smart door lock'};
+export const CATEGORIES={fire_door:'防火门',security_door:'防盗门',medical_door:'医用门',smart_lock:'智能锁',wooden_door:'木门'};
+const CATEGORY_EN={fire_door:'fire rated steel door',security_door:'security steel door',medical_door:'hospital hermetic door',smart_lock:'smart door lock',wooden_door:'acoustic interior wooden door'};
 export const DIMENSIONS={
  fire_rating:{label:'耐火等级',match:/耐火|防火等级|防火时间|耐火时间|fire/i,query:'fire resistance rating EI2 UL 10C BS 476'},
  acoustic:{label:'隔声',match:/隔音|隔声|acoustic|sound|rw/i,query:'sound insulation Rw dB'},
@@ -14,9 +14,12 @@ export const DIMENSIONS={
  air_tightness:{label:'气密等级',match:/气密|密闭等级|air ?tight|12207/i,query:'air tightness class EN 12207'},
  ip_rating:{label:'防护等级',match:/IP\s?\d{2}|防护等级|防水等级/i,query:'IP rating ingress protection'},
  battery_life:{label:'电池续航',match:/电池|续航|battery/i,query:'battery life openings'},
- certification:{label:'认证',match:/认证|证书|certif|listed/i,query:'certification third party listing'}
+ certification:{label:'认证',match:/认证|证书|certif|listed/i,query:'certification third party listing'},
+ unlock_methods:{label:'开锁方式',match:/开锁方式|开锁|解锁|指纹|人脸|掌静脉|unlock/i,query:'unlock methods fingerprint face palm vein'},
+ material:{label:'材质/芯材',match:/材质|芯材|门芯|填充|material|core/i,query:'door core material'},
+ market_presence:{label:'市场布局',match:/市场布局|多少国家|覆盖.{0,6}国家|销量|规模|出口额|产能|布局/,query:'countries served export'}
 };
-const DIMS_BY_CATEGORY={fire_door:['fire_rating','acoustic','leaf_thickness','steel_sheet','certification'],security_door:['security_class','leaf_thickness','steel_sheet','acoustic','certification'],medical_door:['air_tightness','fire_rating','acoustic','certification'],smart_lock:['certification','ip_rating','battery_life']};
+const DIMS_BY_CATEGORY={fire_door:['fire_rating','acoustic','leaf_thickness','steel_sheet','certification'],security_door:['security_class','leaf_thickness','steel_sheet','acoustic','certification'],medical_door:['air_tightness','fire_rating','acoustic','certification'],smart_lock:['certification','unlock_methods','ip_rating','battery_life'],wooden_door:['acoustic','fire_rating','leaf_thickness','material','certification']};
 const MARKET=/^[A-Z]{2}$/;
 const DATE=/^\d{4}-\d{2}-\d{2}$/;
 const text=(v,max)=>typeof v==='string'&&v.trim()&&v.length<=max?v.trim():null;
@@ -62,22 +65,41 @@ export function comparisonText(rows){
  return '\n同维度对照（仅并列事实，不排名、不判断优劣；测试标准、适用尺寸和配置不同则不可直接比较）：\n'+rows.map(r=>`${r.label}｜本公司资料（机器提取，未核验）：${r.internal.value}（${r.internal.asset} 第${r.internal.page}页）\n`+r.public.map(p=>`  ${p.company}·${p.product}（候选对标，未确认直接竞争）：${p.value}｜${p.market}｜官网资料 ${p.accessed} 访问${p.quote_verified?'':'，原文待人工逐字核对'}｜${p.source_url}`).join('\n')).join('\n');
 }
 
-const CATEGORY_WORDS=[[/防火门|防火|fire/i,'fire_door'],[/防盗门|安全门|防盗|security door/i,'security_door'],[/医用门|医疗门|手术室|气密门|hospital/i,'medical_door'],[/智能锁|门锁|电子锁|smart lock/i,'smart_lock']];
+const CATEGORY_WORDS=[[/防火门|防火|fire/i,'fire_door'],[/防盗门|安全门|防盗|security door/i,'security_door'],[/医用门|医疗门|手术室|气密门|hospital/i,'medical_door'],[/智能锁|门锁|电子锁|smart lock/i,'smart_lock'],[/木门|隔音门|静音门|实木门|室内门|wooden/i,'wooden_door']];
+// Brand names in the evidence file, so "NAFFCO 的防火门" or "凯迪仕有哪些开锁方式" finds that company's facts.
+const GENERIC=new Set(['doors','door','industries','industry','company','international','group','home','mexico','méxico','metal','metálicas','fire','factory','joinery','engineering','wood','products','puertas','cerraduras','candados','global','smart','locks','lock','the','united','integrated','sds','riyadh','red','ideal','occidente','porte','türen','furniture','mfg','official','china','europe','middle','east']);
+const baseCompany=c=>String(c).replace(/（.*?）|\(.*?\)/g,'').trim();
+export function companyTokens(evidence=PUBLIC_EVIDENCE){
+ const map=new Map();
+ for(const e of evidence){const base=baseCompany(e.company);if(/王力|wonly/i.test(base))continue;
+  for(const t of [...(base.match(/[\u4e00-\u9fff]{2,}/g)||[]),...(base.toLowerCase().match(/[a-zà-ÿ0-9][a-zà-ÿ0-9&'-]{2,}/g)||[]).filter(w=>!GENERIC.has(w))])if(!map.has(t))map.set(t,new Set());
+  for(const [t,set] of map)if(base.toLowerCase().includes(t))set.add(e.company);}
+ return map;
+}
+const TOKENS=companyTokens();
+const ALIAS=[[/霍曼|hormann|hoermann/i,'hörmann'],[/亚萨合莱/,'abloy'],[/多玛凯拔|多玛/,'dormakaba'],[/耶鲁/,'yale'],[/飞利浦/,'philips'],[/三星/,'samsung'],[/小米/,'xiaomi'],[/纳夫科/,'naffco']];
+export function mentionedCompanies(question,tokens=TOKENS){
+ const q=String(question).toLowerCase(),out=new Set();
+ for(const [re,t] of ALIAS)if(re.test(q))for(const c of tokens.get(t)||[])out.add(c);
+ for(const [t,set] of tokens){const hit=/[\u4e00-\u9fff]/.test(t)?q.includes(t):new RegExp('(^|[^a-z0-9])'+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'($|[^a-z0-9])').test(q);if(hit)for(const c of set)out.add(c)}
+ return [...out];
+}
 const MARKET_WORDS=[[/沙特/,['SA']],[/阿联酋|迪拜|阿布扎比/,['AE']],[/中东|海湾/,['SA','AE','OM','QA','KW','BH']],[/墨西哥/,['MX']],[/英国/,['GB']],[/德国/,['DE']],[/西班牙/,['ES']],[/意大利/,['IT']],[/法国/,['FR']],[/爱尔兰/,['IE']],[/美国/,['US']],[/欧洲/,['DE','GB','FR','IT','ES','PL']]];
 // Deterministic public-only answer for "竞品/对标" questions about a product category.
 // Latest-news questions are left to the existing feed/web path.
 export function competitorIntent(question){
  const q=String(question).slice(0,500);
- if(!/竞品|对标|竞争对手|同行|competitor/i.test(q)||/最新|动态|新闻|今天|近期|latest|news/i.test(q)||/背调|市场分析|机会|打法|策略|方案/.test(q))return null;
+ const companies=mentionedCompanies(q);
+ if(!(/竞品|对标|竞争对手|同行|competitor/i.test(q)||companies.length)||/最新|动态|新闻|今天|近期|latest|news/i.test(q)||/背调|市场分析|机会|打法|策略|方案/.test(q))return null;
  const categories=[...new Set(CATEGORY_WORDS.filter(([re])=>re.test(q)).map(([,c])=>c))];
  const markets=[...new Set(MARKET_WORDS.filter(([re])=>re.test(q)).flatMap(([,m])=>m))];
  const dimension=Object.entries(DIMENSIONS).find(([,d])=>d.match.test(q))?.[0]||null;
- return {categories:categories.length?categories:Object.keys(CATEGORIES),markets,dimension,explicitCategory:categories.length>0};
+ return {categories:categories.length?categories:Object.keys(CATEGORIES),markets,dimension,explicitCategory:categories.length>0,companies};
 }
 export function competitorAnswer(intent,evidence=PUBLIC_EVIDENCE){
- let rows=evidence.filter(e=>intent.categories.includes(e.category)&&(!intent.dimension||e.dimension===intent.dimension));
+ let rows=evidence.filter(e=>intent.categories.includes(e.category)&&(!intent.dimension||e.dimension===intent.dimension)&&(!intent.companies?.length||intent.companies.includes(e.company)));
  const inMarket=intent.markets.length?rows.filter(e=>intent.markets.includes(e.market)):rows;
- const scope=intent.categories.map(c=>CATEGORIES[c]).join('、')+(intent.dimension?'·'+DIMENSIONS[intent.dimension].label:'');
+ const scope=(intent.companies?.length?[...new Set(intent.companies.map(baseCompany))].join('、')+' · ':'')+(intent.explicitCategory||!intent.companies?.length?intent.categories.map(c=>CATEGORIES[c]).join('、'):'全部门类')+(intent.dimension?'·'+DIMENSIONS[intent.dimension].label:'');
  const head=`以下只来自已收录的公开官方资料（${evidence.length}条，${[...new Set(evidence.map(e=>e.accessed))].sort().at(-1)||'无'}访问），均为候选对标，不代表已确认在同一项目竞争；没有引用本公司内部资料，也没有联网补充。`;
  if(!rows.length)return `${head}\n\n${scope}目前没有收录公开竞品证据，不能据此判断没有竞品。可以让我补充指定门类和市场的官方资料，或问“${intent.categories.map(c=>CATEGORIES[c])[0]}竞品最新动态”走联网检索。`;
  const other=intent.markets.length?rows.filter(e=>!intent.markets.includes(e.market)):[];

@@ -36,5 +36,6 @@ test('private room shows a live board from page data and Grace opens into voice 
  assert.match(world,/getLive\?\.\(selected\)/);
  assert.match(world,/if\(next==='Grace'&&event\?\.isTrusted\)/);
  assert.match(html,/getLive:name=>canUseAgentWorld\(profile,currentAuthUser\)\?worldLiveBoard\(name\):null/);
- assert.match(html,/function worldLiveBoard\(name\)\{\s*const c=aiDataContext\(""\)/);
+ assert.match(html,/function worldLiveBoard\(name\)\{\s*const c=aiDataContext\("近30天"\)/);
+ assert.match(html,/type="days";start=new Date\(now\);start\.setDate\(now\.getDate\(\)-days\+1\)/);
 });

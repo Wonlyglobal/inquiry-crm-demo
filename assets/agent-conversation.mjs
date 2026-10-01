@@ -15,7 +15,7 @@ import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
 import {createWakeConversation} from './agent-wake.mjs?v=20261001-onewake';
 import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261001-mat1';
-import {createTimeline,priceChart} from './agent-timeline.mjs?v=20261001-chart1';
+import {createTimeline,priceChart} from './agent-timeline.mjs?v=20261001-chart2';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,timelineRoot=null,materialRow=null,materialFile=null,crmAnswer=null}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};

@@ -3,6 +3,7 @@
 // Actions are allowlisted here AND re-checked in the browser. Nothing is sent to an external model:
 // these answers are deterministic. Customer data never goes into a search URL.
 import evidence from './competitor-evidence.json' with {type:'json'};
+import {mentionedCompanies} from './public-research.mjs';
 
 export const OPEN_VERB=/打开|调出|调取|弹出|跳转|给我看|帮我看|展示|显示|开一下|开个窗口|新窗口|浏览器/;
 export const CRM_VIEWS=[
@@ -25,7 +26,7 @@ export function safeUrl(u){try{const x=new URL(u);return x.protocol==='https:'&&
 export function evidenceCard(e,url=safeUrl(e.source_url)){return {type:'evidence',id:e.id,company:e.company,product:e.product,market:e.market||null,value:e.value,quote:e.quote,accessed:e.accessed,source_type:e.source_type,url,label:`${e.company} · ${e.product}`}}
 export function evidenceById(id,entries=evidence.entries){const e=entries.find(x=>x.id===id);return e?evidenceCard(e):null}
 export function competitorLinks(question,entries=evidence.entries){
- const q=String(question);const hit=entries.filter(e=>{const k=baseName(e.company);const re=ALIASES[k];return re?re.test(q):q.toLowerCase().includes(k)});
+ const q=String(question),named=new Set(mentionedCompanies(q));const hit=entries.filter(e=>{if(named.has(e.company))return true;const k=baseName(e.company);const re=ALIASES[k];return re?re.test(q):q.toLowerCase().includes(k)});
  const seen=new Set(),out=[];
  for(const e of hit){const url=safeUrl(e.source_url);if(!url||seen.has(e.id))continue;seen.add(e.id);out.push(evidenceCard(e,url))}
  return out.slice(0,5);

@@ -3,7 +3,7 @@ import {watchList,newsPages,headlines,quoteStillThere,runWatch,intelIntent,intel
 const ev=[{id:'a1',company:'ACME（阿联酋）',source_url:'https://acme.ae/products/fire',quote:'Fire Rated up to 4 Hours',value:'耐火4小时'}];
 const home='<a href="/news">News</a><a href="https://evil.com/news">x</a>';
 const news='<ul><li>12 Sep 2026 <a href="/news/2026/new-fire-door-line">ACME launches a new UL fire door line for Riyadh</a></li><li><a href="/news/old">Read more</a></li></ul>';
-const fake=pages=>async url=>{const body=pages[url];if(body==null)return {ok:false,status:404,url};return {ok:true,url,arrayBuffer:async()=>new TextEncoder().encode(body).buffer}};
+const fake=pages=>async url=>{const body=pages[url];if(body==null)return {ok:false,status:404,url};return {ok:true,url,headers:{get:()=>'text/html; charset=utf-8'},arrayBuffer:async()=>new TextEncoder().encode(body+'<p>'+'filler text '.repeat(80)+'</p>').buffer}};
 test('reads only the official site: news list, headlines with dates, quote checks',async()=>{
  assert.deepEqual(watchList(ev)[0].origins,['https://acme.ae']);assert.deepEqual(rotate([1,2,3],2,2),[3,1]);
  assert.deepEqual(newsPages(home,'https://acme.ae/'),['https://acme.ae/news']);
@@ -13,6 +13,9 @@ test('reads only the official site: news list, headlines with dates, quote check
  assert.deepEqual(r.items.map(i=>i.kind).sort(),['evidence_changed','news']);assert.equal(r.sourcesOk,1);assert.equal(r.evidenceChecked,1);
  const again=await runWatch({evidence:ev,known:new Set(['news|https://acme.ae/news/2026/new-fire-door-line','evidence_changed|https://acme.ae/products/fire']),fetcher:fake({'https://acme.ae/':home,'https://acme.ae/news':news,'https://acme.ae/products/fire':'x'}),now:Date.parse('2026-10-01')});
  assert.equal(again.items.length,0);
+ const pdf=await runWatch({evidence:[{...ev[0],source_url:'https://acme.ae/a.pdf'}],known:new Set(),fetcher:fake({'https://acme.ae/':'<a href="/news/events">Events and announcements of ACME group</a>'}),now:Date.parse('2026-10-01')});
+ assert.equal(pdf.items.length,0,'PDF evidence and menu links are not flagged');
+ assert.equal(headlines('<a href="/news/free">Order now for a free sample of fire doors</a>','https://acme.ae/news').length,0);
 });
 test('Grace report: intent, refresh, honest wording',()=>{
  assert.deepEqual(intelIntent('汇报一下竞品最新动态'),{refresh:false});assert.deepEqual(intelIntent('刷新竞品情报'),{refresh:true});assert.equal(intelIntent('王力防盗门参数'),null);

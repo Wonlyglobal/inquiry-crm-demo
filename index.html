@@ -1443,7 +1443,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=hologram-20261001" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=onescreen-20261001" />
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
@@ -2501,7 +2501,7 @@
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261001-chart3';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
-      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=hologram-20261001";
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=onescreen-20261001";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;

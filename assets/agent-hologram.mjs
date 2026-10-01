@@ -158,14 +158,14 @@ export function drawPedestal(canvas,{t,style,hot=0,clear=true}){
 }
 // Rings, voice bars and live callouts around the agent in the private room.
 export function drawRoomHud(canvas,{t,style,listen=0,think=0,speak=0,level=0,callouts=[]}){
- const{c,w,h}=fit(canvas);if(!w)return;const rgb=TONES[style],col=a=>`rgba(${rgb},${a*.8})`,cx=w/2,cy=h*.47,R=Math.min(w*.8,h)*.36,spin=1+think*.6;c.lineCap='round';
+ const{c,w,h}=fit(canvas);if(!w)return;const rgb=TONES[style],col=a=>`rgba(${rgb},${a*.8})`,cx=w/2,cy=h*.47,R=Math.min(w*.6,h*.9)*.36,spin=1+think*.6;c.lineCap='round';
  c.save();c.translate(cx,cy);c.rotate(t*.05*spin);for(let i=0;i<120;i++){const a=i/120*Math.PI*2,major=i%10===0;c.strokeStyle=col(major?.5:.16);c.lineWidth=major?1.3:1;c.beginPath();c.moveTo(Math.cos(a)*R*1.02,Math.sin(a)*R*1.02);c.lineTo(Math.cos(a)*R*(major?1.07:1.04),Math.sin(a)*R*(major?1.07:1.04));c.stroke()}c.restore();
  for(const[r,sp,segs,lw]of[[R*.93,.18,[[0,.9],[1.3,1.8],[3.4,4.6]],1.5],[R*.86,-.27,[[.5,1.1],[2.2,3.9],[4.9,5.4]],1.1]]){c.save();c.translate(cx,cy);c.rotate(t*sp*spin);c.strokeStyle=col(.38+think*.2);c.lineWidth=lw;for(const[a,b]of segs){c.beginPath();c.arc(0,0,r,a,b);c.stroke()}c.restore()}
  const v=Math.max(speak*level,listen*.18);
  if(v>.01){c.save();c.translate(cx,cy);for(let i=0;i<96;i++){const a=i/96*Math.PI*2-Math.PI/2,n=.5+.5*Math.sin(i*1.7+t*8)*Math.sin(i*.33-t*3),len=R*.12*v*(.25+n);c.strokeStyle=col(.3+.6*v*n);c.lineWidth=2;c.beginPath();c.moveTo(Math.cos(a)*R*1.18,Math.sin(a)*R*1.18);c.lineTo(Math.cos(a)*(R*1.18+len),Math.sin(a)*(R*1.18+len));c.stroke()}c.restore()}
  if(listen>.02)for(let k=0;k<2;k++){const f=(t*.25+k/2)%1;c.strokeStyle=col(.25*listen*Math.sin(f*Math.PI));c.lineWidth=1.5;c.beginPath();c.arc(cx,cy,R*(1.3-f*.4),0,Math.PI*2);c.stroke()}
  if(w>440){const angs=[-2.45,-.7,2.55];c.font='500 10px ui-monospace,Menlo,monospace';
-  callouts.slice(0,3).forEach(([k,label,txt],i)=>{const a=angs[i],px=cx+Math.cos(a)*R*.98,py=cy+Math.sin(a)*R*.98,right=Math.cos(a)>0,ex=cx+Math.cos(a)*R*1.3,ey=cy+Math.sin(a)*R*1.3,tx=ex+(right?40:-40),ox=tx+(right?6:-6);
+  callouts.slice(0,3).forEach(([k,label,txt],i)=>{const a=angs[i],px=cx+Math.cos(a)*R*.98,py=cy+Math.sin(a)*R*.98,right=Math.cos(a)>0,ex=cx+Math.cos(a)*R*1.3,ey=cy+Math.sin(a)*R*1.3,tx=ex+(right?40:-40),ox=Math.max(78,Math.min(w-78,tx+(right?6:-6)));
    c.strokeStyle=col(.5);c.lineWidth=1;c.beginPath();c.moveTo(px,py);c.lineTo(ex,ey);c.lineTo(tx,ey);c.stroke();c.fillStyle=col(.9);c.beginPath();c.arc(px,py,2.5,0,Math.PI*2);c.fill();
    c.textAlign=right?'left':'right';c.fillStyle=col(.6);c.fillText(k,ox,ey-14);c.fillStyle='rgba(235,245,255,.95)';c.font='600 15px system-ui,sans-serif';c.fillText(txt,ox,ey+4);c.font='400 11px system-ui,sans-serif';c.fillStyle=col(.6);c.fillText(label,ox,ey+19);c.font='500 10px ui-monospace,Menlo,monospace'})}
 }

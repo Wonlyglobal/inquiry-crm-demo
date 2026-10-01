@@ -28,26 +28,28 @@ export function createWakeConversation({Recognition,onState,onWake,onQuestion,re
    const text=await readQuestion(control.signal);
    if(!active||g!==generation)return;
    if(endPhrase(text)){stop();onState('对话已结束');return}
+   // Owner 2026-10-01: one request per wake. After answering, go back to waiting for “Hello Grace”.
+   phase='wake';
    if(text?.trim())await onQuestion(text);
    if(active&&g===generation)restart=setTimeout(()=>listen(g),250);
-  }catch(error){if(active&&g===generation){stop();onState((error.message||'语音连接失败')+'；聆听已停止，请点击开启聆听重试')}}
+  }catch(error){phase='wake';if(active&&g===generation){stop();onState((error.message||'语音连接失败')+'；聆听已停止，请点击开启聆听重试')}}
  }
  function listen(g){
   if(!active||g!==generation)return;
   if(phase==='dialogue'&&readQuestion){void dialogue(g);return}
   const r=new Recognition();recognition=r;r.processLocally=true;r.lang=phase==='wake'?'en-US':'zh-CN';r.continuous=false;r.interimResults=false;let handled=false;
-  onState('正在启动本机识别…');r.onstart=()=>{if(active&&g===generation)onState(phase==='wake'?'说“Hello Grace”叫我':'我在听，直接说就行（说“结束对话”可以结束）','listening')};
+  onState('正在启动本机识别…');r.onstart=()=>{if(active&&g===generation)onState(phase==='wake'?'说“Hello Grace”开始一个新需求':'我在听，请说需求（这个需求回答完后，下一个需求要再说 Hello Grace）','listening')};
   r.onresult=async e=>{
    if(handled||!active||g!==generation)return;
    const text=Array.from(e.results).filter(x=>x.isFinal).map(x=>x[0].transcript).join(' ').trim();if(!text)return;
-   const persona=wakeName(text);if(phase==='wake'&&!persona){onState('本机识别：'+text.slice(0,70)+'；请单独说 Hello Grace','listening');return;}
+   const persona=wakeName(text);if(phase==='wake'&&!persona){onState('等待“Hello Grace”；其他声音不处理','listening');return;}
    handled=true;r.onend=null;r.abort();recognition=null;
    if(endPhrase(text)){stop();onState('对话已结束');return}
    try{
     // Recognition is stopped while greeting/answer audio plays to avoid echo loops.
-    if(persona){await onWake(persona);phase='dialogue'}else await onQuestion(text);
+    if(persona){await onWake(persona);phase='dialogue'}else{phase='wake';await onQuestion(text)}
     if(active&&g===generation)listen(g);
-   }catch(error){if(active&&g===generation){phase='dialogue';onState((error.message||'本次回答未完成')+'；继续聆听，可重新提问');restart=setTimeout(()=>listen(g),1200)}}
+   }catch(error){if(active&&g===generation){phase='wake';onState((error.message||'本次回答未完成')+'；说 Hello Grace 重新提问');restart=setTimeout(()=>listen(g),1200)}}
   };
   r.onerror=async e=>{if(g!==generation)return;
    if(e.error==='language-not-supported'){

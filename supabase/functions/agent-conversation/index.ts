@@ -6,6 +6,7 @@ import {companyLookupIntent,lookupCompanies,companyAnswer} from './company-resea
 import {validateFeedback,feedbackSummaryIntent,feedbackSummaryAnswer} from './answer-feedback.mjs';
 import {embed,recallMemories,storeMemory,recallInstruction,shouldStore,conversationMemoryCommand,runConversationMemoryCommand} from './conversation-memory.mjs';
 import {compareIntent,compareAnswer} from './wonly-compare.mjs';
+import {briefIntent,briefAnswer,priceIntent,priceAnswer,priceChartActions} from './competitor-brief.mjs';
 import {runWatch,translateBody,readTranslations,intelIntent,intelAnswer} from './competitor-watch.mjs';
 import {PUBLIC_EVIDENCE} from './public-research.mjs';
 import {validateTimelineEntry,expandTimeline,searchQuery} from './request-timeline.mjs';
@@ -183,13 +184,17 @@ Deno.serve(async req=>{
    const intel=guest?null:intelIntent(input.question);
    if(intel){let ran=null;if(intel.refresh&&user.id===MATERIAL_ACTOR){const svc=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});const {data:recent}=await svc.from('competitor_watch_runs').select('id').gte('started_at',new Date(Date.now()-600000).toISOString()).limit(1);if(!recent?.length)ran=await competitorWatchPass(svc,'owner',{companies:12,evidenceChecks:20});}
     const {data:rep,error:repError}=await client.rpc('competitor_intel_report',{p_days:14,p_company:null});
-    const answer=repError?'竞品情报读取失败：'+String(repError.message||'').slice(0,80):(ran?`刚刚巡检了一轮，新发现 ${ran.new_items} 条。\n\n`:intel.refresh?'10 分钟内已经巡检过，直接给你最新结果。\n\n':'')+intelAnswer(rep);
+    const answer=repError?'竞品情报读取失败：'+String(repError.message||'').slice(0,80):(ran?`刚刚巡检了一轮，新发现 ${ran.new_items} 条。\n\n`:intel.refresh?'10 分钟内已经巡检过，直接给你最新结果。\n\n':'')+intelAnswer(rep,{focus:intel.focus||null});
     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'competitor_intel_report',persona:input.persona,provider:'internal',refreshed:!!ran},reason:'查看竞品官网巡检结果（公开信息）'});if(error)return json({error:'调用审计失败'},503);
     return json({answer,provider:'internal',model:'competitor-watch',context:{route:'competitor'},ticket:await ticket({user:user.id,persona:input.persona,text:'竞品最新动态整理在窗口里了，都附了官网原文链接。',expires:Date.now()+300000},key)});}
    // Owner 2026-10-01: "王力 vs 竞品" comparisons use WONLY's own catalogue next to public competitor evidence, in-house only.
    const vs=guest?null:compareIntent(input.question);
    if(vs){const catalog=await loadCatalog(admin);if(catalog){const answer=compareAnswer(vs,catalog);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'wonly_competitor_compare',persona:input.persona,provider:'internal',categories:vs.categories,markets:vs.markets,companies:vs.companies.slice(0,6)},reason:'王力画册与公开竞品证据对照，系统内生成，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);
     const cards=vs.companies.length?competitorLinks(input.question):[];return json({answer,actions:cards,provider:'internal',model:'wonly-compare',context:{route:'competitor'},ticket:await ticket({user:user.id,persona:input.persona,text:'对照表放在窗口里了：左边是王力画册里的数据，右边是竞品官方资料，画册没写的我也标出来了。',expires:Date.now()+300000},key)});}}
+   // Owner 2026-10-01: competitor battle cards and official price bands, from public official evidence only.
+   const brief=guest?null:briefIntent(input.question),price=brief||guest?null:priceIntent(input.question);
+   if(brief||price){const catalog=brief?await loadCatalog(admin):null;const answer=brief?briefAnswer(brief,catalog):priceAnswer(price);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:brief?'competitor_brief':'competitor_prices',persona:input.persona,provider:'internal',companies:(brief||price).companies.slice(0,6)},reason:'竞品作战卡/官网价格带，来自公开官方资料，系统内生成，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);
+    const charts=priceChartActions(brief?{companies:brief.companies}:price);const cards=[...charts,...((brief||price).companies.length?competitorLinks(input.question).slice(0,brief?5:2):[])];return json({answer,actions:cards,provider:'internal',model:brief?'competitor-brief':'competitor-prices',context:{route:'competitor'},ticket:await ticket({user:user.id,persona:input.persona,text:brief?'作战卡放在窗口里了：公司概况、渠道、价格和可以切入的点，都附了官网来源。':'竞品官网价格做成柱状图放在窗口里了，每根柱子都能点开官网来源核对。',expires:Date.now()+300000},key)});}
    const competitor=competitorIntent(input.question);
    const rec=guest?null:recordIntent(input.question);
    if(rec){const records=await resolveRecords(rec,client);const res=recordAnswer(rec,records);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_open_record',persona:input.persona,provider:'internal',kind:rec.kind,found:records.length},reason:'按用户要求打开CRM询盘详情；本人权限内查询，不记录客户名称，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json({answer:res.answer,actions:res.actions,provider:'internal',model:'agent-actions',context:{route:'actions'},ticket:await ticket({user:user.id,persona:input.persona,text:res.actions.length?actionsSpoken:'没有找到这条询盘，详情写在窗口里了。',expires:Date.now()+300000},key)});}
@@ -215,7 +220,7 @@ Deno.serve(async req=>{
     if(ignoredSpeaker(heard))return json({text:'',ignored:heard,speaker:heard,voiceProof:null});
     speakerCheck=Promise.resolve({status:'ok',speaker:heard,preAudited:true});}
   }else if(input.action==='greeting'){
-   endpoint=TTS_URL;body=speechBody(input.kind==='ack'?'好的，Chloe，我来帮你看看。':input.kind==='offer'?'需要我展开详细回答和已有数据吗？':input.persona==='Grace'?"I'm here, Chloe.":'Hello Chloe',PERSONAS[input.persona].voice);
+   endpoint=TTS_URL;body=speechBody(input.kind==='ack'?'好的，Chloe，我来帮你看看。':input.kind==='offer'?'完整内容在屏幕上，要展开就先叫我 Hello Grace，再说打开。':input.persona==='Grace'?"I'm here, Chloe.":'Hello Chloe',PERSONAS[input.persona].voice);
   }else{
    const t=input.ticket;if(typeof t?.data!=='string'||t.data.length>40000||typeof t.signature!=='string')return json({error:'播报凭据无效'},400);
    const expected=await mac(t.data,key);let mismatch=expected.length^t.signature.length;for(let i=0;i<expected.length;i++)mismatch|=expected.charCodeAt(i)^(t.signature.charCodeAt(i)||0);

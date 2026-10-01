@@ -17,7 +17,11 @@ export const DIMENSIONS={
  certification:{label:'认证',match:/认证|证书|certif|listed/i,query:'certification third party listing'},
  unlock_methods:{label:'开锁方式',match:/开锁方式|开锁|解锁|指纹|人脸|掌静脉|unlock/i,query:'unlock methods fingerprint face palm vein'},
  material:{label:'材质/芯材',match:/材质|芯材|门芯|填充|material|core/i,query:'door core material'},
- market_presence:{label:'市场布局',match:/市场布局|多少国家|覆盖.{0,6}国家|销量|规模|出口额|产能|布局/,query:'countries served export'}
+ market_presence:{label:'市场布局',match:/市场布局|多少国家|覆盖.{0,6}国家|销量|出口额|布局/,query:'countries served export'},
+ price:{label:'官网价格',match:/价格|售价|多少钱|价位|定价|标价|price/i,query:'price'},
+ channel:{label:'销售渠道',match:/渠道|经销商|代理商|分销|门店|展厅|哪里买|在哪买|电商|distributor|dealer/i,query:'where to buy distributors'},
+ product_range:{label:'产品线',match:/产品线|产品范围|卖什么|做什么产品|品类/,query:'product range'},
+ company_profile:{label:'公司概况',match:/公司概况|成立|创立|历史|员工|工厂|产能|规模|总部/,query:'company profile founded factory'}
 };
 const DIMS_BY_CATEGORY={fire_door:['fire_rating','acoustic','leaf_thickness','steel_sheet','certification'],security_door:['security_class','leaf_thickness','steel_sheet','acoustic','certification'],medical_door:['air_tightness','fire_rating','acoustic','certification'],smart_lock:['certification','unlock_methods','ip_rating','battery_life'],wooden_door:['acoustic','fire_rating','leaf_thickness','material','certification']};
 const MARKET=/^[A-Z]{2}$/;
@@ -90,7 +94,7 @@ const MARKET_WORDS=[[/沙特/,['SA']],[/阿联酋|迪拜|阿布扎比/,['AE']],[
 export function competitorIntent(question){
  const q=String(question).slice(0,500);
  const companies=mentionedCompanies(q);
- if(!(/竞品|对标|竞争对手|同行|competitor/i.test(q)||companies.length)||/最新|动态|新闻|今天|近期|latest|news/i.test(q)||/背调|市场分析|机会|打法|策略|方案/.test(q))return null;
+ if(!(/竞品|对标|竞争对手|同行|competitor/i.test(q)||companies.length)||/最新|最近|动态|新闻|今天|近期|营销|活动|促销|展会|latest|news/i.test(q)||/背调|市场分析|机会|打法|策略|方案/.test(q))return null;
  const categories=[...new Set(CATEGORY_WORDS.filter(([re])=>re.test(q)).map(([,c])=>c))];
  const markets=[...new Set(MARKET_WORDS.filter(([re])=>re.test(q)).flatMap(([,m])=>m))];
  const dimension=Object.entries(DIMENSIONS).find(([,d])=>d.match.test(q))?.[0]||null;

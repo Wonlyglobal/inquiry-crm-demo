@@ -12,7 +12,9 @@ test('background stays local; greeting completes before dialogue recognition res
  const w=createWakeConversation({Recognition:FakeRecognition,onState:()=>{},onWake:async n=>{calls.push(n);await new Promise(r=>finishGreeting=r)},onQuestion:async q=>calls.push(q)});
  try{await w.start();const r=FakeRecognition.instances.at(-1);assert.equal(r.processLocally,true);assert.equal(r.lang,'en-US');await say(r,'background conversation');assert.deepEqual(calls,[]);
  const pending=say(r,'Hello Brian');assert.equal(r.aborted,true);assert.equal(FakeRecognition.instances.length,1);finishGreeting();await pending;
- const d=FakeRecognition.instances.at(-1);assert.equal(d.lang,'zh-CN');await say(d,'如何确认需求');assert.deepEqual(calls,['Brian','如何确认需求']);await say(FakeRecognition.instances.at(-1),'结束对话');assert.equal(w.isActive(),false);
+ const d=FakeRecognition.instances.at(-1);assert.equal(d.lang,'zh-CN');await say(d,'如何确认需求');assert.deepEqual(calls,['Brian','如何确认需求']);
+  // One request per wake: after the answer it waits for the wake word again and ignores other speech.
+  const back=FakeRecognition.instances.at(-1);assert.equal(back.lang,'en-US');await say(back,'and another thing');assert.deepEqual(calls,['Brian','如何确认需求']);assert.equal(w.isActive(),true);
  }finally{w.stop()}
 });
 test('unsupported on-device recognition never falls back to cloud recognition',async()=>{
@@ -31,9 +33,9 @@ test('unsupported Chinese pack is identified instead of telling users to install
  const w=createWakeConversation({Recognition:NoChinese,onState:()=>{},onWake:()=>{},onQuestion:()=>{}});await assert.rejects(w.start(),/不支持中文/);await assert.rejects(w.install(),/不支持中文/);assert.equal(w.isActive(),false);
 });
 
-test('a failed answer keeps dialogue active until explicit stop',async()=>{
+test('a failed answer keeps listening for the wake word until explicit stop',async()=>{
  FakeRecognition.instances=[];const states=[];const w=createWakeConversation({Recognition:FakeRecognition,onState:s=>states.push(s),onWake:async()=>{},onQuestion:async()=>{throw Error('temporary failure')}});
- try{await w.start();await say(FakeRecognition.instances.at(-1),'Hello Grace');await say(FakeRecognition.instances.at(-1),'分析');assert.equal(w.isActive(),true);assert.match(states.at(-1),/继续聆听/);}finally{w.stop()}
+ try{await w.start();await say(FakeRecognition.instances.at(-1),'Hello Grace');await say(FakeRecognition.instances.at(-1),'分析');assert.equal(w.isActive(),true);assert.match(states.at(-1),/Hello Grace/);}finally{w.stop()}
 });
 
 test('runtime language rejection repairs only failed local language once',async()=>{

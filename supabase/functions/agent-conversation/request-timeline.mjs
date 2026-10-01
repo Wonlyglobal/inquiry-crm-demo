@@ -2,6 +2,9 @@
 // descriptors are kept (no signed links, file bodies or contact fields), so history windows re-open
 // through the same permission checks as the first time.
 import {CRM_VIEWS,safeUrl,evidenceById} from './agent-actions.mjs';
+import {priceGroups} from './competitor-brief.mjs';
+import {CATEGORIES,PUBLIC_EVIDENCE} from './public-research.mjs';
+const EVIDENCE_COMPANIES=new Set(PUBLIC_EVIDENCE.map(e=>e.company));
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SENSITIVE=/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|(?:\+|00)\d[\d \-]{7,}|\b\d{9,}\b|sk-[A-Za-z0-9_-]{8,}|(?:密码|密钥|口令)/i;
@@ -20,6 +23,7 @@ export function timelineWindow(w){
    const sources=(Array.isArray(w.sources)?w.sources:[]).map(s=>({title:text(s?.title,200),url:safeUrl(s?.url)})).filter(s=>s.url).slice(0,8);
    return {kind:'search',query,sources};
   }
+  case 'chart':return /^[A-Z]{2}$/.test(w.market||'')&&CATEGORIES[w.category]?{kind:'chart',market:w.market,category:w.category,companies:(Array.isArray(w.companies)?w.companies:[]).filter(c=>EVIDENCE_COMPANIES.has(c)).slice(0,6),label:text(w.label,60)}:null;
   case 'material':return UUID.test(w.id||'')?{kind:'material',id:w.id,name:text(w.name,120)}:null;
   default:return null;
  }
@@ -36,7 +40,7 @@ export function validateTimelineEntry(input){
 
 // Stored rows come back with evidence expanded from the bundled evidence file (never from the row).
 export function expandTimeline(rows){
- return (Array.isArray(rows)?rows:[]).map(r=>({...r,windows:(r.windows||[]).map(w=>w.kind==='evidence'?{...w,card:evidenceById(w.id)}:w).filter(w=>w.kind!=='evidence'||w.card)}));
+ return (Array.isArray(rows)?rows:[]).map(r=>({...r,windows:(r.windows||[]).map(w=>w.kind==='evidence'?{...w,card:evidenceById(w.id)}:w.kind==='chart'?{...w,chart:priceGroups({companies:w.companies||[],categories:[w.category],markets:[w.market]})[0]||null}:w).filter(w=>(w.kind!=='evidence'||w.card)&&(w.kind!=='chart'||w.chart))}));
 }
 
 // In-page search: keyword only, never customer details.

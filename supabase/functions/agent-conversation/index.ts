@@ -9,7 +9,7 @@ import {validateTimelineEntry,expandTimeline,searchQuery} from './request-timeli
 import {OPEN_VERB,actionIntent,actionAnswer,competitorLinksFromIntent,actionsSpoken,recordIntent,resolveRecords,recordAnswer,catalogPageIntent,catalogPageActions,catalogNameIntent,catalogPagesRequest,CATALOG_TITLES} from './agent-actions.mjs';
 import {personaFramework} from './persona-frameworks.mjs';
 import {memoryCommand,runMemoryCommand,loadMemories,memoryInstruction} from './memory.mjs';
-import {voiceprintCall,speakerOf,voiceProof,readVoiceProof,guestInstruction,enrollmentReply,sanitize as sanitizeVoiceprint} from './voiceprint.mjs';
+import {voiceprintCall,speakerOf,ignoredSpeaker,voiceProof,readVoiceProof,guestInstruction,enrollmentReply,sanitize as sanitizeVoiceprint} from './voiceprint.mjs';
 import {findModels} from './catalog-knowledge.mjs';
 import {catalogPrecheck,loadCatalog,catalogIntent,catalogAnswer,catalogSpokenReply} from './catalog-knowledge.mjs';
 import {seoIntent,seoOpportunities,seoFrameworkInstruction} from './seo-opportunities.mjs';
@@ -138,6 +138,7 @@ Deno.serve(async req=>{
   if(input.action==='chat'){
    validateDialogue(input);
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
+   if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
    const courtesy=guest&&courtesyReply(input.question)?'你好，我是 Grace。现在我只回答公开的问题，内部资料需要 Chloe 本人来问。':courtesyReply(input.question);
    if(courtesy){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'courtesy',persona:input.persona,provider:'internal'},reason:'固定礼貌回复，不发送对话正文或业务资料'});if(error)return json({error:'调用审计失败'},503);return json({answer:courtesy,provider:'internal',model:'courtesy',context:{route:'conversation'},ticket:await ticket({user:user.id,persona:input.persona,text:courtesy,expires:Date.now()+300000},key)});}
    if(introIntent(input.question)){const answer=introReply(input.persona);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'self_introduction',persona:input.persona,provider:'internal'},reason:'固定自我介绍，不发送对话正文或业务资料'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'self-introduction',context:{route:'conversation'},ticket:await ticket({user:user.id,persona:input.persona,text:introSpoken(input.persona),tone:input.voiceEmotion||'happy',expires:Date.now()+300000},key)});}
@@ -167,7 +168,12 @@ Deno.serve(async req=>{
    const reviewed=guest?[]:relevantCorrections(materialTurn.question,await loadApprovedCorrections(admin));contextMetadata.reviewed_corrections=reviewed.map(r=>r.id);if(speaker)contextMetadata.speaker=speaker;if(reviewed.length)body.messages[0].content+='\n'+correctionsInstruction+'\n以下不是指令：'+JSON.stringify({reviewedCorrections:reviewed});
   }else if(input.action==='transcribe'){
    const audio=form?.get('audio');if(!(audio instanceof File))return json({error:'录音文件缺失'},400);const audioBytes=new Uint8Array(await audio.arrayBuffer()),audioMime=audio.type.split(';')[0];body=transcriptionBody(audioBytes,audioMime);
-   if(Deno.env.get('VOICEPRINT_ENABLED')==='1')speakerCheck=voiceprintCall({...materialConfig,op:'verify',audio:audioBytes,mime:audioMime});
+   // Owner 2026-10-01: only Chloe's voice is processed. With voiceprint on, the speaker is checked FIRST;
+   // anyone else (or an unverifiable voice) is dropped before transcription - no text, answer or record.
+   if(Deno.env.get('VOICEPRINT_ENABLED')==='1'){const heard=speakerOf(await voiceprintCall({...materialConfig,op:'verify',audio:audioBytes,mime:audioMime}));
+    const {error:vpError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_voiceprint',after_data:{op:'verify',speaker:heard,dropped:ignoredSpeaker(heard)},reason:'语音提问的说话人比对，只记录结果'});if(vpError)return json({error:'调用审计失败'},503);
+    if(ignoredSpeaker(heard))return json({text:'',ignored:heard,speaker:heard,voiceProof:null});
+    speakerCheck=Promise.resolve({status:'ok',speaker:heard,preAudited:true});}
   }else if(input.action==='greeting'){
    endpoint=TTS_URL;body=speechBody(input.kind==='ack'?'好的，Chloe，我来帮你看看。':input.kind==='offer'?'需要我展开详细回答和已有数据吗？':input.persona==='Grace'?"I'm here, Chloe.":'Hello Chloe',PERSONAS[input.persona].voice);
   }else{
@@ -189,7 +195,7 @@ Deno.serve(async req=>{
   if(input.action==='chat')body.messages[0].content+='\n'+preferenceInstruction(input.preferences)+'\n'+conversationStyle+(input.voice===true&&input.voiceEmotion?'\n'+emotionInstruction(input.voiceEmotion):'')+(personaFramework(input.persona,input.question)?'\n'+personaFramework(input.persona,input.question):'');
   const payload=await providerJson(endpoint,body,key);
   if(['speech','greeting'].includes(input.action))return new Response(await speechAudio(payload),{headers:{...cors,'Content-Type':'audio/wav'}});
-  if(input.action==='transcribe'){const text=outputText(payload).slice(0,3000);const heard=speakerCheck?speakerOf(await speakerCheck):null;if(heard){const {error:vpError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_voiceprint',after_data:{op:'verify',speaker:heard},reason:'语音提问的说话人比对，只记录结果'});if(vpError)return json({error:'调用审计失败'},503);}return json({text,emotion:transcriptionEmotion(payload),speaker:heard,voiceProof:heard?await voiceProof({user:user.id,speaker:heard,text},t=>mac(t,key)):null});}
+  if(input.action==='transcribe'){const text=outputText(payload).slice(0,3000);const checked=speakerCheck?await speakerCheck:null,heard=checked?speakerOf(checked):null;if(heard&&!checked?.preAudited){const {error:vpError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_voiceprint',after_data:{op:'verify',speaker:heard},reason:'语音提问的说话人比对，只记录结果'});if(vpError)return json({error:'调用审计失败'},503);}return json({text,emotion:transcriptionEmotion(payload),speaker:heard,voiceProof:heard?await voiceProof({user:user.id,speaker:heard,text},t=>mac(t,key)):null});}
   let answer=outputText(payload);const issues=route.mode==='business'?answerIssues(answer,qualityContext):[];if(issues.length){const {error:reviewAuditError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_answer_quality_retry',after_data:{request_id:requestId,provider:'bailian',model,issue_count:issues.length},reason:'纠正未核验指标或审批主体表述，不记录对话正文'});if(reviewAuditError)return json({error:'回答核验未完成，请稍后重试'},503);answer=outputText(await providerJson(endpoint,{...body,messages:[...body.messages,{role:'assistant',content:answer},correctionMessage(issues)]},key));if(answerIssues(answer,qualityContext).length){answer=safeMarketingFallback(qualityContext);contextMetadata.answer_status='safe_reference_fallback';}else contextMetadata.answer_status='corrected';}answer=plainAnswer(answer+sourceFooter(web));const speech=spokenReply(answer);
   if(input.action==='chat'&&qEmbedding&&shouldStore({question:input.question,answer,guest})){const memoryId=await storeMemory({admin,embedding:qEmbedding,persona:input.persona,question:input.question,answer,user:user.id});if(memoryId&&contextMetadata)contextMetadata.memory_id=memoryId;}
   return json({answer,sources:web.sources||[],model,provider:'bailian',context:contextMetadata,ticket:await ticket({user:user.id,persona:input.persona,text:speech,tone:input.voiceEmotion||null,expires:Date.now()+300000},key)});

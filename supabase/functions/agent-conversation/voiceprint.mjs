@@ -33,6 +33,9 @@ export function sanitize(d){
  const n=x=>typeof x==='number'&&Number.isFinite(x)?Math.round(x*1000)/1000:null;
  return {status:d?.status==='ok'?'ok':'unavailable',speaker:SPEAKERS.includes(d?.speaker)?d.speaker:undefined,score:n(d?.score),samples:Number.isInteger(d?.samples)?d.samples:undefined,required:Number.isInteger(d?.required)?d.required:undefined,seconds:n(d?.seconds),deleted:Number.isInteger(d?.deleted)?d.deleted:undefined,code:typeof d?.code==='string'?d.code.slice(0,40):undefined};
 }
+// Only Chloe is processed: others, uncertain matches and an unreachable voiceprint service are dropped.
+// 'not_enrolled' still passes so voice keeps working until Chloe has registered.
+export function ignoredSpeaker(speaker){return ['other','uncertain','unavailable'].includes(speaker)}
 export function speakerOf(result){return result?.status==='ok'&&SPEAKERS.includes(result.speaker)?result.speaker:'unavailable'}
 
 // Signed, short-lived proof that ties the speaker result to exactly this transcript.
@@ -53,6 +56,6 @@ export function enrollmentReply(result){
  if(result.status==='invalid_audio')return '这段录音太短或格式不支持，请用正常语速说 5 到 10 秒再试。';
  if(result.status!=='ok')return result.code==='too_short'?'这段录音里有效说话时间太短，请连续说 5 到 10 秒再试。':'声纹服务暂时不可用，请稍后再试。';
  if(result.deleted!==undefined)return `已删除你的声纹（${result.deleted} 段样本特征），之后我不再按声音识别说话人。`;
- if(result.samples!==undefined&&result.required!==undefined)return result.samples>=result.required?`声纹已注册完成（${result.samples} 段）。之后语音提问时我会确认是不是你；别人说话时我只回答公开问题。`:`已记录第 ${result.samples} 段，还需要 ${result.required-result.samples} 段。换一句话再录一次即可。`;
+ if(result.samples!==undefined&&result.required!==undefined)return result.samples>=result.required?`声纹已注册完成（${result.samples} 段）。之后语音只处理你的声音，别人的声音我不转写、不回答、不记录。`:`已记录第 ${result.samples} 段，还需要 ${result.required-result.samples} 段。换一句话再录一次即可。`;
  return '声纹操作已完成。';
 }

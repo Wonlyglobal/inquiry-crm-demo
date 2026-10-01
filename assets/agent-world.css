@@ -122,3 +122,40 @@
 @media(max-width:1100px){#agent-world .room-left{grid-column:1 / -1;grid-row:2}}
 @media(max-width:650px){#agent-world .room-left{order:3;width:100%}#agent-world .advisor canvas[data-role]{height:220px}#agent-world .room-orb{height:300px}}
 @media (prefers-reduced-motion:reduce){#agent-world .advisor{transition:none}}
+
+
+/* ===== One-screen private room on desktop (2026-10-01): nothing below the fold, panels scroll inside. ===== */
+@media (min-width:1101px) and (min-height:600px){
+ #agent-world.in-private-room{height:var(--room-h,calc(100vh - 110px))}
+ #agent-world.in-private-room .aw-main{height:100%;display:flex;flex-direction:column;padding:12px 22px 12px}
+ #agent-world.in-private-room .aw-main>:not(#agent-private-room){display:none}
+ #agent-world #agent-private-room{flex:1;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;gap:8px;width:100%}
+ #agent-world #room-back{justify-self:start;padding:6px 14px}
+ #agent-world .room-layout{min-height:0;height:100%;align-items:stretch;gap:16px}
+ #agent-world .room-left{min-height:0;overflow:hidden}
+ #agent-world .room-left .room-live{flex:none;padding:12px;gap:8px}
+ #agent-world .room-left #room-timeline{flex:1;min-height:0;overflow:auto}
+ #agent-world .live-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+ #agent-world .live-metric{padding:7px 8px}
+ #agent-world .live-metric b{font-size:16px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #agent-world .live-metric span{font-size:10px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #agent-world .live-sources{flex-direction:row;flex-wrap:wrap;gap:6px 10px;font-size:12px}
+ #agent-world .live-sources li{gap:5px}
+ #agent-world .live-focus{gap:4px;font-size:12px}
+ #agent-world .live-focus li{padding:5px 8px}
+ #agent-world .live-focus li:nth-child(n+3){display:none}
+ #agent-world .live-note{display:none}
+ #agent-world .room-heading{min-height:0;height:100%;justify-content:center}
+ #agent-world .room-orb{flex:1 1 auto;min-height:180px;height:auto;max-height:560px;width:min(100%,720px)}
+ #agent-world #room-title{font-size:clamp(28px,4.2vh,44px);line-height:1.1}
+ #agent-world #room-purpose{margin:4px 0}
+ #agent-world #room-voice-status{min-height:0;margin:2px auto 0;font-size:14px;line-height:1.5}
+ #agent-world #room-content{align-self:stretch;max-height:none;height:100%;display:none;flex-direction:column}
+ #agent-world #agent-private-room[data-window=open] #room-content{display:flex}
+ #agent-world #agent-private-room #room-content .ai-panel{flex:1;height:auto;min-height:0;display:flex;flex-direction:column}
+ #agent-world #agent-private-room #room-content .ai-messages{flex:1;min-height:0}
+ #agent-world .question-window-body{max-height:none}
+ #agent-world .room-dock{margin:0}
+ #agent-world #room-compose{margin:0 auto;width:min(620px,100%)}
+ #agent-world #room-compose textarea{max-height:84px}
+}

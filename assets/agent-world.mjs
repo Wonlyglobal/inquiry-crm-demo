@@ -81,11 +81,13 @@ ctx.restore();}
  function renderLive(){
   const box=room.querySelector('#room-live');if(!box||!selected)return;let live=null;try{live=getLive?.(selected)}catch(err){console.warn('实时看板读取失败',err)}
   box.replaceChildren();const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n};
-  const head=el('div','live-head');head.append(el('strong',null,'实时看板'),el('span',null,live?.period||'看板周期未加载'));box.append(head);
+  const head=el('div','live-head');head.append(el('strong',null,'实时看板'),el('span',null,[live?.period,live?.compare].filter(Boolean).join(' · ')||'看板周期未加载'));if(live?.stale)head.append(el('i','pill warn','刷新失败'));box.append(head);
   if(!live||!live.ready){box.append(el('p','live-empty','CRM 数据尚未加载完成，稍后自动刷新。'));liveCallouts=[];return}
-  const grid=el('div','live-metrics');for(const m of live.metrics){const card=el('div','live-metric');card.append(el('b',null,m.value),el('span',null,m.label));grid.append(card)}box.append(grid);
-  const src=el('ul','live-sources');for(const s of live.sources){const li=el('li');li.append(el('span',null,s.name),el('i','pill '+s.state,s.text));src.append(li)}box.append(el('div','live-sub','数据连接'),src);
-  if(live.focus?.length){const list=el('ul','live-focus');for(const f of live.focus)list.append(el('li',null,f));box.append(el('div','live-sub','今日关注'),list)}
+  const grid=el('div','live-metrics');for(const m of live.metrics){const card=el('div','live-metric');card.append(el('span','live-label',m.label),el('b',null,m.value));
+   if(m.delta){const d=el('em','live-delta '+(m.delta.good===true?'good':m.delta.good===false?'bad':'flat'),m.delta.text);card.append(d)}
+   if(Array.isArray(m.spark)&&m.spark.some(v=>v>0)){const max=Math.max(...m.spark),w=60,h=16,pts=m.spark.map((v,i)=>`${(i*w/(m.spark.length-1)).toFixed(1)},${(h-1-(v/max)*(h-2)).toFixed(1)}`).join(' ');const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('class','live-spark');svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('aria-hidden','true');const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');pl.setAttribute('points',pts);svg.append(pl);card.append(svg)}
+   grid.append(card)}box.append(grid);
+  if(live.conclusion?.text){const con=el('p','live-conclusion '+(live.conclusion.tone==='warn'?'warn':'ok'));con.append(el('b',null,'结论'),document.createTextNode(live.conclusion.text));box.append(con)}
   box.append(el('p','live-note',live.note||''));
   liveCallouts=live.metrics.slice(0,3).map(m=>[m.code||'',m.label,m.value]);
  }
@@ -95,7 +97,7 @@ ctx.restore();}
   const lv=externalLevel??speechLevel(time);level+=(lv-level)*(1-Math.exp(-dt*18));
   paint(dt);if(selected&&!room.hidden&&(liveTimer+=dt)>15){liveTimer=0;renderLive()}}last=ts;raf=requestAnimationFrame(frame)}
  // The private room fits one screen: its height is the space left below the page header.
- function fitRoom(){const top=root.getBoundingClientRect().top+scrollY;let h=Math.max(560,innerHeight-top-14);root.style.setProperty('--room-h',h+'px');if(!root.classList.contains('in-private-room'))return;const extra=document.documentElement.scrollHeight-innerHeight;if(extra>0){h=Math.max(560,h-extra);root.style.setProperty('--room-h',h+'px')}}
+ function fitRoom(){const top=root.getBoundingClientRect().top+scrollY;let h=Math.max(340,innerHeight-top-14);root.style.setProperty('--room-h',h+'px');if(!root.classList.contains('in-private-room'))return;const extra=document.documentElement.scrollHeight-innerHeight;if(extra>0){h=Math.max(340,h-extra);root.style.setProperty('--room-h',h+'px')}}
  addEventListener('resize',fitRoom,{passive:true});fitRoom();
  const resize=new ResizeObserver(paint);resize.observe(host);paint();raf=requestAnimationFrame(frame);
  return {showResponse(){if(selected){room.dataset.settings='false';showWindow(true)}},closeWindow(){showWindow(false)},restoreComposer,setStatus(text){room.querySelector('#room-voice-status').textContent=text},setMode(mode){state.mode=mode;room.dataset.mode=mode},setLevel(value){externalLevel=Number.isFinite(value)?Math.max(0,Math.min(1,value)):null},refreshLive:renderLive,dispose(){cancelAnimationFrame(raf);resize.disconnect()}};

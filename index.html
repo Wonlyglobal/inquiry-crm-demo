@@ -1443,7 +1443,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=onescreen-20261001" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=insight-20261003" />
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
@@ -2501,7 +2501,7 @@
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261003-route1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
-      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=onescreen-20261001";
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=insight-20261003";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;
@@ -5003,19 +5003,46 @@
       }
       // Live board for the agent private room: computed from the dashboard data already loaded on this page.
       function worldLiveBoard(name){
-        const c=aiDataContext("近30天"),label=x=>x?.companies?.name||x?.title||x?.inquiry_no||"未命名询盘",wan=v=>v>=10000?`¥${(v/10000).toFixed(1)}万`:`¥${Math.round(v||0)}`;
-        const period=c.start&&c.end?`${c.start.toLocaleDateString("zh-CN")}—${c.end.toLocaleDateString("zh-CN")}`:"",topSource=(c.sources||[])[0],countries={};
-        for(const x of c.created||[]){const k=x.target_country||"未填写";countries[k]=(countries[k]||0)+1}
-        const topCountry=Object.entries(countries).sort((a,b)=>b[1]-a[1])[0];
-        const sources=[{name:"CRM 询盘与看板",state:dashboardHasSuccessfulLoad?(agentDataRefreshFailed?"warn":"ok"):"off",text:dashboardHasSuccessfulLoad?(agentDataRefreshFailed?"刷新失败":"已加载"):"未就绪"},
-          {name:"SEO / 社媒 / 物料",state:"off",text:"提问时读取"},{name:"公开情报",state:"off",text:"简报中查看"}];
-        const metrics=name==="Grace"?[{code:"NEW",label:"本期新增询盘",value:String((c.created||[]).length)},{code:"CHANNEL",label:"来源渠道数",value:String((c.sources||[]).length)},{code:"TOP SOURCE",label:"首位渠道",value:topSource?`${topSource.name} ${topSource.count}`:"—"},{code:"MARKET",label:"首位市场",value:topCountry?`${topCountry[0]} ${topCountry[1]}`:"—"}]
-          :name==="Brian"?[{code:"PIPELINE",label:"进行中有效商机",value:String((c.active||[]).length)},{code:"OVERDUE",label:"首响超时",value:String((c.overdue||[]).length)},{code:"RISK",label:"风险/逾期",value:String((c.risky||[]).length)},{code:"WON",label:"本期成交",value:String((c.won||[]).length)}]
-          :[{code:"REVENUE",label:"本期成交额",value:wan(c.totalCny)},{code:"WON",label:"成交单数",value:String((c.won||[]).length)},{code:"NEW",label:"新增询盘",value:String((c.created||[]).length)},{code:"RISK",label:"风险/逾期",value:String((c.risky||[]).length)}];
-        const focus=name==="Grace"?(c.sources||[]).slice(0,3).map(x=>`${x.name}：本期 ${x.count} 条询盘`)
-          :name==="Brian"?[...(c.overdue||[]).slice(0,2).map(x=>`首响超时：${label(x)}`),...(c.risky||[]).slice(0,2).map(x=>`风险/逾期：${label(x)}`)].slice(0,3)
-          :(c.salesStats||[]).filter(x=>x.amount>0).slice(0,3).map(x=>`${x.name}：成交 ${wan(x.amount)}，${x.won} 单`);
-        return {ready:dashboardHasSuccessfulLoad,period,sources,metrics,focus,note:`范围：${c.scope}；新增与成交按近 30 天统计，进行中与风险为当前状态。看板筛选同步生效，每 15 秒刷新。`};
+        const c=aiDataContext("近30天"),label=x=>x?.companies?.name||x?.title||x?.inquiry_no||"未命名询盘",wan=v=>v>=10000?`¥${(v/10000).toFixed(1)}万`:`¥${Math.round(v||0)}`,day=d=>`${d.getMonth()+1}/${d.getDate()}`;
+        const prev=c.previous||{created:[],won:[],assigned:[],fast:[]},span=(c.end-c.start+1)/6;
+        const spark=(list,key,val=()=>1)=>{const b=Array(6).fill(0);for(const x of list){const t=new Date(x[key]||x.created_at)-c.start;if(Number.isFinite(t))b[Math.min(5,Math.max(0,Math.floor(t/span)))]+=val(x)}return b};
+        const delta=(cur,old,goodUp=true,fmt=v=>String(v))=>{if(!old&&!cur)return {text:"与上期持平",dir:"flat",good:null};if(!old)return {text:`上期 0`,dir:"up",good:goodUp};const pctv=Math.round((cur-old)/old*100);return {text:pctv===0?`与上期持平 · 上期 ${fmt(old)}`:`${pctv>0?"↑":"↓"}${Math.abs(pctv)}% · 上期 ${fmt(old)}`,dir:pctv>0?"up":pctv<0?"down":"flat",good:pctv===0?null:(pctv>0)===goodUp}};
+        const rate=(a,b)=>b?Math.round(a/b*100):null,srcKey=x=>x.primary_source||x.source||"other",srcName=k=>sourceNames[k]||k;
+        const count=(list,fn)=>{const m={};for(const x of list){const k=fn(x);m[k]=(m[k]||0)+1}return m};
+        let metrics,conclusion;
+        if(name==="Grace"){
+          const cur=count(c.created,srcKey),old=count(prev.created,srcKey),keys=[...new Set([...Object.keys(cur),...Object.keys(old)])].map(k=>({k,cur:cur[k]||0,old:old[k]||0,d:(cur[k]||0)-(old[k]||0)}));
+          const top=keys.filter(x=>x.cur).sort((a,b)=>b.cur-a.cur)[0],judged=x=>x.validity&&x.validity!=="pending",vr=rate(c.created.filter(x=>x.validity==="valid").length,c.created.filter(judged).length),ovr=rate(prev.created.filter(x=>x.validity==="valid").length,prev.created.filter(judged).length);
+          const countries=count(c.created,x=>x.target_country||"未填写"),topCountry=Object.entries(countries).sort((a,b)=>b[1]-a[1])[0];
+          metrics=[{code:"NEW",label:"新增询盘",value:String(c.created.length),delta:delta(c.created.length,prev.created.length),spark:spark(c.created,"created_at")},
+            {code:"VALID",label:"有效率",value:vr==null?"—":vr+"%",delta:vr==null||ovr==null?null:{text:`${vr>=ovr?"↑":"↓"}${Math.abs(vr-ovr)}pt · 上期 ${ovr}%`,dir:vr>ovr?"up":vr<ovr?"down":"flat",good:vr===ovr?null:vr>ovr}},
+            {code:"TOP SOURCE",label:"首位渠道",value:top?`${srcName(top.k)} ${top.cur}`:"—",delta:top?delta(top.cur,top.old):null},
+            {code:"MARKET",label:"首位市场",value:topCountry?`${topCountry[0]} ${topCountry[1]}`:"—",delta:null}];
+          const drop=keys.filter(x=>x.d<0).sort((a,b)=>a.d-b.d)[0],gain=keys.filter(x=>x.d>0).sort((a,b)=>b.d-a.d)[0];
+          conclusion=!c.created.length?{tone:"warn",text:"近 30 天没有新增询盘，先确认官网表单、邮箱等渠道是否正常接收。"}
+            :drop&&(-drop.d>=2||drop.old&&-drop.d/drop.old>=.3)?{tone:"warn",text:`${srcName(drop.k)}比上期少 ${-drop.d} 条（${drop.cur} vs ${drop.old}），是下降最多的渠道，建议先检查该渠道的投放与落地页。`}
+            :gain?{tone:"ok",text:`增长主要来自${srcName(gain.k)}（+${gain.d} 条），可以考虑加大该渠道投入。`}
+            :{tone:"ok",text:"各渠道询盘与上期基本持平。"};
+        }else if(name==="Brian"){
+          const fr=rate(c.fast.length,c.assigned.length),ofr=rate((prev.fast||[]).length,(prev.assigned||[]).length),wonD=delta(c.won.length,prev.won.length);
+          metrics=[{code:"PIPELINE",label:"进行中商机",value:String(c.active.length),delta:null},
+            {code:"30MIN",label:"30分钟首响率",value:fr==null?"—":fr+"%",delta:fr==null||ofr==null?null:{text:`${fr>=ofr?"↑":"↓"}${Math.abs(fr-ofr)}pt · 上期 ${ofr}%`,dir:fr>ofr?"up":fr<ofr?"down":"flat",good:fr===ofr?null:fr>ofr}},
+            {code:"OVERDUE",label:"首响超时",value:String(c.overdue.length),delta:c.overdue.length?{text:"需立即处理",dir:"flat",good:false}:null},
+            {code:"WON",label:"本期成交",value:String(c.won.length),delta:wonD,spark:spark(c.won,"won_at")}];
+          const oldest=[...c.overdue].sort((a,b)=>new Date(a.assigned_at)-new Date(b.assigned_at))[0],late=c.risky.filter(x=>!c.overdue.includes(x));
+          conclusion=oldest?{tone:"warn",text:`「${label(oldest)}」首响已超时 ${Math.round((Date.now()-new Date(oldest.assigned_at))/3600000)} 小时，先回复它${c.overdue.length>1?`；另有 ${c.overdue.length-1} 条超时`:""}。`}
+            :late.length?{tone:"warn",text:`${late.length} 条商机已过跟进或预计成交日，最早的是「${label(late[0])}」，今天优先推进。`}
+            :{tone:"ok",text:`首响和跟进都在节奏内，可以集中推进 ${c.active.length} 条进行中商机。`};
+        }else{
+          const top=(c.salesStats||[]).find(x=>x.amount>0);
+          metrics=[{code:"REVENUE",label:"成交额",value:wan(c.totalCny),delta:delta(c.totalCny,c.comparison.totalCny,true,wan),spark:spark(c.won,"won_at",x=>sumWonCny([x]))},
+            {code:"WON",label:"成交单数",value:String(c.won.length),delta:delta(c.won.length,prev.won.length)},
+            {code:"NEW",label:"新增询盘",value:String(c.created.length),delta:delta(c.created.length,prev.created.length),spark:spark(c.created,"created_at")},
+            {code:"RISK",label:"风险商机",value:String(c.risky.length),delta:c.risky.length?{text:`占进行中 ${rate(c.risky.length,c.active.length)??0}%`,dir:"flat",good:false}:null}];
+          conclusion=c.totalCny>0?{tone:delta(c.totalCny,c.comparison.totalCny).good===false?"warn":"ok",text:`成交额 ${wan(c.totalCny)}，较上期${c.comparison.totalCny?(c.totalCny>=c.comparison.totalCny?"增长":"下降")+" "+Math.abs(Math.round((c.totalCny-c.comparison.totalCny)/c.comparison.totalCny*100))+"%":"从 0 起步"}${top?`；贡献最大的是 ${top.name}（${wan(top.amount)}）`:""}${c.risky.length?`。另有 ${c.risky.length} 条商机逾期需关注`:""}。`}
+            :{tone:"warn",text:`近 30 天没有成交；进行中 ${c.active.length} 条${c.risky.length?`，其中 ${c.risky.length} 条已逾期`:""}，建议优先推进临近成交的商机。`};
+        }
+        return {ready:dashboardHasSuccessfulLoad,stale:agentDataRefreshFailed,period:c.start&&c.end?`近30天 ${day(c.start)}—${day(c.end)}`:"",compare:c.previousStart?`对比 ${day(c.previousStart)}—${day(c.previousEnd)}`:"",metrics,conclusion,note:`范围：${c.scope}；新增与成交按近 30 天统计并对比前 30 天，进行中与风险为当前状态。每 15 秒刷新。`};
       }
       function enterAgentWorld(){
         if(window.CRM_EMBED||!canUseAgentWorld(profile,currentAuthUser))return false;
@@ -5560,7 +5587,7 @@
         const sources=[...new Set(created.map(x=>x.primary_source||x.source))].map(key=>({name:sourceNames[key]||key,count:created.filter(x=>(x.primary_source||x.source)===key).length})).sort((a,b)=>b.count-a.count);
         const previousCreated=scoped.filter(x=>inRange(x.created_at,previousStart,previousEnd)),previousWon=scoped.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,previousStart,previousEnd)),previousClosed=previousCreated.filter(x=>["won","lost"].includes(x.status)),previousAssigned=commercial.filter(x=>x.assigned_at&&inRange(x.assigned_at,previousStart,previousEnd)),previousFast=previousAssigned.filter(x=>x.first_valid_contact_at&&new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000),previousTotalCny=sumWonCny(previousWon);
         const active=commercial.filter(x=>!["won","lost"].includes(x.status));
-        return {type,start,end,previousStart,previousEnd,created,active,won,closed,assigned,responded,fast,overdue,totalCny,usd,salesStats,stages,risky,sources,followups,history,comparison:{created:previousCreated.length,won:previousWon.length,closed:previousClosed.length,assigned:previousAssigned.length,fast:previousFast.length,totalCny:previousTotalCny},scope:[team&&`团队:${team}`,askCountry&&`国家:${askCountry}`,sales&&`成员:${people.find(p=>p.id===sales)?.full_name||namedMember?.full_name}`,source&&`来源:${sourceNames[source]||source}`,country&&`国家:${country}`,product&&`品类:${product}`].filter(Boolean).join("；")||"当前权限内全部数据"};
+        return {type,start,end,previousStart,previousEnd,created,active,won,closed,assigned,responded,fast,overdue,totalCny,usd,salesStats,stages,risky,sources,followups,history,previous:{created:previousCreated,won:previousWon,assigned:previousAssigned,fast:previousFast},comparison:{created:previousCreated.length,won:previousWon.length,closed:previousClosed.length,assigned:previousAssigned.length,fast:previousFast.length,totalCny:previousTotalCny},scope:[team&&`团队:${team}`,askCountry&&`国家:${askCountry}`,sales&&`成员:${people.find(p=>p.id===sales)?.full_name||namedMember?.full_name}`,source&&`来源:${sourceNames[source]||source}`,country&&`国家:${country}`,product&&`品类:${product}`].filter(Boolean).join("；")||"当前权限内全部数据"};
       }
       function aiAnswer(question){
         const c=aiDataContext(question),period=`${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`,q=question.toLowerCase(),moneyLine=`${money(c.totalCny,'CNY')}${c.usd?` / ${money(c.totalCny/c.usd,'USD')}`:" / 美元汇率待更新"}`;

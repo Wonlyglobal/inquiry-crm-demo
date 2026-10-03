@@ -159,3 +159,4 @@
  #agent-world #room-compose{margin:0 auto;width:min(620px,100%)}
  #agent-world #room-compose textarea{max-height:84px}
 }
+@media (min-width:1101px) and (min-height:600px){#agent-world .room-layout{grid-template-rows:minmax(0,1fr)}#agent-world .room-left{height:100%}}

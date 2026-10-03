@@ -33,7 +33,7 @@ const MARKETS=[[/沙特/,['SA']],[/阿联酋|迪拜/,['AE']],[/中东|海湾/,['
 export function compareIntent(question){
  const q=String(question||'').slice(0,300);
  const companies=mentionedCompanies(q);
- const versus=/对比|比较|相比|比一比|vs\.?|差距|优势|劣势|强弱|谁强|哪个好|有什么区别/i.test(q);
+ const versus=/对比|比较|相比|比一比|vs\.?|差距|优势|劣势|强弱|谁强|哪个好|有什么区别|区别在|不同在|强在|弱在|好在|差在/i.test(q)||(companies.length>0&&/比.{1,24}(强|好|差|弱|贵|便宜)/.test(q));
  const ours=/王力|我们|我司|wonly/i.test(q);
  if(!versus||!(ours||companies.length||/竞品|对手|同行/.test(q)))return null;
  const categories=[...new Set(CATEGORY_WORDS.filter(([re])=>re.test(q)).map(([,c])=>c))];

@@ -12,10 +12,25 @@ test('live answer is computed locally, says so, and opens the matching CRM page 
  assert.match(crmLiveAnswer('销售额最高的是谁',{compute:()=>'x',ready:false}).answer,/还在加载/);
  assert.equal(crmLiveAnswer('怎么提升销售额',{compute:()=>'x',ready:true}),null);
  const conv=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');assert.match(conv,/crmAnswer\?\.\(question\)/);assert.match(conv,/action:'local-ticket'/);
- const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/crmAnswer:question=>crmLiveAnswer\(question,\{compute:aiAnswer,ready:dashboardHasSuccessfulLoad\}\)/);
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/crmAnswer:question=>crmLiveAnswer\(question,\{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad\}\),crmChart:aiChart/);
 });
 import {spokenNames,speechBody} from '../supabase/functions/agent-conversation/bailian.mjs';
 test('TTS says Chloe the way she says it; on-screen text unchanged',()=>{
  assert.equal(spokenNames('好的，Chloe，我来帮你看看。'),'好的，克洛伊，我来帮你看看。');assert.equal(spokenNames("I'm here, Chloe."),"I'm here, Kloey.");
  assert.match(JSON.stringify(speechBody('你好 Chloe','Cherry')),/克洛伊/);assert.equal(spokenNames('Chloeee'),'Chloeee');
+});
+
+test('every CRM data answer names its source and carries a chart window first',async()=>{
+ const spec={title:'业务员成交额排名',bars:[{label:'张三（1 单）',value:100,text:'¥100'}],sources:[{label:'CRM 实时数据（询盘与成交记录）'}]};
+ const r=crmLiveAnswer('销售额最高的是谁',{compute:()=>'1. 张三：¥100',chart:()=>spec,metric:()=>'sales',ready:true});
+ assert.match(r.answer,/来源：CRM 实时数据/);assert.equal(r.windows[0].type,'data_chart');assert.equal(r.windows[0].metric,'sales');assert.equal(r.windows[1].type,'crm_view');
+ const broken=crmLiveAnswer('销售额最高的是谁',{compute:()=>'x',chart:()=>{throw Error('x')},ready:true});assert.equal(broken.windows[0].type,'crm_view');
+ const {windowsFrom,storable}=await import('../assets/agent-timeline.mjs');const [w]=windowsFrom({actions:r.windows});assert.equal(w.kind,'chart');assert.equal(w.source,'crm');
+ const {timelineWindow,expandTimeline}=await import('../supabase/functions/agent-conversation/request-timeline.mjs');
+ const stored=timelineWindow(storable(w));assert.deepEqual(stored,{kind:'chart',source:'crm',metric:'sales',question:'销售额最高的是谁',label:'业务员成交额排名'});
+ assert.equal(JSON.stringify(stored).includes('张三'),false,'names and amounts are never stored');
+ assert.equal(timelineWindow({kind:'chart',source:'crm',metric:'x',question:'a'}),null);
+ assert.equal(timelineWindow({kind:'chart',source:'crm',metric:'sales',question:'联系 a@b.com'}),null);
+ assert.equal(expandTimeline([{windows:[stored]}])[0].windows.length,1);
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/function aiChart\(question\)/);assert.match(html,/CRM 实时数据（询盘与成交记录）/);
 });

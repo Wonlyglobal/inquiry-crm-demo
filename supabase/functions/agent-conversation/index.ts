@@ -10,6 +10,7 @@ import {briefIntent,briefAnswer,priceIntent,priceAnswer,priceChartActions} from 
 import {crmStatsChart,intelChart} from './data-charts.mjs';
 import {specIntent,specAnswer} from './catalog-spec.mjs';
 import {relatedMaterials,relatedText} from './product-materials.mjs';
+import {materialProgress,progressAnswer,progressChart,progressIntent} from './material-progress.mjs';
 import {runWatch,translateBody,readTranslations,intelIntent,intelAnswer} from './competitor-watch.mjs';
 import {PUBLIC_EVIDENCE} from './public-research.mjs';
 import {validateTimelineEntry,expandTimeline,searchQuery} from './request-timeline.mjs';
@@ -102,6 +103,11 @@ Deno.serve(async req=>{
    return json({url:'https://file.foreverdoodle.com:8088/api/integrations/crm/file',body,proof:await signMaterialFileRequest({body,actor:user.id,privateJwk}),expires_in:30});
   }
   const materialConfig={actor:user.id,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET')};
+  // Owner 2026-10-03: material understanding progress for the Grace page (counts only).
+  if(input.action==='material-progress'){
+   const data=await loadFullMaterials({...materialConfig,question:'产品知识覆盖'}).catch(()=>({status:'unavailable',assets:[]}));
+   return json({progress:materialProgress(data)});
+  }
   if(input.action==='catalog-pages'){
    const svc=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
    let req;try{req=catalogPagesRequest(input,await loadCatalog(svc))}catch(e){return json({error:e instanceof Error?e.message:'画册无效'},400)}
@@ -184,6 +190,8 @@ Deno.serve(async req=>{
    if(memoryCmd){const answer=await runMemoryCommand(memoryCmd,{client,persona:input.persona});const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_memory_command',kind:memoryCmd.kind,persona:input.persona,provider:'internal'},reason:'长期偏好命令，内容由数据库函数单独审计'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'user-memory',context:{route:'memory'},ticket:await ticket({user:user.id,persona:input.persona,text:memoryCmd.kind==='remember'?'好，我记住了。':memoryCmd.kind==='list'?'我记住的偏好都列在窗口里了。':memoryCmd.kind==='forget'?'好的，已经忘记了。':'这条我不能记住，原因写在窗口里了。',expires:Date.now()+300000},key)});}
    const fbIntent=guest?null:feedbackSummaryIntent(input.question);
    if(fbIntent){const {data,error:fbError}=await client.rpc('agent_feedback_summary',{p_days:fbIntent.days});const answer=fbError?'反馈统计读取失败：'+String(fbError.message||'').slice(0,80):feedbackSummaryAnswer(data);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_feedback_summary',days:fbIntent.days,persona:input.persona,provider:'internal'},reason:'查看回答反馈统计，系统内计算'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'answer-feedback',context:{route:'feedback'},ticket:await ticket({user:user.id,persona:input.persona,text:'反馈统计放在窗口里了，我也写了一条改进建议。',expires:Date.now()+300000},key)});}
+   if(!guest&&progressIntent(input.question)){const p=materialProgress(await loadFullMaterials({...materialConfig,question:'产品知识覆盖'}).catch(()=>({status:'unavailable',assets:[]})));const answer=progressAnswer(p);const chart=progressChart(p);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'material_progress',persona:input.persona,provider:'internal',status:p.status},reason:'查看物料理解进度（只计数）'});if(error)return json({error:'调用审计失败'},503);
+    return json({answer,actions:chart?[chart]:undefined,provider:'internal',model:'material-progress',context:{route:'materials'},ticket:await ticket({user:user.id,persona:input.persona,text:p.status==='available'?`还没有全部理解。${p.documents.total} 份文档里，读到文字的有 ${p.documents.ready+p.documents.partial} 份，详细进度放在窗口里了。`:'这次没连上物料库，进度稍后再看。',expires:Date.now()+300000},key)});}
    const intel=guest?null:intelIntent(input.question);
    if(intel){let ran=null;if(intel.refresh&&user.id===MATERIAL_ACTOR){const svc=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});const {data:recent}=await svc.from('competitor_watch_runs').select('id').gte('started_at',new Date(Date.now()-600000).toISOString()).limit(1);if(!recent?.length)ran=await competitorWatchPass(svc,'owner',{companies:12,evidenceChecks:20});}
     const {data:rep,error:repError}=await client.rpc('competitor_intel_report',{p_days:14,p_company:null});

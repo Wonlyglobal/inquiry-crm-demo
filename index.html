@@ -1443,7 +1443,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=insight-20261003" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=progress-20261003" />
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
@@ -2501,7 +2501,7 @@
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261003-route1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
-      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=insight-20261003";
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=progress-20261003";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;
@@ -5002,6 +5002,9 @@
         $('#ai-assistant-panel').classList.add('hidden');worldPersona=null;
       }
       // Live board for the agent private room: computed from the dashboard data already loaded on this page.
+      // 资料理解进度 (2026-10-03): counts from the material library, refreshed at most every 5 minutes while the board is shown.
+      let materialProgressState=null,materialProgressAt=0,materialProgressBusy=false;
+      async function refreshMaterialProgress(){if(materialProgressBusy||Date.now()-materialProgressAt<300000)return;materialProgressBusy=true;try{const {data,error}=await supabase.functions.invoke('agent-conversation',{body:{action:'material-progress'}});materialProgressState=!error&&data?.progress?data.progress:{status:'unavailable'};}catch{materialProgressState={status:'unavailable'}}finally{materialProgressAt=Date.now();materialProgressBusy=false}}
       function worldLiveBoard(name){
         const c=aiDataContext("近30天"),label=x=>x?.companies?.name||x?.title||x?.inquiry_no||"未命名询盘",wan=v=>v>=10000?`¥${(v/10000).toFixed(1)}万`:`¥${Math.round(v||0)}`,day=d=>`${d.getMonth()+1}/${d.getDate()}`;
         const prev=c.previous||{created:[],won:[],assigned:[],fast:[]},span=(c.end-c.start+1)/6;
@@ -5042,7 +5045,8 @@
           conclusion=c.totalCny>0?{tone:delta(c.totalCny,c.comparison.totalCny).good===false?"warn":"ok",text:`成交额 ${wan(c.totalCny)}，较上期${c.comparison.totalCny?(c.totalCny>=c.comparison.totalCny?"增长":"下降")+" "+Math.abs(Math.round((c.totalCny-c.comparison.totalCny)/c.comparison.totalCny*100))+"%":"从 0 起步"}${top?`；贡献最大的是 ${top.name}（${wan(top.amount)}）`:""}${c.risky.length?`。另有 ${c.risky.length} 条商机逾期需关注`:""}。`}
             :{tone:"warn",text:`近 30 天没有成交；进行中 ${c.active.length} 条${c.risky.length?`，其中 ${c.risky.length} 条已逾期`:""}，建议优先推进临近成交的商机。`};
         }
-        return {ready:dashboardHasSuccessfulLoad,stale:agentDataRefreshFailed,period:c.start&&c.end?`近30天 ${day(c.start)}—${day(c.end)}`:"",compare:c.previousStart?`对比 ${day(c.previousStart)}—${day(c.previousEnd)}`:"",metrics,conclusion,note:`范围：${c.scope}；新增与成交按近 30 天统计并对比前 30 天，进行中与风险为当前状态。每 15 秒刷新。`};
+        if(name==="Grace"&&typeof refreshMaterialProgress==="function")refreshMaterialProgress();
+        return {...(name==="Grace"?{progress:typeof materialProgressState==="undefined"?null:materialProgressState}:{}),ready:dashboardHasSuccessfulLoad,stale:agentDataRefreshFailed,period:c.start&&c.end?`近30天 ${day(c.start)}—${day(c.end)}`:"",compare:c.previousStart?`对比 ${day(c.previousStart)}—${day(c.previousEnd)}`:"",metrics,conclusion,note:`范围：${c.scope}；新增与成交按近 30 天统计并对比前 30 天，进行中与风险为当前状态。每 15 秒刷新。`};
       }
       function enterAgentWorld(){
         if(window.CRM_EMBED||!canUseAgentWorld(profile,currentAuthUser))return false;

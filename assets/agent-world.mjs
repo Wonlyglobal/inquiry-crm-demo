@@ -1,3 +1,4 @@
+import {progressBlock} from './agent-material-progress.mjs?v=20261003-progress';
 import {loadHologram,createHologram,drawPedestal,drawRoomHud,createRain,speechLevel} from './agent-hologram.mjs?v=hologram-20261001';
 export function canUseAgentWorld(profile,user){
  return Boolean(profile?.active && profile.role==='owner' && profile.id==='c43bd3c2-6e3a-4228-99c7-dc95f33643f2' && user?.id===profile.id && String(user?.email||'').toLowerCase()==='chloelee@wonlyglobal.com');
@@ -89,6 +90,7 @@ ctx.restore();}
    grid.append(card)}box.append(grid);
   if(live.conclusion?.text){const con=el('p','live-conclusion '+(live.conclusion.tone==='warn'?'warn':'ok'));con.append(el('b',null,'结论'),document.createTextNode(live.conclusion.text));box.append(con)}
   box.append(el('p','live-note',live.note||''));
+  if(selected==='Grace'&&'progress' in live)box.append(progressBlock(live.progress));
   liveCallouts=live.metrics.slice(0,3).map(m=>[m.code||'',m.label,m.value]);
  }
  function paint(dt=0){if(typeof dt!=='number')dt=0;if(!isAllowed()||host.classList.contains('hidden'))return;canvases.filter(c=>c.clientWidth&&c.clientHeight).forEach(c=>draw(c,Number(c.dataset.role),dt))}

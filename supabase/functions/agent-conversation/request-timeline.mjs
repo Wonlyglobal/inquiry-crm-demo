@@ -23,7 +23,7 @@ export function timelineWindow(w){
    const sources=(Array.isArray(w.sources)?w.sources:[]).map(s=>({title:text(s?.title,200),url:safeUrl(s?.url)})).filter(s=>s.url).slice(0,8);
    return {kind:'search',query,sources};
   }
-  case 'chart':if(w.source==='crm'){const question=text(w.question,200);return ['sales','risk','stages','sources','summary'].includes(w.metric)&&question&&!SENSITIVE.test(question)?{kind:'chart',source:'crm',metric:w.metric,question,label:text(w.label,60)}:null}
+  case 'chart':if(w.source==='crm'){const question=text(w.question,200);return ['sales','risk','stages','sources','summary','quoted'].includes(w.metric)&&question&&!SENSITIVE.test(question)?{kind:'chart',source:'crm',metric:w.metric,question,label:text(w.label,60)}:null}
    return /^[A-Z]{2}$/.test(w.market||'')&&CATEGORIES[w.category]?{kind:'chart',market:w.market,category:w.category,companies:(Array.isArray(w.companies)?w.companies:[]).filter(c=>EVIDENCE_COMPANIES.has(c)).slice(0,6),label:text(w.label,60)}:null;
   case 'material':return UUID.test(w.id||'')?{kind:'material',id:w.id,name:text(w.name,120)}:null;
   default:return null;

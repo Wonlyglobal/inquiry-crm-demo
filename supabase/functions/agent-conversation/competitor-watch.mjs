@@ -121,6 +121,7 @@ export function intelIntent(question){
  const q=String(question||'');
  if(/刷新|更新|重新巡检|马上查/.test(q)&&/竞品|情报|对手/.test(q))return {refresh:true};
  const rival=/竞品|竞争对手|对手|同行/.test(q);
+ if(rival&&/youtube|视频|频道|油管/i.test(q)&&/最近|最新|发了|更新|动态|有什么|哪些/.test(q))return {refresh:false};
  if(rival&&MARKETING_Q.test(q))return {refresh:false,focus:'marketing'};
  return /(竞品|竞争对手|对手|同行).{0,10}(动态|新闻|最新|情报|消息|发布|变化|汇报)|(竞品|竞争)情报|情报汇报|汇报.{0,4}竞品/.test(q)?{refresh:false}:null;
 }

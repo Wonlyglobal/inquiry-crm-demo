@@ -29,7 +29,7 @@ test('agent world renders precomputed particle holograms with a 2D fallback',()=
  assert.match(world,/if\(!v\)\{drawOrb\(c,id\);return\}/);
  assert.match(world,/querySelectorAll\('canvas\[data-role\]'\)/);
  assert.match(holo,/getContext\('webgl2'/);
- assert.match(html,/assets\/agent-world\.mjs\?v=onescreen-20261003/);
+ assert.match(html,/assets\/agent-world\.mjs\?v=insight-20261003/);
 });
 test('private room shows a live board from page data and Grace opens into voice only after a real click',()=>{
  assert.match(world,/id="room-live"/);

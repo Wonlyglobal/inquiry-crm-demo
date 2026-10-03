@@ -29,7 +29,7 @@ test('agent world renders precomputed particle holograms with a 2D fallback',()=
  assert.match(world,/if\(!v\)\{drawOrb\(c,id\);return\}/);
  assert.match(world,/querySelectorAll\('canvas\[data-role\]'\)/);
  assert.match(holo,/getContext\('webgl2'/);
- assert.match(html,/assets\/agent-world\.mjs\?v=onescreen-20261001/);
+ assert.match(html,/assets\/agent-world\.mjs\?v=onescreen-20261003/);
 });
 test('private room shows a live board from page data and Grace opens into voice only after a real click',()=>{
  assert.match(world,/id="room-live"/);
@@ -41,7 +41,15 @@ test('private room shows a live board from page data and Grace opens into voice 
 });
 
 test('private room fits one desktop screen with panels scrolling inside',()=>{
- assert.match(world,/function fitRoom\(\)\{const top=root\.getBoundingClientRect\(\)\.top\+scrollY;let h=Math\.max\(460,innerHeight-top-14\);root\.style\.setProperty\('--room-h'/);
+ assert.match(world,/function fitRoom\(\)\{const top=root\.getBoundingClientRect\(\)\.top\+scrollY;let h=Math\.max\(340,innerHeight-top-14\);root\.style\.setProperty\('--room-h'/);
  assert.match(css,/#agent-world\.in-private-room\{height:var\(--room-h/);
  assert.match(css,/#agent-world \.room-left #room-timeline\{flex:1;min-height:0;overflow:auto\}/);
+});
+
+test('one-screen room also covers mid-width windows and short scaled laptop screens',()=>{
+ assert.ok(!css.includes('(min-width:1101px) and (min-height:600px)'));
+ assert.match(css,/@media \(min-width:821px\) and \(min-height:420px\)\{/);
+ assert.match(css,/@media \(min-width:821px\) and \(max-width:1100px\) and \(min-height:420px\)\{[^}]*grid-template-columns:minmax\(240px,300px\) minmax\(0,1fr\)/);
+ assert.match(css,/@media \(min-width:821px\) and \(min-height:420px\) and \(max-height:680px\)\{/);
+ assert.match(css,/\.room-left #room-timeline\{min-height:min\(140px,45%\)\}/);
 });

@@ -15,8 +15,8 @@ importers:
         specifier: 1.7.6
         version: 1.7.6
       mailparser:
-        specifier: 3.9.20
-        version: 3.9.20
+        specifier: 3.9.32
+        version: 3.9.32
       nodemailer:
         specifier: 9.1.1
         version: 9.1.1
@@ -65,8 +65,8 @@ packages:
   '@zone-eu/mailsplit@5.4.15':
     resolution: {integrity: sha512-c7ZpxauvF4AEkDJlKDYO7iMUtMuqJMBnDWNff1cyx+d7zaBVR3iFEmXhNHOVoMmVyVF3pTZLsLIJsEFKDldOAA==}
 
-  '@zone-eu/mailsplit@5.4.16':
-    resolution: {integrity: sha512-zQ9iXvlT3Wi/hazeC1MdI4rQc1UJwJ6IQ6QzSZ5KDxLZZWQSazWLOzImLFluXadKShJ9WJvI1xH+AyVS8b9azg==}
+  '@zone-eu/mailsplit@5.4.19':
+    resolution: {integrity: sha512-nDWzw+X3tqfwd7DpDThAjg3KqtrNA6bG2gkrf6m2j1JBaGyyKAZzu1TguzB4GEco+HYpXAbXZ7kbl4Sn8H1vXw==}
 
   atomic-sleep@1.0.0:
     resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
@@ -93,8 +93,8 @@ packages:
     resolution: {integrity: sha512-EuJWwlHPZ1LbADuKTClvHtwbaFn4rOD+dRAbWysqEOXRc2Uui0hJInNJrsdH0c+OhJA4nrCBdSkW4DD5YxAo6A==}
     engines: {node: '>=8.10.0'}
 
-  encoding-japanese@2.3.0:
-    resolution: {integrity: sha512-eQyh1vzHz13DUkZcJO+0IOAoKXRQwKV5IBffeuYsWZyRLGiSzfzXObCqWvqFXdX0UU8qOk+lBXbkUhMCpdJe4Q==}
+  encoding-japanese@2.4.0:
+    resolution: {integrity: sha512-PE0KjlsDy9JSsoU4C2Q8NXb1kC4c+bZRac9ZvHXUE4q1Ht63gScKMdEy9jst9+Fi3M4eDkqzkEhBZvix4blP2A==}
     engines: {node: '>=18.0.0'}
 
   entities@4.5.0:
@@ -133,20 +133,31 @@ packages:
   libbase64@1.3.0:
     resolution: {integrity: sha512-GgOXd0Eo6phYgh0DJtjQ2tO8dc0IVINtZJeARPeiIJqge+HdsWSuaDTe8ztQ7j/cONByDZ3zeB325AHiv5O0dg==}
 
+  libbase64@1.3.1:
+    resolution: {integrity: sha512-1b9LXEjEtXj35YKOR9RqNKBootlb37qbIzmqiw4MsP52cjOsfR6i/AYU1Y8qN4kV2TJQmLJ5aiXn45qI6h+Szw==}
+
   libmime@5.4.2:
     resolution: {integrity: sha512-+IQnCOdPiufGBkOii+Ze8F7iniyBzOwvWDbn1DyExBpc9pT2B3IEMQi7GUc/PpqhNUh/sr1SG9UXDITQoR0VIA==}
 
-  libmime@5.4.3:
-    resolution: {integrity: sha512-di9BoDabBUMqjeD/wGj+hHpSgdqAph5ui7w6OdY6NpzU6O6VFLQsMOg9tqCjm/zf9OHzAM9EZxSOF7uIb8O8Hw==}
+  libmime@5.4.6:
+    resolution: {integrity: sha512-Cgx1vHd76GTwDaLNsl0K44CjNFfhkX/1bMcoruoWr8Ugcl0/zMw7x/8NpZERIOcpGyzlQo10tOEw9goGsv2Wlg==}
 
   libqp@2.1.1:
     resolution: {integrity: sha512-0Wd+GPz1O134cP62YU2GTOPNA7Qgl09XwCqM5zpBv87ERCXdfDtyKXvV7c9U22yWJh44QZqBocFnXN11K96qow==}
 
+  libqp@2.1.2:
+    resolution: {integrity: sha512-rp+U80tl9Os4K7GnVbPzPRmghPu6eqB8rcF+ontvNAnoga0JhMFG/bkTD/reC8yoznKMgOc5/ttZHJasiWeFPw==}
+
   linkify-it@5.0.2:
     resolution: {integrity: sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q==}
 
-  mailparser@3.9.20:
-    resolution: {integrity: sha512-PZ9RD6B7SkmyQ9rj8JvYNS18rL6pWoNkSw9KGVuJQrrdouFxFIB05ugnR3ubInlnjLXV3KHXhGyz8MlTz1VGzw==}
+  mailparser@3.9.32:
+    resolution: {integrity: sha512-Ui9+Ln9ao8Smghk6SB3nAujV1AgWbjJVK0sWtaMFKBz7UpRIZi7XuCKls6EdY95hLkjBaaPziyYCyKHh/zoK8A==}
+    engines: {node: '>=20.0.0'}
+
+  nodemailer@10.0.13:
+    resolution: {integrity: sha512-SzG86OlvcW/NNhUFC6uROMwRTL4n7MswfQqC/T8mhkmnY1YVa23zUEMYi4ijSeXSl9GLz9ZeTJDUatEDuY5FeQ==}
+    engines: {node: '>=20.0.0'}
 
   nodemailer@9.1.1:
     resolution: {integrity: sha512-izw9mVKFix6YSnC9eLgV6g1opl9DUlRio9ZNcq+Wu9Ujn2UwF+8Nl0B8nz22kEC+CTZCvinkxwJ0DeFbb6NwcQ==}
@@ -317,11 +328,11 @@ snapshots:
       libmime: 5.4.2
       libqp: 2.1.1
 
-  '@zone-eu/mailsplit@5.4.16':
+  '@zone-eu/mailsplit@5.4.19':
     dependencies:
-      libbase64: 1.3.0
-      libmime: 5.4.3
-      libqp: 2.1.1
+      libbase64: 1.3.1
+      libmime: 5.4.6
+      libqp: 2.1.2
 
   atomic-sleep@1.0.0: {}
 
@@ -347,7 +358,7 @@ snapshots:
 
   encoding-japanese@2.2.0: {}
 
-  encoding-japanese@2.3.0: {}
+  encoding-japanese@2.4.0: {}
 
   entities@4.5.0: {}
 
@@ -391,6 +402,8 @@ snapshots:
 
   libbase64@1.3.0: {}
 
+  libbase64@1.3.1: {}
+
   libmime@5.4.2:
     dependencies:
       encoding-japanese: 2.2.0
@@ -398,31 +411,35 @@ snapshots:
       libbase64: 1.3.0
       libqp: 2.1.1
 
-  libmime@5.4.3:
+  libmime@5.4.6:
     dependencies:
-      encoding-japanese: 2.3.0
+      encoding-japanese: 2.4.0
       iconv-lite: 0.7.3
-      libbase64: 1.3.0
-      libqp: 2.1.1
+      libbase64: 1.3.1
+      libqp: 2.1.2
 
   libqp@2.1.1: {}
+
+  libqp@2.1.2: {}
 
   linkify-it@5.0.2:
     dependencies:
       uc.micro: 2.1.0
 
-  mailparser@3.9.20:
+  mailparser@3.9.32:
     dependencies:
-      '@zone-eu/mailsplit': 5.4.16
-      encoding-japanese: 2.3.0
+      '@zone-eu/mailsplit': 5.4.19
+      encoding-japanese: 2.4.0
       he: 1.2.0
       html-to-text: 10.0.1
       iconv-lite: 0.7.3
-      libmime: 5.4.3
+      libmime: 5.4.6
       linkify-it: 5.0.2
-      nodemailer: 9.1.1
+      nodemailer: 10.0.13
       punycode.js: 2.3.1
       tlds: 1.261.0
+
+  nodemailer@10.0.13: {}
 
   nodemailer@9.1.1: {}
 

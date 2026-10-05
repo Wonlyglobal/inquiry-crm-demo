@@ -8,7 +8,7 @@ export function progressRows(p){
  const rows=[];const d=p.documents;
  rows.push({label:'文档/图片',total:d.total,done:d.ready+d.partial,pct:pct(d.ready+d.partial,d.total),segs:SEG.map(([k,l,c])=>({k,label:l,cls:c,n:d[k]||0})).filter(s=>s.n),detail:`${d.total} 份，读到文字 ${d.ready+d.partial}（完整 ${d.ready}，部分 ${d.partial}），排队 ${d.queued+d.processing}，失败 ${d.failed}，不支持 ${d.not_indexed}`});
  if(p.videos){const v=p.videos;rows.push({label:'视频',total:v.total,done:v.ready+v.partial,pct:pct(v.ready+v.partial,v.total),segs:SEG.map(([k,l,c])=>({k,label:l,cls:c,n:v[k]||0})).filter(s=>s.n),detail:`${v.total} 条，采样解析完成 ${v.ready}，部分 ${v.partial}，排队 ${v.queued+v.processing}，失败 ${v.failed}`})}
- else rows.push({label:'视频',pending:true,detail:'后台逐条采样解析中；总进度待物料服务器接口升级后显示'});
+ else rows.push({label:'视频',pending:true,detail:'视频解析进度未知；当前接口未提供统计，无法确认后台是否正在运行'});
  if(p.products){const q=p.products,t=q.processed+q.processing+q.partial+q.waiting;rows.push({label:'产品提取',total:t,done:q.processed+q.partial,pct:pct(q.processed+q.partial,t),segs:[['processed','完成','mp-ready'],['partial','有缺口','mp-partial'],['processing','进行中','mp-busy'],['waiting','排队','mp-queue']].map(([k,l,c])=>({k,label:l,cls:c,n:q[k]||0})).filter(s=>s.n),detail:`产品资料 ${t} 份：完成 ${q.processed}，有缺口 ${q.partial}，进行中 ${q.processing}，排队 ${q.waiting}；暂缓 ${q.deferred}`})}
  else rows.push({label:'产品提取',pending:true,detail:'未上线：需在公司内网部署物料服务器的产品提取'});
  return {state:'ok',rows,at:p.read_at};

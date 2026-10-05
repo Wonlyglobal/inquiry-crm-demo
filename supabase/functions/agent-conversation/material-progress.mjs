@@ -20,7 +20,7 @@ export function progressAnswer(p){
  if(p.products)lines.push(`■ 产品信息提取（型号、参数归到具体产品）：完成 ${p.products.processed}，进行中 ${p.products.processing}，有缺口 ${p.products.partial}，排队 ${p.products.waiting}，暂缓 ${p.products.deferred}（不像产品资料的先放后面）。`);
  else lines.push('■ 产品信息提取（型号、参数归到具体产品）：还没上线，要在公司内网部署物料服务器的产品提取后才开始。现在能做到的是按文字检索和画册型号对照。');
  if(p.videos)lines.push(`■ 视频 ${p.videos.total} 条：采样解析完成 ${p.videos.ready}，部分 ${p.videos.partial}，正在解析 ${p.videos.processing}，排队 ${p.videos.queued}，失败 ${p.videos.failed}。采样不是逐帧理解。`);
- else lines.push('■ 视频：后台在逐条采样解析（转写+画面文字），总数进度要等物料服务器升级接口后才显示；单条视频的解析状态在查资料时能看到。');
+ else lines.push('■ 视频：当前接口未提供解析统计，无法确认后台是否正在运行；单条视频状态可在查资料时核对。');
  lines.push('“读完文字”不等于读懂产品：参数和型号归属都还没有人工核验。进度在 Grace 页面左侧“资料理解进度”里实时显示。');
  return lines.join('\n');
 }

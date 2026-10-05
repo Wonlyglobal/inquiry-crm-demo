@@ -16,10 +16,12 @@ test('questions about understanding progress are recognised',()=>{
  for(const q of ['找一下沙特展会的视频','W-S1 的参数'])assert.equal(progressIntent(q),false,q);
 });
 test('live board block: bars per kind, pending rows explain why',()=>{
- const r=progressRows(materialProgress(now));assert.equal(r.rows[0].pct,69);assert.ok(r.rows[1].pending&&/接口升级/.test(r.rows[1].detail));assert.ok(r.rows[2].pending&&/内网/.test(r.rows[2].detail));
+ const r=progressRows(materialProgress(now));assert.equal(r.rows[0].pct,69);assert.ok(r.rows[1].pending&&/进度未知/.test(r.rows[1].detail));assert.ok(r.rows[2].pending&&/内网/.test(r.rows[2].detail));
  assert.equal(progressRows(null).state,'loading');
  const all=[];const mk=t=>({tag:t,children:[],style:{},className:'',textContent:'',title:'',setAttribute(){},append(...c){this.children.push(...c)}});const doc={createElement:t=>{const n=mk(t);all.push(n);return n}};
  progressBlock(materialProgress(now),doc);assert.ok(all.some(n=>n.className==='mp-pct'&&n.textContent==='69%'));assert.ok(all.filter(n=>n.className==='mp-ready').length===1);
  const world=readFileSync(new URL('../assets/agent-world.mjs',import.meta.url),'utf8');assert.match(world,/selected==='Grace'&&'progress' in live/);
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/action:'material-progress'/);assert.match(html,/Date\.now\(\)-materialProgressAt<300000/);
 });
+
+test('missing video statistics never assert a running worker',()=>{const p=materialProgress(now);assert.doesNotMatch(progressAnswer(p),/后台在逐条/);assert.match(progressAnswer(p),/无法确认后台是否正在运行/);});

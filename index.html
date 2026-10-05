@@ -5018,7 +5018,7 @@
           const top=keys.filter(x=>x.cur).sort((a,b)=>b.cur-a.cur)[0],judged=x=>x.validity&&x.validity!=="pending",vr=rate(c.created.filter(x=>x.validity==="valid").length,c.created.filter(judged).length),ovr=rate(prev.created.filter(x=>x.validity==="valid").length,prev.created.filter(judged).length);
           const countries=count(c.created,x=>x.target_country||"未填写"),topCountry=Object.entries(countries).sort((a,b)=>b[1]-a[1])[0];
           metrics=[{code:"NEW",label:"新增询盘",value:String(c.created.length),delta:delta(c.created.length,prev.created.length),spark:spark(c.created,"created_at")},
-            {code:"VALID",label:"有效率",value:vr==null?"—":vr+"%",delta:vr==null||ovr==null?null:{text:`${vr>=ovr?"↑":"↓"}${Math.abs(vr-ovr)}pt · 上期 ${ovr}%`,dir:vr>ovr?"up":vr<ovr?"down":"flat",good:vr===ovr?null:vr>ovr}},
+            {code:"VALID",label:"有效率",value:vr==null?"—":vr+"%",delta:vr==null||ovr==null?null:{text:vr===ovr?`与上期持平 · 上期 ${ovr}%`:`${vr>ovr?"↑":"↓"}${Math.abs(vr-ovr)}pt · 上期 ${ovr}%`,dir:vr>ovr?"up":vr<ovr?"down":"flat",good:vr===ovr?null:vr>ovr}},
             {code:"TOP SOURCE",label:"首位渠道",value:top?`${srcName(top.k)} ${top.cur}`:"—",delta:top?delta(top.cur,top.old):null},
             {code:"MARKET",label:"首位市场",value:topCountry?`${topCountry[0]} ${topCountry[1]}`:"—",delta:null}];
           const drop=keys.filter(x=>x.d<0).sort((a,b)=>a.d-b.d)[0],gain=keys.filter(x=>x.d>0).sort((a,b)=>b.d-a.d)[0];
@@ -5029,7 +5029,7 @@
         }else if(name==="Brian"){
           const fr=rate(c.fast.length,c.assigned.length),ofr=rate((prev.fast||[]).length,(prev.assigned||[]).length),wonD=delta(c.won.length,prev.won.length);
           metrics=[{code:"PIPELINE",label:"进行中商机",value:String(c.active.length),delta:null},
-            {code:"30MIN",label:"30分钟首响率",value:fr==null?"—":fr+"%",delta:fr==null||ofr==null?null:{text:`${fr>=ofr?"↑":"↓"}${Math.abs(fr-ofr)}pt · 上期 ${ofr}%`,dir:fr>ofr?"up":fr<ofr?"down":"flat",good:fr===ofr?null:fr>ofr}},
+            {code:"30MIN",label:"30分钟首响率",value:fr==null?"—":fr+"%",delta:fr==null||ofr==null?null:{text:fr===ofr?`与上期持平 · 上期 ${ofr}%`:`${fr>ofr?"↑":"↓"}${Math.abs(fr-ofr)}pt · 上期 ${ofr}%`,dir:fr>ofr?"up":fr<ofr?"down":"flat",good:fr===ofr?null:fr>ofr}},
             {code:"OVERDUE",label:"首响超时",value:String(c.overdue.length),delta:c.overdue.length?{text:"需立即处理",dir:"flat",good:false}:null},
             {code:"WON",label:"本期成交",value:String(c.won.length),delta:wonD,spark:spark(c.won,"won_at")}];
           const oldest=[...c.overdue].sort((a,b)=>new Date(a.assigned_at)-new Date(b.assigned_at))[0],late=c.risky.filter(x=>!c.overdue.includes(x));

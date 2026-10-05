@@ -21,3 +21,10 @@ test('product evidence shows the catalogue model and marks rule excerpts',async(
  const sha='c'.repeat(64);const d=productEvidence({schema:'local-product-v1',source_sha256:sha,status:'processed',findings:[{product:'tx-60',model:'TX60',method:'rule',field:'厚度',value:'90 mm',page:2,quote:'tx-60\nThickness: 90 mm'}]},sha);
  const t=productEvidenceText(d);assert.match(t,/tx-60（画册型号 TX60）｜第2页｜厚度（规则摘录）/);
 });
+
+test('model boundaries reject other models and variants without joining fields',()=>{
+ for(const name of ['X600安装手册.pdf','AX60安装手册.pdf','X60 Pro安装手册.pdf','X60-Max.pdf'])assert.equal(mentions({name},'X60'),false,name);
+ assert.equal(mentions({name:'X',excerpt:'60'},'X60'),false);
+ assert.ok(mentions({name:'X-60安装手册.pdf'},'X60'));
+ assert.ok(mentions({name:'X60.pdf'},'X60'));
+});

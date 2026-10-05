@@ -38,3 +38,8 @@ test('live board renders deltas, sparkline and conclusion instead of connection 
  assert.match(world,/live-delta/);assert.match(world,/live-spark/);assert.match(world,/live-conclusion/);
  assert.doesNotMatch(world,/live-sources/);
 });
+
+test('unchanged rates show flat wording without up arrow',()=>{
+ const c=ctx();c.previous.created=c.created;c.previous.assigned=c.assigned;c.previous.fast=c.fast;
+ for(const role of ['Grace','Brian'])assert.match(board(c)(role).metrics[1].delta.text,/^与上期持平/);
+});

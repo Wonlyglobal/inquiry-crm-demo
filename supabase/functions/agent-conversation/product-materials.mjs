@@ -4,8 +4,11 @@
 const norm=s=>String(s||'').toUpperCase().replace(/[\s\-_/.]+/g,'');
 export function mentions(asset,model){
  const n=norm(model);if(n.length<3)return false;
- const hay=norm([asset?.name,asset?.relativePath,asset?.excerpt,JSON.stringify(asset?.document||''),JSON.stringify(asset?.video?.segments||'')].join(' '));
- return hay.includes(n);
+ // Keep field boundaries: deleting every separator can join unrelated words or model variants.
+ const pattern=[...n].map(c=>c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('[\\s_-]*');
+ const re=new RegExp('(?<![A-Z0-9])'+pattern+'(?![A-Z0-9]|[\\s_-]+(?:PRO|MAX|PLUS|ULTRA|LITE)\\b)','i');
+ const strings=value=>typeof value==='string'?[value]:Array.isArray(value)?value.flatMap(strings):value&&typeof value==='object'?Object.values(value).flatMap(strings):[];
+ return strings([asset?.name,asset?.relativePath,asset?.excerpt,asset?.document,asset?.video?.segments]).some(text=>re.test(text));
 }
 const KIND=[[/\.(mp4|mov|m4v|avi|webm)$/i,'视频'],[/\.(pdf)$/i,'PDF'],[/\.(pptx?|key)$/i,'PPT'],[/\.(docx?)$/i,'文档'],[/\.(xlsx?|csv)$/i,'表格'],[/\.(jpe?g|png|webp|heic)$/i,'图片']];
 export const kindOf=name=>KIND.find(([re])=>re.test(String(name||'')))?.[1]||'文件';

@@ -1,5 +1,6 @@
 # Publish the browser application; keep server source, tests and internal records out of Pages.
 exclude:
+  - apps
   - docs
   - tests
   - scripts

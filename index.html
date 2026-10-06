@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>王力 · 全球询盘 CRM</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link
@@ -2495,9 +2495,13 @@
       <div class="ai-suggestions"><button data-ai-question="生成今日销售日报">今日销售日报</button><button data-ai-question="生成本周销售周报">本周销售周报</button><button data-ai-question="总结当前经营情况">总结经营情况</button><button data-ai-question="业务员销售额排名">销售额排名</button><button data-ai-question="有哪些超时和风险询盘">风险询盘</button><button data-ai-question="分析当前商机漏斗">商机漏斗</button></div>
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
+    <link rel="stylesheet" href="./assets/grace-mobile.css?v=30261006-3" />
+    <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
       import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20261001-chart3';
+      import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261006-1';
+      let graceMobile=null;
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20261006-mobile';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261003-route1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
@@ -4965,6 +4969,7 @@
       }
       function restoreAgentLocation(){
         if(window.CRM_EMBED||!canUseAgentWorld(profile,currentAuthUser))return;
+        if(isGraceApp()){switchView('agent-world');$('#agent-world-page [data-advisor="Grace"]').click();if(!graceMobile)graceMobile=mountGraceMobile({host:$('#agent-world-page'),model:worldModel,onLogout:()=>$('#logout').click()});return;}
         try{const saved=JSON.parse(sessionStorage.getItem('wonly_agent_location_'+profile.id)||'null');
           if(saved?.world!==true)return;
           switchView('agent-world');
@@ -5062,9 +5067,9 @@
           $('#ai-assistant-input').value='';$('#ai-assistant-input').placeholder='输入你想了解的问题…';
           worldModel?.enter();worldModel?.loadTimeline();
         },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}saveAgentLocation();worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
-        if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{
+        if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{autoVoice:!isGraceApp(),
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
-          timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,materialFile:agentMaterialFile,crmAnswer:question=>crmLiveAnswer(question,{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad}),crmChart:aiChart,onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>worldController?.setStatus(text),onMode:mode=>worldController?.setMode(mode),onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
+          timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,materialFile:agentMaterialFile,crmAnswer:question=>crmLiveAnswer(question,{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad}),crmChart:aiChart,onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>{worldController?.setStatus(text);graceMobile?.setStatus(text)},onMode:mode=>{worldController?.setMode(mode);graceMobile?.setMode(mode)},onMessage:addAiMessage,onTranscript:text=>{$('#ai-assistant-input').value=text},
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');
             const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';

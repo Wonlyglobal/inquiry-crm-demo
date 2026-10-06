@@ -9,6 +9,7 @@ export const PACK_HINT='首次使用语音唤醒要下载本机语音包：点�
 // Emotion labels returned by the speech model; only these are forwarded, and only for voice questions.
 const VOICE_EMOTIONS=['neutral','happy','sad','angry','surprised','fearful','disgusted'];
 import {createResponsePreferences} from './agent-response-preferences.mjs?v=20260924-1';
+import {createCompatibleRecorder,audioExtension} from './grace-recorder.mjs?v=20261006-1';
 import {captureUtterance} from './agent-utterance.mjs?v=20260924-2';
 import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
@@ -17,7 +18,7 @@ import {createWakeConversation} from './agent-wake.mjs?v=20261001-onewake';
 import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261001-mat1';
 import {createTimeline,priceChart,dataChart} from './agent-timeline.mjs?v=20261001-chart3';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
-export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,timelineRoot=null,materialRow=null,materialFile=null,crmAnswer=null,crmChart=null}){
+export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,timelineRoot=null,materialRow=null,materialFile=null,crmAnswer=null,crmChart=null,autoVoice=true}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
  const bar=el('div','');bar.className='agent-conversation-tools';
  const mode=el('select','');mode.setAttribute('aria-label','回答方式');for(const [v,t] of [['local','CRM资料分析'],['bailian','智能推理']]){const o=el('option',t);o.value=v;mode.append(o)}
@@ -29,9 +30,21 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  // Voiceprint (owner approved 2026-09-28): the template is stored only on the internal material server.
  const enroll=el('button','注册声纹'),forget=el('button','删除声纹');enroll.type=forget.type='button';enroll.title='录一段 8 秒左右的话，共 3 段；只保存声纹特征数字，不保存录音';
  const vpNote=el('span','');vpNote.className='hint';bar.append(enroll,forget,vpNote);let forgetArmed=null;
- async function recordClip(ms){const s=await navigator.mediaDevices.getUserMedia({audio:true});try{const mime=['audio/webm;codecs=opus','audio/ogg;codecs=opus'].find(t=>MediaRecorder.isTypeSupported(t));if(!mime)throw Error('此浏览器没有受支持的录音格式');const r=new MediaRecorder(s,{mimeType:mime}),chunks=[];r.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};const done=new Promise(res=>r.onstop=res);r.start(500);await new Promise(res=>setTimeout(res,ms));r.stop();await done;return {blob:new Blob(chunks,{type:mime}),mime}}finally{s.getTracks().forEach(t=>t.stop())}}
- async function voiceprint(op,clip){const form=new FormData();form.append('action','voiceprint');form.append('persona',getPersona());form.append('op',op);if(clip)form.append('audio',clip.blob,'voiceprint.'+(clip.mime.includes('ogg')?'ogg':'webm'));return call(form)}
- enroll.onclick=async()=>{if(busy||recorder)return;stopAll();busy=true;enroll.disabled=true;try{state('请用正常语速说一段话（约 8 秒），例如介绍今天的工作…','listening');const clip=await recordClip(8000);state('正在登记声纹…','thinking');const r=await voiceprint('enroll',clip);vpNote.textContent=r.message||'';onMessage('assistant',r.message||'声纹操作已完成。');state('声纹：'+(r.status==='ok'?'已记录':'未完成'))}catch(e){state(e.name==='NotAllowedError'?'麦克风未授权':e.message)}finally{busy=false;enroll.disabled=false;sync()}};
+ async function recordClip(ms,signal){
+  const acquired=await navigator.mediaDevices.getUserMedia({audio:true});let clipRecorder;
+  try{if(signal.aborted)throw Error('录音已停止');clipRecorder=await createCompatibleRecorder(acquired);if(signal.aborted)throw Error('录音已停止');
+   return await new Promise((resolve,reject)=>{const chunks=[];let limit,done=false;
+    const finish=error=>{if(done)return;done=true;clearTimeout(limit);signal.removeEventListener('abort',abort);clipRecorder.onstop=null;clipRecorder.ondataavailable=null;clipRecorder.onerror=null;if(clipRecorder.state==='recording')clipRecorder.stop();error?reject(error):resolve({blob:new Blob(chunks,{type:clipRecorder.mimeType}),mime:clipRecorder.mimeType})};
+    const abort=()=>finish(Error('录音已停止'));signal.addEventListener('abort',abort,{once:true});
+    clipRecorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};clipRecorder.onstop=()=>finish();clipRecorder.onerror=()=>finish(Error('录音失败，请重试'));
+    clipRecorder.start(500);limit=setTimeout(()=>clipRecorder.stop(),ms);
+   });
+  }finally{if(clipRecorder?.state==='recording')clipRecorder.stop();acquired.getTracks().forEach(t=>t.stop())}
+ }
+ async function voiceprint(op,clip,signal){const form=new FormData();form.append('action','voiceprint');form.append('persona',getPersona());form.append('op',op);if(clip)form.append('audio',clip.blob,'voiceprint.'+audioExtension(clip.mime));return call(form,signal)}
+ enroll.onclick=async()=>{if(busy||recorder)return;stopAll();const epoch=version;controller=new AbortController();const signal=controller.signal;busy=true;enroll.disabled=true;
+  try{state('请用正常语速说一段话（约 8 秒），例如介绍今天的工作…','listening');const clip=await recordClip(8000,signal);if(epoch!==version)return;state('正在登记声纹…','thinking');const r=await voiceprint('enroll',clip,signal);if(epoch!==version)return;vpNote.textContent=r.message||'';onMessage('assistant',r.message||'声纹操作已完成。');state('声纹：'+(r.status==='ok'?'已记录':'未完成'))}
+  catch(e){if(epoch===version)state(e.name==='NotAllowedError'?'麦克风未授权':e.message)}finally{if(epoch===version)busy=false;enroll.disabled=false;sync()}};
  forget.onclick=async()=>{if(!forgetArmed){forget.textContent='确认删除声纹';forgetArmed=setTimeout(()=>{forgetArmed=null;forget.textContent='删除声纹'},6000);return}clearTimeout(forgetArmed);forgetArmed=null;forget.textContent='删除声纹';try{const r=await voiceprint('delete');vpNote.textContent=r.message||'';onMessage('assistant',r.message||'已删除。')}catch(e){state(e.message)}};
  const reveal=el('button','查看详细回答');reveal.type='button';reveal.hidden=true;bar.append(reveal);let pending=null;function showPending(){if(!pending)return false;const fn=pending;pending=null;reveal.hidden=true;fn();return true}reveal.onclick=showPending;
  let wake=null,wakeTransition=false,installing=false;const greetings=new Map(),greetingLoads=new Map();
@@ -76,13 +89,13 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  function release(){clearTimeout(timer);timer=null;stream?.getTracks().forEach(t=>t.stop());stream=null}
  function stopAll({keepWake=false}={}){if(!keepWake)wake?.stop();installing=false;version++;controller?.abort();controller=null;if(recorder){recorder.onstop=null;try{recorder.stop()}catch{}recorder=null}release();if(player){player.pause();player=null}if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null}busy=false;state('已停止')}
  async function greeting(persona,kind='wake'){const cacheKey=persona+':'+kind;if(greetings.has(cacheKey))return greetings.get(cacheKey);if(!greetingLoads.has(cacheKey))greetingLoads.set(cacheKey,call({action:'greeting',persona,kind}).then(blob=>{greetings.set(cacheKey,blob);return blob}).finally(()=>greetingLoads.delete(cacheKey)));return greetingLoads.get(cacheKey)}
- async function checkConnection(){const epoch=version;check.disabled=true;try{const s=await call({action:'status'});if(epoch!==version)return;ready=!!s.enabled&&!!s.configured;state(!s.configured?'尚未配置百炼密钥':!s.enabled?'数据范围等待批准启用':'连接已就绪')}catch(e){if(epoch===version){ready=false;state(e.message)}}finally{check.disabled=false;sync()}}
+ async function checkConnection(){const epoch=version;check.disabled=true;try{const s=await call({action:'status'});if(epoch!==version)return;ready=!!s.enabled&&!!s.configured;state(!s.configured?'尚未配置百炼密钥':!s.enabled?'数据范围等待批准启用':'连接已就绪',ready?'idle':'offline')}catch(e){if(epoch===version){ready=false;state(e.message,'offline')}}finally{check.disabled=false;sync()}}
  async function playBlob(blob,epoch){
   if(version!==epoch)throw Error('对话已停止');audioUrl=URL.createObjectURL(blob);player=new Audio(audioUrl);
   const current=player,url=audioUrl;
   try{await playWithDeadline(current,controller?.signal,{onPlaying:()=>{if(version===epoch){busy=false;state('正在说话 · 可点击停止','speaking')}}})}
   finally{URL.revokeObjectURL(url);if(version===epoch){player=null;audioUrl=null;busy=false}}
-  if(version===epoch)state(voice?'':'播报结束');
+  if(version===epoch)state('播报结束');
  }
  async function speak(ticket,epoch,persona){
   if(!ticket||version!==epoch)return;controller=new AbortController();busy=true;state('','thinking');
@@ -119,12 +132,11 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(!ready||busy||mode.value!=='bailian')return;
   stopAll();const epoch=version,persona=getPersona();busy=true;state('等待麦克风授权…');
   try{
-   if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder)throw Error('此浏览器不支持录音，请使用支持WebM/OGG录音的最新版Chrome');
+   if(!navigator.mediaDevices?.getUserMedia)throw Error('此设备不支持录音，请使用文字提问');
    const acquired=await navigator.mediaDevices.getUserMedia({audio:true});if(version!==epoch){acquired.getTracks().forEach(t=>t.stop());return}stream=acquired;
-   const mime=['audio/webm;codecs=opus','audio/ogg;codecs=opus'].find(t=>MediaRecorder.isTypeSupported(t));if(!mime)throw Error('此浏览器没有受支持的录音格式');
-   recorder=new MediaRecorder(stream,{mimeType:mime});const chunks=[];let size=0;const current=recorder;
+   const candidate=await createCompatibleRecorder(acquired);if(version!==epoch){candidate.stop();acquired.getTracks().forEach(t=>t.stop());return}recorder=candidate;const mime=recorder.mimeType;const chunks=[];let size=0;const current=recorder;
    current.ondataavailable=e=>{if(e.data.size){chunks.push(e.data);size+=e.data.size;if(size>2400000&&current.state==='recording')current.stop()}};
-   current.onstop=async()=>{recorder=null;release();if(version!==epoch)return;busy=true;state('正在转写…','thinking');controller=new AbortController();try{const form=new FormData();form.append('persona',persona);form.append('audio',new Blob(chunks,{type:mime}),'speech.'+(mime.includes('ogg')?'ogg':'webm'));const data=await call(form,controller.signal);if(version!==epoch)return;if(data.ignored){busy=false;state(data.ignored==='unavailable'?'声纹服务暂时不可用，这段语音没有处理，可以用文字提问':'');return}if(!data.text?.trim())throw Error('没有识别到说话内容');onTranscript(data.text);busy=false;await ask(data.text,{voice:true,emotion:data.emotion,voiceProof:data.voiceProof})}catch(e){if(version===epoch){busy=false;state(e.message)}}};
+   current.onstop=async()=>{recorder=null;release();if(version!==epoch)return;busy=true;state('正在转写…','thinking');controller=new AbortController();try{const form=new FormData();form.append('persona',persona);form.append('audio',new Blob(chunks,{type:mime}),'speech.'+audioExtension(mime));const data=await call(form,controller.signal);if(version!==epoch)return;if(data.ignored){busy=false;state(data.ignored==='unavailable'?'声纹服务暂时不可用，这段语音没有处理，可以用文字提问':'');return}if(!data.text?.trim())throw Error('没有识别到说话内容');onTranscript(data.text);busy=false;await ask(data.text,{voice:true,emotion:data.emotion,voiceProof:data.voiceProof})}catch(e){if(version===epoch){busy=false;state(e.message)}}};
    current.onerror=()=>{stopAll();state('录音失败，请重试')};current.start(1000);busy=false;state('正在聆听 · 最长60秒，点击“结束并提问”','listening');timer=setTimeout(()=>{if(current.state==='recording')current.stop()},60000);
   }catch(e){release();busy=false;state(e.name==='NotAllowedError'?'麦克风未授权，可继续文字提问':e.message)}
  }
@@ -133,7 +145,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   // Wake-triggered persona selection must not restart or cancel its own greeting.
   if(wakeTransition||getPersona()!=='Grace'||!isAllowed()||document.hidden)return;
   stopAll();const epoch=version;mode.value='bailian';ready=false;state('正在为 Grace 准备语音唤醒…');
-  await checkConnection();if(epoch!==version||!ready||document.hidden)return;
+  await checkConnection();if(epoch!==version||!ready||document.hidden||!autoVoice)return;
   void greeting('Grace').catch(()=>{});void greeting('Grace','ack').catch(()=>{});void greeting('Grace','offer').catch(()=>{});installing=true;sync();
   try{if(await wake.needsDownload()){if(epoch===version)state(PACK_HINT);return}state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.install();if(epoch!==version||document.hidden)return;await wake.start()}
   catch(e){if(epoch===version)state(/user gesture|downloadable/i.test(String(e.message))?'首次使用语音唤醒需要下载本机语音包：请点“语音与连接”里的“安装本机语音包”（只需一次）。现在也可以直接用文字提问。':e.message)}
@@ -165,6 +177,6 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  wakeButton.onclick=async()=>{if(wake.isActive()){stopAll();return}if(!ready)return;stopAll();const epoch=version;try{if(await wake.needsDownload()){installing=true;sync();try{await wake.install()}finally{installing=false;sync()}if(epoch!==version)return}state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.start()}catch(e){state(e.message)}};
  mic.onclick=record;stop.onclick=()=>stopAll();check.onclick=checkConnection;replay.onclick=async()=>{if(lastTicket){stopAll();speak(lastTicket.ticket,version,lastTicket.persona)}else if(lastGreeting){const persona=lastGreeting;stopAll();const epoch=version;controller=new AbortController();busy=true;state('正在重播问候…','thinking');try{const blob=await greeting(persona);if(version!==epoch)return;await playBlob(blob,epoch)}catch(e){if(version===epoch)state(e.message)}finally{if(version===epoch){busy=false;sync()}}}};
  // An explicitly started conversation continues across browser tab switches.
- window.addEventListener('pagehide',stopAll);sync();
- return {ask,enter,loadTimeline:()=>timeline?.load(),beginTimeline:question=>timeline?.begin(question)||null,isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){pending=null;reveal.hidden=true;feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){pending=null;reveal.hidden=true;histories.delete(getPersona());materialHistories.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
+ window.addEventListener('pagehide',stopAll);if(!autoVoice)document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAll()});sync();
+ return {ask,enter,record,stop:()=>stopAll(),checkConnection,loadTimeline:()=>timeline?.load(),beginTimeline:question=>timeline?.begin(question)||null,isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){pending=null;reveal.hidden=true;feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){pending=null;reveal.hidden=true;histories.delete(getPersona());materialHistories.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
 }

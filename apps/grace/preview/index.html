@@ -1,0 +1,17 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Grace App · 本地界面验收</title>
+<link rel="stylesheet" href="../../../assets/grace-mobile.css?v=3"><link rel="stylesheet" href="../../../assets/grace-orb.css?v=2">
+<style>body{margin:0}#preview-note{padding:8px;text-align:center;background:#333530;color:#ddd;font:12px system-ui}#ai-assistant-panel.hidden{display:none}.ai-message{padding:16px;margin:12px 0;border-radius:20px}.ai-message.user{text-align:right}.agent-response-feedback{font:12px system-ui}button{font:inherit}</style>
+<div id="preview-note">本地界面验收 · 合成回答 · 不连接生产数据</div><div id="agent-world-page"></div>
+<aside id="ai-assistant-panel"><div class="ai-panel-head"></div><div id="ai-assistant-messages"></div><form id="ai-assistant-form"><textarea id="ai-assistant-input" aria-label="提问" placeholder="说说你想了解什么…"></textarea><button type="submit">发送</button></form></aside><div id="room-timeline"><p>资料与历史对话将在登录后显示。</p></div>
+<script type="module">
+import {mountGraceMobile} from '../../../assets/grace-mobile.mjs';
+import {mountConversation} from '../../../assets/agent-conversation.mjs';
+// Include the actual CRM CSS so this harness catches integration conflicts.
+const page=new DOMParser().parseFromString(await (await fetch('../../../index.html')).text(),'text/html');
+const base=document.createElement('style');base.textContent=[...page.querySelectorAll('style')].map(s=>s.textContent).join('\n');document.head.prepend(base);
+const worldCSS=document.createElement('link');worldCSS.rel='stylesheet';worldCSS.href='../../../assets/agent-world.css';base.after(worldCSS);
+let ui;const model=mountConversation(document.querySelector('#ai-assistant-panel'),{autoVoice:false,getPersona:()=> 'Grace',isAllowed:()=>true,onSelectPersona:()=>{},onMode:mode=>ui?.setMode(mode),onStatus:text=>ui?.setStatus(text),onTranscript:text=>document.querySelector('textarea').value=text,onMessage:(role,text)=>{const p=document.createElement('p');p.className='ai-message '+role;p.textContent=text;document.querySelector('#ai-assistant-messages').append(p)},invoke:async(body,signal)=>{if(body.action==='status')return {enabled:true,configured:true};if(body.action==='chat'){await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,900);signal.addEventListener('abort',()=>{clearTimeout(timer);reject(Error('已停止'))},{once:true})});return {answer:'这是本地合成回答，用于验收手机界面和对话状态。正式 App 将沿用网页版 Grace 的真实回答、产品知识和资料来源。',provider:'preview',context:{route:'conversation'}}}throw Error('预览不调用语音、声纹或生产服务')}});
+ui=mountGraceMobile({host:document.querySelector('#agent-world-page'),model,onLogout:()=>ui.setStatus('预览没有登录账号')});
+document.querySelector('form').addEventListener('submit',e=>{e.preventDefault();const input=document.querySelector('textarea');if(input.value.trim())void model.ask(input.value.trim())});
+await model.enter();
+</script></html>

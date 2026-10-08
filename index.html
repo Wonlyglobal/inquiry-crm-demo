@@ -7187,6 +7187,7 @@
           if(!company&&!contact)throw new Error("请至少填写公司名称或联系人");
           if(!email&&!phone&&!whatsapp)throw new Error("请至少填写邮箱、电话或 WhatsApp 中的一项联系方式");
           if(email&&!await ensureDuplicateConfirmed(form,email,company)){btn.disabled=false;return}
+          const notifyManager=profile.role!=="sales"&&fd.get("notify")==="on";
           const created=await createInquiry({
             email,phone,whatsapp,contact,company,
             country: fd.get("country"),
@@ -7195,17 +7196,27 @@
             message: fd.get("message"),
             source: fd.get("source") || "outbound",
             sourceDetail: fd.get("source_detail"),
-            notify: fd.get("notify") === "on",
+            notify: notifyManager,
             estimatedValue:Number(fd.get("estimated_value"))||null,
             estimatedCurrency:fd.get("estimated_currency"),
             expectedPurchaseDate:fd.get("expected_purchase_date"),
             subject:fd.get("opportunity_title"),
           });
+          let groupNotification=null;
+          if(notifyManager&&!created.deduplicated){
+            try{
+              groupNotification=await supabase.functions.invoke("group-notify",{body:{inquiry_id:created.id,action:"registered"}});
+            }catch(error){groupNotification={error};}
+          }
           form.reset();
           form.querySelector("[data-duplicate-warning]")?.classList.add("hidden");
           $("#inquiry-modal").classList.add("hidden");
           postCreateAutomationInquiryId=created.id;
-          toast(profile.role==="sales"?"客户与商机已创建，正在自动背调并准备开发信草稿":"客户与商机已提交主管分配，正在自动背调并准备开发信草稿");
+          const creationMessage=profile.role==="sales"?"客户与商机已创建，正在自动背调并准备开发信草稿":"客户与商机已提交主管分配，正在自动背调并准备开发信草稿";
+          if(groupNotification?.error)toast("商机已创建，但群提醒接口异常、飞书送达未确认："+groupNotification.error.message);
+          else if(groupNotification&&!groupNotification.data?.sent?.includes("feishu"))toast("商机已创建，但未确认飞书提醒已发送；请检查飞书机器人配置和通知审计");
+          else if(groupNotification)toast("商机已提交主管分配，飞书群提醒已发送");
+          else toast(creationMessage);
           if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;await openDailyReport();}
           await loadInquiries();
           await openInquiryDetail(created.id);

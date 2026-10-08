@@ -7208,7 +7208,7 @@
           toast(profile.role==="sales"?"客户与商机已创建，正在自动背调并准备开发信草稿":"客户与商机已提交主管分配，正在自动背调并准备开发信草稿");
           if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;await openDailyReport();}
           await loadInquiries();
-          await openInquiry(created.id);
+          await openInquiryDetail(created.id);
         } catch (err) {
           toast("创建失败：" + err.message);
         } finally {

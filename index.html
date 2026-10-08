@@ -2228,6 +2228,7 @@
           <div class="detail-grid">
             <div class="field"><label>公司名称</label><input id="detail-research-company" class="input" /></div>
             <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /><a id="detail-research-domain-link" class="table-action hidden" target="_blank" rel="noopener noreferrer" style="display:none;margin-top:8px">打开官网 ↗</a></div>
+          <div class="field" style="grid-column:1/-1"><label>其他官方/历史域名（来源记录）</label><textarea id="detail-research-domain-aliases" class="input" rows="2" placeholder="每行一个域名；不会替代主官网参与自动匹配"></textarea></div>
             <div class="field"><label>公司类型</label><input id="detail-research-type" class="input" /></div>
             <div class="field"><label>风险等级 <button class="metric-help" data-metric="research_risk_level" type="button">?</button></label><select id="detail-research-risk" class="input"><option value="normal">正常</option><option value="medium">中风险</option><option value="high">高风险</option><option value="critical">严重风险</option></select></div>
             <div class="field"><label>客户价值评分 <button class="metric-help" data-metric="customer_value_score" type="button">?</button></label><input id="detail-value-score" class="input" type="number" min="0" max="100" readonly /></div>
@@ -2262,7 +2263,8 @@
           <div class="field"><label>官网 SEO 重点品类（每行一项）</label><textarea id="detail-research-seo-focus" class="input" rows="5" readonly placeholder="智能体正在自动分析官网…"></textarea></div>
           <div class="field"><label>项目与品类指向信号（每行一项）</label><textarea id="detail-research-project-categories" class="input" rows="5" readonly placeholder="智能体正在自动归纳…"></textarea></div>
           <div id="map-candidate-wrap" class="field hidden"><label>地址候选（采用前请人工确认公司名称、国家与官网）</label><select id="detail-map-candidate" class="input"></select></div>
-          <div class="detail-grid"><div class="field"><label>公司地址 <button class="metric-help" data-metric="company_verified_address" type="button">?</button></label><input id="detail-research-map-address" class="input" readonly placeholder="智能体正在自动识别…" /></div><div class="field"><label>Google Maps 链接</label><input id="detail-research-map-url" class="input" readonly /></div></div>
+          <div class="detail-grid"><div class="field"><label>公司地址 <button class="metric-help" data-metric="company_verified_address" type="button">?</button></label><input id="detail-research-map-address" class="input" readonly placeholder="地址暂留空；有可靠证据后再人工选择" /></div><div class="field"><label>Google Maps 链接</label><input id="detail-research-map-url" class="input" readonly /></div></div>
+          <div class="form-actions"><button id="clear-company-address" class="ghost" type="button">清空地址</button><button id="find-company-address" class="ghost" type="button">查找地址候选</button></div>
           <input id="detail-research-osm-url" class="hidden" />
           <div id="company-image-preview" class="hidden"><label>公司图片 <span class="tag">官网自动匹配</span></label><div id="company-image-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:10px"></div></div>
           <textarea id="detail-research-photo-sources" class="hidden" aria-hidden="true"></textarea><input id="detail-photo-verified" class="hidden" type="checkbox" />
@@ -6234,6 +6236,9 @@
         const domainCompany = inferredDomain ? inferredDomain.split(".")[0].replace(/(^|[-_])([a-z])/g, (_m, prefix, letter) => `${prefix}${letter.toUpperCase()}`) : "";
         $("#detail-research-company").value = company.name || namedCompany || domainCompany;
         $("#detail-research-domain").value = company.domain || inferredDomain;
+        const savedResearchBrief = company.research_sales_brief || {};
+        const domainAliases = Array.isArray(savedResearchBrief.domain_aliases) ? savedResearchBrief.domain_aliases : [];
+        $("#detail-research-domain-aliases").value = domainAliases.map((item) => typeof item === "string" ? item : item?.domain).filter(Boolean).join("\n");
         updateDomainLink();
         $("#detail-research-type").value = company.company_type || "";
         $("#detail-research-business").value = company.main_business || "";
@@ -6398,11 +6403,7 @@
         // starts/refreshes research without asking the user to press a button.
         const researchAge = company.researched_at ? Date.now() - new Date(company.researched_at).getTime() : Infinity;
         const hasUsableResearch = Boolean(company.ai_summary && (company.confirmed_facts?.length || company.demand_signals?.length));
-        const hasVerifiedAddress = Boolean(
-          company.map_address
-          && !/未检索到|暂时失败|待人工核验|正在自动识别/i.test(String(company.map_address))
-        );
-        const shouldRefreshResearch = !hasUsableResearch || !hasVerifiedAddress || researchAge > 24 * 60 * 60 * 1000;
+        const shouldRefreshResearch = !hasUsableResearch || researchAge > 24 * 60 * 60 * 1000;
         if (shouldRefreshResearch) setTimeout(() => {
           if (currentInquiry?.id === id && autonomousResearchInquiryId !== id && !$("#run-business-research").disabled) {
             $("#run-business-research").click();
@@ -7846,8 +7847,6 @@
       async function loadCompanyImages() {
         const website = $("#detail-research-domain").value.trim();
         if (!website || !currentInquiry) { renderCompanyImages([]); return; }
-        const addressInput = $("#detail-research-map-address");
-        delete addressInput.dataset.officialAddress;
         try {
           const { data, error } = await supabase.functions.invoke("company-website-images", { body: { inquiry_id: currentInquiry.id, website, company_name: $("#detail-research-company").value.trim() } });
           if (error) throw error;
@@ -7857,13 +7856,6 @@
           $("#detail-photo-verified").checked = false;
           const news = (data?.news_signals || []).map((item) => item.display || [item.title, item.date, item.source_url].filter(Boolean).join("｜"));
           if (data?.official_address) {
-            const officialAddress = String(data.official_address).trim();
-            addressInput.value = officialAddress;
-            addressInput.dataset.officialAddress = officialAddress;
-            $("#detail-map-candidate").dataset.provider = data.official_address_method || "official_website";
-            $("#detail-map-candidate").dataset.placeId = "";
-            $("#detail-research-map-url").value = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(officialAddress);
-            $("#detail-research-osm-url").value = "https://www.openstreetmap.org/search?query=" + encodeURIComponent(officialAddress);
             const officialAddressSource = safeExternalUrl(data.official_address_source);
             if (officialAddressSource) {
               const existingSources = researchSourceUrls();
@@ -7888,13 +7880,14 @@
           if (officialSource && profile.description) addUniqueLine("#detail-research-confirmed-facts", `官网业务描述：${profile.description}｜来源：${officialSource}｜日期：${evidenceDate}｜可信度：中`);
           const inquiryReceivedAt = currentInquiry.email_intake?.received_at || currentInquiry.created_at;
           const inquirySignal = currentInquiry.demand_summary || currentInquiry.title || "客户主动发送询盘";
-          addUniqueLine("#detail-research-demand-signals", `客户主动询盘：${inquirySignal}｜判断：存在主动沟通或采购意向，项目真实性与决策权限仍需核验｜来源：客户原始邮件｜日期：${inquiryReceivedAt ? fmtDate(inquiryReceivedAt) : evidenceDate}｜可信度：高`, "signal");
+          const isWhatsAppIdentityCheck = String(currentInquiry.source || "").toLowerCase() === "whatsapp" && /check one person|核实.*人|确认.*员工|核验.*身份/i.test(originalText);
+          if (!isWhatsAppIdentityCheck) addUniqueLine("#detail-research-demand-signals", `客户主动询盘：${inquirySignal}｜判断：存在主动沟通或采购意向，项目真实性与决策权限仍需核验｜来源：客户原始邮件｜日期：${inquiryReceivedAt ? fmtDate(inquiryReceivedAt) : evidenceDate}｜可信度：高`, "signal");
           const senderEmail = currentInquiry.email_intake?.sender_email || "";
           if (senderEmail && !researchLines("#detail-research-contacts").some((line) => line.includes(senderEmail))) addUniqueLine("#detail-research-contacts", `${currentInquiry.contact_name || currentInquiry.email_intake?.sender_name || "客户联系人"}｜${currentInquiry.contact_job_title || "职称待核实"}｜${senderEmail}｜客户原始邮件发件人｜客户原始邮件`);
           $("#detail-research-match-method").value ||= "客户邮箱域名＋官网交叉匹配";
           if (officialSource && $("#detail-research-match-confidence").value === "low") $("#detail-research-match-confidence").value = "medium";
           if (profile.description && !$("#detail-research-business").value.trim()) $("#detail-research-business").value = profile.description;
-          if (!$("#detail-research-why-now").value.trim()) $("#detail-research-why-now").value = `客户已主动提交询盘；当前应优先核实项目业主、技术规格、数量、预算、采购节点和决策链。`;
+          if (!$("#detail-research-why-now").value.trim() && !isWhatsAppIdentityCheck) $("#detail-research-why-now").value = `客户已主动提交询盘；当前应优先核实项目业主、技术规格、数量、预算、采购节点和决策链。`;
           if (!$("#detail-research-next-action").value.trim()) $("#detail-research-next-action").value = "先完成公司身份和项目真实性核验，再根据已确认规格准备产品资料与报价路径。";
           if (!$("#detail-research-risks-counter").value.trim()) $("#detail-research-risks-counter").value = "官网业务与询盘品类是否一致仍需人工核验；项目业主、最终用途、付款能力和决策权限尚未独立确认。";
           assessResearchQuality();
@@ -7917,10 +7910,24 @@
       $("#detail-map-candidate").addEventListener("change", (event) => {
         try { applyMapCandidate(JSON.parse(event.target.value)); } catch { }
       });
+      $("#clear-company-address").addEventListener("click", () => {
+        $("#detail-research-map-address").value = "";
+        $("#detail-research-map-url").value = "";
+        $("#detail-research-osm-url").value = "";
+        const select = $("#detail-map-candidate"); select.replaceChildren(); delete select.dataset.provider; delete select.dataset.placeId;
+        $("#map-candidate-wrap").classList.add("hidden");
+        $("#open-company-map").removeAttribute("href"); $("#open-company-osm").removeAttribute("href");
+        $("#detail-research-reason").value ||= "按用户要求暂不填写地址，清除错误地图候选并补充官网背调";
+        assessResearchQuality();
+      });
+      $("#find-company-address").addEventListener("click", () => locateCompanyAutomatically());
       async function locateCompanyAutomatically() {
         if (!currentInquiry) return;
         const companyName = $("#detail-research-company").value.trim();
         if (!companyName) { $("#detail-research-map-address").value = "未识别到公司名称，无法定位"; return; }
+        const previousAddress = $("#detail-research-map-address").value;
+        const previousGoogleUrl = $("#detail-research-map-url").value;
+        const previousOsmUrl = $("#detail-research-osm-url").value;
         try {
           const { data, error } = await supabase.functions.invoke("geoapify-place-research", { body: { inquiry_id: currentInquiry.id, company_name: companyName, domain: $("#detail-research-domain").value.trim(), country: $("#detail-smart-country").value.trim() } });
           if (error) throw error;
@@ -7929,16 +7936,15 @@
           const select = $("#detail-map-candidate"); select.replaceChildren();
           (data.candidates || []).forEach((candidate, index) => select.add(new Option((index + 1) + ". " + candidate.formatted_address, JSON.stringify(candidate))));
           $("#map-candidate-wrap").classList.toggle("hidden", !(data.candidates || []).length);
-          const officialAddress = $("#detail-research-map-address").dataset.officialAddress;
-          if (officialAddress) {
-            $("#detail-research-map-address").value = officialAddress;
-            $("#detail-research-map-url").value = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(officialAddress);
-            $("#detail-research-osm-url").value = "https://www.openstreetmap.org/search?query=" + encodeURIComponent(officialAddress);
-          } else if (data.candidates?.length) { select.selectedIndex = 0; applyMapCandidate(data.candidates[0]); }
-          else $("#detail-research-map-address").value = "未检索到与公司身份唯一匹配的地址";
-          $("#open-company-map").href = safeExternalUrl($("#detail-research-map-url").value) || data.google_maps_search_url || "#";
-          $("#open-company-osm").href = safeExternalUrl($("#detail-research-osm-url").value) || data.openstreetmap_search_url || "#";
-        } catch { $("#detail-research-map-address").value = "地址自动识别暂时失败，智能体将在下次打开时重试"; }
+          const candidateOption = new Option("选择一个地址候选…", "");
+          select.insertBefore(candidateOption, select.firstChild);
+          select.selectedIndex = 0;
+          $("#detail-research-map-address").value = previousAddress;
+          $("#detail-research-map-url").value = previousGoogleUrl;
+          $("#detail-research-osm-url").value = previousOsmUrl;
+          $("#open-company-map").href = data.google_maps_search_url || "#";
+          $("#open-company-osm").href = data.openstreetmap_search_url || "#";
+        } catch { $("#detail-research-map-address").value = ""; }
       }
       function inferExternalResearchDomain(value) {
         const domain = String(value || "").trim().toLowerCase()
@@ -7954,7 +7960,11 @@
         queueMicrotask(() => { $("#detail-research-reason").value = ""; });
       }
       async function completeOnlineResearchAndSave() {
-        await Promise.allSettled([loadCompanyImages(), locateCompanyAutomatically()]);
+        if (!$("#detail-research-domain").value.trim()) {
+          $("#detail-research-status").textContent = "背调状态：请先填写并核对公司官网域名，再抓取公开资料";
+          return;
+        }
+        await loadCompanyImages();
         calculateResearchScore();
         persistAutonomousResearch();
       }
@@ -7991,6 +8001,7 @@
         let domain = publicEmailDomains.has(candidateDomain) ? "" : candidateDomain;
         const companyName = $("#detail-research-company").value.trim() || currentInquiry.companies?.name || "";
         const companyCountry = $("#detail-smart-country").value.trim() || currentInquiry.target_country || "";
+        const identityCheckInquiry = String(currentInquiry.source || "").toLowerCase() === "whatsapp" && /check one person|核实.*人|确认.*员工|核验.*身份/i.test(String(currentInquiry.original_message || ""));
         if (!domain && (!companyName || companyName === "待核实邮件客户")) {
           $("#detail-research-status").textContent = "背调状态：待补充客户公司名称或官网；内部发件邮箱和公共邮箱不能作为客户公司身份依据";
           return;
@@ -8002,16 +8013,18 @@
         try {
           const base = "https://business.foreverdoodle.com/api/";
           let index = { companies: [] }, hit = null, record, matchMethod = "官网域名精确匹配";
-          const indexResponse = await fetch(base + "index.json", { cache: "no-store" });
-          if (!indexResponse.ok) throw new Error(`背调索引读取失败（${indexResponse.status}）`);
-          index = await indexResponse.json();
-          const indexedCompanies = index.companies || index || [];
-          if (domain) hit = indexedCompanies.find((item) => normalizeDomain(item.domain) === domain);
-          if (!hit && companyName) {
-            const nameMatches = indexedCompanies.filter((item) => normalizeCompanyName(item.company || item.normName) === normalizeCompanyName(companyName));
-            const countryMatches = nameMatches.filter((item) => !companyCountry || normalizeCountry(item.countryName || item.country) === normalizeCountry(companyCountry));
-            const candidates = countryMatches.length ? countryMatches : nameMatches;
-            if (candidates.length === 1) { hit = candidates[0]; domain = normalizeDomain(hit.domain); matchMethod = "公司名称 + 国家唯一匹配"; }
+          if (!identityCheckInquiry) {
+            const indexResponse = await fetch(base + "index.json", { cache: "no-store" });
+            if (!indexResponse.ok) throw new Error(`背调索引读取失败（${indexResponse.status}）`);
+            index = await indexResponse.json();
+            const indexedCompanies = index.companies || index || [];
+            if (domain) hit = indexedCompanies.find((item) => normalizeDomain(item.domain) === domain);
+            if (!hit && companyName) {
+              const nameMatches = indexedCompanies.filter((item) => normalizeCompanyName(item.company || item.normName) === normalizeCompanyName(companyName));
+              const countryMatches = nameMatches.filter((item) => !companyCountry || normalizeCountry(item.countryName || item.country) === normalizeCountry(companyCountry));
+              const candidates = countryMatches.length ? countryMatches : nameMatches;
+              if (candidates.length === 1) { hit = candidates[0]; domain = normalizeDomain(hit.domain); matchMethod = "公司名称 + 国家唯一匹配"; }
+            }
           }
           if (hit) {
             const detailResponse = await fetch(base + hit.file, { cache: "no-store" });
@@ -8054,25 +8067,26 @@
           const sourceDate = record.addedDate || record.dataUpdatedAt || "";
           const sourceUrl = record.sourceUrl || record.website || "";
           const inquiryDate = currentInquiry.email_intake?.received_at || currentInquiry.created_at || "";
-          const inquiryDemand = currentInquiry.demand_summary || currentInquiry.original_message?.slice(0, 800) || currentInquiry.title;
+        const inquiryDemand = currentInquiry.demand_summary || currentInquiry.original_message?.slice(0, 800) || currentInquiry.title;
+        const isWhatsAppIdentityCheck = String(currentInquiry.source || "").toLowerCase() === "whatsapp" && /check one person|核实.*人|确认.*员工|核验.*身份/i.test(String(currentInquiry.original_message || ""));
           const inquiryEmail = currentInquiry.email_intake?.sender_email || "";
           const factSuffix = `｜来源：${sourceUrl || "未提供"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`;
           const facts = [record.company && `公司名称：${record.company}${factSuffix}`, record.countryName && `所在地：${record.countryName}${record.city ? ` · ${record.city}` : ""}${factSuffix}`, record.categoryName && `公司类型：${record.categoryName}${factSuffix}`, record.productFocus && `主营产品：${record.productFocus}${factSuffix}`, record.scale && `公司规模：${record.scale}${factSuffix}`].filter(Boolean);
-          const signals = [`客户主动询盘：${inquiryDemand}｜判断：存在明确主动采购意向，具体项目与决策权限待核实｜来源：客户原始邮件｜日期：${inquiryDate ? fmtDate(inquiryDate) : "未知"}｜可信度：高`, record.importSignal && `采购/进口信号：${record.importSignal}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`, record.projects && record.projects !== "None named" && `项目线索：${record.projects}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`].filter(Boolean);
+          const signals = [!isWhatsAppIdentityCheck && `客户主动询盘：${inquiryDemand}｜判断：存在明确主动采购意向，具体项目与决策权限待核实｜来源：客户原始邮件｜日期：${inquiryDate ? fmtDate(inquiryDate) : "未知"}｜可信度：高`, !isWhatsAppIdentityCheck && record.importSignal && `采购/进口信号：${record.importSignal}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`, !isWhatsAppIdentityCheck && record.projects && record.projects !== "None named" && `项目线索：${record.projects}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`].filter(Boolean);
           const contacts = [inquiryEmail && `${currentInquiry.contact_name || currentInquiry.email_intake?.sender_name || "客户联系人"}｜${currentInquiry.contact_job_title || "职称待核实"}｜${inquiryEmail}｜客户原始邮件发件人已核验｜客户原始邮件`, record.decisionContact && `决策联系人：${record.decisionContact}｜已公开信息｜${record.contactSource || sourceUrl || "来源待补充"}`, record.email && `邮箱：${record.email}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`, record.phone && `电话：${record.phone}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`].filter(Boolean);
-          $("#detail-research-deep-status").value = sourceUrl && record.confidence !== "low" ? "ready" : "research_required";
+          $("#detail-research-deep-status").value = isWhatsAppIdentityCheck ? "company_match_required" : sourceUrl && record.confidence !== "low" ? "ready" : "research_required";
           $("#detail-research-match-method").value = matchMethod;
-          $("#detail-research-match-confidence").value = ["high", "medium", "low"].includes(record.confidence) ? record.confidence : "medium";
+          $("#detail-research-match-confidence").value = isWhatsAppIdentityCheck ? "low" : ["high", "medium", "low"].includes(record.confidence) ? record.confidence : "medium";
           $("#detail-research-source-updated").value = sourceDate;
-          $("#detail-research-why-now").value = `客户已主动发送询盘，内容涉及：${inquiryDemand}。这是当前最强的一方采购信号，应在首次联系中尽快核实项目业主、技术规格、数量、预算、采购节点和决策链。${record.importSignal ? ` 外部采购信号：${record.importSignal}` : ""}`;
+          $("#detail-research-why-now").value = isWhatsAppIdentityCheck ? "暂无经核实的近期采购、项目或扩张信号。WhatsApp 仅请求核实 WONLY 员工身份，不是采购需求。" : `客户已主动发送询盘，内容涉及：${inquiryDemand}。这是当前最强的一方采购信号，应在首次联系中尽快核实项目业主、技术规格、数量、预算、采购节点和决策链。${record.importSignal ? ` 外部采购信号：${record.importSignal}` : ""}`;
           $("#detail-research-confirmed-facts").value = facts.join("\n");
           $("#detail-research-demand-signals").value = signals.join("\n");
-          $("#detail-research-likely-needs").value = record.fitReason || "暂无足够证据形成明确需求判断";
-          $("#detail-research-risks-counter").value = record.risk || "未发现明确风险；仍需核验公司身份、项目真实性、付款条件和最终用途";
+          $("#detail-research-likely-needs").value = isWhatsAppIdentityCheck ? "对方可能希望核实 WONLY 员工身份；仅按本次消息推断，需先核验来讯者身份及其获得该信息的授权。暂无可确认的产品或项目需求。" : record.fitReason || "暂无足够证据形成明确需求判断";
+          $("#detail-research-risks-counter").value = isWhatsAppIdentityCheck ? "来讯号码与官网公开电话不同，来讯者姓名、公司隶属、核验对象及授权均未核实；不得据此披露员工个人或任职信息。本次消息未提产品、项目、规格、数量或采购计划。" : record.risk || "未发现明确风险；仍需核验公司身份、项目真实性、付款条件和最终用途";
           $("#detail-research-contacts").value = contacts.join("\n");
-          $("#detail-research-questions").value = ["项目最终用途和业主是谁？", "所需产品规格、尺寸、材质、表面处理和认证标准是什么？", "采购数量、预算、交付地点和期望交期是什么？", "谁负责技术确认、商务审批和最终采购决定？", "是否已有图纸、技术规范或现有供应商？"].join("\n");
+          $("#detail-research-questions").value = isWhatsAppIdentityCheck ? ["请提供您的姓名、职位及所属公司官网邮箱。", "您希望核实的 WONLY 联系人是谁，您与其是什么业务关系？", "请说明核验目的，以及您是否获得该联系人同意或授权。", "在完成内部核验前，不向外部确认或披露员工个人信息。"].join("\n") : ["项目最终用途和业主是谁？", "所需产品规格、尺寸、材质、表面处理和认证标准是什么？", "采购数量、预算、交付地点和期望交期是什么？", "谁负责技术确认、商务审批和最终采购决定？", "是否已有图纸、技术规范或现有供应商？"].join("\n");
           $("#detail-research-materials").value = ["匹配项目的产品选型表与技术参数", "相关认证和测试报告", "相似国家或项目案例", "样品与 Golden Sample 流程", "报价所需信息清单和质量检验方案"].join("\n");
-          $("#detail-research-next-action").value = record.angle || "先发送需求确认问题，核实项目和决策链后再准备正式报价";
+          $("#detail-research-next-action").value = isWhatsAppIdentityCheck ? "先核实来讯者姓名、公司归属、请求目的及授权；由内部员工本人确认后再决定是否回应，未核验前不披露员工信息。" : record.angle || "先发送需求确认问题，核实项目和决策链后再准备正式报价";
           $("#detail-research-sources").value = [...new Set([record.sourceUrl, record.contactSource, record.website].filter(Boolean))].join("\n");
           $("#detail-research-status").textContent = `背调状态：可用 · 数据更新 ${record.dataUpdatedAt || "未知"}`;
           const evidence = $("#detail-research-evidence");
@@ -8562,7 +8576,7 @@
         const before = currentInquiry.companies || null;
         const companyUpdate = {
           name,
-          domain: $("#detail-research-domain").value.trim() || null,
+          domain: $("#detail-research-domain").value.trim().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "") || null,
           country: $("#detail-smart-country").value.trim() || null,
           company_type: $("#detail-research-type").value.trim() || null,
           main_business: $("#detail-research-business").value.trim() || null,
@@ -8581,7 +8595,7 @@
           likely_needs: $("#detail-research-likely-needs").value.split(/\n+/).map((need) => need.trim()).filter(Boolean).map((need) => ({ need })),
           risks_counterevidence: $("#detail-research-risks-counter").value.split(/\n+/).map((risk) => risk.trim()).filter(Boolean).map((risk) => ({ risk })),
           research_contacts: $("#detail-research-contacts").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
-          research_sales_brief: { why_now: $("#detail-research-why-now").value.trim(), decision_summary: $("#detail-research-chinese-summary").value.trim(), recommended_angle: $("#detail-recommended-strategy").value.trim(), questions_to_ask: $("#detail-research-questions").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), materials_to_prepare: $("#detail-research-materials").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), next_best_action: $("#detail-research-next-action").value.trim(), company_events: currentCompanyEvents.filter((event) => event.origin !== "system") },
+          research_sales_brief: { ...(before?.research_sales_brief || {}), domain_aliases: $("#detail-research-domain-aliases").value.split(/\n+/).map((domain) => domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "")).filter(Boolean), why_now: $("#detail-research-why-now").value.trim(), decision_summary: $("#detail-research-chinese-summary").value.trim(), recommended_angle: $("#detail-recommended-strategy").value.trim(), questions_to_ask: $("#detail-research-questions").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), materials_to_prepare: $("#detail-research-materials").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), next_best_action: $("#detail-research-next-action").value.trim(), company_events: currentCompanyEvents.filter((event) => event.origin !== "system") },
           research_evidence_sources: $("#detail-research-sources").value.split(/\n+/).map((url) => safeExternalUrl(url.trim())).filter(Boolean).map((url) => ({ url, captured_at: new Date().toISOString() })),
           news_signals: $("#detail-research-news").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
           seo_focus_categories: $("#detail-research-seo-focus").value.split(/\n+/).map((name) => name.trim()).filter(Boolean).map((name) => ({ name })),

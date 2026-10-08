@@ -68,3 +68,18 @@ html[data-grace-app],html[data-grace-app] body {margin:0;overflow:hidden;overscr
 #grace-mobile .grace-prompts {margin:12px 0 0}
 #grace-mobile #ai-assistant-form {margin:0!important;align-items:center}
 #grace-mobile textarea {max-height:120px;resize:none}
+
+#grace-mobile .grace-progress {margin:18px 0;border:1px solid #aaa596;border-radius:18px;padding:16px}
+#grace-mobile:not([data-view=home]) .grace-progress {display:none}
+#grace-mobile .mp-head {display:flex;justify-content:space-between;gap:12px;font-size:15px;margin-bottom:12px}
+#grace-mobile .mp-head span {font-size:12px}
+#grace-mobile .mp-row {display:grid;grid-template-columns:64px 1fr 38px;align-items:center;gap:8px;font-size:13px}
+#grace-mobile .mp-bar {display:flex;height:10px;border-radius:5px;overflow:hidden;background:#ddd9cf}
+#grace-mobile .mp-bar i {display:block;height:100%}
+#grace-mobile .mp-ready {background:#24835e} #grace-mobile .mp-partial {background:#c89c3c}
+#grace-mobile .mp-busy {background:#588dc4} #grace-mobile .mp-queue {background:#b3b1ab}
+#grace-mobile .mp-fail {background:#bd4848} #grace-mobile .mp-none {background:#d8d5cb}
+#grace-mobile .mp-detail {font-size:12px;line-height:1.6;margin:6px 0 14px;overflow-wrap:anywhere}
+#grace-mobile .mp-pending {grid-column:2/4;font-size:12px}
+#grace-mobile .mp-note {font-size:12px;line-height:1.6}
+#grace-mobile .grace-progress-refresh {border:1px solid #aaa596;border-radius:12px;background:transparent;color:inherit;padding:8px 12px}

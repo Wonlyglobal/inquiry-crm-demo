@@ -276,3 +276,8 @@ Social live validation follow-up: Instagram live media and Insights available in
 ## 2026-10-08 Grace mobile layout candidate
 User screenshots show the fixed composer/navigation obscuring the home sheet. Replaced fixed overlays and guessed bottom spacing with a viewport-height flex shell: scrollable content, composer, navigation. Composer now sits outside the sheet; visualViewport resize/scroll adjusts the shell for keyboard changes. Reduced home orb size responsively. Cache versions updated.
 Validation: 5 mobile regressions, module/browser syntax and whitespace checks pass. Browser visual preview blocked by unavailable admin policy verification; iPhone keyboard/safe-area visual acceptance remains pending. No backend, permissions or data changes. Not deployed; rollback is the three presentation files.
+
+## 2026-10-08 Grace App 产品解析进度展示
+- 用户要求前端显示进度；复用已鉴权 material-progress 只读计数接口，将原桌面看板进度组件接入 App 首页。初次读取、可见页面每5分钟刷新、手动刷新；并发请求复用，失败显示不可用。
+- 文档/视频/产品提取分别展示数量，完整处理百分比排除部分提取；暂缓产品分类不计入产品阶段分母。保留未人工核验说明，不宣称全部理解。
+- 723项既有回归通过，追加产品百分比分母回归；390px合成卡片浏览器视觉检查通过。真实iPhone与生产尚未验收，未部署。无后端、权限或外发范围变更。回滚本次前端提交即可。

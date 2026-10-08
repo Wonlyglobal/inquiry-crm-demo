@@ -2495,11 +2495,11 @@
       <div class="ai-suggestions"><button data-ai-question="生成今日销售日报">今日销售日报</button><button data-ai-question="生成本周销售周报">本周销售周报</button><button data-ai-question="总结当前经营情况">总结经营情况</button><button data-ai-question="业务员销售额排名">销售额排名</button><button data-ai-question="有哪些超时和风险询盘">风险询盘</button><button data-ai-question="分析当前商机漏斗">商机漏斗</button></div>
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
-    <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261008-1" />
+    <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261008-2" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
       import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
-      import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261008-1';
+      import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261008-2';
       let graceMobile=null;
       import { mountConversation } from './assets/agent-conversation.mjs?v=20261008-mobile2';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261003-route1';
@@ -4969,7 +4969,7 @@
       }
       function restoreAgentLocation(){
         if(window.CRM_EMBED||!canUseAgentWorld(profile,currentAuthUser))return;
-        if(isGraceApp()){switchView('agent-world');$('#agent-world-page [data-advisor="Grace"]').click();if(!graceMobile)graceMobile=mountGraceMobile({host:$('#agent-world-page'),model:worldModel,onLogout:()=>$('#logout').click()});return;}
+        if(isGraceApp()){switchView('agent-world');$('#agent-world-page [data-advisor="Grace"]').click();if(!graceMobile)graceMobile=mountGraceMobile({host:$('#agent-world-page'),model:worldModel,readProgress:async()=>{await refreshMaterialProgress(true);return materialProgressState},onLogout:()=>$('#logout').click()});return;}
         try{const saved=JSON.parse(sessionStorage.getItem('wonly_agent_location_'+profile.id)||'null');
           if(saved?.world!==true)return;
           switchView('agent-world');
@@ -5008,8 +5008,8 @@
       }
       // Live board for the agent private room: computed from the dashboard data already loaded on this page.
       // 资料理解进度 (2026-10-03): counts from the material library, refreshed at most every 5 minutes while the board is shown.
-      let materialProgressState=null,materialProgressAt=0,materialProgressBusy=false;
-      async function refreshMaterialProgress(){if(materialProgressBusy||Date.now()-materialProgressAt<300000)return;materialProgressBusy=true;try{const {data,error}=await supabase.functions.invoke('agent-conversation',{body:{action:'material-progress'}});materialProgressState=!error&&data?.progress?data.progress:{status:'unavailable'};}catch{materialProgressState={status:'unavailable'}}finally{materialProgressAt=Date.now();materialProgressBusy=false}}
+      let materialProgressState=null,materialProgressAt=0,materialProgressBusy=false,materialProgressRequest=null;
+      async function refreshMaterialProgress(force=false){if(materialProgressBusy)return materialProgressRequest;if(!force&&Date.now()-materialProgressAt<300000)return;materialProgressBusy=true;materialProgressRequest=(async()=>{try{const {data,error}=await supabase.functions.invoke('agent-conversation',{body:{action:'material-progress'}});materialProgressState=!error&&data?.progress?data.progress:{status:'unavailable'};}catch{materialProgressState={status:'unavailable'}}finally{materialProgressAt=Date.now();materialProgressBusy=false}})();return materialProgressRequest}
       function worldLiveBoard(name){
         const c=aiDataContext("近30天"),label=x=>x?.companies?.name||x?.title||x?.inquiry_no||"未命名询盘",wan=v=>v>=10000?`¥${(v/10000).toFixed(1)}万`:`¥${Math.round(v||0)}`,day=d=>`${d.getMonth()+1}/${d.getDate()}`;
         const prev=c.previous||{created:[],won:[],assigned:[],fast:[]},span=(c.end-c.start+1)/6;

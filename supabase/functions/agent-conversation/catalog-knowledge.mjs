@@ -1,3 +1,5 @@
+import {selectionIntent,selectionAnswer} from './product-selection.mjs';
+import {inventoryIntent,inventoryAnswer} from './product-inventory.mjs';
 // Deterministic answers from the private WONLY overseas catalogue knowledge (wonly-catalog-v1).
 // Source: the four 2026-08 overseas catalogues, read by Claude under Chloe's 2026-09-28 authorisation.
 // The file lives only in the private storage bucket (service role). Answers are rendered locally,
@@ -39,13 +41,17 @@ export function findModels(question,catalog){
 // Cheap pre-check before the private file is downloaded.
 export function catalogPrecheck(question){
  const q=String(question||'').slice(0,500);
+ if(inventoryIntent(q)||selectionIntent(q))return true;
  if(FILE_REQUEST.test(q))return false;
  return /画册/.test(q)||(/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/.test(q)&&SPEC_WORDS.test(q))||(CATEGORY_WORDS.some(([,re])=>re.test(q))&&/型号|有哪些|哪几款|系列|产品线|参数|规格/.test(q));
 }
 
 export function catalogIntent(question,catalog){
  const q=String(question||'').slice(0,500);
- if(!catalog||FILE_REQUEST.test(q))return null;
+ if(!catalog)return null;
+ if(selectionIntent(q))return {kind:'selection'};
+ if(inventoryIntent(q))return {kind:'inventory'};
+ if(FILE_REQUEST.test(q))return null;
  const models=findModels(q,catalog);
  const categories=CATEGORY_WORDS.filter(([,re])=>re.test(q)).map(([c])=>c);
  const facts=/画册/.test(q)?FACT_TOPICS.filter(([,re])=>re.test(q)).map(([t])=>t):[];
@@ -86,6 +92,8 @@ const TAIL='对外报价或投标前，以原画册和产品负责人确认的�
 
 export function catalogAnswer(intent,catalog,question=''){
  if(!intent||!catalog)return null;
+ if(intent.kind==='inventory')return inventoryAnswer(catalog,question);
+ if(intent.kind==='selection')return selectionAnswer(catalog,question);
  if(intent.kind==='models'){
   const cards=intent.models.map(m=>card(m,catalog)).filter(Boolean);if(!cards.length)return null;
   const warn=conflictLines(question,catalog,intent.models);

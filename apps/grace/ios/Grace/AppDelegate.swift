@@ -41,13 +41,17 @@ final class GraceViewController: UIViewController, WKNavigationDelegate, WKUIDel
         retry.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(retry)
         NSLayoutConstraint.activate([retry.centerXAnchor.constraint(equalTo: view.centerXAnchor),retry.centerYAnchor.constraint(equalTo: view.centerYAnchor),retry.heightAnchor.constraint(equalToConstant: 60)])
         privacy.backgroundColor = view.backgroundColor; privacy.frame = view.bounds; privacy.autoresizingMask = [.flexibleWidth,.flexibleHeight]; privacy.isHidden = true; view.addSubview(privacy)
-        NotificationCenter.default.addObserver(self, selector: #selector(background), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(cover), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(background), name: UIApplication.didEnterBackgroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(foreground), name: UIApplication.didBecomeActiveNotification, object: nil)
         reload()
     }
     @objc private func reload() { retry.isHidden = true; web.load(URLRequest(url: home, cachePolicy: .reloadIgnoringLocalCacheData)) }
+    // System permission sheets resign active without leaving the app. Cover the
+    // snapshot then, but cancel work only when the app actually enters background.
+    @objc private func cover() { privacy.isHidden = false }
     @objc private func background() {
-        privacy.isHidden = false
+        cover()
         web.evaluateJavaScript("document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('pagehide'))", completionHandler: nil)
         web.setMicrophoneCaptureState(.none, completionHandler: nil)
         web.pauseAllMediaPlayback(completionHandler: nil)

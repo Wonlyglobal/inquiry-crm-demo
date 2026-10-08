@@ -20,7 +20,7 @@ export function mountGraceMobile({host,model,onLogout}){
  function tab(view){app.dataset.view=view;app.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===view)));if(view==='history')model.loadTimeline()}
  app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
  app.querySelectorAll('[data-question]').forEach(b=>b.onclick=()=>{document.querySelector('#ai-assistant-input').value=b.dataset.question;form.requestSubmit()});
- form.addEventListener('submit',()=>tab('chat'));
+ form.addEventListener('submit',()=>{const input=document.querySelector('#ai-assistant-input');if(input.value.trim())tab('chat');else if(!model.busy()){for(const node of app.querySelectorAll('#grace-status,.grace-chat-status span'))node.textContent='请先输入你想问的问题';input.focus()}},true);
  app.querySelector('.grace-voice').onclick=()=>model.record();
  app.querySelector('.grace-chat-stop').onclick=app.querySelector('.grace-stop').onclick=()=>{model.stop();mode='interrupt';paint();clearTimeout(interruptTimer);interruptTimer=setTimeout(()=>{mode='idle';paint()},900)};
  app.querySelector('.grace-reconnect').onclick=()=>model.checkConnection();app.querySelector('.grace-logout').onclick=()=>{model.stop();onLogout()};
@@ -29,5 +29,5 @@ export function mountGraceMobile({host,model,onLogout}){
  document.addEventListener('visibilitychange',()=>{if(document.hidden)model.stop()});
  const viewport=window.visualViewport;const fitKeyboard=()=>{app.classList.toggle('keyboard-open',!!viewport&&innerHeight-viewport.height>120)};viewport?.addEventListener('resize',fitKeyboard);fitKeyboard();
  tab('home');paint();
- return {setStatus(text){for(const node of app.querySelectorAll('#grace-status,.grace-chat-status span'))node.textContent=text||stateLabels[orbState(mode)];},setMode(value){clearTimeout(interruptTimer);mode=value;paint()}};
+ return {showConversation(){tab('chat')},setStatus(text){for(const node of app.querySelectorAll('#grace-status,.grace-chat-status span'))node.textContent=text||stateLabels[orbState(mode)];},setMode(value){clearTimeout(interruptTimer);mode=value;paint()}};
 }

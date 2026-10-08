@@ -2642,6 +2642,7 @@
       let outreachComposeMode = "outreach";
       let currentCompanyEvents = [];
       let autonomousResearchInquiryId = null;
+      let postCreateAutomationInquiryId = null;
       let detailStageTicker = null;
       let notificationChannel = null;
       let notificationItems = [], notificationFilter = "unread";
@@ -6407,6 +6408,7 @@
             $("#run-business-research").click();
           }
         }, 0);
+        else if(postCreateAutomationInquiryId===id)setTimeout(()=>maybeGeneratePostCreateOutreach(),0);
       }
       function renderNextBestAction(stages=[],follows=[],messages=[]){
         const box=$("#detail-next-action");if(!box||!currentInquiry)return;
@@ -7185,7 +7187,7 @@
           if(!company&&!contact)throw new Error("请至少填写公司名称或联系人");
           if(!email&&!phone&&!whatsapp)throw new Error("请至少填写邮箱、电话或 WhatsApp 中的一项联系方式");
           if(email&&!await ensureDuplicateConfirmed(form,email,company)){btn.disabled=false;return}
-          await createInquiry({
+          const created=await createInquiry({
             email,phone,whatsapp,contact,company,
             country: fd.get("country"),
             product: fd.get("product"),
@@ -7202,8 +7204,11 @@
           form.reset();
           form.querySelector("[data-duplicate-warning]")?.classList.add("hidden");
           $("#inquiry-modal").classList.add("hidden");
-          toast(profile.role==="sales"?"客户与商机已创建并归属你本人":"客户与商机已提交主管分配");
-          if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;await openDailyReport();}else await loadInquiries();
+          postCreateAutomationInquiryId=created.id;
+          toast(profile.role==="sales"?"客户与商机已创建，正在自动背调并准备开发信草稿":"客户与商机已提交主管分配，正在自动背调并准备开发信草稿");
+          if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;await openDailyReport();}
+          await loadInquiries();
+          await openInquiry(created.id);
         } catch (err) {
           toast("创建失败：" + err.message);
         } finally {
@@ -7942,6 +7947,25 @@
         calculateResearchScore();
         persistAutonomousResearch();
       }
+      async function maybeGeneratePostCreateOutreach(){
+        if(!currentInquiry||postCreateAutomationInquiryId!==currentInquiry.id)return;
+        const inquiryId=postCreateAutomationInquiryId;
+        postCreateAutomationInquiryId=null;
+        const quality=assessResearchQuality(),recipient=resolveInquiryRecipient();
+        if(!quality.generated){
+          setDetailTab("research");
+          $("#detail-research-status").textContent="背调状态：已自动执行；证据不足，开发信草稿未生成";
+          return toast("背调已完成；证据不足，开发信草稿未生成");
+        }
+        if(!recipient){
+          setDetailTab("outreach");
+          $("#outreach-status").textContent="背调已完成；缺少已核验客户邮箱，补充邮箱后可生成开发信草稿";
+          return toast("背调已完成；缺少已核验客户邮箱，未生成开发信草稿");
+        }
+        if(currentInquiry.id!==inquiryId)return;
+        setDetailTab("outreach");
+        await generateOutreach();
+      }
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
         if (autonomousResearchInquiryId === currentInquiry.id) return;
@@ -7994,6 +8018,7 @@
             $("#detail-research-status").textContent = fallbackQuality.ready
               ? "背调状态：公开信息检索完成，证据已达到销售准备门槛"
               : "背调状态：公开信息检索完成；公司身份或证据仍待补充";
+            await maybeGeneratePostCreateOutreach();
             return;
           }
           currentInquiry.businessResearch = record;
@@ -8050,8 +8075,10 @@
           evidence.classList.remove("hidden");
           calculateResearchScore();
           await completeOnlineResearchAndSave();
+          await maybeGeneratePostCreateOutreach();
           toast("超级智能体已完成背调并自动保存");
         } catch (error) {
+          if(postCreateAutomationInquiryId===currentInquiry?.id)postCreateAutomationInquiryId=null;
           $("#detail-research-status").textContent = "背调状态：执行失败";
           toast("背调失败：" + (error.message || error));
         } finally {

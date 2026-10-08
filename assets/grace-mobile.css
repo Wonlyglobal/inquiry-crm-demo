@@ -51,10 +51,20 @@ html[data-grace-app] #app>.main,html[data-grace-app] #agent-world-page {padding:
 .grace-chat-status button{border-radius:24px;padding:6px 16px;background:#222321;color:#eeeadf}
 @media(max-height:900px){.grace-top{padding:12px 24px}.grace-home{padding-bottom:12px}.grace-home .scene{width:220px;height:220px}.grace-home .grace-eyebrow{margin:5px}.grace-home h1{font-size:24px;margin:4px}.grace-home #grace-status{margin:6px}.grace-voice{margin-top:10px}.grace-sheet{padding:20px}.grace-prompts{margin:14px 0}}
 
-#grace-mobile.keyboard-open .grace-nav{display:none}
-#grace-mobile.keyboard-open{padding-bottom:16px}
-#grace-mobile .grace-composer{position:sticky;bottom:calc(70px + env(safe-area-inset-bottom));background:#eeeadf}
-
-#grace-mobile.keyboard-open .grace-composer{bottom:0}
-#grace-mobile .grace-composer{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(70px + env(safe-area-inset-bottom));width:100%;max-width:540px;padding:4px 20px;background:#eeeadf;z-index:99}
-#grace-mobile[data-view=home] .grace-sheet,#grace-mobile[data-view=chat] .grace-sheet{padding-bottom:130px}
+/* Keep content and controls in separate layout rows, never overlapping layers. */
+html[data-grace-app],html[data-grace-app] body {margin:0;overflow:hidden;overscroll-behavior:none}
+#grace-mobile {position:fixed;inset:var(--grace-viewport-top,0px) 0 auto;height:var(--grace-viewport-height,100dvh);min-height:0;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);overflow:hidden;box-sizing:border-box}
+#grace-mobile .grace-scroll {flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scroll-padding-block:16px;-webkit-overflow-scrolling:touch}
+#grace-mobile .grace-composer {position:static;transform:none;flex:none;width:100%;padding:4px 20px;background:#eeeadf;border-top:1px solid #d4d1c7}
+#grace-mobile .grace-nav {position:static;transform:none;flex:none;padding:10px 15px;background:#eeeadf;max-width:none}
+#grace-mobile.keyboard-open .grace-nav {display:none}
+#grace-mobile.keyboard-open {padding-bottom:0}
+#grace-mobile[data-view=home] .grace-sheet {min-height:0;padding:16px 20px}
+#grace-mobile .grace-home .scene {width:clamp(140px,24dvh,220px);height:clamp(140px,24dvh,220px)}
+#grace-mobile .grace-home {padding-bottom:12px}
+#grace-mobile .grace-top {padding:10px 24px}
+#grace-mobile .grace-home h1 {margin:4px;font-size:24px}
+#grace-mobile .grace-home #grace-status {margin:4px;overflow-wrap:anywhere}
+#grace-mobile .grace-prompts {margin:12px 0 0}
+#grace-mobile #ai-assistant-form {margin:0!important;align-items:center}
+#grace-mobile textarea {max-height:120px;resize:none}

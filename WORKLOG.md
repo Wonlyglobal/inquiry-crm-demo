@@ -272,3 +272,7 @@ Social live validation follow-up: Instagram live media and Insights available in
 ## 2026-10-08 Grace iPhone 首轮反馈修复候选
 用户要求继续真机测试并反馈提问/语音无反应；Codex执行。原生将失活隐私遮挡与真正进入后台的录音/请求取消分开，避免系统麦克风授权弹窗取消会话；后台取消仍保留。共用控制器在未就绪时重新检查连接，忙碌/声纹拒绝给出明确反馈；手机语音回答立即显示全文并转到对话页。未改变模型、权限、声纹验证或资料外发边界。
 验证：723项离线回归通过（/private/tmp/grace-iphone-regression.log），原生Debug签名构建成功，版本0.1.0(2)。尚未发布修复、尚未覆盖安装；当前设备离线，等待重新连接真机验证。回滚前端与原生包到PR179，保留后端v68和业务数据；不把构建/回归当成真机录音通过。豆包/DeepSeek功能对照为后续需求，尚未宣称实现等价。
+
+## 2026-10-08 Grace mobile layout candidate
+User screenshots show the fixed composer/navigation obscuring the home sheet. Replaced fixed overlays and guessed bottom spacing with a viewport-height flex shell: scrollable content, composer, navigation. Composer now sits outside the sheet; visualViewport resize/scroll adjusts the shell for keyboard changes. Reduced home orb size responsively. Cache versions updated.
+Validation: 5 mobile regressions, module/browser syntax and whitespace checks pass. Browser visual preview blocked by unavailable admin policy verification; iPhone keyboard/safe-area visual acceptance remains pending. No backend, permissions or data changes. Not deployed; rollback is the three presentation files.

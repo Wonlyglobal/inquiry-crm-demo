@@ -9,7 +9,7 @@ test('new opportunities open immediately and start the research-to-draft workflo
   const flow=html.slice(html.indexOf('$("#manual-form").addEventListener("submit"'),html.indexOf('      function parseMail('));
   assert.match(flow,/const created=await createInquiry/);
   assert.match(flow,/postCreateAutomationInquiryId=created\.id/);
-  assert.match(flow,/await openInquiry\(created\.id\)/);
+  assert.match(flow,/await openInquiryDetail\(created\.id\)/);
   assert.match(html,/async function maybeGeneratePostCreateOutreach\(\)/);
   assert.match(html,/await maybeGeneratePostCreateOutreach\(\)/);
   assert.match(html,/await generateOutreach\(\)/);

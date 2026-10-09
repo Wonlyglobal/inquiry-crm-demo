@@ -1646,6 +1646,12 @@
               <div class="sales-total-meta"><span id="hero-sales-period">本月</span><strong id="hero-sales-change">环比 —</strong></div>
             </section>
             <div id="hero-sales-ranking"><section class="leaderboard featured-sales-ranking"><div class="leaderboard-head"><b>业务员销售额排名</b><span class="dashboard-scope-note">正在加载…</span></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>环比</th><th>团队平均</th></tr></thead><tbody><tr><td colspan="5">正在读取销售额核心数据…</td></tr></tbody></table></div></section></div>
+            <section id="dashboard-email-observation" class="dashboard-panel" style="grid-column:1/-1">
+              <div class="panel-title"><div><b>业务员邮件观察</b><div class="dashboard-scope-note">仅显示观察状态与数量；点击进入带原文证据的人工复核，不计分、不改排名</div></div><div class="form-actions" style="margin:0"><label class="sr-only" for="dashboard-email-observation-month">观察月份</label><input id="dashboard-email-observation-month" class="input compact" type="month" /><button id="dashboard-email-observation-refresh" class="ghost" type="button">刷新</button></div></div>
+              <div class="dashboard-filter-group" style="padding:0 14px 12px"><input id="dashboard-email-observation-search" class="input compact" type="search" placeholder="搜索业务员姓名" aria-label="搜索业务员姓名" /><span id="dashboard-email-observation-scope" class="dashboard-scope-note"></span></div>
+              <div id="dashboard-email-observation-content" class="dashboard-table-scroll"><div class="empty">正在读取邮件观察汇总…</div></div>
+              <div id="dashboard-email-observation-pagination" class="table-head"></div>
+            </section>
           </div>
           <div class="kpis dashboard-kpis current-dashboard-block" data-dashboard-widget="core-kpis">
             <div class="card">
@@ -3985,11 +3991,61 @@
         $$('[data-review-email-result]').forEach(button=>button.onclick=()=>{const item=(results||[]).find(x=>x.id===button.dataset.reviewEmailResult);if(item)openSalesEmailHumanReview({...item,sales_name:salesName})});
       }
       function openSalesEmailAnalysis(target){
-        const salesId=target.sales_id||profile.id,salesName=target.sales_name||profile.full_name,now=new Date(),localMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
-        openDashboardModal(`AI 邮件观察 · ${salesName}`,`<p class="hint">分析所选月份已关联的有效客户往来，仅观察邮件中可核对的沟通做法。AI 建议附原文证据，结果由人判断；不计分、不改排名、不作人事结论。</p><div class="field"><label for="sales-email-analysis-month">分析月份</label><input id="sales-email-analysis-month" class="input" type="month" value="${localMonth}" max="${localMonth}" /></div><div class="form-actions"><button id="sales-email-analysis-request" class="primary" type="button">申请正文分析</button><button id="sales-email-analysis-refresh" class="ghost" type="button">刷新结果</button></div><div id="sales-email-analysis-content"><p class="hint">正在读取分析记录…</p></div>`);
+        const salesId=target.sales_id||profile.id,salesName=target.sales_name||profile.full_name,localMonth=chinaDate().slice(0,7),initialMonth=String(target.period_start||`${localMonth}-01`).slice(0,7);
+        openDashboardModal(`AI 邮件观察 · ${salesName}`,`<p class="hint">分析所选月份已关联的有效客户往来，仅观察邮件中可核对的沟通做法。AI 建议附原文证据，结果由人判断；不计分、不改排名、不作人事结论。</p><div class="field"><label for="sales-email-analysis-month">分析月份</label><input id="sales-email-analysis-month" class="input" type="month" value="${initialMonth}" max="${localMonth}" /></div><div class="form-actions"><button id="sales-email-analysis-request" class="primary" type="button">申请正文分析</button><button id="sales-email-analysis-refresh" class="ghost" type="button">刷新结果</button></div><div id="sales-email-analysis-content"><p class="hint">正在读取分析记录…</p></div>`);
         const selectedMonth=()=>`${$("#sales-email-analysis-month").value}-01`,refresh=()=>loadSalesEmailAnalysisResults(salesId,selectedMonth(),salesName);$("#sales-email-analysis-refresh").onclick=refresh;$("#sales-email-analysis-month").onchange=refresh;
         $("#sales-email-analysis-request").onclick=async event=>{const button=event.currentTarget;if(!/^\d{4}-\d{2}$/.test($("#sales-email-analysis-month").value))return toast("请选择有效月份");button.disabled=true;const period=selectedMonth();let {data,error}=await supabase.functions.invoke("sales-email-body-analysis",{body:{action:"request",salesperson_id:salesId,period_start:period}});if(error||data?.error){button.disabled=false;return toast("正文分析请求未成功："+(data?.error||error?.message||"请稍后重试"))}let done=0,failed=0,pending=Number(data?.queued||0),loops=0;while(pending>0&&loops<130){loops++;const batch=await supabase.functions.invoke("sales-email-body-analysis",{body:{action:"process_batch",salesperson_id:salesId,period_start:period}});if(batch.error||batch.data?.error){button.disabled=false;await refresh();return toast(`已处理 ${done} 条；云端分析暂未完成：${batch.data?.error||batch.error?.message||"请稍后重试"}`)}done+=Number(batch.data?.processed||0);failed+=Number(batch.data?.failed||0);pending=Number(batch.data?.pending||0);if(done+failed>0)toast(`百炼分析进度 ${done+failed}/${Number(data?.queued||0)}；结果仅供人工判断`);if(pending>0&&(Number(batch.data?.processed||0)+Number(batch.data?.failed||0)===0))break}button.disabled=false;await refresh();if(pending>0)toast(`已完成 ${done} 条，失败 ${failed} 条，另有 ${pending} 条待处理；可再次点击继续`);else toast(`百炼分析完成：成功 ${done} 条，失败 ${failed} 条；结果仅供人工判断，不改评分和排名`)};
         refresh();
+      }
+      let dashboardEmailObservationRequest=0;
+      async function loadDashboardEmailObservationSummary(month){
+        if(!["owner","sales_manager","sales"].includes(profile?.role))return;
+        if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||month>chinaDate().slice(0,7))return toast("请选择有效的当前或历史月份");
+        const requestId=++dashboardEmailObservationRequest,state=dashboardState.emailObservationSummary;
+        dashboardState.emailObservationSummary={...state,month,loading:true,error:null};renderDashboardEmailObservationPanel(dashboardState.profiles);
+        const periodStart=`${month}-01`;
+        const [results,jobs]=await Promise.all([
+          loadModuleRowsPaged((from,to)=>supabase.from("sales_email_analysis_results").select("salesperson_id,status,created_at").eq("period_start",periodStart).order("created_at",{ascending:false}).range(from,to)),
+          loadModuleRowsPaged((from,to)=>supabase.from("sales_email_analysis_jobs").select("salesperson_id,status,created_at").eq("period_start",periodStart).order("created_at",{ascending:false}).range(from,to)),
+        ]);
+        if(requestId!==dashboardEmailObservationRequest)return;
+        dashboardState.emailObservationSummary={month,results:results.data||[],jobs:jobs.data||[],error:results.error||jobs.error||null,loading:false};
+        renderDashboardEmailObservationPanel(dashboardState.profiles);
+      }
+      function renderDashboardEmailObservationPanel(profiles=dashboardState.profiles||[]){
+        const section=$("#dashboard-email-observation"),content=$("#dashboard-email-observation-content"),monthInput=$("#dashboard-email-observation-month"),searchInput=$("#dashboard-email-observation-search"),pager=$("#dashboard-email-observation-pagination");
+        if(!section||!content||!monthInput)return;
+        const canObserve=["owner","sales_manager","sales"].includes(profile?.role);section.classList.toggle("hidden",!canObserve);if(!canObserve)return;
+        const currentMonth=chinaDate().slice(0,7);monthInput.max=currentMonth;if(!monthInput.value)monthInput.value=currentMonth;
+        monthInput.onchange=()=>{dashboardState.emailObservationPage=1;loadDashboardEmailObservationSummary(monthInput.value)};
+        const search=String(searchInput?.value||"").trim().toLocaleLowerCase();if(searchInput)searchInput.oninput=()=>{dashboardState.emailObservationPage=1;renderDashboardEmailObservationPanel(profiles)};
+        const refresh=$("#dashboard-email-observation-refresh");if(refresh)refresh.onclick=()=>loadDashboardEmailObservationSummary(monthInput.value||currentMonth);
+        const summary=dashboardState.emailObservationSummary;
+        const selectedTeam=$("#dashboard-team")?.value||"",selectedSales=$("#dashboard-sales")?.value||"";
+        let people=(profiles||[]).filter(person=>person.active!==false&&person.role==="sales");
+        if(profile.role==="sales")people=people.filter(person=>person.id===profile.id);
+        else if(profile.role==="sales_manager")people=people.filter(person=>person.team===profile.team);
+        if(selectedTeam)people=people.filter(person=>person.team===selectedTeam);
+        if(selectedSales)people=people.filter(person=>person.id===selectedSales);
+        if(search)people=people.filter(person=>String(person.full_name||"").toLocaleLowerCase().includes(search));
+        people.sort((a,b)=>String(a.full_name||"").localeCompare(String(b.full_name||""),"zh-CN"));
+        const resultsBySales=new Map(),jobsBySales=new Map();
+        for(const row of summary.results||[]){const group=resultsBySales.get(row.salesperson_id)||[];group.push(row);resultsBySales.set(row.salesperson_id,group)}
+        for(const row of summary.jobs||[]){const group=jobsBySales.get(row.salesperson_id)||[];group.push(row);jobsBySales.set(row.salesperson_id,group)}
+        const scope=$("#dashboard-email-observation-scope");if(scope)scope.textContent=profile.role==="sales"?"仅本人":profile.role==="sales_manager"?`仅本团队 · ${people.length} 位业务员`:`当前筛选范围 · ${people.length} 位业务员`;
+        if(summary.loading){content.innerHTML='<div class="empty">正在读取本月邮件观察状态…</div>';if(pager)pager.innerHTML="";return}
+        if(summary.error){content.innerHTML='<div class="empty">邮件观察汇总暂时无法读取，请点击刷新重试。</div>';if(pager)pager.innerHTML="";return}
+        if(summary.month!==monthInput.value){content.innerHTML='<div class="empty">正在切换观察月份…</div>';if(pager)pager.innerHTML="";return}
+        const rows=people.map(person=>{
+          const sellerResults=resultsBySales.get(person.id)||[],sellerJobs=jobsBySales.get(person.id)||[];
+          return {person,generated:sellerResults.length,review:sellerResults.filter(row=>row.status==="pending_human_review").length,queued:sellerJobs.filter(row=>["queued","processing"].includes(row.status)).length,failed:sellerJobs.filter(row=>row.status==="failed").length,last:sellerResults.reduce((latest,row)=>!latest||new Date(row.created_at)>new Date(latest)?row.created_at:latest,null)};
+        });
+        const pageSize=20,pageCount=Math.max(1,Math.ceil(rows.length/pageSize));dashboardState.emailObservationPage=Math.min(Math.max(1,dashboardState.emailObservationPage||1),pageCount);
+        const pageRows=rows.slice((dashboardState.emailObservationPage-1)*pageSize,dashboardState.emailObservationPage*pageSize);
+        content.innerHTML=pageRows.length?`<table><thead><tr><th>业务员</th><th>已生成观察</th><th>待人工判断</th><th>排队/失败</th><th>最近观察</th><th>操作</th></tr></thead><tbody>${pageRows.map(row=>`<tr><td>${esc(row.person.full_name||"未命名业务员")}</td><td>${row.generated} 条</td><td>${row.review} 条</td><td>${row.queued?`处理中 ${row.queued}`:"无排队"}${row.failed?` · 失败 ${row.failed}`:""}</td><td>${row.last?esc(fmtDate(row.last)):"暂无"}</td><td><button class="table-action" type="button" data-email-observation-sales="${esc(row.person.id)}">${row.generated?"查看观察":"查看 / 发起"}</button></td></tr>`).join("")}</tbody></table>`:'<div class="empty">当前筛选下没有可见业务员</div>';
+        if(pager)pager.innerHTML=rows.length>pageSize?`<span>第 ${dashboardState.emailObservationPage}/${pageCount} 页 · 共 ${rows.length} 位</span><span class="form-actions" style="margin:0"><button class="ghost" type="button" data-email-observation-page="prev" ${dashboardState.emailObservationPage<=1?"disabled":""}>上一页</button><button class="ghost" type="button" data-email-observation-page="next" ${dashboardState.emailObservationPage>=pageCount?"disabled":""}>下一页</button></span>`:`<span>${rows.length?`共 ${rows.length} 位业务员`:""}</span>`;
+        $$('[data-email-observation-sales]').forEach(button=>button.onclick=()=>{const person=people.find(item=>item.id===button.dataset.emailObservationSales);if(person)openSalesEmailAnalysis({sales_id:person.id,sales_name:person.full_name,period_start:`${monthInput.value}-01`})});
+        $$('[data-email-observation-page]').forEach(button=>button.onclick=()=>{dashboardState.emailObservationPage+=button.dataset.emailObservationPage==="next"?1:-1;renderDashboardEmailObservationPanel(profiles)});
       }
       let sales360QuarterSelection = "";
       function sales360QuarterKey(date) {
@@ -5253,7 +5309,7 @@
         ,historical_order_amount:["历史订单金额","发货汇总源文件中订单明细金额的合计，单位为人民币万元。","同一订单号的多行物料明细只计一个订单，但金额按所有明细行累计；与当前 CRM 审批成交额分开留痕。"]
         ,historical_order_trend:["历史订单趋势","按下单日期汇总唯一订单数与明细金额。","来源文件没有国家字段，不推断国家；未匹配正式账号的原业务员仅保留姓名。"]
       };
-      let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], whatsappMessages:[], replyReminders:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], historicalOrders:[], dailyReports:[], emailIntakes:[], researchCompanies:[], trendGrain:"day" };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], whatsappMessages:[], replyReminders:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], historicalOrders:[], dailyReports:[], emailIntakes:[], researchCompanies:[], emailObservationSummary:{month:"",results:[],jobs:[],error:null,loading:false}, emailObservationPage:1,trendGrain:"day" };
       let dashboardHasSuccessfulLoad = false, dashboardRetryTimer = null, dashboardRetryCount = 0;
       function setDashboardLoadState(kind, message) {
         const box = $("#dashboard-load-state");
@@ -5509,6 +5565,9 @@
       function renderDashboard(rows, profiles, history, followups) {
         const costs=dashboardState.costs||[], targets=dashboardState.targets||[],audits=dashboardState.audits||[],rates=dashboardState.rates||[];
         dashboardState={...dashboardState,rows,profiles,history,followups,costs,targets,audits,rates};
+        renderDashboardEmailObservationPanel(profiles);
+        const observationMonth=$("#dashboard-email-observation-month")?.value||chinaDate().slice(0,7);
+        if(["owner","sales_manager","sales"].includes(profile?.role)&&!dashboardState.emailObservationSummary.month&&!dashboardState.emailObservationSummary.loading)loadDashboardEmailObservationSummary(observationMonth);
         const {type,start,end,previousStart,previousEnd}=dashboardRange();
         const selectedTeam=$("#dashboard-team")?.value||"", selectedSales=$("#dashboard-sales")?.value||"", selectedSource=$("#dashboard-source")?.value||"",selectedCountry=$("#dashboard-country")?.value||"",selectedProduct=$("#dashboard-product")?.value||"",selectedDealType=$("#dashboard-deal-type")?.value||"";
         const allowedProfiles=profiles.filter(p=>(!selectedTeam||p.team===selectedTeam)&&(!selectedSales||p.id===selectedSales));

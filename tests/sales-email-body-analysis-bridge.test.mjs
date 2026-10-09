@@ -50,6 +50,8 @@ test('worker is internal-only, human observation, no score/rank and evidence is 
   assert.match(api,/scoring_effect:false/);
   assert.match(compose,/internal: true/);
   assert.match(compose,/read_only: true/);
+  assert.match(compose,/name: wonly-sales-email-egress/);
+  assert.doesNotMatch(compose,/name: bridge/);
   assert.doesNotMatch(worker,/print\([^\n]*(body|prompt|messages)/i);
 });
 

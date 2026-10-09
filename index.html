@@ -518,6 +518,17 @@
       .sales-workbench-kpi { border:1px solid var(--line); border-radius:12px; padding:13px; }
       .sales-workbench-kpi span { color:var(--muted); font-size:11px; display:block; margin-bottom:7px; }
       .sales-workbench-kpi b { font-size:24px; }
+      .email-activity-kpis { grid-template-columns:repeat(6,minmax(130px,1fr)); }
+      .email-activity-kpi { background:linear-gradient(145deg,#fff,#f1f6f2); }
+      .email-activity-kpi small { display:block; margin-top:5px; color:var(--muted); font-size:10px; line-height:1.4; }
+      .email-activity-trend { padding:0 14px 14px; }
+      .email-activity-trend table { min-width:480px; }
+      .email-activity-trend td:first-child { white-space:nowrap; }
+      .email-activity-bar { display:flex; align-items:center; gap:8px; min-width:120px; }
+      .email-activity-bar i { display:block; height:8px; min-width:0; max-width:180px; border-radius:99px; background:linear-gradient(90deg,#47755a,#78a887); }
+      .email-activity-bar.inbound i { background:linear-gradient(90deg,#d88743,#f0b875); }
+      @media (max-width:1050px) { .email-activity-kpis { grid-template-columns:repeat(3,minmax(130px,1fr)); } }
+      @media (max-width:650px) { .email-activity-kpis { grid-template-columns:repeat(2,minmax(120px,1fr)); } }
       .sales-workbench-kpi-link { width:100%; background:#fff; color:var(--ink); font:inherit; text-align:left; cursor:pointer; transition:border-color .18s,box-shadow .18s,transform .18s; }
       .sales-workbench-kpi-link:hover { border-color:#8eaa98; box-shadow:0 8px 22px rgba(39,78,57,.10); transform:translateY(-1px); }
       .sales-workbench-kpi-link:focus-visible { outline:3px solid rgba(209,115,50,.28); outline-offset:2px; }
@@ -1649,6 +1660,8 @@
             <section id="dashboard-email-observation" class="dashboard-panel" style="grid-column:1/-1">
               <div class="panel-title"><div><b>业务员邮件观察</b><div class="dashboard-scope-note">仅显示观察状态与数量；点击进入带原文证据的人工复核，不计分、不改排名</div></div><div class="form-actions" style="margin:0"><label class="sr-only" for="dashboard-email-observation-month">观察月份</label><input id="dashboard-email-observation-month" class="input compact" type="month" /><button id="dashboard-email-observation-refresh" class="ghost" type="button">刷新</button></div></div>
               <div class="dashboard-filter-group" style="padding:0 14px 12px"><input id="dashboard-email-observation-search" class="input compact" type="search" placeholder="搜索业务员姓名" aria-label="搜索业务员姓名" /><span id="dashboard-email-observation-scope" class="dashboard-scope-note"></span></div>
+              <div id="dashboard-email-activity-kpis" class="sales-workbench-kpis email-activity-kpis"><div class="empty">正在读取邮件指标…</div></div>
+              <div id="dashboard-email-activity-trend" class="email-activity-trend dashboard-table-scroll"></div>
               <div id="dashboard-email-observation-content" class="dashboard-table-scroll"><div class="empty">正在读取邮件观察汇总…</div></div>
               <div id="dashboard-email-observation-pagination" class="table-head"></div>
             </section>
@@ -4003,17 +4016,13 @@
         if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||month>chinaDate().slice(0,7))return toast("请选择有效的当前或历史月份");
         const requestId=++dashboardEmailObservationRequest,state=dashboardState.emailObservationSummary;
         dashboardState.emailObservationSummary={...state,month,loading:true,error:null};renderDashboardEmailObservationPanel(dashboardState.profiles);
-        const periodStart=`${month}-01`;
-        const [results,jobs]=await Promise.all([
-          loadModuleRowsPaged((from,to)=>supabase.from("sales_email_analysis_results").select("salesperson_id,status,created_at").eq("period_start",periodStart).order("created_at",{ascending:false}).range(from,to)),
-          loadModuleRowsPaged((from,to)=>supabase.from("sales_email_analysis_jobs").select("salesperson_id,status,created_at").eq("period_start",periodStart).order("created_at",{ascending:false}).range(from,to)),
-        ]);
+        let {data,error}=await supabase.rpc("get_sales_email_activity_metrics",{target_period_start:`${month}-01`});
         if(requestId!==dashboardEmailObservationRequest)return;
-        dashboardState.emailObservationSummary={month,results:results.data||[],jobs:jobs.data||[],error:results.error||jobs.error||null,loading:false};
+        dashboardState.emailObservationSummary={month,people:data?.people||[],daily:data?.daily||[],error:error||null,loading:false};
         renderDashboardEmailObservationPanel(dashboardState.profiles);
       }
       function renderDashboardEmailObservationPanel(profiles=dashboardState.profiles||[]){
-        const section=$("#dashboard-email-observation"),content=$("#dashboard-email-observation-content"),monthInput=$("#dashboard-email-observation-month"),searchInput=$("#dashboard-email-observation-search"),pager=$("#dashboard-email-observation-pagination");
+        const section=$("#dashboard-email-observation"),content=$("#dashboard-email-observation-content"),kpis=$("#dashboard-email-activity-kpis"),trend=$("#dashboard-email-activity-trend"),monthInput=$("#dashboard-email-observation-month"),searchInput=$("#dashboard-email-observation-search"),pager=$("#dashboard-email-observation-pagination");
         if(!section||!content||!monthInput)return;
         const canObserve=["owner","sales_manager","sales"].includes(profile?.role);section.classList.toggle("hidden",!canObserve);if(!canObserve)return;
         const currentMonth=chinaDate().slice(0,7);monthInput.max=currentMonth;if(!monthInput.value)monthInput.value=currentMonth;
@@ -4029,20 +4038,21 @@
         if(selectedSales)people=people.filter(person=>person.id===selectedSales);
         if(search)people=people.filter(person=>String(person.full_name||"").toLocaleLowerCase().includes(search));
         people.sort((a,b)=>String(a.full_name||"").localeCompare(String(b.full_name||""),"zh-CN"));
-        const resultsBySales=new Map(),jobsBySales=new Map();
-        for(const row of summary.results||[]){const group=resultsBySales.get(row.salesperson_id)||[];group.push(row);resultsBySales.set(row.salesperson_id,group)}
-        for(const row of summary.jobs||[]){const group=jobsBySales.get(row.salesperson_id)||[];group.push(row);jobsBySales.set(row.salesperson_id,group)}
         const scope=$("#dashboard-email-observation-scope");if(scope)scope.textContent=profile.role==="sales"?"仅本人":profile.role==="sales_manager"?`仅本团队 · ${people.length} 位业务员`:`当前筛选范围 · ${people.length} 位业务员`;
-        if(summary.loading){content.innerHTML='<div class="empty">正在读取本月邮件观察状态…</div>';if(pager)pager.innerHTML="";return}
-        if(summary.error){content.innerHTML='<div class="empty">邮件观察汇总暂时无法读取，请点击刷新重试。</div>';if(pager)pager.innerHTML="";return}
-        if(summary.month!==monthInput.value){content.innerHTML='<div class="empty">正在切换观察月份…</div>';if(pager)pager.innerHTML="";return}
-        const rows=people.map(person=>{
-          const sellerResults=resultsBySales.get(person.id)||[],sellerJobs=jobsBySales.get(person.id)||[];
-          return {person,generated:sellerResults.length,review:sellerResults.filter(row=>row.status==="pending_human_review").length,queued:sellerJobs.filter(row=>["queued","processing"].includes(row.status)).length,failed:sellerJobs.filter(row=>row.status==="failed").length,last:sellerResults.reduce((latest,row)=>!latest||new Date(row.created_at)>new Date(latest)?row.created_at:latest,null)};
-        });
+        if(summary.loading){if(kpis)kpis.innerHTML='<div class="empty">正在读取邮件指标…</div>';if(trend)trend.innerHTML="";content.innerHTML='<div class="empty">正在读取邮件观察状态…</div>';if(pager)pager.innerHTML="";return}
+        if(summary.error){if(kpis)kpis.innerHTML='<div class="empty">邮件指标暂时无法读取</div>';if(trend)trend.innerHTML="";content.innerHTML='<div class="empty">邮件观察汇总暂时无法读取，请点击刷新重试。</div>';if(pager)pager.innerHTML="";return}
+        if(summary.month!==monthInput.value){if(kpis)kpis.innerHTML='<div class="empty">正在切换统计月份…</div>';if(trend)trend.innerHTML="";content.innerHTML='<div class="empty">正在切换观察月份…</div>';if(pager)pager.innerHTML="";return}
+        const activityBySales=new Map((summary.people||[]).map(row=>[row.sales_id,row])),rows=people.map(person=>({person,...(activityBySales.get(person.id)||{})}));
+        const sum=key=>rows.reduce((n,row)=>n+Number(row[key]||0),0),mature=sum("mature_7d_sent"),replied7=sum("replied_7d"),handled=sum("replied_in_period"),within24=sum("replied_within_24h");
+        const percent=(numerator,denominator)=>denominator?`${(numerator/denominator*100).toFixed(1)}%`:"—";
+        if(kpis)kpis.innerHTML=[["CRM 开发信",sum("development_sent"),"成功发送 · 排除回复/失败"],["客户来信",sum("customer_inbound"),"个人邮箱 · 已关联有效询盘"],["7 天开发信回复率",percent(replied7,mature),`成熟样本 ${mature} 封 · 仅精确线程匹配`],["业务员 24 小时内回复",percent(within24,handled),`已回复 ${handled} 封客户来信`],["待业务员回复",sum("pending_replies"),`其中超 24 小时 ${sum("overdue_replies")} 封`],["AI 待人工复核",sum("ai_pending_review"),`排队 ${sum("ai_queued")} · 失败 ${sum("ai_failed")}`]].map(([label,value,note])=>`<div class="sales-workbench-kpi email-activity-kpi"><span>${label}</span><b>${value}</b><small>${note}</small></div>`).join("");
+        const monthParts=monthInput.value.split("-").map(Number),year=monthParts[0],month=monthParts[1],daysInMonth=new Date(Date.UTC(year,month,0)).getUTCDate(),isCurrent=monthInput.value===currentMonth,visibleDays=isCurrent?Math.min(daysInMonth,Number(chinaDate().slice(8,10))):daysInMonth,dailyByKey=new Map();
+        for(const item of summary.daily||[]){if(!rows.some(row=>row.person.id===item.sales_id))continue;const group=dailyByKey.get(item.day)||{development_sent:0,customer_inbound:0};group.development_sent+=Number(item.development_sent||0);group.customer_inbound+=Number(item.customer_inbound||0);dailyByKey.set(item.day,group)}
+        const dayRows=Array.from({length:visibleDays},(_,index)=>{const day=`${monthInput.value}-${String(index+1).padStart(2,"0")}`;return{day,...(dailyByKey.get(day)||{development_sent:0,customer_inbound:0})}}),maxCount=Math.max(1,...dayRows.flatMap(row=>[row.development_sent,row.customer_inbound]));
+        if(trend)trend.innerHTML=`<div class="panel-title" style="padding:10px 2px"><b>每日邮件活动</b><span class="dashboard-scope-note">只展示成功发送的 CRM 开发信和已关联客户来信</span></div><table><thead><tr><th>日期</th><th>开发信成功发送</th><th>客户来信</th></tr></thead><tbody>${dayRows.slice().reverse().map(row=>`<tr><td>${row.day}</td><td><div class="email-activity-bar"><i style="width:${Math.round(row.development_sent/maxCount*180)}px"></i><b>${row.development_sent}</b></div></td><td><div class="email-activity-bar inbound"><i style="width:${Math.round(row.customer_inbound/maxCount*180)}px"></i><b>${row.customer_inbound}</b></div></td></tr>`).join("")}</tbody></table>`;
         const pageSize=20,pageCount=Math.max(1,Math.ceil(rows.length/pageSize));dashboardState.emailObservationPage=Math.min(Math.max(1,dashboardState.emailObservationPage||1),pageCount);
         const pageRows=rows.slice((dashboardState.emailObservationPage-1)*pageSize,dashboardState.emailObservationPage*pageSize);
-        content.innerHTML=pageRows.length?`<table><thead><tr><th>业务员</th><th>已生成观察</th><th>待人工判断</th><th>排队/失败</th><th>最近观察</th><th>操作</th></tr></thead><tbody>${pageRows.map(row=>`<tr><td>${esc(row.person.full_name||"未命名业务员")}</td><td>${row.generated} 条</td><td>${row.review} 条</td><td>${row.queued?`处理中 ${row.queued}`:"无排队"}${row.failed?` · 失败 ${row.failed}`:""}</td><td>${row.last?esc(fmtDate(row.last)):"暂无"}</td><td><button class="table-action" type="button" data-email-observation-sales="${esc(row.person.id)}">${row.generated?"查看观察":"查看 / 发起"}</button></td></tr>`).join("")}</tbody></table>`:'<div class="empty">当前筛选下没有可见业务员</div>';
+        content.innerHTML=pageRows.length?`<table><thead><tr><th>业务员</th><th>开发信</th><th>客户来信</th><th>7天回复率</th><th>24小时回复率 / 中位时长</th><th>待回复</th><th>AI观察（待复核/总数）</th><th>邮箱状态</th><th>操作</th></tr></thead><tbody>${pageRows.map(row=>`<tr><td>${esc(row.person.full_name||"未命名业务员")}</td><td>${Number(row.development_sent||0)} 封</td><td>${Number(row.customer_inbound||0)} 封</td><td>${row.mature_7d_sent?`${percent(Number(row.replied_7d||0),Number(row.mature_7d_sent))} · ${Number(row.replied_7d||0)}/${Number(row.mature_7d_sent)}`:"— · 样本未成熟"}</td><td>${row.replied_in_period?`${percent(Number(row.replied_within_24h||0),Number(row.replied_in_period))} · ${row.median_reply_minutes==null?"—":`${Number(row.median_reply_minutes)} 分钟`}`:"—"}</td><td>${Number(row.pending_replies||0)}${row.overdue_replies?` · 超时 ${Number(row.overdue_replies)}`:""}</td><td>${Number(row.ai_pending_review||0)} / ${Number(row.ai_generated||0)}${row.ai_queued||row.ai_failed?`<small style="display:block">排队 ${Number(row.ai_queued||0)} · 失败 ${Number(row.ai_failed||0)}</small>`:""}</td><td>${row.mailbox_status==="connected"?"已连接":"未连接"}${row.sync_has_error?" · 同步异常":""}${row.last_synced_at?`<small style="display:block">同步 ${esc(fmtDate(row.last_synced_at))}</small>`:""}</td><td><button class="table-action" type="button" data-email-observation-sales="${esc(row.person.id)}">${Number(row.ai_generated||0)?"查看观察":"查看 / 发起"}</button></td></tr>`).join("")}</tbody></table>`:'<div class="empty">当前筛选下没有可见业务员</div>';
         if(pager)pager.innerHTML=rows.length>pageSize?`<span>第 ${dashboardState.emailObservationPage}/${pageCount} 页 · 共 ${rows.length} 位</span><span class="form-actions" style="margin:0"><button class="ghost" type="button" data-email-observation-page="prev" ${dashboardState.emailObservationPage<=1?"disabled":""}>上一页</button><button class="ghost" type="button" data-email-observation-page="next" ${dashboardState.emailObservationPage>=pageCount?"disabled":""}>下一页</button></span>`:`<span>${rows.length?`共 ${rows.length} 位业务员`:""}</span>`;
         $$('[data-email-observation-sales]').forEach(button=>button.onclick=()=>{const person=people.find(item=>item.id===button.dataset.emailObservationSales);if(person)openSalesEmailAnalysis({sales_id:person.id,sales_name:person.full_name,period_start:`${monthInput.value}-01`})});
         $$('[data-email-observation-page]').forEach(button=>button.onclick=()=>{dashboardState.emailObservationPage+=button.dataset.emailObservationPage==="next"?1:-1;renderDashboardEmailObservationPanel(profiles)});
@@ -5309,7 +5319,7 @@
         ,historical_order_amount:["历史订单金额","发货汇总源文件中订单明细金额的合计，单位为人民币万元。","同一订单号的多行物料明细只计一个订单，但金额按所有明细行累计；与当前 CRM 审批成交额分开留痕。"]
         ,historical_order_trend:["历史订单趋势","按下单日期汇总唯一订单数与明细金额。","来源文件没有国家字段，不推断国家；未匹配正式账号的原业务员仅保留姓名。"]
       };
-      let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], whatsappMessages:[], replyReminders:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], historicalOrders:[], dailyReports:[], emailIntakes:[], researchCompanies:[], emailObservationSummary:{month:"",results:[],jobs:[],error:null,loading:false}, emailObservationPage:1,trendGrain:"day" };
+      let dashboardState = { rows:[], profiles:[], history:[], followups:[], emailMessages:[], whatsappMessages:[], replyReminders:[], costs:[], targets:[], targetPeople:[], targetPlanItems:[], targetPlanMetric:"contract_count", audits:[], rates:[], legacy:[], historicalOrders:[], dailyReports:[], emailIntakes:[], researchCompanies:[], emailObservationSummary:{month:"",people:[],daily:[],error:null,loading:false}, emailObservationPage:1,trendGrain:"day" };
       let dashboardHasSuccessfulLoad = false, dashboardRetryTimer = null, dashboardRetryCount = 0;
       function setDashboardLoadState(kind, message) {
         const box = $("#dashboard-load-state");

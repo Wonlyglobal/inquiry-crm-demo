@@ -50,5 +50,5 @@ networks:
     external: true
     name: wonly-video-private
   egress:
-    external: true
-    name: bridge
+    driver: bridge
+    name: wonly-sales-email-egress

@@ -315,3 +315,11 @@ Validation: 5 mobile regressions, module/browser syntax and whitespace checks pa
 自动背调状态：生产详情页显示自动执行完成，但证据不足；首次 WONLY Business 远程查询因 DNS 失败，重试返回无公司候选。后续检索到一处与截图显示名相符的 Space Arch 官方站（https://spacearch.ae/），自述在 UAE/Dubai 提供意式室内产品与项目服务；联系页（https://spacearch.ae/pages/contact）列出迪拜展厅。官方主页和联系页的公开联系邮箱域名不一致，而且 WhatsApp 账号尚未与该公司官方联系方式建立可核验关联；因此官网只能作为待人工核对候选，未将域名、邮箱、公司地址或产品需求写入客户记录。截图无年份，不能判断其是否为近期采购信号；内容是询问核实人员，不是明确产品需求。未生成开发信草稿、未发送邮件。生产详情仍带有未确认的 “Space Club Dubai” 地图地址候选，名称与客户不同，本轮未确认或保存该候选，需负责人决定是否清空这个预填字段。剩余风险：公司账号关联、联系人身份、联系邮箱、具体人员和采购需求均未核实；未核实前不开展销售开发。
 
 发布后发现创建成功回调调用了不存在/不匹配的详情入口。已修复为 `openInquiryDetail(created.id)`，测试断言同步更新。针对性 3 项回归、浏览器模块语法、`git diff --check` 和 CI 的 740 项回归 + secret scan 均通过。PR #187 已于 2026-10-08 13:41（Asia/Shanghai）合并到 main，提交 `658fb6b`；随后以唯一查询参数只读请求生产 `https://crm.foreverdoodle.com/`，确认返回页面源码包含 `await openInquiryDetail(created.id)`，生产静态页面已更新。此 PR 页面未显示独立 deployment 记录，所以验收证据为生产 HTTP 页面内容，而非 GitHub deployment 状态。后续发布只替换静态前端，无需变更数据库。回滚为回退该前端补丁；数据库触发器保留且不影响正常创建。授权人：项目负责人；执行人：Codex；目标：修复新建后详情跳转；剩余风险：自动开发信仍须满足企业匹配、客户邮箱和可引用需求证据门槛。
+
+## 2026-10-09 邮件正文分析改为百炼脱敏云端方案候选（未部署）
+- 授权人：项目负责人此前明确同意将脱敏必要邮件片段发往云端 AI，并选择百炼；执行人：Codex。目标：取代无法访问 Supabase 的已暂停内网 worker 路线。
+- 实现：Edge Function 服务端选取每线程最多 6 段、每段最多 800 字、总计最多 4,800 字；切除引用/签名并屏蔽邮箱、姓名、电话、网址/域名、金额、长编号；主题、CRM 内部 ID 与原始 message ID 不出 CRM。模型只收 M1… 的脱敏片段；证据只接受脱敏片段内精确子串，并在本地反映射至 CRM 原文后保存。结果只供人工判断，不改评分/排名。新增scope-limited任务领取，以及结果、完成状态和审计的原子写入。
+- 验证：完整 Node 回归 753/753；脱敏、权限、来源哈希、精确证据校验、无正文队列、无评分/排名等专项测试 9/9；Node TypeScript 语法解析、浏览器/模块语法与 `git diff --check` 通过。Deno、Docker 不可用，未做 Edge runtime bundle / PostgreSQL 真实迁移演练。
+- 环境授权：用户提供终端登录完成截图后，受限 sandbox 仍不可读系统钥匙串；经用户明确确认，升级权限仅做只读 Supabase 项目列表与 GitHub CLI 授权核验，成功看见目标 `plhverjihjilnuhlhlxi` 与有效 `Wonlyglobal` 登录，未访问或记录令牌。最新 `main` 已获取；PR #195 已合并，百炼候选从最新 main 建立 `feature/sales-email-bailian-redacted`。
+- 当前状态：未提交/推送/创建 PR，生产 migration、函数代码和百炼策略未变化；未调用模型或读取真实邮件。实现候选位于本分支，需按 PR 与 CI 审核后再进入生产发布；接收数据严格限脱敏片段，但供应商具体调用留存期未在此任务确认，人工复核证据含还原后的邮件原文并仅留在受权限保护的 CRM 中。
+- 回滚/剩余风险：未部署，直接丢弃候选差异即可。生产启用前须由 Deno/Edge 部署检查与 PostgreSQL migration 真实验证通过，策略 `BAILIAN_EMAIL_ANALYSIS_POLICY=bailian-redacted-sales-email-v1` 独立fail-closed配置，并完成合成文本端到端验证；不得用真实邮件作首轮联调。脱敏仍有上下文再识别与模型误判风险，且供应商固定留存期限待核实。

@@ -256,3 +256,82 @@
 - Validation: isolated release tree 283/283 tests, module syntax, diff check, synthetic Chrome checks for failure/input retention, retries, duplicate submission, exact task completion and mobile overflow. The earlier 290 total included 7 unreleased risk-center tests.
 - Rollback: revert this release commit on main; prior runtime page is retained in c77d3ed. No database rollback needed.
 - Deployment: prepared for authorized push; Pages success and live hash will be verified after push and recorded in project WORKLOG.md. Production customer writes are not part of acceptance.
+
+
+## 2026-09-20T09:55:27+08:00 — GitHub 安全加固
+
+- 授权人：本次用户；执行人：Codex；目标：Wonlyglobal/inquiry-crm-demo；原因：限制生产直推与公开托管风险。
+- 已生效：main 强制 PR/独立一人审核/两项 CI/管理员约束，禁止强推和删除；Dependabot 漏洞告警与安全更新、私密报告开启。API 回读验证通过。
+- 审核人 chloe19980401 已按用户指定邀请 write，待接受。账号双重验证已启用；GitHub Free 已核实，改私有可能使 Pages 下线，因此未更改可见性或付费套餐。
+- 验证：历史 501 提交密钥模式扫描未命中；本地最终 290/290 测试通过，CRM HTTPS 200。扫描不等同全部业务敏感信息无泄漏。
+- 代码交付：安全 PR #1，自动检查与 Pages 文件排除待独立审核合并；仓库设置已生效，应用与数据库无本轮变更。
+- 回滚：代码走受保护 revert PR；安全控制降低须另行明确批准。剩余风险：公开历史、待接受邀请、待合并 PR、套餐/托管选择。完整记录 docs/GITHUB-SECURITY-HARDENING-2026-09-20.md。
+
+
+## 2026-09-20 Codeup 迁移（无生产部署）
+
+用户授权改用 Codeup，Codex 完成私有源码副本与主分支独立审核保护。两分支/507 个可达提交一致；WIP MR #1 未合并。独立审核成员及 Flow CI 尚未接入。原 GitHub Pages、域名、数据库均未变更，源码托管迁移不代表生产发布迁移完成。回滚为暂停新托管流程，保留原受保护发布路径。详见项目 docs/CODEUP-MIGRATION-2026-09-20.md。
+
+
+## 2026-09-20 风险续审（未部署）
+
+用户授权继续风险审查。Codex 对 0b59af6 发现风险 RPC 空值授权、多案件控制覆盖、AI 团队隔离与外发门禁、导出下载控制缺口。仅源码审查及官方 SQL 语义核对，无生产变更、利用或客户数据外发。完整触发条件、验收及剩余风险见项目 docs/RISK-REVIEW-FOLLOWUP-2026-09-20.md。文档可撤回，无运行时回滚。用户已选择继续 GitHub，Codeup 迁移暂停。
+
+
+## 2026-09-20 风险修复候选（未部署）
+
+用户授权“开始修复”，Codex 完成两条风险/存储迁移和邮件 AI 权限、外发阻断候选。297 项回归与 22 项隔离 PostgreSQL 行为断言通过。生产无变更，未提交合并或部署。审批网关与服务端导出尚未建设，独立审核尚待人员落实。授权、前后状态、影响、验证、回滚与剩余风险见 docs/risk-hardening-acceptance-2026-09-20.md。
+
+
+## 2026-09-20 第二批受控导出候选（未部署）
+
+用户授权开始第二批并继续。Codex 完成固定字段导出服务端双审批、单次领取、撤回及审计，页面导出转审批，市场部只读存储风险覆盖，八个已盘点 DeepSeek 入口默认阻断。300 项 Node 和 62 项隔离 PostgreSQL 断言通过，合成浏览器流程通过。无真实客户操作、真实审批或生产状态变化。尚待独立审核、生产兼容核对与发布；完整 AI 分级网关、原多表 Excel/PDF 仍未完成。前后状态、影响、回滚及剩余风险见 docs/controlled-exports-acceptance-2026-09-20.md。
+
+
+## 2026-09-20 — 风险修复第三批（本地，未部署）
+
+- 授权人：用户“继续”；执行人：Codex；目标：导出审批通知、报价明细；原因：补齐审批提醒并收口未审批打印。
+- 交付：按角色与团队生成站内审批/状态通知，缺少独立审核人明确提示；禁止客户端伪造或改绑导出通知；报价保留在线查看并移除直接打印入口。
+- 验证：301 项 Node 回归、48 项隔离 PostgreSQL 导出断言、页面模块语法和 diff 检查通过。均为本地/合成数据，无实际通知或生产写入；前后生产状态不变。
+- 回滚：未发布可按差异撤销本批；发布后保留审计向前修复，不恢复无审批打印。剩余：独立审核、生产 notifications/RLS 兼容及浏览器验收、正式报价打印审批、催办、AI 分级网关和外部归档。详见 docs/export-notifications-acceptance-2026-09-20.md。
+
+
+## 2026-09-21 12:30 +08:00 — 生产验收数据安全隔离与 P1 误报关闭
+
+- 授权：用户明确“确认执行以上生产隔离及 P1 误报关闭”；执行人：Codex；目标：Supabase 生产项目 `plhverjihjilnuhlhlxi`。
+- 精确对象：测试账号 `CRM 验收测试员`、询盘 `#80 / RFQ-CRM-20260917-A`，以及仅被该询盘使用的公司和联系人。执行前脚本再次断言 UUID、账号邮箱/名称/团队、询盘编号/标题/归属、公司联系人独占性、风险状态和无活动风险控制；任一断言不符均整笔回滚。
+- 结果：测试账号停用；四类核心记录标记 `is_test_data=true / data_environment=test`；询盘设为无效并排除经营看板；历史邮件、跟进、分配、AI、研究及风险证据均保留，未执行物理删除。
+- 运营清理：该询盘开放数据质量告警、回复提醒、相关未读通知和活动风险案件均为 `0`；唯一 P1 `business.first_response_overdue` 案件状态为 `false_positive`。
+- 安全边界：四表新增受保护测试分类、约束和限制性 RLS；普通认证身份对四个隔离对象的实测可见数均为 `0`。生产存在 8 条隔离策略和 8 个按事件计数的分类保护触发器。
+- 审计：四个核心对象各有 `test_data_quarantined` 审计，P1 案件另有 1 条 `risk_case_false_positive` 审计及风险事件；理由包含授权日期、目的和不计入经营/提醒/风险统计的范围。
+- 验证：独立只读验收 PASS；6/6 数据质量告警已解决，3 条历史提醒中原开放项已关闭且当前开放提醒为 `0`，未读通知/活动风险均为 `0`；P1 为 `false_positive` 且风险案件仍保留 1 条；本地完整回归 `310/310`、专项测试 `4/4`、`git diff --check` 通过。
+- 迁移记录：生产库当前没有 `supabase_migrations.schema_migrations` 表，因此未伪造 CLI 迁移历史；仓库迁移设计为完整终态可安全重放、部分状态则失败回滚。
+- 回滚：仅允许经负责人再次批准的受控向前迁移恢复核心记录和业务状态；不得删除本次审计或历史证据，也不得机械重开已判定误报的风险案件。
+
+
+## 2026-09-22 — 经营趋势收起按钮与周期页签避让（已发布生产）
+
+- 授权：用户反馈“ui问题”；执行人：Codex；目标：经营看板“经营趋势”标题栏。
+- 问题：模块收起按钮绝对定位在右上角，未预留布局空间，窄宽度下覆盖“每年”页签。
+- 修复：所有可折叠标题栏为收起按钮预留 `58px`；趋势标题栏和周期页签允许换行，保证“每日／每月／每年”与收起按钮互不遮挡。
+- 验证：同步最新生产 `main` 后，经营看板专项 `17/17`、完整 Node 回归 `334/334`、`git diff --check` 通过。
+- 数据与安全：仅修改页面 CSS 与静态回归测试；无数据库、权限、客户数据、AI、通知或生产环境变更。
+- 发布：`Wonlyglobal` 提交，`chloe19980401` 独立批准 PR #30；两项必需检查通过，正常合并为 `c35f1c6e29d837f73ef0ae1159dc628dae67cddf`。生产安全检查 `35675368030` 与 Pages 发布 `35675367786` 均成功。
+- 生产核验：`origin/main:index.html` 与 `https://crm.foreverdoodle.com/` 的 SHA-256 均为 `0fd6159db1ad6b46393a90e9b1beb31770e28adcb9c600d1037e2b1e20ff5b89`。浏览器登录会话在发布后已失效，因此未把未登录页面目视检查冒充登录态验收。
+- 回滚：通过受保护 PR revert `c35f1c6`；本次不含数据库迁移，无数据库回滚。剩余风险仅为需在有效登录会话中复核用户原截图对应宽度。
+
+## 2026-09-22T10:17:43+08:00 — 侧边栏真实待办计数（生产迁移已应用，页面待合并）
+
+- 授权人：用户明确要求“修改”并随后要求“发布”；执行人：Codex；目标：Supabase 生产项目 `plhverjihjilnuhlhlxi` 与 `Wonlyglobal/inquiry-crm-demo` PR #36。
+- 原因与前态：历史通知累计使“今日工作台”和“我的邮箱”显示 `99+`，与邮箱列表 6 条及真实待办不一致；前端缺少按当前账号实时业务状态计算的权威口径。
+- 数据库后态：已创建只读 `public.get_my_sidebar_actionable_counts()`，仅为当前活动账号返回个人邮箱未读入站数、去重待办数和计算时间；不返回客户内容。`authenticated` 可执行，`anon` 不可执行。
+- 生产验证：SQL Editor 执行成功；独立权限回读结果为 `function_exists=true`、`authenticated_execute=true`、`anon_execute=false`。迁移未修改客户、邮件、通知、询盘或已读数据。
+- 代码验证：341/341 Node 回归及 `git diff --check` 通过；PR #36 的 Secret scan 与 CRM regression 均通过。
+- 发布状态：数据库迁移已生效；页面变更正在通过受保护 PR 合并，Pages 结果与生产登录态显示仍需在合并后核验。
+- 回滚：优先 revert 页面调用；确认无客户端调用后再通过受控迁移撤销该只读函数。不得删除邮件已读记录或任何业务数据。剩余风险为不同角色真实账号的视觉计数仍需登录态验收。
+
+## 2026-09-23 智能体信息简报
+
+授权：用户确认自动获取信息、每日更新、重要变化、每周汇总；执行Codex。PR76/1ae0a6b，合并b64d1ed，Pages35814738990成功。408项回归、语法与合成浏览器通过；真实登录只读确认即时简报和公开资料，五份线上资产字节一致。前态无情报，后态本地规则汇总与公开feed可用。未改角色/RLS/数据库，未外发客户内容。自动化grace-brian-jay已ACTIVE，每日9点、周一周报，依赖本机和授权会话；尚无首次定时成功证据，内部周报本地/当前任务交付。回滚前端并暂停该任务，保留已有记录。
+
+2026-09-26 evidence gate candidate: user requested CRM/Grace integration; Codex added response-side material evidence validation without permission/database/model changes. 537 offline tests and browser syntax passed. Not deployed; live-file freshness and public-model answer checking remain outside this candidate. Rollback: revert this change; preserve existing audit records.

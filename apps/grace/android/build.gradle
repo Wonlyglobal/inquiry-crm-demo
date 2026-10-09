@@ -1,0 +1,6 @@
+buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies { classpath 'com.android.tools.build:gradle:8.13.0' }
+}
+def graceBuildRoot = System.getenv('GRACE_ANDROID_BUILD_ROOT')
+if (graceBuildRoot) { allprojects { p -> p.layout.buildDirectory.set(file("${graceBuildRoot}/${p.name}")) } }

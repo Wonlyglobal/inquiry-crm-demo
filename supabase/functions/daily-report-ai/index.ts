@@ -1,3 +1,4 @@
+import { customerDataAiFetch } from "../_shared/customer-data-ai.ts";
 import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import {createClient} from "npm:@supabase/supabase-js@2.57.4";
 
@@ -26,7 +27,7 @@ Deno.serve(withReadOnlyGuard(async req=>{
     if(planError||followError||leadError)throw planError||followError||leadError;
     const apiKey=Deno.env.get("DEEPSEEK_API_KEY")||"";if(!apiKey)throw new Error("DeepSeek API Key 未配置");
     const source={date,salesperson:profile.full_name,daily_plans:plans||[],follow_up_records:follows||[],new_leads:leads||[]};
-    const ai=await fetch("https://api.deepseek.com/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model:Deno.env.get("DEEPSEEK_MODEL")||"deepseek-chat",temperature:.1,max_tokens:1400,response_format:{type:"json_object"},messages:[{role:"system",content:"你是外贸销售日报助手。只根据提供的 CRM 事实生成简洁中文日报草稿，不得编造客户回复、结果、金额或承诺。已完成计划的关键成果放入关键进展；未完成、逾期和没有结果的事项如实放入困难；次日仍需推进的事项形成明日计划。不要输出 Markdown，不要使用星号。严格返回 JSON：key_progress、blockers、tomorrow_plan。每个字段使用短句分行。"},{role:"user",content:JSON.stringify(source)}]}),signal:AbortSignal.timeout(40000)});
+    const ai=await customerDataAiFetch("https://api.deepseek.com/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${apiKey}`,"Content-Type":"application/json"},body:JSON.stringify({model:Deno.env.get("DEEPSEEK_MODEL")||"deepseek-chat",temperature:.1,max_tokens:1400,response_format:{type:"json_object"},messages:[{role:"system",content:"你是外贸销售日报助手。只根据提供的 CRM 事实生成简洁中文日报草稿，不得编造客户回复、结果、金额或承诺。已完成计划的关键成果放入关键进展；未完成、逾期和没有结果的事项如实放入困难；次日仍需推进的事项形成明日计划。不要输出 Markdown，不要使用星号。严格返回 JSON：key_progress、blockers、tomorrow_plan。每个字段使用短句分行。"},{role:"user",content:JSON.stringify(source)}]}),signal:AbortSignal.timeout(40000)});
     const payload=await ai.json();if(!ai.ok)throw new Error(payload?.error?.message||`DeepSeek ${ai.status}`);
     const result=JSON.parse(clean(payload?.choices?.[0]?.message?.content,12000).replace(/^```json\s*|\s*```$/g,""));
     return reply({draft:{key_progress:clean(result.key_progress),blockers:clean(result.blockers),tomorrow_plan:clean(result.tomorrow_plan)},source_counts:{plans:(plans||[]).length,follow_ups:(follows||[]).length,new_leads:(leads||[]).length}});

@@ -1,0 +1,3 @@
+project_id = "wonly-social-summary"
+[functions.social-summary]
+verify_jwt = false

@@ -21,9 +21,18 @@ test("CRM startup surfaces Supabase session failures instead of leaving the boot
   assert.match(html, /setTimeout\(\(\) => reject\(new Error\("认证服务连接超时"\)\), 15000\)/);
 });
 
-test("CRM startup bounds profile loading and sign-out cleanup", () => {
+test("CRM startup retries transient profile failures without clearing a valid session", () => {
   assert.match(html, /const withTimeout = \(promise, timeoutMs, message\)/);
-  assert.match(html, /withTimeout\(loadProfile\(session\.user\), 15000, "用户资料加载超时"\)/);
+  assert.match(html, /async function loadProfileWithRetry\(user, attempts = 3\)/);
+  assert.match(html, /await loadProfileWithRetry\(session\.user\)/);
+  assert.match(html, /preservedSessionFailure = true/);
+  assert.match(html, /登录状态仍保留，账号资料暂时加载失败/);
+  assert.match(html, /id="session-retry"/);
+  assert.match(html, /无需再次输入密码/);
+});
+
+test("CRM startup only clears sessions for permanent disabled or missing profiles", () => {
+  assert.match(html, /permanentProfileFailure = \/管理员禁用\|PGRST116\|0 rows\/i/);
   assert.match(html, /withTimeout\(supabase\.auth\.signOut\(\), 5000, "登录状态清理超时"\)/);
 });
 

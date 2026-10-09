@@ -1,0 +1,32 @@
+import {readFile} from 'node:fs/promises';import assert from 'node:assert/strict';
+const {PGlite}=await import(process.env.CRM_PGLITE_MODULE||'@electric-sql/pglite');const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create schema auth;create schema private;
+create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+create table public.profiles(id uuid primary key,full_name text,role text,team text,job_title text,active boolean,is_test_data boolean,data_environment text);
+create table public.sales_target_people(id uuid default gen_random_uuid(),display_name text unique,profile_id uuid,department text,sales_region text,job_title text);
+create table public.mailbox_connections(user_id uuid,mailbox_kind text,last_synced_at timestamptz,last_tested_at timestamptz);
+create table public.audit_logs(actor_id uuid,entity_type text,entity_id uuid,action text,reason text,before_data jsonb,after_data jsonb);
+create function private.crm_manager_covers_user(manager uuid,subject_id uuid) returns boolean language sql as $$select exists(select 1 from public.profiles a join public.profiles b on a.team=b.team where a.id=manager and b.id=subject_id and a.role='sales_manager')$$;
+insert into profiles select ('00000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'Person'||i,case i when 1 then 'owner' when 2 then 'sales_manager' when 3 then 'marketing' else 'sales' end,case when i in(2,4,6,7) then 'A' else 'B' end,'staff',i<>6,i=7,'production' from generate_series(1,7)i;
+insert into mailbox_connections select id,'shared_inquiry',now(),now() from profiles where role='owner';`);
+await db.exec(await readFile(new URL('../supabase/migrations/20260922150000_operational_settings.sql',import.meta.url),'utf8'));
+const id=i=>'00000000-0000-4000-8000-'+String(i).padStart(12,'0');const actor=async i=>db.query("select set_config('request.jwt.claim.sub',$1,false)",[i?id(i):'']);
+const save=(i,region='中东非大区-中东',paused=false,rev=0)=>db.query('select save_crm_assignment_settings($1,$2,$3,$4,$5)',[id(i),region,paused,rev,'业务分工调整']);
+await db.exec('set role authenticated');await actor(2);
+const members=(await db.query('select * from get_crm_operational_settings()')).rows;assert.equal(members.length,6);assert.deepEqual(members.filter(x=>x.can_edit).map(x=>x.profile_id),[id(4)]);
+assert.equal(members.find(x=>x.profile_id===id(1)).last_synced_at,null);
+await save(4);await assert.rejects(()=>save(4),/已被他人更新/);await save(4,'美洲大区',true,1);
+await assert.rejects(()=>save(5),/管理范围/);await assert.rejects(()=>save(6),/管理范围/);await assert.rejects(()=>save(7),/管理范围/);await assert.rejects(()=>save(4,'随意区域',false,2),/有效负责区域/);
+await assert.rejects(()=>db.query('select * from private.crm_assignment_preferences'),/permission denied/);
+await actor(3);assert.equal((await db.query('select * from get_crm_operational_settings()')).rows.filter(x=>x.can_edit).length,0);await assert.rejects(()=>save(4),/无权/);
+await actor(4);await assert.rejects(()=>db.query('select * from get_crm_operational_settings()'),/无权/);
+assert.equal((await db.query('select get_my_followup_preferences() p')).rows[0].p.interval_days,3);
+await db.query("select save_my_followup_preferences(5,60,'high')");assert.deepEqual((await db.query('select get_my_followup_preferences() p')).rows[0].p,{interval_days:5,reminder_minutes:60,priority:'high'});
+for(const q of ["select save_my_followup_preferences(0,30,'normal')","select save_my_followup_preferences(2,1500,'normal')","select save_my_followup_preferences(2,30,'bad')"]){await assert.rejects(()=>db.query(q),/有效范围/);}
+await actor(5);assert.equal((await db.query('select get_my_followup_preferences() p')).rows[0].p.interval_days,3);
+for(const i of [null,6,7]){await actor(i);await assert.rejects(()=>db.query('select get_my_followup_preferences()'),/有效账号/);}
+await actor(1);await save(5);await db.exec('reset role');
+assert.equal((await db.query('select count(*)::int n from audit_logs')).rows[0].n,4);
+assert.equal((await db.query('select sales_region from sales_target_people where profile_id=$1',[id(4)])).rows[0].sales_region,'美洲大区');
+assert.equal((await db.query("select has_function_privilege('anon','get_crm_operational_settings()','execute') ok")).rows[0].ok,false);
+await db.close();console.log('Operational settings SQL passed: scope, optimistic concurrency, audit, personal defaults, validation, no shared mailbox exposure.');

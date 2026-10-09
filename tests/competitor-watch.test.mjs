@@ -1,0 +1,58 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+import {watchList,newsPages,headlines,quoteStillThere,runWatch,intelIntent,intelAnswer,readTranslations,rotate} from '../supabase/functions/agent-conversation/competitor-watch.mjs';
+const ev=[{id:'a1',company:'ACME（阿联酋）',source_url:'https://acme.ae/products/fire',quote:'Fire Rated up to 4 Hours',value:'耐火4小时'}];
+const home='<a href="/news">News</a><a href="https://evil.com/news">x</a>';
+const news='<ul><li>12 Sep 2026 <a href="/news/2026/new-fire-door-line">ACME launches a new UL fire door line for Riyadh</a></li><li><a href="/news/old">Read more</a></li></ul>';
+const fake=pages=>async url=>{const body=pages[url];if(body==null)return {ok:false,status:404,url};return {ok:true,url,headers:{get:()=>'text/html; charset=utf-8'},arrayBuffer:async()=>new TextEncoder().encode(body+'<p>'+'filler text '.repeat(80)+'</p>').buffer}};
+test('reads only the official site: news list, headlines with dates, quote checks',async()=>{
+ assert.deepEqual(watchList(ev)[0].origins,['https://acme.ae']);assert.deepEqual(rotate([1,2,3],2,2),[3,1]);
+ assert.deepEqual(newsPages(home,'https://acme.ae/'),['https://acme.ae/news']);
+ const h=headlines(news,'https://acme.ae/news');assert.equal(h.length,1);assert.equal(h[0].published_on,'2026-09-12');
+ assert.equal(quoteStillThere('<p>Fire  Rated up to 4 Hours!</p>','Fire Rated up to 4 Hours'),true);assert.equal(quoteStillThere('<p>Fire rated up to 3 hours</p>','Fire Rated up to 4 Hours'),false);
+ const r=await runWatch({evidence:ev,known:new Set(),fetcher:fake({'https://acme.ae/':home,'https://acme.ae/news':news,'https://acme.ae/products/fire':'<p>Fire rated up to 3 hours</p>'}),now:Date.parse('2026-10-01')});
+ assert.deepEqual(r.items.map(i=>i.kind).sort(),['evidence_changed','news']);assert.equal(r.sourcesOk,1);assert.equal(r.evidenceChecked,1);
+ const again=await runWatch({evidence:ev,known:new Set(['news|https://acme.ae/news/2026/new-fire-door-line','evidence_changed|https://acme.ae/products/fire']),fetcher:fake({'https://acme.ae/':home,'https://acme.ae/news':news,'https://acme.ae/products/fire':'x'}),now:Date.parse('2026-10-01')});
+ assert.equal(again.items.length,0);
+ const pdf=await runWatch({evidence:[{...ev[0],source_url:'https://acme.ae/a.pdf'}],known:new Set(),fetcher:fake({'https://acme.ae/':'<a href="/news/events">Events and announcements of ACME group</a>'}),now:Date.parse('2026-10-01')});
+ assert.equal(pdf.items.length,0,'PDF evidence and menu links are not flagged');
+ assert.equal(headlines('<a href="/news/free">Order now for a free sample of fire doors</a>','https://acme.ae/news').length,0);
+});
+test('Grace report: intent, refresh, honest wording',()=>{
+ assert.deepEqual(intelIntent('汇报一下竞品最新动态'),{refresh:false});assert.deepEqual(intelIntent('刷新竞品情报'),{refresh:true});assert.equal(intelIntent('王力防盗门参数'),null);
+ assert.match(intelAnswer(null),/还没有运行过/);
+ const a=intelAnswer({last_run:{started_at:'2026-10-01T01:17:00Z',sources_ok:18,sources_failed:2,evidence_checked:40},items:[{company:'ACME',kind:'news',title:'ACME launches',title_zh:'ACME 发布',url:'https://acme.ae/n',published_on:'2026-09-12'},{company:'ACME',kind:'evidence_changed',title:'官方页面上已找不到这条原文：耐火4小时',url:'https://acme.ae/p'}]});
+ assert.match(a,/ACME 发布（原文：ACME launches）/);assert.match(a,/证据变化 1 条/);assert.match(a,/还没有人工核验/);
+ assert.deepEqual(readTranslations({choices:[{message:{content:'["一","二"]'}}]},2),['一','二']);assert.equal(readTranslations({choices:[{message:{content:'oops'}}]},2),null);
+ const src=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');assert.match(src,/verify_competitor_watch_secret/);
+});
+import {youtubeLinks,channelIdFromPage,parseFeed,resolveChannel} from '../supabase/functions/agent-conversation/competitor-watch.mjs';
+test('YouTube: channel found on the official site, new uploads from the public feed',async()=>{
+ const home='<a href="https://www.youtube.com/@AcmeDoors">YouTube</a><a href="https://youtube.com/channel/UCabcdefghijklmnopqrstuv">x</a>';
+ assert.deepEqual(youtubeLinks(home),[{type:'handle',value:'AcmeDoors'},{type:'channel',value:'UCabcdefghijklmnopqrstuv'}]);
+ assert.equal(channelIdFromPage('..."externalId":"UCabcdefghijklmnopqrstuv"...'),'UCabcdefghijklmnopqrstuv');
+ const feed='<feed><entry><yt:videoId>abcdefghijk</yt:videoId><title>New UL fire door &amp; frame</title><published>2026-09-20T10:00:00+00:00</published></entry></feed>';
+ assert.deepEqual(parseFeed(feed),[{title:'New UL fire door & frame',url:'https://www.youtube.com/watch?v=abcdefghijk',published_on:'2026-09-20'}]);
+ const pages={'https://acme.ae/':home,'https://www.youtube.com/@AcmeDoors':'"channelId":"UCabcdefghijklmnopqrstuv"','https://www.youtube.com/feeds/videos.xml?channel_id=UCabcdefghijklmnopqrstuv':feed};
+ const f=async url=>pages[url]==null?{ok:false,status:404,url}:{ok:true,url,headers:{get:()=>'text/html'},arrayBuffer:async()=>new TextEncoder().encode(pages[url]).buffer};
+ assert.equal(await resolveChannel({type:'handle',value:'AcmeDoors'},f),'UCabcdefghijklmnopqrstuv');
+ const r=await runWatch({evidence:[{id:'x',company:'ACME',source_url:'https://acme.ae/a.pdf',quote:'q',value:'v'}],known:new Set(),fetcher:f,now:Date.parse('2026-10-01')});
+ assert.deepEqual(r.newChannels,[{company:'ACME',channel_id:'UCabcdefghijklmnopqrstuv'}]);assert.equal(r.items.filter(i=>i.kind==='video').length,1);assert.equal(r.channelsRead,1);
+ assert.match(intelAnswer({last_run:{started_at:'2026-10-01T01:00:00Z',sources_ok:1,sources_failed:0,evidence_checked:0,channels_known:1},items:[{company:'ACME',kind:'video',title:'New UL fire door',url:'https://www.youtube.com/watch?v=abcdefghijk',published_on:'2026-09-20'}]}),/YouTube 新视频 1 条/);
+});
+
+test('marketing question goes to the watch results, filtered to marketing items',async()=>{
+ const {intelIntent,intelAnswer}=await import('../supabase/functions/agent-conversation/competitor-watch.mjs');
+ const {competitorIntent}=await import('../supabase/functions/agent-conversation/public-research.mjs');
+ const q='最近竞品有哪些重大的营销活动';
+ assert.deepEqual(intelIntent(q),{refresh:false,focus:'marketing'});
+ assert.equal(competitorIntent(q),null,'no spec dump');
+ const rep={last_run:{started_at:'2026-10-01T08:17:00Z',sources_ok:10,sources_failed:1,evidence_checked:5},items:[
+  {company:'Hörmann（中东）',kind:'news',title:'Hörmann at The Big 5 Dubai 2026',url:'https://www.hoermann.ae/a',published_on:'2026-09-20'},
+  {company:'Yale Home México（ASSA ABLOY）',kind:'video',title:'Nueva cerradura Yale Gemini',title_zh:'新款 Gemini 锁',url:'https://www.youtube.com/watch?v=x'},
+  {company:'NAFFCO（阿联酋）',kind:'news',title:'Quarterly maintenance notice',url:'https://www.naffco.com/b'},
+  {company:'NAFFCO（阿联酋）',kind:'evidence_changed',title:'quote gone',url:'https://www.naffco.com/c'}]};
+ const a=intelAnswer(rep,{focus:'marketing'});
+ assert.match(a,/Big 5/);assert.match(a,/\[视频\] 新款 Gemini 锁/);assert.doesNotMatch(a,/maintenance/);
+ assert.match(a,/另有 1 条一般动态/);assert.match(a,/Facebook\/Instagram/);
+ assert.match(intelAnswer({items:[]},{focus:'marketing'}),/还没有运行过/);
+});

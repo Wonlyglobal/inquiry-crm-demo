@@ -149,7 +149,7 @@ test("WhatsApp connection setup verifies Meta before enabling a business channel
   assert.match(connectionAdmin, /function ensureWabaSubscription/);
   assert.match(connectionAdmin, /subscribed_apps/);
   assert.match(connectionAdmin, /action === "ensure_subscription"/);
-  assert.match(html, /action:"ensure_subscription"/);
+  assert.doesNotMatch(html.slice(html.indexOf("async function loadWhatsAppWorkspace("),html.indexOf("async function openWhatsAppMessages(")), /action:"ensure_subscription"/);
   assert.match(connectionAdmin, /webhook_verified_at: subscribedAt/);
   assert.match(html, /实时同步已开启/);
   assert.match(webhookSubscriptionStatus, /add column if not exists webhook_verified_at timestamptz/);

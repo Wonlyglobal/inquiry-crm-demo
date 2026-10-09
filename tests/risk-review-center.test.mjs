@@ -4,7 +4,6 @@ import {readFile} from 'node:fs/promises';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 const migration=await readFile(new URL('../supabase/migrations/20260920090000_risk_review_center.sql',import.meta.url),'utf8');
-const governance=await readFile(new URL('../../docs/CRM-SECURITY-RISK-GOVERNANCE-2026-09-20.md',import.meta.url),'utf8');
 
 test('risk foundation uses explicit domains, severities and lifecycle',()=>{
   assert.match(migration,/domain in \('security','business'\)/);
@@ -36,11 +35,11 @@ test('automatic business scan is deterministic, idempotent and never changes own
   assert.doesNotMatch(migration,/update public\.inquiries set owner_id/i);
 });
 
-test('governance distinguishes approved design from production state',()=>{
-  assert.match(governance,/风险审查中心 \| 阶段 A 已发布生产/);
-  assert.match(governance,/P0\/P1 自动控制 \| 生产部分启用/);
-  assert.match(governance,/仅在前端禁用按钮不算完成控制/);
-  assert.match(governance,/自动控制不得删除数据、修改客户归属/);
+test('risk closure requires review and preserves resolution evidence',()=>{
+  assert.match(migration,/请先开始审查/);
+  assert.match(migration,/请先复验并解除活动限制/);
+  assert.match(migration,/resolution=btrim\(decision_reason\)/);
+  assert.match(migration,/insert into public\.risk_case_events/);
 });
 
 test('risk center is visible only to owner and sales manager in the app',()=>{

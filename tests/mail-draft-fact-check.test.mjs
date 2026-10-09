@@ -10,7 +10,7 @@ const sender=readFileSync(new URL("../supabase/functions/mailbox-compose-send/in
 test("fact checker authenticates and limits customer-email access",()=>{
   assert.match(worker,/auth\.getUser\(\)/);
   assert.match(worker,/\["sales","sales_manager","owner"\]\.includes\(profile\.role\)/);
-  assert.match(worker,/inquiry\.owner_id!==user\.id&&!\["owner","sales_manager"\]/);
+  assert.match(worker,/canAccessInquiry\(admin,profile,scope\)/);
   assert.match(worker,/email_ai_drafts[\s\S]*author_id/);
   assert.match(worker,/withReadOnlyGuard/);
 });

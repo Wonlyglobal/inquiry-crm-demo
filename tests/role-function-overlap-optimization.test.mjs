@@ -9,9 +9,9 @@ const rollback=await readFile(new URL('./production-role-function-overlap-rollba
 
 test('one central role matrix removes duplicated daily execution menus',()=>{
   const matrix=html.slice(html.indexOf('const roleViewAccess ='),html.indexOf('function canAccessView'));
-  assert.match(matrix,/sales_manager: new Set\(\["dashboard","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review"\]\)/);
-  assert.match(matrix,/marketing: new Set\(\["dashboard","marketing-center","inquiries","customers","knowledge","sop","email","nurture","research","performance-360"\]\)/);
-  assert.match(matrix,/sales: new Set\(\["dashboard","sales-today","follow-calendar","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"\]\)/);
+  assert.match(matrix,/sales_manager: new Set\(\["dashboard","ai-advisor","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"\]\)/);
+  assert.match(matrix,/marketing: new Set\(\["dashboard","marketing-center","ai-advisor","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"\]\)/);
+  assert.match(matrix,/sales: new Set\(\["dashboard","sales-today","follow-calendar","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"\]\)/);
   assert.match(html,/if \(!canAccessView\(view\)\) \{[\s\S]*?当前角色无权进入该功能/);
 });
 
@@ -45,9 +45,9 @@ test('market hand-off becomes read only for commercial customer data',()=>{
   assert.match(html,/marketHasAssigned=profile\.role==="marketing"&&inquiries\.some\(item=>item\.owner_id\)/);
   assert.match(html,/profile\.role!=="marketing"\?loadAllCustomerRows\(\(\)=>supabase\.from\("customer_documents"\)/);
   assert.match(html,/canManageDocuments=profile\.role==="owner"\|\|\(profile\.role==="sales"&&ownedInquiry\)/);
-  assert.match(html,/profile\?\.role!=="marketing"\|\|!currentInquiry\?\.owner_id/);
+  assert.match(html,/const marketAssignedScope=profile\.role==="marketing"&&Boolean\(inquiry\.owner_id\)/);
   assert.match(html,/profile\?\.role==="marketing"\)return currentInquiry\?\.owner_id\?new Set\(\):new Set\(\["identity","need","fit"\]\)/);
-  assert.match(html,/marketHiddenDetailTabs=profile\.role==="marketing"[\s\S]*?"outreach","pipeline","followup"[\s\S]*?"contact-policy","qualification","audit"/);
+  assert.match(html,/marketHiddenDetailTabs=profile\.role==="marketing"[\s\S]*?"outreach","followup"[\s\S]*?"qualification","audit"/);
   assert.match(html,/reply-inquiry"\)\.classList\.toggle\("hidden",!\["owner","sales"\]\.includes\(profile\.role\)\)/);
 });
 

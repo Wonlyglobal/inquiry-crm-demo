@@ -8,8 +8,43 @@ const edge=await readFile(new URL("../supabase/functions/material-library/index.
 test("sales knowledge merges live material records with CRM articles",()=>{
   assert.match(html,/supabase\.functions\.invoke\("material-library",\{body:\{action:"list"/);
   assert.match(html,/knowledgeSource:"material"/);
-  assert.match(html,/物料库 · 实时/);
-  assert.match(html,/查看 \/ 添加附件/);
+  assert.match(html,/actions:\[\{label:"查看",onClick:\(\)=>openMaterialAsset\(item\)\},\{label:"添加附件",disabled:materialOversized\(item\)/);
+});
+
+test("sales knowledge shows uploader and safe thumbnails instead of source",()=>{
+  assert.match(html,/columns=\["缩略图","分类 \/ 类型","标题","上传人","语言","大小 \/ 标签","更新时间","操作"\]/);
+  assert.doesNotMatch(html,/columns=\["来源","分类 \/ 类型","标题","语言","大小 \/ 标签","更新时间","操作"\]/);
+  assert.match(html,/function materialUploaderName\(asset=\{\}\)/);
+  assert.match(html,/thumbnailUrl\|\|item\.thumbnail_url\|\|item\.previewUrl/);
+  assert.match(html,/className=`knowledge-thumbnail/);
+  assert.match(html,/action:"thumbnail",asset_id:assetId/);
+  assert.match(html,/fillKnowledgePreview\(box,preview\)/);
+  assert.match(edge,/action==="thumbnail"/);
+  assert.match(edge,/\/thumbnail`/);
+  assert.match(edge,/bytes\.length>2\*1024\*1024/);
+  assert.match(html,/select\("id,full_name,email"\)\.in\("id",creatorIds\)/);
+  assert.match(html,/uploaderName:creatorNames\[item\.created_by\]/);
+});
+
+test("all sales knowledge entries share form category uploader and language filters",()=>{
+  assert.match(html,/id="knowledge-filter-group"/);
+  assert.match(html,/id="knowledge-kind-filter"/);
+  assert.match(html,/id="knowledge-category-filter"/);
+  assert.match(html,/id="knowledge-uploader-filter"/);
+  assert.match(html,/id="knowledge-language-filter"/);
+  assert.match(html,/knowledgeKind:"material"/);
+  assert.match(html,/knowledgeKind:"article"/);
+  assert.match(html,/renderKnowledgeFilters\(mappedRows\)/);
+  assert.match(html,/matchesKnowledge/);
+});
+
+test("knowledge count distinguishes loaded materials from authored knowledge",()=>{
+  assert.match(html,/"销售知识与物料"/);
+  assert.match(html,/function moduleCountText\(rows,filtered=false\)/);
+  assert.match(html,/物料已加载 \$\{materialLoaded\} 条（非总数）/);
+  assert.match(html,/正式知识 \$\{articleCount\} 条/);
+  assert.match(html,/knowledgeCount:\{materialLoaded:materialAssets\.length,materialTotal,articleCount:/);
+  assert.doesNotMatch(html,/knowledge: \["销售知识库"[^\n]+"知识条目"\]/);
 });
 
 test("mail composer preserves local and material attachments under one limit",()=>{
@@ -23,6 +58,22 @@ test("mail composer preserves local and material attachments under one limit",()
   assert.match(html,/文件超过普通附件 50MB 上限/);
   assert.match(html,/一键压缩附件/);
   assert.match(html,/disabled title=/);
+});
+
+test("material picker supports visible multi-select and closes after confirmation",()=>{
+  assert.match(html,/支持多选。<\/strong>先选择所需物料，再点击底部“确认添加”/);
+  assert.match(html,/id="material-selection-status"/);
+  assert.match(html,/已选择 \$\{count\} 个 · \$\{materialSize\(bytes\)\}，请确认添加/);
+  assert.match(html,/pending\.set\(asset\.id,asset\)/);
+  assert.match(html,/selectedMaterialAttachments\.push\(\.\.\.pending\.values\(\)\)/);
+  assert.match(html,/\$\("#dashboard-modal"\)\.classList\.add\("hidden"\);toast\(`已添加 \$\{count\} 个物料附件`\)/);
+});
+
+test("all native selects receive one modern high-contrast visual treatment",()=>{
+  assert.match(html,/select\.input,select\.module-filter-select \{ appearance:none/);
+  assert.match(html,/select\.input:hover,select\.module-filter-select:hover,select\.input:focus,select\.module-filter-select:focus/);
+  assert.match(html,/select\.input option,select\.module-filter-select option/);
+  assert.match(html,/\.notice-filter:not\(\.active\),\.notice-mark-all \{ color:#243a32/);
 });
 
 test("邮件发送函数在服务端读取实时物料附件",async()=>{
@@ -40,4 +91,41 @@ test("material proxy authenticates CRM users and keeps the integration secret se
   assert.doesNotMatch(html,/MATERIAL_LIBRARY_SECRET|CRM_INTEGRATION_SECRET/);
   assert.match(edge,/bytes\.length>50\*1024\*1024/);
   assert.match(edge,/material_attachment_loaded/);
+});
+
+test("material library UX: lazy thumbnails, oversized files and folder-aware titles",()=>{
+  assert.match(html,/new IntersectionObserver\(entries=>entries\.forEach/);
+  assert.match(html,/while\(materialThumbnailActive<4&&materialThumbnailQueue\.length\)/);
+  assert.match(html,/const materialOversized=asset=>Number\(asset\?\.sizeBytes\)>MAIL_ATTACHMENT_LIMIT_BYTES/);
+  assert.match(html,/function materialNameParts\(name\)/);
+  assert.match(html,/label==="标题"&&row\.materialAsset/);
+  assert.match(html,/material-size-flag/);
+  assert.match(html,/async function addMaterialToMail\(asset\)\{\s*if\(materialOversized\(asset\)\)return toast/);
+  assert.match(html,/event\.key!=="Escape"/);
+  assert.match(html,/!modal\.querySelector\("form:not\(\[data-esc-close\]\)"\)/);
+});
+
+test("knowledge search also queries the whole material library server-side",()=>{
+  assert.match(html,/async function searchMaterialLibrary\(term\)/);
+  assert.match(html,/action:"list",limit:500,query:term/);
+  assert.match(html,/if\(token!==knowledgeSearchToken\|\|activeModuleView!=="knowledge"/);
+  assert.match(html,/if\(view==="knowledge"\)knowledgeRowMapper=mapper;/);
+  assert.match(edge,/assets\?q=\$\{encodeURIComponent\(query\)\}/);
+});
+
+test("knowledge materials expose tag-based topic and folder filters",()=>{
+  assert.match(html,/id="knowledge-topic-filter"/);
+  assert.match(html,/id="knowledge-folder-filter"/);
+  assert.match(html,/function materialTagValue\(asset,prefix\)/);
+  assert.match(html,/materialTagValue\(asset,"二级分类"\),third=materialTagValue\(asset,"三级分类"\)/);
+  assert.match(html,/knowledgeTopic:materialTopic\(item\),knowledgeFolder:materialFolder\(item\)/);
+  assert.match(html,/row\.meta\?\.knowledgeFolder===knowledgeFolder/);
+});
+
+test("mail material picker searches the whole library and keeps pending selections",()=>{
+  assert.match(html,/async function chooseMaterialForMail\(query="",carried=null\)/);
+  assert.match(html,/action:"list",limit:200,\.\.\.term\?\{query:term\}:\{\}/);
+  assert.match(html,/pending=carried instanceof Map\?carried:new Map\(\)/);
+  assert.match(html,/chooseMaterialForMail\(\$\("#material-picker-query"\)\.value,pending\)/);
+  assert.match(html,/form:not\(\[data-esc-close\]\)/);
 });

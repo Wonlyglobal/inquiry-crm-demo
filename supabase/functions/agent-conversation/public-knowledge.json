@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-09-23T11:11:26.338941+08:00",
+  "coverage": "首轮公开来源基线；尚未形成连续监测历史。竞品均为待按目标国家和品类验证的候选，不代表已在同一项目竞争。",
+  "sources": [
+    {
+      "name": "WONLY 官方网站",
+      "url": "https://www.wonlyglobal.com/",
+      "status": "partial",
+      "note": "已确认安全门和智能锁的公开定位；页面动态加载，认证、价格、交期和海外阶段尚不能据此确认。"
+    },
+    {
+      "name": "Hörmann 门业官网",
+      "url": "https://www.hoermann.com/en/",
+      "status": "checked",
+      "note": "门、门框和驱动系统的候选对标品牌；需与同名工业集团区分。"
+    },
+    {
+      "name": "ASSA ABLOY 官方新闻",
+      "url": "https://www.assaabloy.com/group/en/news-media/press-releases",
+      "status": "partial",
+      "note": "入口解决方案候选对标；新闻正文提取不完整，未将搜索摘要升级为已核实动态。"
+    },
+    {
+      "name": "dormakaba 官方新闻",
+      "url": "https://www.dormakabagroup.com/en/newsroom",
+      "status": "checked",
+      "note": "门禁和酒店进入系统候选对标，相关性按产品和市场核验。"
+    },
+    {
+      "name": "Al Kuhaimi Metal Industries 官网",
+      "url": "https://alkuhaimimetal.com/",
+      "status": "checked",
+      "note": "官网位于沙特达曼，列有钢质门、防火门和门五金。作为门业竞品候选；具体认证和价格需逐产品核验，未证实近期有新动作。"
+    },
+    {
+      "name": "Puertas Asturmex 官网",
+      "url": "https://puertasasturmex.com/",
+      "status": "checked",
+      "note": "墨西哥门业候选，官网展示金属安全门、防火门、经销网络与Revit资料。产品和渠道重合是研究理由，不代表已在同一客户项目竞争。"
+    }
+  ],
+  "findings": [
+    {
+      "id": "dormakaba-alliants-20260915",
+      "published_at": "2026-09-15",
+      "observed_at": "2026-09-23T11:11:26.338941+08:00",
+      "agent": "Grace",
+      "brand": "dormakaba",
+      "category": "并购与渠道",
+      "title": "dormakaba 公布拟收购 Alliants",
+      "fact": "官方新闻公布拟收购 Alliants，将酒店门禁与数字住客体验连接；拟收购不等于已经完成交割。",
+      "implication": "推测：酒店门锁竞争可能进一步强调系统集成。Brian 可在相关项目中询问客户的系统对接要求，不能据此推断客户已改选品牌。",
+      "url": "https://www.dormakabagroup.com/en/news/0d6af1d3-345a-45e0-97a5-732f1792ba47/dormakaba-to-acquire-alliants-connecting-hotel-access-with-digital-guest-experience",
+      "importance": "watch"
+    },
+    {
+      "id": "dormakaba-robot-pilot-20260917",
+      "published_at": "2026-09-17",
+      "observed_at": "2026-09-23T11:11:26.338941+08:00",
+      "agent": "Grace",
+      "brand": "dormakaba",
+      "category": "产品技术",
+      "title": "dormakaba 公布机器人通过受控门禁的试点",
+      "fact": "官方于9月17日发布与 ANYbotics、LEGIC 合作的门禁通行试点消息；试点不等同于全面商业化。",
+      "implication": "推测：可作为自动化门禁技术观察项。目前没有证据证明与王力现有询盘直接相关，暂不作为紧急销售预警。",
+      "url": "https://www.dormakabagroup.com/en/news/76d32a7d-b9ef-4513-9bdd-6e8a58be8cb7/dormakaba-anybotics-and-legic-present-a-successful-pilot-of-autonomous-robots-passing-through-access-controlled-doors",
+      "importance": "watch"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "reviewed_at": "2026-09-23",
+  "status": "curated_public_reference_not_live_learning",
+  "rules": [
+    "没有适用于所有国家和平台的最有效打法；优先选择符合目标且能测量的实验。",
+    "每次建议说明国家/语言、客户类型、产品证据、预算与交付约束；缺少时注明假设。",
+    "课程目录不等于完成视频学习或获得认证；不能声称自动持续学习或实时联网。",
+    "平台功能和政策可能变化；未核验新信息时标注核验日期。",
+    "7天观察、14天初步复盘不等于显著结论；SEO可需数周或更长，按流量和销售周期延长。",
+    "不自动发帖、投广告、发私信或更改预算；工作流模板不是已运行系统。"
+  ],
+  "platforms": [
+    {
+      "platform": "Google Search / SEO",
+      "source": "https://developers.google.com/search/docs/fundamentals/seo-starter-guide",
+      "coverage": "公开指南已核验",
+      "verified_summary": "帮助搜索引擎理解内容，优先可抓取、独特且有用的页面；不保证排名。",
+      "wonly_experiment": "按国家语言和采购意图设计产品/工程/经销页面，先修复真实抓取问题，再实验内容。",
+      "metrics": "GSC点击、展示、CTR与GA4自然询盘；分开日期窗口"
+    },
+    {
+      "platform": "Google Ads",
+      "source": "https://skillshop.withgoogle.com/googleads/",
+      "coverage": "课程目录与介绍已核验，未完成认证",
+      "verified_summary": "官方课程包含搜索广告、视频广告和转化测量。",
+      "wonly_experiment": "先验证询盘事件，再按市场与采购意图拆组；预算与投放需批准。",
+      "metrics": "有效询盘成本、销售认可率；没有花费数据不算ROI"
+    },
+    {
+      "platform": "Facebook / Instagram",
+      "source": "https://www.facebookblueprint.com/student/catalog",
+      "coverage": "官方课程目录已核验，未完成课程",
+      "verified_summary": "Meta提供品牌与业务营销学习资源。",
+      "wonly_experiment": "分别测试工厂证明、安装案例、产品场景；Reels用于发现，案例与落地页承接采购问题，均为王力待验证假设。",
+      "metrics": "同平台同窗口互动、站点访问、有效询盘，区分自然和付费"
+    },
+    {
+      "platform": "TikTok",
+      "source": "https://ads.tiktok.com/business/en/academy",
+      "coverage": "课程介绍已核验，未完成认证",
+      "verified_summary": "官方学习内容覆盖创意、广告、衡量、政策及行业内容。",
+      "wonly_experiment": "用实拍演示测试开头与采购问题，按目标市场语言改写；不能用播放量推断B2B订单。",
+      "metrics": "观看留存、合格访问、有效询盘"
+    },
+    {
+      "platform": "YouTube",
+      "source": "https://support.google.com/youtube/answer/9314415",
+      "coverage": "公开帮助文档已核验",
+      "verified_summary": "观众留存报告帮助识别视频中吸引或流失观众的片段。",
+      "wonly_experiment": "测试安装教程、认证解释、工厂与工程案例，短视频引导深入视频；承诺必须有产品证据。",
+      "metrics": "观众留存、观看时长、点击与询盘；不混比Shorts与长视频"
+    },
+    {
+      "platform": "AI工作流",
+      "source": "https://docs.n8n.io/advanced-ai/human-in-the-loop-tools",
+      "coverage": "公开技术文档已核验",
+      "verified_summary": "工具执行可以设置人工审批环节。",
+      "wonly_experiment": "只读汇总→新鲜度检查→证据检索→生成方案/素材草稿→人工审核→已授权系统执行→观察与复盘。",
+      "metrics": "人工耗时、事实错误率、失败率、有效询盘；保留审批与失败记录"
+    }
+  ],
+  "linkedin": {
+    "status": "source_pending_verification",
+    "guidance": "可提出针对建筑师、经销商和工程采购的内容实验，但不能声称已完成LinkedIn官方课程或证实渠道效果。"
+  },
+  "workflow_templates": [
+    {
+      "name": "市场周复盘",
+      "input": "已批准SEO/社媒/CRM脱敏统计",
+      "steps": [
+        "检查来源与统计窗口",
+        "分开事实、假设、缺口",
+        "每个平台最多提出一个可验证实验",
+        "列出所需素材与负责人待确认项",
+        "人工批准后由原系统执行",
+        "保留基线与结果，供Jay审阅"
+      ],
+      "status": "proposal_not_scheduled"
+    },
+    {
+      "name": "内容复用",
+      "input": "已批准公开产品资料与已发布内容",
+      "steps": [
+        "抽取有来源的产品事实",
+        "生成长视频大纲与短视频脚本",
+        "按国家语言本地化并检查技术术语",
+        "人工审核版权、认证和交付承诺",
+        "在原社媒系统批准发布",
+        "按平台分别比较效果"
+      ],
+      "status": "proposal_not_connected"
+    }
+  ]
+}

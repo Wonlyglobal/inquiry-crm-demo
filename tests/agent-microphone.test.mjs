@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {prepareMicrophone} from '../assets/agent-microphone.mjs';
+test('permission probe releases every track without recording',async()=>{let stopped=0;await prepareMicrophone({getUserMedia:async options=>{assert.deepEqual(options,{audio:true});return {getTracks:()=>[{stop(){stopped++}},{stop(){stopped++}}]}}});assert.equal(stopped,2)});
+test('denied permission produces actionable message without upstream details',async()=>{await assert.rejects(prepareMicrophone({getUserMedia:async()=>{throw Object.assign(Error('private details'),{name:'NotAllowedError'})}}),/麦克风未获允许/)});

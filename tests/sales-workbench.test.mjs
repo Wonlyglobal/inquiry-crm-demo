@@ -4,8 +4,8 @@ import fs from 'node:fs';
 
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 
-test('today workbench exposes the six required sales queues',()=>{
-  for(const label of ['今日新分配','客户新回复','今日待跟进','逾期任务','待报价','即将失效客户'])
+test('today workbench exposes only the two approved sales task queues',()=>{
+  for(const label of ['主管分配询盘','客户新回复'])
     assert.match(html,new RegExp(label));
 });
 
@@ -27,11 +27,13 @@ test('today workbench paginates follow-ups, mail and reply reminders',()=>{
   assert.match(html,/from\("whatsapp_reply_reminders"\)/);
   assert.match(html,/async function loadAllDashboardWhatsAppMessages\(\)/);
 });
-test('today workbench loads every queue dataset with shared pagination',()=>{
+test('today workbench loads only approved task datasets with shared pagination',()=>{
+  const branch=html.slice(html.indexOf('} else if(view==="sales-today")'),html.indexOf('} else if(view==="knowledge")'));
   assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("inquiries"\)/);
-  assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("follow_ups"\)/);
   assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("email_messages"\)/);
-  assert.match(html,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("quotation_versions"\)/);
+  assert.doesNotMatch(branch,/from\("follow_ups"\)/);
+  assert.doesNotMatch(branch,/from\("quotation_versions"\)/);
+  assert.doesNotMatch(branch,/from\("data_quality_alerts"\)/);
   assert.match(html,/async function loadModuleRowsPaged/);
 });
 
@@ -56,7 +58,7 @@ test('inquiry, assignment, nurture, public-pool and quote lists paginate',()=>{
 });
 
 test('dashboard ancillary datasets paginate before ranking and attribution render',()=>{
-  const start=html.indexOf('const [{ data: dashboardProfiles }');
+  const start=html.indexOf('const dashboardResults = await Promise.all([');
   const branch=html.slice(start,html.indexOf('const teamSelect',start));
   for(const table of ['channel_costs','sales_targets','sales_target_plan_items','audit_logs','legacy_engineering_projects','daily_sales_reports','email_intake','companies','inquiry_retention_requests','inquiry_marketing_touches'])
     assert.match(branch,new RegExp(`loadModuleRowsPaged\\(\\(from,to\\)=>supabase\\.from\\("${table}"`));
@@ -110,6 +112,12 @@ test('dashboard widgets support per-user collapse state and remain expandable',(
   assert.match(html,/个人看板配置云端保存失败，已保留本机配置/);
 });
 
+test('dashboard collapse control reserves header space without covering trend tabs',()=>{
+  assert.match(html,/\.dashboard-collapse-header \{ box-sizing:border-box; padding-right:58px !important;/);
+  assert.match(html,/\.trend-toolbar\.dashboard-collapse-header \{ flex-wrap:wrap; \}/);
+  assert.match(html,/\.trend-tabs \{ display:flex; flex-wrap:wrap; gap:5px; max-width:100%; \}/);
+});
+
 test('customer reply queue only shows durable open reply reminders',()=>{
   assert.match(html,/from\("email_reply_reminders"\).*eq\("owner_id",profile\.id\)\.eq\("status","open"\)/);
   assert.match(html,/from\("whatsapp_reply_reminders"\).*eq\("owner_id",profile\.id\)\.eq\("status","open"\)/);
@@ -117,10 +125,11 @@ test('customer reply queue only shows durable open reply reminders',()=>{
   assert.doesNotMatch(html,/inquiries\.filter\(x=>latestMail\.get\(x\.id\)\?\.direction==="inbound"\)/);
 });
 
-test('unanswered assignments become overdue after their first-response deadline',()=>{
+test('unanswered manager assignments remain assignment tasks after their first-response deadline',()=>{
   assert.match(html,/assigned_at,first_contact_due_at,first_valid_contact_at/);
   assert.match(html,/x\.assigned_at&&!x\.first_valid_contact_at/);
-  assert.match(html,/dueAt<now\)add\("overdue",1,x,`首次响应已逾期/);
+  assert.match(html,/add\("assigned",overdue\?1:2,x/);
+  assert.match(html,/分配待处理 · 已逾期/);
 });
 
 test('manager reassignment keeps the UI role-gated and avoids legacy Feishu copy',()=>{

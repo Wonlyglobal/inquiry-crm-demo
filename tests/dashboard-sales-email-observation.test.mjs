@@ -9,7 +9,7 @@ const summaryLoader=html.slice(html.indexOf('async function loadDashboardEmailOb
 
 test('dashboard exposes per-salesperson email observation without exposing message content in summary queries',()=>{
   assert.match(html,/id="dashboard-email-observation"/);
-  assert.match(html,/id="dashboard-email-observation-search"/);
+  assert.match(html,/id="dashboard-email-observation-sales-filter"/);
   assert.match(html,/id="dashboard-email-observation-pagination"/);
   assert.match(summaryLoader,/rpc\("get_sales_email_activity_metrics"/);
   assert.doesNotMatch(summaryLoader,/\.from\("sales_email_analysis_(?:results|jobs)"\)/);
@@ -48,9 +48,22 @@ test('email activity RPC is aggregate-only, scoped, thread-aware, and observatio
   assert.doesNotMatch(metricsMigration,/body_text|body_html|subject|sender_email|recipient_emails/);
 });
 
-test('large teams are searchable and paginated at 20 sellers per page',()=>{
+test('large teams use a seller selector and paginate at 20 sellers per page',()=>{
+  assert.match(html,/<select id="dashboard-email-observation-sales-filter"[^>]*aria-label="选择业务员"/);
+  assert.match(html,/people\.map\(person=>`<option value="\$\{esc\(person\.id\)\}"\>/);
+  assert.match(html,/if\(selectedObservationSales\)people=people\.filter\(person=>person\.id===selectedObservationSales\)/);
+  assert.match(html,/salesFilter\.onchange=\(\)=>\{dashboardState\.emailObservationPage=1;renderDashboardEmailObservationPanel\(profiles\)\}/);
   assert.match(html,/const pageSize=20,pageCount=Math\.max\(1,Math\.ceil\(rows\.length\/pageSize\)\)/);
   assert.match(html,/data-email-observation-page="prev"/);
   assert.match(html,/data-email-observation-page="next"/);
-  assert.match(html,/person=>String\(person\.full_name\|\|""\)\.toLocaleLowerCase\(\)\.includes\(search\)/);
+});
+
+test('sales email activity appears in leaderboards with mature-sample safeguards',()=>{
+  assert.match(html,/id="dashboard-email-leaderboards"/);
+  assert.match(html,/CRM 开发信数量榜/);
+  assert.match(html,/7 天开发信回复率榜/);
+  assert.match(html,/row\.mature_7d_sent>=5/);
+  assert.match(html,/当前没有成熟样本达到 5 封，暂不排名/);
+  assert.match(html,/renderDashboardEmailActivityLeaderboards\(profiles\)/);
+  assert.match(html,/不调整评分或原有排名/);
 });

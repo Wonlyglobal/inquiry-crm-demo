@@ -2429,7 +2429,7 @@
             <div class="field"><label>预计币种</label><input id="detail-estimated-currency" class="input" placeholder="USD / CNY / EUR" /></div>
             <div class="field"><label>成交概率 <button class="metric-help" data-metric="probability" type="button">?</button></label><input id="detail-probability" class="input" type="number" min="0" max="100" step="1" placeholder="0–100" /></div>
             <div class="field"><label>预计成交日期 <button class="metric-help" data-metric="expected_close_date" type="button">?</button></label><input id="detail-expected-close" class="input" type="date" /></div>
-            <div class="field"><label>商机类型</label><select id="detail-deal-type" class="input"><option value="new">首次成交</option><option value="repeat">复购</option></select></div>
+            <div class="field"><label>商机类型</label><select id="detail-deal-type" class="input"><option value="first_order">首次成交</option><option value="repeat_order">复购</option></select></div>
             <div class="field"><label>主来源</label><select id="detail-primary-source" class="input"><option value="website">官网表单</option><option value="email">企业邮箱</option><option value="google_ads">Google Ads</option><option value="meta_ads">Meta Ads</option><option value="linkedin">LinkedIn</option><option value="exhibition">展会</option><option value="self_developed">销售自主开发</option><option value="referral">经销商/客户转介绍</option><option value="other">其他</option></select></div>
             <div class="field"><label><input id="detail-risk-flag" type="checkbox" /> 高风险客户（显示红色标识）</label></div>
             <div class="field"><label>成交凭证（订单、合同或定金凭证）</label><input id="detail-won-evidence" class="input" type="file" accept=".pdf,.xls,.xlsx" /><small class="hint">支持 PDF、XLS、XLSX；业务员提交成交申请时必传，主管确认前不计入成交额。</small></div>
@@ -6243,6 +6243,7 @@
           body.appendChild(tr);
         });
       }
+      const normalizeDealType=value=>value==="repeat"||value==="repeat_order"?"repeat_order":"first_order";
       async function openInquiryDetail(id) {
         try { return await openInquiryDetailUnsafe(id); }
         catch (error) {
@@ -6330,7 +6331,7 @@
         $("#detail-estimated-currency").value = inquiry.currency || "";
         $("#detail-probability").value = inquiry.probability ?? "";
         $("#detail-expected-close").value = inquiry.expected_close_date || "";
-        $("#detail-deal-type").value = inquiry.deal_type || "new";
+        $("#detail-deal-type").value = normalizeDealType(inquiry.deal_type);
         $("#detail-primary-source").value = inquiry.primary_source || inquiry.source || "other";
         const qualificationFields={identity:"qualification_identity",need:"qualification_need",role:"qualification_role",value:"qualification_value",timing:"qualification_timing",fit:"qualification_fit",nextStep:"qualification_next_step"};
         Object.entries(qualificationFields).forEach(([elementKey,column])=>{$(`#qualification-${elementKey.replace(/[A-Z]/g,m=>`-${m.toLowerCase()}`)}`).value=inquiry[column]||""});
@@ -7650,7 +7651,7 @@
           currency: $("#detail-estimated-currency").value.trim().toUpperCase() || null,
           probability: $("#detail-probability").value === "" ? null : Number($("#detail-probability").value),
           expected_close_date: $("#detail-expected-close").value || null,
-          deal_type: $("#detail-deal-type").value,
+          deal_type: normalizeDealType($("#detail-deal-type").value),
           primary_source: $("#detail-primary-source").value,
           risk_flag: $("#detail-risk-flag").checked,
           last_change_reason: reason,

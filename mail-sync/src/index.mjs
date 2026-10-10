@@ -5,11 +5,12 @@ import { createClient } from '@supabase/supabase-js';
 import { writeFile } from 'node:fs/promises';
 import { parseWebsiteFormMessage, websiteInquiryTitle } from './website-form.mjs';
 import { isJunkFolder, selectSyncFolders, shouldInitializeAtLatest } from './folders.mjs';
+import { withSafeReadRetries } from './fetch-resilience.mjs';
 
 const url=process.env.SUPABASE_URL;
 const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
 if(!url||!key) throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 未配置');
-const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:withSafeReadRetries()}});
 const interval=Math.max(30,Number(process.env.SYNC_INTERVAL_SECONDS||60))*1000;
 const initialLimit=Math.max(10,Number(process.env.INITIAL_SYNC_LIMIT||100));
 const reportHour=Math.min(23,Math.max(0,Number(process.env.DAILY_LEAD_REPORT_HOUR||18)));
@@ -388,12 +389,18 @@ async function syncMailbox(connection){
   await db.from('mailbox_connections').update({last_synced_at:new Date().toISOString(),error_message:null,status:'connected'}).eq('id',connection.id);
 }
 
+async function runOptionalCycleStage(name, task){
+  try{await task()}catch(error){console.error(`${name} stage failed: ${error?.name||'Error'}`)}
+}
+
 async function cycle(){
-  await processOutbox();
-  await sendDailyLeadReport();
+  // Scheduled sending/reporting is independent of mailbox ingestion. A
+  // transient queue/report failure must not prevent the IMAP sync stage.
+  await runOptionalCycleStage('mail outbox',processOutbox);
+  await runOptionalCycleStage('daily lead report',sendDailyLeadReport);
   const {data,error}=await db.from('mailbox_connections').select('*').eq('status','connected').eq('sync_enabled',true);if(error)throw error;
-  await Promise.allSettled((data||[]).map(async connection=>{try{await syncMailbox(connection);console.log(`${connection.email} synced`)}catch(error){console.error(connection.email,error);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}));
+  await Promise.allSettled((data||[]).map(async connection=>{try{await syncMailbox(connection);console.log(`${connection.mailbox_kind} mailbox synced`)}catch(error){console.error(`${connection.mailbox_kind} mailbox sync failed: ${error?.name||'Error'}`);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}));
   await writeFile('/tmp/healthy',new Date().toISOString());
 }
 
-while(true){try{await cycle()}catch(error){console.error(error)}await sleep(interval)}
+while(true){try{await cycle()}catch(error){console.error(`mail sync cycle failed: ${error?.name||'Error'}`)}await sleep(interval)}

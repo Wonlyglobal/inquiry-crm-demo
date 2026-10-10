@@ -323,3 +323,22 @@ Validation: 5 mobile regressions, module/browser syntax and whitespace checks pa
 - 环境授权：用户提供终端登录完成截图后，受限 sandbox 仍不可读系统钥匙串；经用户明确确认，升级权限仅做只读 Supabase 项目列表与 GitHub CLI 授权核验，成功看见目标 `plhverjihjilnuhlhlxi` 与有效 `Wonlyglobal` 登录，未访问或记录令牌。最新 `main` 已获取；PR #195 已合并，百炼候选从最新 main 建立 `feature/sales-email-bailian-redacted`。
 - 当前状态：未提交/推送/创建 PR，生产 migration、函数代码和百炼策略未变化；未调用模型或读取真实邮件。实现候选位于本分支，需按 PR 与 CI 审核后再进入生产发布；接收数据严格限脱敏片段，但供应商具体调用留存期未在此任务确认，人工复核证据含还原后的邮件原文并仅留在受权限保护的 CRM 中。
 - 回滚/剩余风险：未部署，直接丢弃候选差异即可。生产启用前须由 Deno/Edge 部署检查与 PostgreSQL migration 真实验证通过，策略 `BAILIAN_EMAIL_ANALYSIS_POLICY=bailian-redacted-sales-email-v1` 独立fail-closed配置，并完成合成文本端到端验证；不得用真实邮件作首轮联调。脱敏仍有上下文再识别与模型误判风险，且供应商固定留存期限待核实。
+
+## 2026-10-09 邮件活动指标看板发布（PR #198）
+- 授权人：用户（此前确认按建议指标建设，现明确“上线”）；执行人：Codex；目标：Wonlyglobal/inquiry-crm-demo 的 CRM 邮件活动观察面板与只读聚合 RPC。
+- 实现：新增月度业务员 CRM 开发信数、匹配来信、成熟样本 7 天线程回复率、24 小时回复处理、AI 分析队列/人工复核状态与日趋势；可搜索分页；仅观察，不改评分/排名。RPC 按 owner/团队经理/本人收敛范围，只返回聚合字段，不返回邮件正文、主题、地址或客户明细。发送量口径限 CRM 成功发送审计事件，不等于外部邮件客户端全量发送量。
+- 前状态：PR #197 的邮件观察入口已在 `origin/main`（`ede6ab6`）；新候选基于最新 main。
+- 验证：浏览器模块语法通过；本地完整 Node 离线回归 757/757；GitHub PR #198 的 CRM regression 与 Secret scan 均 SUCCESS（run `37878854315`）。
+- 评审与授权：用户明确要求上线，并要求“帮我通过评审”；PR #198 在 2026-10-09 03:29:54 UTC 由协作者 `chloe19980401` 对提交 `523f96b4e9e62b87dc12646dbf15a34cf48582c7` 留下 APPROVED 评审。该评审限定于代码；安全基线 v1.1 允许项目负责人明确批准工程发布，不强制两人审批。
+- 生产迁移预检（2026-10-09 03:31 UTC，Supabase Management API 只读 SQL）：目标项目 `plhverjihjilnuhlhlxi`（wonly-inquiry-crm / main PRODUCTION）；RPC 所需表与列均存在且类型匹配（audit entity_id/inquiry ids UUID、role crm_role、线程 reference_ids text[]、时间 timestamptz）；目标函数 `public.get_sales_email_activity_metrics(date)` 尚不存在。既有 `supabase_migrations.schema_migrations` 关系不存在，CLI migration list 不能作为记录依据；之前直连数据库连接失败，但 Management API 只读 catalog 查询成功。故按项目既往人工 SQL Editor/Management API 流程应用单一函数迁移，并在本日志保留版本与证据；不通过 `db push` 重放所有历史迁移。
+- 单独迁移及恢复计划（本用户“上线”即批准）：执行人 Codex；目标仅为上述生产项目；原因是已审核的邮件观察看板需要受限聚合 RPC。变更前：目标函数 absent、依赖表/列已核验存在；不读取客户正文或业务行、不改数据。变更后：仅新增 `SECURITY DEFINER` 且固定空 `search_path` 的只读函数，执行时约束 owner/同团队主管/本人范围；仅授予 authenticated，撤销 public/anon；PostgREST schema reload。成功后以 catalog 验证函数定义与 ACL（authenticated=true、anon/public=false），合成/真实登录角色通过网页 RPC 观察；最后正常合并 PR 并等待 Pages。若任一步骤或验证失败，停止前端发布；回滚仅执行 `revoke all on function public.get_sales_email_activity_metrics(date) from public,anon,authenticated; drop function if exists public.get_sales_email_activity_metrics(date); notify pgrst,'reload schema';`，不改动邮件、客户、评分、排名或现有分析结果。剩余风险：迁移台账关系缺失，人工执行凭项目日志追踪；需要后续修复 CLI migration history drift，但本次不补建、不回填。
+- 实际生产变更与验收（2026-10-09 03:32–03:34 UTC）：授权人用户；执行人 Codex；目标 `plhverjihjilnuhlhlxi` 生产 Supabase 与 `https://crm.foreverdoodle.com/`；原因是上线已评审的邮件活动观察面板。按预先记录计划，通过 `supabase db query --linked --file supabase/migrations/20261009170000_dashboard_email_activity_metrics.sql` 仅创建聚合函数，未写入邮件/客户行。前状态函数不存在、依赖结构匹配；后状态函数存在，`SECURITY DEFINER=true`、固定空 `search_path`、authenticated 可执行、anon 不可执行；重新读取 catalog 验证成功。PR #198 以 merge commit `864bc46c2e324252cdd91a2bc41135a71262d459` 合并。GitHub Pages deployment run `37879756450` SUCCESS 且 headSha 为该 merge commit；main CRM regression / Secret scan run `37879757192` 均通过。对生产 HTTPS 页只读检查确认邮件指标面板、日趋势和 RPC 调用入口已发布；发布后再次确认 RPC 及 ACL 不变。此轮未执行已登录业务角色的数据渲染验收，未读取任何邮件正文或客户明细；不据此声称真实统计数已校准。
+- 回滚：若需撤销，前端通过 reviewed revert PR 回退；生产 RPC 使用已记录的精确命令撤销 authenticated/public/anon 执行权并 DROP `public.get_sales_email_activity_metrics(date)`，随后通知 PostgREST reload。此迁移不写业务行，因此不涉及邮件、客户、评分或排名恢复。执行/回滚需保留审计。
+- 剩余风险：生产 `supabase_migrations.schema_migrations` 关系仍不存在，CLI 迁移历史需单独治理；本次使用 Management API 路径单迁移并由本日志留证，没有批量回放。发送统计只覆盖 CRM 成功发送审计事件；外部邮箱未分类发送不纳入。回复指标依赖 RFC 线程头精确匹配，缺失头字段可能低估；仅完成生产页面入口、函数及权限只读验收，角色登录后的数值/响应式 UI 尚待人工验收。AI 邮件内容分析仍是单独项目，不因本 PR 自动启用或接入。
+- 回滚/剩余业务口径：前端失败走 reviewed revert PR；RPC 按上述 DROP 恢复前状态。精确 RFC thread 规则会低估缺失头字段的实际回复；外部未分类邮件不会计入 CRM 开发信数；成功发送量只代表 CRM audit，不是外部邮箱全量发件数。
+
+## 2026-10-10 邮件观察筛选与邮件活动排行榜候选（未发布）
+- 授权人：用户（反馈业务员筛选应为选择而非手动填写，并要求开发信数量及回复率进入排行榜）；执行人：Codex。
+- 实现候选：邮件观察成员筛选改为从当前授权可见名单中选择，并沿用角色、团队、成员的已有范围；排行榜新增 CRM 开发信成功发送量榜，以及 7 天开发信回复率榜。回复率仅纳入发送满 7 天且成熟样本不少于 5 封的业务员，样本不足者标记并排除，不计算个人评分、不覆盖既有销售排行榜；受限 RPC/经理团队与本人可见范围不变。
+- 验证：专项测试 5/5、完整离线测试 758/758、内嵌 ES module 语法检查及 `git diff --check` 通过。
+- 状态：仅本地候选，尚未提交、推送、创建 PR 或部署；尝试只读 fetch 时 DNS 无法解析 `github.com`。未执行生产数据库或业务数据变更。回滚为丢弃本次 `index.html` 与专项测试的未发布改动。网络恢复后需基于合并后的 main 建 PR 并按项目发布流程检查。

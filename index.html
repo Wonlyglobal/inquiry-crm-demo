@@ -1659,7 +1659,7 @@
             <div id="hero-sales-ranking"><section class="leaderboard featured-sales-ranking"><div class="leaderboard-head"><b>业务员销售额排名</b><span class="dashboard-scope-note">正在加载…</span></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>环比</th><th>团队平均</th></tr></thead><tbody><tr><td colspan="5">正在读取销售额核心数据…</td></tr></tbody></table></div></section></div>
             <section id="dashboard-email-observation" class="dashboard-panel" style="grid-column:1/-1">
               <div class="panel-title"><div><b>业务员邮件观察</b><div class="dashboard-scope-note">仅显示观察状态与数量；点击进入带原文证据的人工复核，不计分、不改排名</div></div><div class="form-actions" style="margin:0"><label class="sr-only" for="dashboard-email-observation-month">观察月份</label><input id="dashboard-email-observation-month" class="input compact" type="month" /><button id="dashboard-email-observation-refresh" class="ghost" type="button">刷新</button></div></div>
-              <div class="dashboard-filter-group" style="padding:0 14px 12px"><input id="dashboard-email-observation-search" class="input compact" type="search" placeholder="搜索业务员姓名" aria-label="搜索业务员姓名" /><span id="dashboard-email-observation-scope" class="dashboard-scope-note"></span></div>
+              <div class="dashboard-filter-group" style="padding:0 14px 12px"><label class="sr-only" for="dashboard-email-observation-sales-filter">选择业务员</label><select id="dashboard-email-observation-sales-filter" class="input compact" aria-label="选择业务员"><option value="">全部业务员</option></select><span id="dashboard-email-observation-scope" class="dashboard-scope-note"></span></div>
               <div id="dashboard-email-activity-kpis" class="sales-workbench-kpis email-activity-kpis"><div class="empty">正在读取邮件指标…</div></div>
               <div id="dashboard-email-activity-trend" class="email-activity-trend dashboard-table-scroll"></div>
               <div id="dashboard-email-observation-content" class="dashboard-table-scroll"><div class="empty">正在读取邮件观察汇总…</div></div>
@@ -4022,12 +4022,13 @@
         renderDashboardEmailObservationPanel(dashboardState.profiles);
       }
       function renderDashboardEmailObservationPanel(profiles=dashboardState.profiles||[]){
-        const section=$("#dashboard-email-observation"),content=$("#dashboard-email-observation-content"),kpis=$("#dashboard-email-activity-kpis"),trend=$("#dashboard-email-activity-trend"),monthInput=$("#dashboard-email-observation-month"),searchInput=$("#dashboard-email-observation-search"),pager=$("#dashboard-email-observation-pagination");
+        const section=$("#dashboard-email-observation"),content=$("#dashboard-email-observation-content"),kpis=$("#dashboard-email-activity-kpis"),trend=$("#dashboard-email-activity-trend"),monthInput=$("#dashboard-email-observation-month"),salesFilter=$("#dashboard-email-observation-sales-filter"),pager=$("#dashboard-email-observation-pagination");
+        renderDashboardEmailActivityLeaderboards(profiles);
         if(!section||!content||!monthInput)return;
         const canObserve=["owner","sales_manager","sales"].includes(profile?.role);section.classList.toggle("hidden",!canObserve);if(!canObserve)return;
         const currentMonth=chinaDate().slice(0,7);monthInput.max=currentMonth;if(!monthInput.value)monthInput.value=currentMonth;
         monthInput.onchange=()=>{dashboardState.emailObservationPage=1;loadDashboardEmailObservationSummary(monthInput.value)};
-        const search=String(searchInput?.value||"").trim().toLocaleLowerCase();if(searchInput)searchInput.oninput=()=>{dashboardState.emailObservationPage=1;renderDashboardEmailObservationPanel(profiles)};
+        const selectedObservationSales=String(salesFilter?.value||"");if(salesFilter)salesFilter.onchange=()=>{dashboardState.emailObservationPage=1;renderDashboardEmailObservationPanel(profiles)};
         const refresh=$("#dashboard-email-observation-refresh");if(refresh)refresh.onclick=()=>loadDashboardEmailObservationSummary(monthInput.value||currentMonth);
         const summary=dashboardState.emailObservationSummary;
         const selectedTeam=$("#dashboard-team")?.value||"",selectedSales=$("#dashboard-sales")?.value||"";
@@ -4036,8 +4037,9 @@
         else if(profile.role==="sales_manager")people=people.filter(person=>person.team===profile.team);
         if(selectedTeam)people=people.filter(person=>person.team===selectedTeam);
         if(selectedSales)people=people.filter(person=>person.id===selectedSales);
-        if(search)people=people.filter(person=>String(person.full_name||"").toLocaleLowerCase().includes(search));
         people.sort((a,b)=>String(a.full_name||"").localeCompare(String(b.full_name||""),"zh-CN"));
+        if(salesFilter){const options=people.map(person=>`<option value="${esc(person.id)}">${esc(person.full_name||"未命名业务员")}${person.team?` · ${esc(person.team)}`:""}</option>`).join("");salesFilter.innerHTML=`<option value="">全部业务员</option>${options}`;if(selectedObservationSales&&people.some(person=>person.id===selectedObservationSales))salesFilter.value=selectedObservationSales;else salesFilter.value=""}
+        if(selectedObservationSales)people=people.filter(person=>person.id===selectedObservationSales);
         const scope=$("#dashboard-email-observation-scope");if(scope)scope.textContent=profile.role==="sales"?"仅本人":profile.role==="sales_manager"?`仅本团队 · ${people.length} 位业务员`:`当前筛选范围 · ${people.length} 位业务员`;
         if(summary.loading){if(kpis)kpis.innerHTML='<div class="empty">正在读取邮件指标…</div>';if(trend)trend.innerHTML="";content.innerHTML='<div class="empty">正在读取邮件观察状态…</div>';if(pager)pager.innerHTML="";return}
         if(summary.error){if(kpis)kpis.innerHTML='<div class="empty">邮件指标暂时无法读取</div>';if(trend)trend.innerHTML="";content.innerHTML='<div class="empty">邮件观察汇总暂时无法读取，请点击刷新重试。</div>';if(pager)pager.innerHTML="";return}
@@ -4056,6 +4058,37 @@
         if(pager)pager.innerHTML=rows.length>pageSize?`<span>第 ${dashboardState.emailObservationPage}/${pageCount} 页 · 共 ${rows.length} 位</span><span class="form-actions" style="margin:0"><button class="ghost" type="button" data-email-observation-page="prev" ${dashboardState.emailObservationPage<=1?"disabled":""}>上一页</button><button class="ghost" type="button" data-email-observation-page="next" ${dashboardState.emailObservationPage>=pageCount?"disabled":""}>下一页</button></span>`:`<span>${rows.length?`共 ${rows.length} 位业务员`:""}</span>`;
         $$('[data-email-observation-sales]').forEach(button=>button.onclick=()=>{const person=people.find(item=>item.id===button.dataset.emailObservationSales);if(person)openSalesEmailAnalysis({sales_id:person.id,sales_name:person.full_name,period_start:`${monthInput.value}-01`})});
         $$('[data-email-observation-page]').forEach(button=>button.onclick=()=>{dashboardState.emailObservationPage+=button.dataset.emailObservationPage==="next"?1:-1;renderDashboardEmailObservationPanel(profiles)});
+      }
+      function renderDashboardEmailActivityLeaderboards(profiles=dashboardState.profiles||[]){
+        const root=$("#dashboard-email-leaderboards");if(!root)return;
+        if(!["owner","sales_manager","sales"].includes(profile?.role)){root.innerHTML="";return}
+        const summary=dashboardState.emailObservationSummary||{},month=summary.month||$("#dashboard-email-observation-month")?.value||chinaDate().slice(0,7);
+        if(summary.loading||!summary.month){root.innerHTML='<section class="leaderboard"><div class="leaderboard-head"><b>邮件活动排行榜</b></div><div class="empty">正在读取邮件指标…</div></section>';return}
+        if(summary.error){root.innerHTML='<section class="leaderboard"><div class="leaderboard-head"><b>邮件活动排行榜</b></div><div class="empty">邮件指标暂时无法读取，请在“销售指标”页刷新后重试。</div></section>';return}
+        const selectedTeam=$("#dashboard-team")?.value||"",selectedSales=$("#dashboard-sales")?.value||"";
+        let people=(profiles||[]).filter(person=>person.active!==false&&person.role==="sales");
+        if(profile.role==="sales")people=people.filter(person=>person.id===profile.id);
+        else if(profile.role==="sales_manager")people=people.filter(person=>person.team===profile.team);
+        if(selectedTeam)people=people.filter(person=>person.team===selectedTeam);
+        if(selectedSales)people=people.filter(person=>person.id===selectedSales);
+        const activity=new Map((summary.people||[]).map(row=>[row.sales_id,row]));
+        const rows=people.map(person=>({id:person.id,name:person.full_name||"未命名业务员",development_sent:Number(activity.get(person.id)?.development_sent||0),mature_7d_sent:Number(activity.get(person.id)?.mature_7d_sent||0),replied_7d:Number(activity.get(person.id)?.replied_7d||0)}));
+        const average=values=>values.length?values.reduce((total,value)=>total+value,0)/values.length:0;
+        const ranked=(title,metricRows,renderValue,renderExtra,emptyText)=>{
+          let previous=null,rank=0;
+          const body=metricRows.length?metricRows.map((row,index)=>{if(previous===null||row.value!==previous)rank=index+1;previous=row.value;return `<tr><td><span class="rank-pill ${rank<=3&&row.value>0?"top":""}">${rank}</span></td><td>${esc(row.name)}</td><td>${renderValue(row.value)}</td><td>${renderExtra(row)}</td></tr>`}).join(""):`<tr><td colspan="4">${emptyText}</td></tr>`;
+          return `<section class="leaderboard"><div class="leaderboard-head"><b>${title}</b><span class="dashboard-scope-note">${esc(month)} · 仅观察，不调整评分或原有排名</span></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>实际值</th><th>样本 / 团队参考</th></tr></thead><tbody>${body}</tbody></table></div></section>`;
+        };
+        const sendRank=rows.map(row=>({...row,value:row.development_sent})).sort((a,b)=>b.value-a.value||a.name.localeCompare(b.name,"zh-CN"));
+        const sendAverage=average(rows.map(row=>row.development_sent));
+        const sendBoard=ranked("CRM 开发信数量榜",sendRank,value=>`${value} 封`,()=>`团队人均 ${sendAverage.toFixed(1)} 封`,"当前筛选下暂无业务员");
+        const replyEligible=rows.filter(row=>row.mature_7d_sent>=5).map(row=>({...row,value:row.replied_7d/row.mature_7d_sent*100})).sort((a,b)=>b.value-a.value||a.name.localeCompare(b.name,"zh-CN"));
+        const replyMature=rows.reduce((total,row)=>total+row.mature_7d_sent,0),replyCount=rows.reduce((total,row)=>total+row.replied_7d,0),teamRate=replyMature?`${(replyCount/replyMature*100).toFixed(1)}%（${replyCount}/${replyMature}）`:"—";
+        let previous=null,rank=0;
+        const replyBody=replyEligible.length?replyEligible.map((row,index)=>{if(previous===null||row.value!==previous)rank=index+1;previous=row.value;return `<tr><td><span class="rank-pill ${rank<=3?"top":""}">${rank}</span></td><td>${esc(row.name)}</td><td>${row.value.toFixed(1)}%</td><td>${row.replied_7d}/${row.mature_7d_sent} 封 · 团队 ${teamRate}</td></tr>`}).join(""):`<tr><td colspan="4">当前没有成熟样本达到 5 封，暂不排名</td></tr>`;
+        const replyInsufficient=rows.filter(row=>row.mature_7d_sent<5);
+        const insufficientNote=replyInsufficient.length?`<div class="dashboard-scope-note" style="padding:10px 14px">样本不足（未进入排名）：${replyInsufficient.map(row=>`${esc(row.name)} ${row.mature_7d_sent}/5 封`).join("；")}</div>`:"";
+        root.innerHTML=sendBoard+`<section class="leaderboard"><div class="leaderboard-head"><b>7 天开发信回复率榜</b><span class="dashboard-scope-note">${esc(month)} · 仅统计发送满 7 天的邮件；至少 5 封成熟样本才参与排名</span></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>7 天回复率</th><th>成熟样本 / 团队参考</th></tr></thead><tbody>${replyBody}</tbody></table></div>${insufficientNote}</section>`;
       }
       let sales360QuarterSelection = "";
       function sales360QuarterKey(date) {
@@ -5628,7 +5661,8 @@
         renderAnnualTargetPlan();
         $("#hero-sales-ranking").innerHTML=renderLeaderboard("业务员销售额排名","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>`${money(v,"CNY")}<br><small>${usdCny?money(v/usdCny,"USD"):"汇率待更新"}</small>`);
         $("#hero-sales-ranking").firstElementChild?.classList.add("featured-sales-ranking");
-        $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:x.changes.processing})),v=>`${Number.isInteger(v)?v:v.toFixed(1)} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:x.changes.response})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:x.changes.conversion,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`);
+        $("#dashboard-leaderboards").innerHTML=renderLeaderboard("询盘处理量榜","response_rate",stats.map(x=>({...x,value:x.processing,change:x.changes.processing})),v=>`${Number.isInteger(v)?v:v.toFixed(1)} 条`)+renderLeaderboard("首次响应速度榜","avg_response",stats.map(x=>({...x,value:x.response,change:x.changes.response})).filter(x=>x.value<Number.MAX_SAFE_INTEGER),v=>mins(v),true)+renderLeaderboard("成交额榜","won_amount",stats.map(x=>({...x,value:x.amount,change:x.changes.amount})),v=>money(v,"CNY"))+renderLeaderboard("成交率榜","conversion_rate",stats.map(x=>({...x,value:x.conversion,change:x.changes.conversion,insufficient:x.closed<minSamples[type]})),v=>`${v.toFixed(1)}%`)+`<div id="dashboard-email-leaderboards"></div>`;
+        renderDashboardEmailActivityLeaderboards(profiles);
         $$("[data-stage]").forEach(el=>el.textContent=commercialScoped.filter(x=>x.status===el.dataset.stage).length);
         $$("[data-stage]").forEach(el=>{const stageRows=commercialScoped.filter(x=>x.status===el.dataset.stage),values=stageRows.map(x=>amountCny(x,x.status==="won")),known=values.filter(v=>v!==null),total=known.reduce((s,v)=>s+v,0),usdRate=fxToCny("USD");let moneyLine=el.parentElement.querySelector("[data-stage-money]");if(!moneyLine){moneyLine=document.createElement("small");moneyLine.dataset.stageMoney="";el.parentElement.append(moneyLine);}moneyLine.textContent=known.length?`${money(total,"CNY")} / ${usdRate?money(total/usdRate,"USD"):"汇率待更新"}`:"暂无金额";moneyLine.title=known.length<stageRows.length?`${stageRows.length-known.length} 条商机缺少金额或汇率`:"全部金额已折算";});
         const latest=new Map(); history.filter(h=>commercialScoped.some(x=>x.id===h.inquiry_id)).forEach(h=>{if(!latest.has(h.to_status))latest.set(h.to_status,h.entered_at)}); $$("[data-stage-time]").forEach(el=>el.textContent=latest.has(el.dataset.stageTime)?fmtDate(latest.get(el.dataset.stageTime)):"暂无记录");

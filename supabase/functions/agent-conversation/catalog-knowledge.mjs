@@ -8,7 +8,7 @@ export const PRIVATE_CATALOG={bucket:'agent-private-knowledge',path:'wonly-catal
 const CATALOG_NAMES={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 const CATEGORY_NAMES={smart_lock:'智能锁',smart_door:'智能门',security_door:'防盗门',wooden_door:'木门',hospital_door:'医院门',school_door:'学校门',refuge_door:'避难门',fire_window:'防火窗',lock_body:'锁体',lock_core:'锁芯',hinge:'合页',door_viewer:'猫眼',other:'其他'};
 const CATEGORY_WORDS=[['smart_lock',/智能锁|指纹锁|人脸锁|门锁|smart ?lock/i],['smart_door',/智能门|smart ?door/i],['security_door',/防盗门|入户门|钢门|security ?door/i],['wooden_door',/木门|静音门|室内门|wooden ?door/i],['hospital_door',/医院门|医疗门|病房门/],['school_door',/学校门|教室门/],['refuge_door',/避难门|避难间/],['fire_window',/防火窗/],['lock_body',/锁体/],['lock_core',/锁芯/],['hinge',/合页|铰链/],['door_viewer',/猫眼/]];
-const SPEC_WORDS=/画册|型号|参数|规格|尺寸|厚度|等级|锁体|锁芯|门扇|门框|面板|颜色|配色|色号|认证|标准|国标|功能|配置|开锁方式|屏幕|供电|电池|续航|区别|对比|差别|哪款|哪些|有什么|多少|是什么|介绍/;
+const SPEC_WORDS=/产品信息|信息|产品介绍|了解|画册|型号|参数|规格|尺寸|厚度|等级|锁体|锁芯|门扇|门框|面板|颜色|配色|色号|认证|标准|国标|功能|配置|开锁方式|屏幕|供电|电池|续航|区别|对比|差别|哪款|哪些|有什么|多少|是什么|介绍/;
 const FILE_REQUEST=/发(给)?我|发一下|下载|文件|资料包|链接|PDF|pdf|原图|图片|视频/;
 const FACT_TOPICS=[['patents',/专利/],['rnd',/研发(投入|团队|人员|中心|基地)?/],['capacity',/产能|年产/],['bases',/生产基地|工厂|基地/],['listing',/上市|股票|605268/],['brand_value',/品牌价值/],['awards',/获奖|奖项|红点|iF/i],['challenge',/开锁挑战|百万挑战|挑战/],['landmarks',/地标|标杆项目|案例|项目业绩/],['developers',/开发商|地产商|百强/],['service',/服务网点|售后|服务团队/],['lock_core',/锁芯|C级|GA\/T/],['triple_protection',/三防分离|三重防护/],['remote_sensing',/远感|雷达/],['standards',/标准/],['fire_window',/防火窗/],['coating',/涂装|附着力|磷化/],['founding',/成立|创立|哪一年/]];
 const CONFLICT_TOPICS={patents:/专利/,rnd_team:/研发(团队|人员|人数)/,users:/用户数|服务用户/,keyway:/钥匙槽|钥匙孔|键槽|keyway/i,lock_core_ratio:/锁芯|C级|A级|倍/,wood_leaf:/木门.*厚|门扇厚/,s80_colour:/S80/i};
@@ -56,6 +56,10 @@ export function catalogIntent(question,catalog){
  const categories=CATEGORY_WORDS.filter(([,re])=>re.test(q)).map(([c])=>c);
  const facts=/画册/.test(q)?FACT_TOPICS.filter(([,re])=>re.test(q)).map(([t])=>t):[];
  if(models.length)return {kind:'models',models,categories};
+ // A family shorthand is not an exact model: ask which catalogue variant is intended.
+ const codes=q.match(/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/g)||[];
+ const candidates=[...new Set((catalog.products||[]).map(p=>p.model).filter(m=>typeof m==='string'&&codes.some(c=>new RegExp('^'+esc(c.replace(/-/g,''))+'(?:[ \-_]+|$)','i').test(m.replace(/^(\w+)-(\d+)/,'$1$2')))))];
+ if(candidates.length)return {kind:'model_choices',models:candidates.slice(0,8)};
  if(categories.length&&/型号|有哪些|哪几款|系列|产品线/.test(q))return {kind:'list',categories};
  if(facts.length)return {kind:'facts',topics:facts};
  if(/画册/.test(q)){const words=(q.match(/[A-Za-z][A-Za-z0-9.\-]{2,}/g)||[]).filter(w=>!/^(the|and|for|wonly)$/i.test(w));if(words.length)return {kind:'search',words:words.slice(0,5)}}
@@ -92,6 +96,7 @@ const TAIL='对外报价或投标前，以原画册和产品负责人确认的�
 
 export function catalogAnswer(intent,catalog,question=''){
  if(!intent||!catalog)return null;
+ if(intent.kind==='model_choices')return '画册中有这些相关型号：'+intent.models.join('、')+'。你想了解哪一个？确认完整型号后，我会按对应画册页给出参数和资料入口，避免混用不同版本。';
  if(intent.kind==='inventory')return inventoryAnswer(catalog,question);
  if(intent.kind==='selection')return selectionAnswer(catalog,question);
  if(intent.kind==='models'){

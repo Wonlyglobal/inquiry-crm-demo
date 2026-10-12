@@ -16,9 +16,9 @@ import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
 import {createWakeConversation} from './agent-wake.mjs?v=20261001-onewake';
 import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261001-mat1';
-import {createTimeline,priceChart,dataChart} from './agent-timeline.mjs?v=20261001-chart3';
+import {createTimeline,priceChart,dataChart} from './agent-timeline.mjs?v=20261012-request';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
-export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,timelineRoot=null,materialRow=null,materialFile=null,crmAnswer=null,crmChart=null,autoVoice=true}){
+export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,onOpenRequest=null,getResponseCard=null,timelineRoot=null,materialRow=null,materialFile=null,crmAnswer=null,crmChart=null,autoVoice=true}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
  const bar=el('div','');bar.className='agent-conversation-tools';
  const mode=el('select','');mode.setAttribute('aria-label','回答方式');for(const [v,t] of [['local','CRM资料分析'],['bailian','智能推理']]){const o=el('option',t);o.value=v;mode.append(o)}
@@ -76,7 +76,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(box.children.length)host.querySelector('#ai-assistant-messages')?.append(box);
  }
  function renderFeedback(){for(const b of feedbackButtons)b.setAttribute('aria-pressed',String(preferences().get().includes(b.dataset.preference)))}
- const timeline=timelineRoot?createTimeline(timelineRoot,{call,getPersona,materialRow,materialFile,crmChart}):null;
+ const timeline=timelineRoot?createTimeline(timelineRoot,{call,getPersona,materialRow,materialFile,crmChart,onOpenRequest,getResponseCard}):null;
  const histories=new Map(),materialHistories=new Map();let ready=false,busy=false,version=0,recorder=null,stream=null,timer=null,player=null,audioUrl=null,lastTicket=null,lastGreeting=null,controller=null;
  function state(text,orb='idle'){text=String(text).replace(/百炼北京/g,'语音服务').replace(/百炼/g,'智能服务');status.textContent=text;onStatus?.(text);onMode(orb);sync()}
  function sync(){installWake.disabled=installing||busy||!!recorder||!!wake?.isActive();installWake.textContent=installing?'正在准备语音包…':'安装本机语音包';wakeButton.disabled=installing||!ready||mode.value!=='bailian'||busy;wakeButton.textContent=wake?.isActive()?'关闭 Hello 唤醒':'开启 Hello 唤醒';mic.disabled=!ready||mode.value!=='bailian'||busy;mic.textContent=recorder?'结束并提问':'开始语音';stop.disabled=!installing&&!busy&&!recorder&&!player&&!wake?.isActive();replay.disabled=(!lastTicket&&!lastGreeting)||busy||!!recorder||mode.value!=='bailian';}

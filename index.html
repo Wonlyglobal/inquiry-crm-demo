@@ -2530,10 +2530,10 @@
     <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261008-2" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
-      import {appendQuestionMessage,appendQuestionMaterials} from './assets/agent-question-windows.mjs?v=20260924-1';
+      import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow} from './assets/agent-question-windows.mjs?v=20261012-request';
       import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261008-2';
       let graceMobile=null;
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20261008-mobile2';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20261012-request';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261003-route1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
@@ -5216,7 +5216,7 @@
         },onLeave:()=>{if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后返回');return false;}saveAgentLocation();worldModel?.reset();switchWorldConversation(null);$('#ai-assistant-panel').classList.add('hidden');},onAnalysis:(name,slot)=>{if(!canUseAgentWorld(profile,currentAuthUser))return;advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';slot.append($('#ai-advisor-page'));$('#ai-advisor-page').classList.remove('hidden');renderAdvisor()}});
         if(!worldModel)worldModel=mountConversation($('#ai-assistant-panel'),{autoVoice:!isGraceApp(),
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
-          timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,materialFile:agentMaterialFile,crmAnswer:question=>crmLiveAnswer(question,{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad}),crmChart:aiChart,onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>{worldController?.setStatus(text);graceMobile?.setStatus(text)},onMode:mode=>{worldController?.setMode(mode);graceMobile?.setMode(mode)},onMessage:(role,text)=>{addAiMessage(role,text);graceMobile?.showConversation()},onTranscript:text=>{$('#ai-assistant-input').value=text},
+          getResponseCard:()=>$('#ai-assistant-messages').lastElementChild,onOpenRequest:entry=>{const host=$('#ai-assistant-messages');let card=entry.card;if(!card||!host.contains(card)){card=appendQuestionMessage(host,'user',entry.question).closest('.question-window');appendQuestionMessage(host,'assistant','这条历史需求未保存完整回答。以下是当时保留的资料入口；你可以重新提问以取得当前信息。');if(entry.windows?.children.length)appendQuestionMaterials(host,entry.windows)}openQuestionWindow(host,card);worldController?.showResponse();graceMobile?.showConversation();return card},timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,materialFile:agentMaterialFile,crmAnswer:question=>crmLiveAnswer(question,{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad}),crmChart:aiChart,onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>{worldController?.setStatus(text);graceMobile?.setStatus(text)},onMode:mode=>{worldController?.setMode(mode);graceMobile?.setMode(mode)},onMessage:(role,text)=>{addAiMessage(role,text);graceMobile?.showConversation()},onTranscript:text=>{$('#ai-assistant-input').value=text},
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');
             const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';

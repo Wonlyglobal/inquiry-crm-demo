@@ -1,5 +1,5 @@
 import {progressBlock} from './agent-material-progress.mjs?v=20261003-progress';
-import {loadHologram,createHologram,drawPedestal,drawRoomHud,createRain,speechLevel} from './agent-hologram.mjs?v=hologram-20261001';
+import {loadHologram,createHologram,drawPedestal,drawRoomHud,createRain,speechLevel} from './agent-hologram.mjs?v=20261012-face';
 export function canUseAgentWorld(profile,user){
  return Boolean(profile?.active && profile.role==='owner' && profile.id==='c43bd3c2-6e3a-4228-99c7-dc95f33643f2' && user?.id===profile.id && String(user?.email||'').toLowerCase()==='chloelee@wonlyglobal.com');
 }

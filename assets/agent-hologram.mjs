@@ -103,10 +103,17 @@ void main(){
   vec3 vn=rotY(uYaw+sin(t*.23)*.12)*rotX(uPitch+sin(t*.17)*.04)*aNrm;float rim=kind<.5?pow(1.-abs(vn.z),2.5)*(1.-.75*exp(-pow((aPos.y-.38)/.12,2.))):0.;hi+=rim*.4;
   float a=(kind<.5?.35+.65*depth:kind<1.5?.75:kind>2.5?.5*(1.-fract(aRnd.y+t*(.12+.1*aRnd.z))):.25)*rv;
   if(kind>.5&&kind<1.5&&uStyle<.5){float s=fract(aRnd.y+t*(.05+.05*aRnd.z)*(1.+uThink*.4));a*=smoothstep(0.,.08,s)*(1.-s);}
+  // Grace's facial landmarks stay intact; lower-density skin and rear surfaces avoid a white mask.
+  float graceFace=(uStyle<.5&&kind<.5&&aPos.y>-.24)?1.:0.;
+  if(graceFace>.5){
+    a*=mix(.12,1.05,smoothstep(-.1,.65,vn.z));
+    if(uLine<.5&&aInfo.z<.45&&aRnd.x>.58)a=0.;
+    hi*=.55;
+  }
   vAlpha=a*(uLine>.5?.34*depth:1.)*uDim;vHi=hi;
   if(uLine>.5)hi+=smoothstep(.96,1.,fract(aPos.x*1.7+aPos.z*1.3-t*.35))*1.5;
   gl_PointSize=uSize*persp*(.55+aRnd.z*.9)*(1.+max(hi,0.)*.35)*mix(1.,3.4,uGlow);
-  vAlpha*=mix(1.,.045,uGlow);
+  vAlpha*=mix(1.,mix(.045,.022,graceFace),uGlow);
 }`;
 const FS=`#version 300 es
 precision highp float;
@@ -135,11 +142,11 @@ export function createHologram(canvas,data){
   render(style,o){
    const dpr=Math.min(devicePixelRatio||1,1.5),w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;
    if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr)}
-   const S=set(style);gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);gl.useProgram(prog);gl.bindVertexArray(S.vao);
+   const S=set(style);gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,style===0?gl.ONE_MINUS_SRC_ALPHA:gl.ONE);gl.useProgram(prog);gl.bindVertexArray(S.vao);
    const aspect=canvas.width/canvas.height;
    gl.uniform1f(U.uTime,o.time+style*7.1);gl.uniform1f(U.uYaw,o.yaw||0);gl.uniform1f(U.uPitch,o.pitch||0);gl.uniform1f(U.uAspect,aspect);
    gl.uniform1f(U.uListen,o.listen||0);gl.uniform1f(U.uThink,o.think||0);gl.uniform1f(U.uSpeak,o.speak||0);gl.uniform1f(U.uLevel,o.level||0);gl.uniform1f(U.uStyle,style);
-   gl.uniform1f(U.uSize,(canvas.height/520)*8.5*(o.sizeScale||1));gl.uniform1f(U.uReveal,o.reveal??1);gl.uniform1f(U.uFocus,Math.min(1.05,aspect*1.05)*(o.focus||.78));gl.uniform1f(U.uShiftX,0);gl.uniform1f(U.uDim,o.dim??1);
+   gl.uniform1f(U.uSize,(canvas.height/520)*(style===0?7.2:8.5)*(o.sizeScale||1));gl.uniform1f(U.uReveal,o.reveal??1);gl.uniform1f(U.uFocus,Math.min(1.05,aspect*1.05)*(o.focus||.78));gl.uniform1f(U.uShiftX,0);gl.uniform1f(U.uDim,o.dim??1);
    const[b,hh]=PALETTE[style];gl.uniform3f(U.uBase,...b);gl.uniform3f(U.uHot,...hh);
    gl.uniform1f(U.uGlow,0);gl.uniform1f(U.uLine,1);gl.drawElements(gl.LINES,S.lines,gl.UNSIGNED_SHORT,0);
    gl.uniform1f(U.uLine,0);gl.uniform1f(U.uGlow,1);gl.drawArrays(gl.POINTS,0,S.count);gl.uniform1f(U.uGlow,0);gl.drawArrays(gl.POINTS,0,S.count);

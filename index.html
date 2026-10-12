@@ -1455,7 +1455,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=progress-20261003" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=channels-seo-20261012" />
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
@@ -2527,7 +2527,7 @@
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261003-route1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
-      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=progress-20261003";
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=channels-seo-20261012";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;
@@ -5140,14 +5140,16 @@
       // 资料理解进度 (2026-10-03): counts from the material library, refreshed at most every 5 minutes while the board is shown.
       let materialProgressState=null,materialProgressAt=0,materialProgressBusy=false,materialProgressRequest=null;
       async function refreshMaterialProgress(force=false){if(materialProgressBusy)return materialProgressRequest;if(!force&&Date.now()-materialProgressAt<300000)return;materialProgressBusy=true;materialProgressRequest=(async()=>{try{const {data,error}=await supabase.functions.invoke('agent-conversation',{body:{action:'material-progress'}});materialProgressState=!error&&data?.progress?data.progress:{status:'unavailable'};}catch{materialProgressState={status:'unavailable'}}finally{materialProgressAt=Date.now();materialProgressBusy=false}})();return materialProgressRequest}
-      function worldLiveBoard(name){
+      let seoDashboardState={status:'loading'},seoDashboardAt=0,seoDashboardBusy=false;
+      async function refreshSeoDashboard(){if(seoDashboardBusy||Date.now()-seoDashboardAt<900000)return;seoDashboardBusy=true;try{const {data,error}=await supabase.functions.invoke('agent-conversation',{body:{action:'seo-dashboard'}});seoDashboardState=!error&&data?.summary?data.summary:{status:'unavailable'};}catch{seoDashboardState={status:'unavailable'}}finally{seoDashboardAt=Date.now();seoDashboardBusy=false;worldController?.refreshLive?.()}}
+      function worldLiveBoard(name,seo=seoDashboardState){
         const c=aiDataContext("近30天"),label=x=>x?.companies?.name||x?.title||x?.inquiry_no||"未命名询盘",wan=v=>v>=10000?`¥${(v/10000).toFixed(1)}万`:`¥${Math.round(v||0)}`,day=d=>`${d.getMonth()+1}/${d.getDate()}`;
         const prev=c.previous||{created:[],won:[],assigned:[],fast:[]},span=(c.end-c.start+1)/6;
         const spark=(list,key,val=()=>1)=>{const b=Array(6).fill(0);for(const x of list){const t=new Date(x[key]||x.created_at)-c.start;if(Number.isFinite(t))b[Math.min(5,Math.max(0,Math.floor(t/span)))]+=val(x)}return b};
         const delta=(cur,old,goodUp=true,fmt=v=>String(v))=>{if(!old&&!cur)return {text:"与上期持平",dir:"flat",good:null};if(!old)return {text:`上期 0`,dir:"up",good:goodUp};const pctv=Math.round((cur-old)/old*100);return {text:pctv===0?`与上期持平 · 上期 ${fmt(old)}`:`${pctv>0?"↑":"↓"}${Math.abs(pctv)}% · 上期 ${fmt(old)}`,dir:pctv>0?"up":pctv<0?"down":"flat",good:pctv===0?null:(pctv>0)===goodUp}};
         const rate=(a,b)=>b?Math.round(a/b*100):null,srcKey=x=>x.primary_source||x.source||"other",srcName=k=>sourceNames[k]||k;
         const count=(list,fn)=>{const m={};for(const x of list){const k=fn(x);m[k]=(m[k]||0)+1}return m};
-        let metrics,conclusion;
+        let metrics,conclusion,channelRows=[],adSpend=null,adSpendMonths=[];
         if(name==="Grace"){
           const cur=count(c.created,srcKey),old=count(prev.created,srcKey),keys=[...new Set([...Object.keys(cur),...Object.keys(old)])].map(k=>({k,cur:cur[k]||0,old:old[k]||0,d:(cur[k]||0)-(old[k]||0)}));
           const top=keys.filter(x=>x.cur).sort((a,b)=>b.cur-a.cur)[0],judged=x=>x.validity&&x.validity!=="pending",vr=rate(c.created.filter(x=>x.validity==="valid").length,c.created.filter(judged).length),ovr=rate(prev.created.filter(x=>x.validity==="valid").length,prev.created.filter(judged).length);
@@ -5156,6 +5158,11 @@
             {code:"VALID",label:"有效率",value:vr==null?"—":vr+"%",delta:vr==null||ovr==null?null:{text:vr===ovr?`与上期持平 · 上期 ${ovr}%`:`${vr>ovr?"↑":"↓"}${Math.abs(vr-ovr)}pt · 上期 ${ovr}%`,dir:vr>ovr?"up":vr<ovr?"down":"flat",good:vr===ovr?null:vr>ovr}},
             {code:"TOP SOURCE",label:"首位渠道",value:top?`${srcName(top.k)} ${top.cur}`:"—",delta:top?delta(top.cur,top.old):null},
             {code:"MARKET",label:"首位市场",value:topCountry?`${topCountry[0]} ${topCountry[1]}`:"—",delta:null}];
+          channelRows=keys.sort((a,b)=>b.cur-a.cur||b.old-a.old).map(x=>({name:srcName(x.k),current:x.cur,previous:x.old}));
+          const monthKey=d=>d instanceof Date&&!Number.isNaN(d.valueOf())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`:"",paidChannels=new Set(["google_ads","meta_ads"]);
+          adSpendMonths=[...new Set([monthKey(c.start),monthKey(c.end)].filter(Boolean))];
+          const costs=(dashboardState.costs||[]).filter(x=>paidChannels.has(x.channel)&&adSpendMonths.includes(String(x.month||"").slice(0,7)));
+          adSpend=costs.length?costs.reduce((s,x)=>s+(Number(x.amount_cny)||Number(x.amount)||0),0):null;
           const drop=keys.filter(x=>x.d<0).sort((a,b)=>a.d-b.d)[0],gain=keys.filter(x=>x.d>0).sort((a,b)=>b.d-a.d)[0];
           conclusion=!c.created.length?{tone:"warn",text:"近 30 天没有新增询盘，先确认官网表单、邮箱等渠道是否正常接收。"}
             :drop&&(-drop.d>=2||drop.old&&-drop.d/drop.old>=.3)?{tone:"warn",text:`${srcName(drop.k)}比上期少 ${-drop.d} 条（${drop.cur} vs ${drop.old}），是下降最多的渠道，建议先检查该渠道的投放与落地页。`}
@@ -5180,15 +5187,15 @@
           conclusion=c.totalCny>0?{tone:delta(c.totalCny,c.comparison.totalCny).good===false?"warn":"ok",text:`成交额 ${wan(c.totalCny)}，较上期${c.comparison.totalCny?(c.totalCny>=c.comparison.totalCny?"增长":"下降")+" "+Math.abs(Math.round((c.totalCny-c.comparison.totalCny)/c.comparison.totalCny*100))+"%":"从 0 起步"}${top?`；贡献最大的是 ${top.name}（${wan(top.amount)}）`:""}${c.risky.length?`。另有 ${c.risky.length} 条商机逾期需关注`:""}。`}
             :{tone:"warn",text:`近 30 天没有成交；进行中 ${c.active.length} 条${c.risky.length?`，其中 ${c.risky.length} 条已逾期`:""}，建议优先推进临近成交的商机。`};
         }
-        if(name==="Grace"&&typeof refreshMaterialProgress==="function")refreshMaterialProgress();
-        return {...(name==="Grace"?{progress:typeof materialProgressState==="undefined"?null:materialProgressState}:{}),ready:dashboardHasSuccessfulLoad,stale:agentDataRefreshFailed,period:c.start&&c.end?`近30天 ${day(c.start)}—${day(c.end)}`:"",compare:c.previousStart?`对比 ${day(c.previousStart)}—${day(c.previousEnd)}`:"",metrics,conclusion,note:`范围：${c.scope}；新增与成交按近 30 天统计并对比前 30 天，进行中与风险为当前状态。每 15 秒刷新。`};
+        if(name==="Grace"){if(typeof refreshMaterialProgress==="function")refreshMaterialProgress();if(typeof refreshSeoDashboard==="function")refreshSeoDashboard()}
+        return {...(name==="Grace"?{progress:typeof materialProgressState==="undefined"?null:materialProgressState,channels:channelRows,adSpend,adSpendMonths,seo}:{}),ready:dashboardHasSuccessfulLoad,stale:agentDataRefreshFailed,period:c.start&&c.end?`近30天 ${day(c.start)}—${day(c.end)}`:"",compare:c.previousStart?`对比 ${day(c.previousStart)}—${day(c.previousEnd)}`:"",metrics,conclusion,note:`范围：${c.scope}；询盘按近 30 天统计并对比前 30 天；广告成本按周期触及月份汇总已录入月度数，未按天分摊。SEO来自只读 GA4/GSC 汇总，按各自截止日期展示。`};
       }
       function enterAgentWorld(){
         if(window.CRM_EMBED||!canUseAgentWorld(profile,currentAuthUser))return false;
         $('#app').classList.add('agent-world-active');$('#agent-world-page').classList.remove('hidden');
         ['dashboard-page','marketing-center-page','module-page','sales-profile-page','ai-advisor-page','daily-modal','detail-modal'].forEach(id=>$('#'+id)?.classList.add('hidden'));
         $('#ai-assistant-open').classList.add('hidden');
-        if(!worldController)worldController=mountAgentWorld($('#agent-world-page'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),getLive:name=>canUseAgentWorld(profile,currentAuthUser)?worldLiveBoard(name):null,onSelect:(name,slot)=>{
+        if(!worldController)worldController=mountAgentWorld($('#agent-world-page'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),getLive:name=>canUseAgentWorld(profile,currentAuthUser)?worldLiveBoard(name,seoDashboardState):null,onSelect:(name,slot)=>{
           if(!canUseAgentWorld(profile,currentAuthUser))return;
           if($('#ai-assistant-form button[type="submit"]').disabled){toast('请等待当前回答完成后再切换');return false;}
           saveAgentLocation(name);switchWorldConversation(name);worldIntelligence?.select(name);advisorActiveTab=name==='Grace'?'marketing':name==='Brian'?'sales':'today';

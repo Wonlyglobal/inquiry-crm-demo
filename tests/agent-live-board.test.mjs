@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 const world=await readFile(new URL('../assets/agent-world.mjs',import.meta.url),'utf8');
-const src=html.slice(html.indexOf('      function worldLiveBoard(name){'),html.indexOf('      function enterAgentWorld(){'));
+const src=html.slice(html.indexOf('      function worldLiveBoard(name,seo='),html.indexOf('      function enterAgentWorld(){'));
 const D=86400000,now=Date.now(),iso=d=>new Date(now-d*D).toISOString();
 const start=new Date(now-29*D);start.setHours(0,0,0,0);const end=new Date(now);end.setHours(23,59,59,999);
 const ctx=(over={})=>({start,end,previousStart:new Date(start-30*D),previousEnd:new Date(start-1),scope:'全部',
@@ -11,7 +11,7 @@ const ctx=(over={})=>({start,end,previousStart:new Date(start-30*D),previousEnd:
  previous:{created:Array.from({length:7},(_,i)=>({created_at:iso(35+i),source:i<6?'website':'email',validity:'valid'})),won:[{}],assigned:[1,2,3,4],fast:[1,2]},
  active:[{title:'A'},{title:'B'}],overdue:[{title:'Proforma',assigned_at:iso(1.1)},{title:'Other',assigned_at:iso(.5)}],risky:[],won:[{won_at:iso(3)}],assigned:[1,2,3],fast:[1],
  totalCny:52000,comparison:{totalCny:80000},salesStats:[{name:'Chloe',amount:52000,won:1}],...over});
-const board=c=>new Function('aiDataContext','sourceNames','sumWonCny','dashboardHasSuccessfulLoad','agentDataRefreshFailed',src+';return worldLiveBoard;')(()=>c,{website:'官网表单',email:'企业邮箱'},r=>r.length*52000,true,false);
+const board=(c,costs=[])=>new Function('aiDataContext','sourceNames','sumWonCny','dashboardHasSuccessfulLoad','agentDataRefreshFailed','dashboardState','inRange',`const refreshMaterialProgress=()=>{};const refreshSeoDashboard=()=>{};const seoDashboardState={status:'not_configured'};`+src+';return worldLiveBoard;')(()=>c,{website:'官网表单',email:'企业邮箱'},r=>r.length*52000,true,false,{costs},(v,s,e)=>!!v&&new Date(v)>=s&&new Date(v)<=e);
 
 test('Grace live board compares with the previous 30 days and names the channel that dropped most',()=>{
  const b=board(ctx())('Grace');
@@ -37,6 +37,15 @@ test('Jay conclusion states revenue change and top contributor, or that nothing 
 test('live board renders deltas, sparkline and conclusion instead of connection pills',()=>{
  assert.match(world,/live-delta/);assert.match(world,/live-spark/);assert.match(world,/live-conclusion/);
  assert.doesNotMatch(world,/live-sources/);
+});
+
+test('Grace board lists attributable channels and only reports recorded Google/Meta ad costs',()=>{
+ const ym=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,months=[...new Set([ym(start),ym(end)])],costs=[{channel:'google_ads',month:months[0]+'-01',amount_cny:1200},{channel:'meta_ads',month:months.at(-1)+'-01',amount_cny:300},{channel:'google_ads',month:'2020-01-01',amount_cny:9999}];
+ const b=board(ctx(),costs)('Grace');
+ assert.deepEqual(b.channels,[{name:'官网表单',current:3,previous:6},{name:'企业邮箱',current:1,previous:1}]);
+ assert.equal(b.adSpend,1500);
+ assert.deepEqual(b.adSpendMonths,months);
+ assert.match(b.note,/按周期触及月份汇总已录入月度数，未按天分摊/);
 });
 
 test('unchanged rates show flat wording without up arrow',()=>{

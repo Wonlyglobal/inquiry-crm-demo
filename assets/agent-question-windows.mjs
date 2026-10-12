@@ -24,3 +24,11 @@ function updateHistory(host){
  cards.forEach((card,index)=>{const option=document.createElement('option');option.value=String(index);option.textContent=`${index+1}. ${card.querySelector('summary').textContent.slice(0,65)}`;nav.append(option);card.hidden=index<cards.length-2});
  nav.value=String(cards.length-1);nav.hidden=cards.length<3;
 }
+
+export function openQuestionWindow(host,card){
+ if(!card||!host.contains(card))return false;
+ const cards=[...host.querySelectorAll('.question-window')];
+ for(const c of cards){c.hidden=c!==card&&c!==cards.at(-1);c.open=c===card}
+ const nav=host.parentElement.querySelector('.question-history');if(nav)nav.value=String(cards.indexOf(card));
+ host.scrollTop=0;card.querySelector('.question-window-body').scrollTop=0;return true;
+}

@@ -12,6 +12,7 @@ const CSS=`.gt{display:flex;flex-direction:column;min-height:0;max-height:65vh;b
 .gt-head button,.gt button.gt-mini{background:#152035;color:#c9d3e4;border:1px solid #43516a;border-radius:8px;padding:2px 8px;font:inherit;cursor:pointer}
 .gt-list{list-style:none;margin:0;padding:10px 12px 14px 26px;overflow:auto;position:relative}
 .gt-empty{color:#8f9bb0;padding:14px;font-size:13px}
+.gt button.gt-q{background:transparent;border:0;color:#f4e2bb;text-align:left;font:inherit;cursor:pointer;overflow-wrap:anywhere}.gt button.gt-q:hover{text-decoration:underline}.gt button.gt-q:focus-visible{outline:2px solid #e8bf69;outline-offset:3px}
 .gt-item{position:relative;margin:0 0 14px;padding:10px 12px;border:1px solid #2c3950;border-radius:12px;background:#111b2c}
 .gt-item::before{content:'';position:absolute;left:-17px;top:16px;width:10px;height:10px;border-radius:50%;background:#64748b;box-shadow:0 0 0 3px #0d1524}
 .gt-item::after{content:'';position:absolute;left:-13px;top:30px;bottom:-16px;width:2px;background:#26324a}
@@ -116,7 +117,7 @@ export function windowsFrom(result){
 // What is stored: no signed links, card bodies or material objects.
 export function storable(w){const {card,asset,chart,...rest}=w;if(rest.kind==='chart'&&['intel','crm_stats'].includes(rest.source))return null;return rest.kind==='link'?null:rest}
 
-export function createTimeline(root,{call,getPersona,materialRow,materialFile=null,crmChart=null,origin=location.origin,doc=document,win=window}){
+export function createTimeline(root,{call,getPersona,materialRow,materialFile=null,crmChart=null,onOpenRequest=null,getResponseCard=null,origin=location.origin,doc=document,win=window}){
  if(!doc.getElementById('gt-style')){const st=doc.createElement('style');st.id='gt-style';st.textContent=CSS;doc.head.append(st)}
  const mk=(tag,cls,text)=>{const n=doc.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n};
  const box=mk('section','gt');box.setAttribute('aria-label','需求时间线');
@@ -162,7 +163,9 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
  }
  function itemNode({question,created_at,status}){
   const li=mk('li','gt-item');li.dataset.status=status;const top=mk('div','gt-top');const del=mk('button','gt-mini','×');del.type='button';del.title='删除这条';del.hidden=true;
-  top.append(mk('span','gt-time',timeLabel(created_at)),mk('span','gt-q',question),del);
+  const request=mk('button','gt-q',question);request.type='button';request.setAttribute('aria-label','查看需求：'+question);
+  request.onclick=()=>{const card=onOpenRequest?.({question,card:li.responseCard,windows:li.querySelector('.gt-wins')});if(card)li.responseCard=card};
+  top.append(mk('span','gt-time',timeLabel(created_at)),request,del);
   const stages=mk('div','gt-stages');STAGES.forEach(([k,label],i)=>{if(i)stages.append(mk('span','gt-arrow','→'));const s=mk('span','gt-stage',label);s.dataset.k=k;s.dataset.s='wait';stages.append(s)});
   li.append(top,stages,mk('div','gt-src'),mk('div','gt-wins'));
   li.stage=(k,s)=>{const n=stages.querySelector(`[data-k="${k}"]`);if(n)n.dataset.s=s};
@@ -173,7 +176,7 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
 
  function begin(question){
   for(const d of list.querySelectorAll('.gt-win[open]:not(.gt-big)'))d.open=false;
-  const started=new Date().toISOString(),persona=getPersona();const li=itemNode({question,created_at:started,status:'running'});list.prepend(li);refresh();li.scrollIntoView?.({block:'nearest'});
+  const started=new Date().toISOString(),persona=getPersona();const li=itemNode({question,created_at:started,status:'running'});li.responseCard=getResponseCard?.();list.prepend(li);refresh();li.scrollIntoView?.({block:'nearest'});
   li.stage('need','active');let saved=false;
   const save=async(status,route,steps,windows)=>{if(saved)return;saved=true;try{const r=await call({action:'timeline',op:'add',persona,question:String(question).slice(0,500),status,route,steps,windows:windows.map(storable).filter(Boolean)});if(Number.isInteger(r?.id))li.setId(r.id)}catch{}};
   return {

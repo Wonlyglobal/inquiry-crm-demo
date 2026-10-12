@@ -44,3 +44,13 @@ test('loader reads only the private bucket, validates schema and caches',async()
  resetCatalogCache();assert.equal(await loadCatalog({storage:{from:()=>({download:async()=>({data:new Blob(['{"schema":"x"}']),error:null})})}}),null);
  assert.equal(validCatalog({schema:'wonly-catalog-v1',products:[],sources:[]}),true);
 });
+
+test('product information routes to catalogue and family shorthand asks for exact variant',()=>{
+ assert.equal(catalogPrecheck('X60产品信息'),true);
+ const fixture={...catalog,products:[{...catalog.products[3],model:'X60 Pro'},{...catalog.products[3],model:'X60 Max'}]};
+ const intent=catalogIntent('X60产品信息',fixture);
+ assert.equal(intent.kind,'model_choices');assert.deepEqual(intent.models,['X60 Pro','X60 Max']);
+ assert.match(catalogAnswer(intent,fixture),/确认完整型号/);
+ assert.equal(catalogIntent('X60 Pro产品信息',fixture).kind,'models');
+ assert.equal(catalogIntent('X600产品信息',fixture),null);
+});

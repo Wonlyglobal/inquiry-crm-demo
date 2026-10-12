@@ -41,6 +41,7 @@ export function findModels(question,catalog){
 // Cheap pre-check before the private file is downloaded.
 export function catalogPrecheck(question){
  const q=String(question||'').slice(0,500);
+ if(/^\s*[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?(?:\s*(?:pro|max|plus|ultra))?\s*$/i.test(q))return true;
  if(inventoryIntent(q)||selectionIntent(q))return true;
  if(FILE_REQUEST.test(q))return false;
  return /画册/.test(q)||(/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/.test(q)&&SPEC_WORDS.test(q))||(CATEGORY_WORDS.some(([,re])=>re.test(q))&&/型号|有哪些|哪几款|系列|产品线|参数|规格/.test(q));

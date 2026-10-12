@@ -1,3 +1,4 @@
+import {currentQuestionWindow} from './agent-question-windows.mjs?v=20261012-continuous';
 // Keeps the latest turns within the server limits (20 messages, 40,000 characters; each message ≤6,000).
 export function fitHistory(list,maxChars=38000){const out=[];let n=0;for(const m of [...list].reverse().slice(0,20)){const c=String(m.content).slice(0,6000);if(n+c.length>maxChars)break;n+=c.length;out.unshift({role:m.role,content:c})}if(out[0]?.role==='assistant')out.shift();return out}
 // "Open it for me" actions from the agent: CRM pages, competitors' official pages, keyword searches.
@@ -65,7 +66,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  // Charts (e.g. competitor price bands) are shown right under the answer, with their official sources.
  function showCharts(actions){
   const msgs=host.querySelector('#ai-assistant-messages');if(!msgs||!Array.isArray(actions))return;
-  for(const a of actions){if(!a?.chart||!['price_chart','data_chart'].includes(a.type))continue;const target=msgs.lastElementChild?.querySelector?.('.question-window-body')||msgs;target.append(a.type==='price_chart'?priceChart(a.chart,document):dataChart(a.chart,document))}
+  for(const a of actions){if(!a?.chart||!['price_chart','data_chart'].includes(a.type))continue;const target=currentQuestionWindow(msgs)?.querySelector?.('.question-window-body')||msgs;target.append(a.type==='price_chart'?priceChart(a.chart,document):dataChart(a.chart,document))}
  }
  // Without a timeline (the small AI panel), action windows render inside the conversation; links open only on click.
  function runActions(actions){

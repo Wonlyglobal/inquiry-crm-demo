@@ -97,7 +97,7 @@ const TAIL='对外报价或投标前，以原画册和产品负责人确认的�
 
 export function catalogAnswer(intent,catalog,question=''){
  if(!intent||!catalog)return null;
- if(intent.kind==='model_choices')return '画册中有这些相关型号：'+intent.models.join('、')+'。你想了解哪一个？确认完整型号后，我会按对应画册页给出参数和资料入口，避免混用不同版本。';
+ if(intent.kind==='model_choices')return '画册中有这些相关型号：'+intent.models.join('、')+'。请点击下方型号选项。确认完整型号后，我会按对应画册页给出参数和资料入口，避免混用不同版本。';
  if(intent.kind==='inventory')return inventoryAnswer(catalog,question);
  if(intent.kind==='selection')return selectionAnswer(catalog,question);
  if(intent.kind==='models'){

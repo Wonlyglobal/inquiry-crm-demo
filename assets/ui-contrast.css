@@ -38,3 +38,8 @@
 
 #agent-world .question-window .ai-message.user.follow-up { display:block; color:#bfe0ff; border-top:1px solid #40577b; padding-top:12px; font-weight:600; }
 #agent-world .question-new { margin:8px 12px; padding:7px 14px; border:1px solid #6f86aa; border-radius:10px; color:#f0f5ff; background:#142e57; }
+
+#agent-world .model-choices{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+#agent-world .model-choices button{min-height:44px;padding:10px 16px;border:1px solid #8faed3;border-radius:12px;background:#1a355e;color:#f0f5ff;font-weight:650}
+#agent-world .model-choices button:hover,#agent-world .model-choices button[aria-pressed=true]{background:#315b90;border-color:#e8bf69}
+#agent-world .model-choices button:disabled{opacity:.65;cursor:wait}

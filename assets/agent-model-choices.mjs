@@ -1,8 +1,8 @@
 export function modelChoices(values){return [...new Set((Array.isArray(values)?values:[]).filter(v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9 _./-]{1,59}$/.test(v)).map(v=>v.trim()))].slice(0,8)}
 export function modelChoiceButtons(values,onSelect,doc=document){
  const choices=modelChoices(values);if(!choices.length)return null;
- const group=doc.createElement('div');group.className='model-choices';group.setAttribute('role','group');group.setAttribute('aria-label','选择产品型号');
- for(const model of choices){const b=doc.createElement('button');b.type='button';b.textContent=model;b.setAttribute('aria-pressed','false');b.onclick=async()=>{for(const child of group.children){child.disabled=true;child.setAttribute('aria-pressed',String(child===b))}try{await onSelect(model)}finally{for(const child of group.children)child.disabled=false}};group.append(b)}return group;
+ const group=doc.createElement('div');group.className='model-choices';group.setAttribute('role','group');group.setAttribute('aria-label','选择产品型号');const status=doc.createElement('div');status.className='model-choice-status';status.setAttribute('role','status');
+ for(const model of choices){const b=doc.createElement('button');b.type='button';b.textContent=model;b.setAttribute('aria-pressed','false');b.onclick=async()=>{for(const child of group.children)if(child!==status){child.disabled=true;child.setAttribute('aria-pressed',String(child===b))}status.textContent='正在查询 '+model+'…';try{await onSelect(model);status.textContent='处理已结束，请查看最新回复。'}catch{status.textContent='选择未完成，请重试。'}finally{for(const child of group.children)if(child!==status)child.disabled=false}};group.append(b)}group.append(status);return group;
 }
 
 // Only an explicit clarification block becomes choices, never ordinary numbered advice.

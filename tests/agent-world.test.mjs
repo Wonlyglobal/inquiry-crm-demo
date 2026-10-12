@@ -40,6 +40,11 @@ test('private room shows a live board from page data and Grace opens into voice 
  assert.match(html,/type="days";start=new Date\(now\);start\.setDate\(now\.getDate\(\)-days\+1\)/);
 });
 
+test('Grace social entrance reflects the verified readable summary',()=>{
+ assert.match(world,/\['社媒','汇总可读取','分析社媒表现'\]/);
+ assert.doesNotMatch(world,/\['社媒','连接待核验'/);
+});
+
 test('private room fits one desktop screen with panels scrolling inside',()=>{
  assert.match(world,/function fitRoom\(\)\{const top=root\.getBoundingClientRect\(\)\.top\+scrollY;let h=Math\.max\(340,innerHeight-top-14\);root\.style\.setProperty\('--room-h'/);
  assert.match(css,/#agent-world\.in-private-room\{height:var\(--room-h/);

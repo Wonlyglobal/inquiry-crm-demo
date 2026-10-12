@@ -89,6 +89,20 @@ ctx.restore();}
    if(Array.isArray(m.spark)&&m.spark.some(v=>v>0)){const max=Math.max(...m.spark),w=60,h=16,pts=m.spark.map((v,i)=>`${(i*w/(m.spark.length-1)).toFixed(1)},${(h-1-(v/max)*(h-2)).toFixed(1)}`).join(' ');const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('class','live-spark');svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('aria-hidden','true');const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');pl.setAttribute('points',pts);svg.append(pl);card.append(svg)}
    grid.append(card)}box.append(grid);
   if(live.conclusion?.text){const con=el('p','live-conclusion '+(live.conclusion.tone==='warn'?'warn':'ok'));con.append(el('b',null,'结论'),document.createTextNode(live.conclusion.text));box.append(con)}
+  if(selected==='Grace'){
+   const section=el('section','live-channel-section'),title=el('strong','live-section-title','渠道询盘（近30天）');section.append(title);
+   if(live.channels?.length){const table=document.createElement('table');table.className='live-channel-table';const headRow=document.createElement('tr');for(const label of ['渠道','本期','上期']){const th=document.createElement('th');th.textContent=label;headRow.append(th)}const thead=document.createElement('thead');thead.append(headRow);const tbody=document.createElement('tbody');for(const row of live.channels){const tr=document.createElement('tr');for(const value of [row.name,String(row.current),String(row.previous)]){const td=document.createElement('td');td.textContent=value;tr.append(td)}tbody.append(tr)}table.append(thead,tbody);const scroll=el('div','live-channel-scroll');scroll.append(table);section.append(scroll)}else section.append(el('p','live-note','当前周期暂无可归因的渠道询盘。'));
+   const spendMonths=(live.adSpendMonths||[]).join('、'),spendLabel=spendMonths?`广告成本（Google Ads + Meta Ads；月度录入 ${spendMonths}）：`:'广告成本（Google Ads + Meta Ads）：';
+   section.append(el('p','live-ad-spend',`${spendLabel}${live.adSpend==null?'暂无已录入成本':'¥'+Number(live.adSpend).toLocaleString('zh-CN',{maximumFractionDigits:2})}`));box.append(section);
+   const seo=live.seo||{status:'loading'},seoSection=el('section','live-seo-section'),seoTitle=el('strong','live-section-title','SEO 表现（GA4 / Search Console）');seoSection.append(seoTitle);
+   const format=(v,suffix='')=>v===null||v===undefined?'未取得':`${Number(v).toLocaleString('zh-CN',{maximumFractionDigits:2})}${suffix}`;
+   if(['available','stale'].includes(seo.status)){
+    const w7=seo.windows?.['7d']||{},w28=seo.windows?.['28d']||{},items=[['7天 GSC 点击',format(w7.gsc?.clicks)],['7天展示',format(w7.gsc?.impressions)],['7天 CTR',format(w7.gsc?.ctr==null?null:w7.gsc.ctr*100,'%')],['7天平均排名',format(w7.gsc?.avg_position)],['7天自然会话',format(w7.ga4?.organic_sessions)],['28天 GSC 点击',format(w28.gsc?.clicks)],['28天展示',format(w28.gsc?.impressions)],['28天 CTR',format(w28.gsc?.ctr==null?null:w28.gsc.ctr*100,'%')],['28天平均排名',format(w28.gsc?.avg_position)],['28天自然会话',format(w28.ga4?.organic_sessions)]];
+    const grid=el('div','live-seo-grid');for(const [label,value] of items){const item=el('div','live-seo-item');item.append(el('span',null,label),el('b',null,value));grid.append(item)}seoSection.append(grid);
+    const freshness=seo.freshness||{},state=seo.status==='stale'?'快照已过期，仅作历史参考':'源端已连接';seoSection.append(el('p','live-seo-freshness',`${state} · 生成 ${seo.generated_at?.slice(0,10)||'日期未取得'} · GA4 截止 ${freshness.ga4?.through||'未取得'} · GSC 截止 ${freshness.gsc?.through||'未取得'}`));
+   }else seoSection.append(el('p','live-seo-freshness',seo.status==='not_configured'?'SEO只读数据通路未配置，不能据此判断流量为零。':seo.status==='loading'?'正在读取经授权的 SEO 汇总…':'SEO来源暂不可用，不能据此判断流量为零。'));
+   box.append(seoSection);
+  }
   box.append(el('p','live-note',live.note||''));
   if(selected==='Grace'&&'progress' in live)box.append(progressBlock(live.progress));
   liveCallouts=live.metrics.slice(0,3).map(m=>[m.code||'',m.label,m.value]);

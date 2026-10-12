@@ -84,7 +84,7 @@ ctx.restore();}
   box.replaceChildren();const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n};
   const systems=room.querySelector('.room-systems');systems.replaceChildren();
   if(selected==='Grace'){
-   const entries=[['CRM',live?.ready?'汇总已加载':'待加载','查看CRM经营汇总'],['物料库',live?.progress?.status==='available'?'进度可读取':'连接待核验','查看产品知识覆盖'],['SEO',['available','stale'].includes(live?.seo?.status)?(live.seo.status==='stale'?'历史快照':'汇总可读取'):'待核验','分析官网SEO表现'],['社媒','连接待核验','分析社媒表现'],['公司背调','按公司查询','帮我背调公司'],['竞品情报','已收录公开资料','有哪些竞品']];
+   const entries=[['CRM',live?.ready?'汇总已加载':'待加载','查看CRM经营汇总'],['物料库',live?.progress?.status==='available'?'进度可读取':'连接待核验','查看产品知识覆盖'],['SEO',['available','stale'].includes(live?.seo?.status)?(live.seo.status==='stale'?'历史快照':'汇总可读取'):'待核验','分析官网SEO表现'],['社媒','汇总可读取','分析社媒表现'],['公司背调','按公司查询','帮我背调公司'],['竞品情报','已收录公开资料','有哪些竞品']];
    for(const [name,status,query] of entries){const b=el('button','system-entrance');b.type='button';b.append(el('strong',null,name),el('span',null,status));b.onclick=()=>{room.dataset.settings='false';room.dataset.window='open';room.querySelector('#room-results').setAttribute('aria-expanded','true');const slot=room.querySelector('#room-compose');slot.hidden=false;room.querySelector('#room-text').setAttribute('aria-expanded','true');const input=slot.querySelector('textarea');if(input){input.value=query;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()} };systems.append(b)}
   }
   const head=el('div','live-head');head.append(el('strong',null,'实时看板'),el('span',null,[live?.period,live?.compare].filter(Boolean).join(' · ')||'看板周期未加载'));if(live?.stale)head.append(el('i','pill warn','刷新失败'));box.append(head);

@@ -42,7 +42,7 @@ import {POLICY,PERSONAS,eligible,validateDialogue,requestBody,outputText} from '
 import {CHAT_URL,TTS_URL,MODELS,providerJson,speechBody,speechAudio,transcriptionBody,transcriptText} from './bailian.mjs';
 import {loadCrmStats} from './crm-stats.mjs';
 import {answerIssues,correctionMessage,safeMarketingFallback} from './answer-quality.mjs';
-import {loadSocial,loadSocialPosts,loadSocialLibrary,requestedPostPage} from './social.mjs';
+import {loadSocial,loadSocialPosts,loadSocialLibrary,requestedPostPage,socialDashboardSummary} from './social.mjs';
 import {loadSeo} from './seo.mjs';
 import {loadResearch} from './research.mjs';
 import socialBusinessContext from './social-business-context.json' with {type:'json'};
@@ -121,6 +121,17 @@ Deno.serve(async req=>{
    const summary=await loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')});
    const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_seo_dashboard_read',after_data:{status:summary.status,generated_at:summary.generated_at||null,ga4_through:summary.freshness?.ga4?.through||null,gsc_through:summary.freshness?.gsc?.through||null},reason:'所有者只读查看网站 GA4/GSC 汇总；未发送给 AI、未读取个人或客户级记录'});
    if(auditError)return json({error:'SEO 读取审计失败'},503);
+   return json({summary});
+  }
+  // Social dashboard: owner-only bounded projection; post/account names never leave this function.
+  if(input.action==='social-dashboard'){
+   if(user.id!=='c43bd3c2-6e3a-4228-99c7-dc95f33643f2'||String(user.email||'').toLowerCase()!=='chloelee@wonlyglobal.com'||profile.role!=='owner')return json({error:'当前账号无权查看社媒看板'},403);
+   const audit=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+   const {count,error:limitError}=await audit.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','agent_social_dashboard_read').gte('created_at',new Date(Date.now()-3600000).toISOString());
+   if(limitError)return json({error:'暂时无法核验社媒读取限额'},503);if((count||0)>=6)return json({error:'社媒数据读取较频繁，请稍后刷新'},429);
+   const summary=socialDashboardSummary(await loadSocial(authorization));
+   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_social_dashboard_read',after_data:{status:summary.status,generated_at:summary.generated_at||null,own_accounts:summary.own_accounts||0,competitor_accounts:summary.competitor_accounts||0},reason:'所有者只读查看脱敏社媒汇总；不含账号/帖子名称，不发送给AI，不写入业务记录'});
+   if(auditError)return json({error:'社媒读取审计失败'},503);
    return json({summary});
   }
   if(input.action==='catalog-pages'){

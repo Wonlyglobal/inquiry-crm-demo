@@ -102,6 +102,13 @@ ctx.restore();}
     const freshness=seo.freshness||{},state=seo.status==='stale'?'快照已过期，仅作历史参考':'源端已连接';seoSection.append(el('p','live-seo-freshness',`${state} · 生成 ${seo.generated_at?.slice(0,10)||'日期未取得'} · GA4 截止 ${freshness.ga4?.through||'未取得'} · GSC 截止 ${freshness.gsc?.through||'未取得'}`));
    }else seoSection.append(el('p','live-seo-freshness',seo.status==='not_configured'?'SEO只读数据通路未配置，不能据此判断流量为零。':seo.status==='loading'?'正在读取经授权的 SEO 汇总…':'SEO来源暂不可用，不能据此判断流量为零。'));
    box.append(seoSection);
+   const social=live.social||{status:'loading'},socialSection=el('section','live-social-section'),socialTitle=el('strong','live-section-title','社媒系统汇总（已发布内容）');socialSection.append(socialTitle);
+   if(social.status==='available'){
+    socialSection.append(el('p','live-social-freshness',`系统已登记自有账号 ${social.own_accounts} 个（近同步可读 ${social.available_accounts}，过期 ${social.stale_accounts}）；竞品记录 ${social.competitor_accounts} 个。读取 ${social.generated_at?.slice(0,10)||'时间未取得'}；最近同步 ${social.latest_sync_at?.slice(0,10)||'未取得'}`));
+    if(social.published_28d?.length){const grid=el('div','live-social-grid');for(const row of social.published_28d){const item=el('div','live-social-item');item.append(el('b',null,row.platform.toUpperCase()),el('span',null,`28天已发布 ${row.published_posts??'未取得'} 条`),el('small',null,`登记互动：赞 ${row.recorded_likes??'未取得'} · 播放 ${row.recorded_views??'未取得'} · 评论 ${row.recorded_comments??'未取得'} · 分享 ${row.recorded_shares??'未取得'}`));grid.append(item)}socialSection.append(grid)}else socialSection.append(el('p','live-note','社媒库当前没有可展示的28天已发布内容记录；这不等于平台后台为零。'));
+    socialSection.append(el('p','live-social-freshness','互动值是社媒系统登记值，尚未核验，不等同平台当期表现；平台连接/同步状态仍以各平台后台为准。'));
+   }else socialSection.append(el('p','live-social-freshness',social.status==='loading'?'正在读取经授权的社媒汇总…':'社媒只读数据通路暂不可用，不能据此判断内容或互动为零。'));
+   box.append(socialSection);
   }
   box.append(el('p','live-note',live.note||''));
   if(selected==='Grace'&&'progress' in live)box.append(progressBlock(live.progress));

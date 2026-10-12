@@ -9,7 +9,7 @@ const world=await readFile(new URL('../assets/agent-world.mjs',import.meta.url),
 test('Grace dashboard refreshes an owner-only SEO summary on a bounded cache interval',()=>{
  assert.match(html,/Date\.now\(\)-seoDashboardAt<900000/);
  assert.match(html,/body:\{action:'seo-dashboard'\}/);
- assert.match(html,/worldLiveBoard\(name,seoDashboardState\)/);
+ assert.match(html,/worldLiveBoard\(name,seoDashboardState,socialDashboardState\)/);
  assert.match(edge,/input\.action==='seo-dashboard'/);
  assert.match(edge,/user\.id!=='c43bd3c2-6e3a-4228-99c7-dc95f33643f2'/);
  assert.match(edge,/user\.email\|\|''\)\.toLowerCase\(\)!=='chloelee@wonlyglobal\.com'/);

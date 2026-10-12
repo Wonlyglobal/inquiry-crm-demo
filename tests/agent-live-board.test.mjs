@@ -11,7 +11,7 @@ const ctx=(over={})=>({start,end,previousStart:new Date(start-30*D),previousEnd:
  previous:{created:Array.from({length:7},(_,i)=>({created_at:iso(35+i),source:i<6?'website':'email',validity:'valid'})),won:[{}],assigned:[1,2,3,4],fast:[1,2]},
  active:[{title:'A'},{title:'B'}],overdue:[{title:'Proforma',assigned_at:iso(1.1)},{title:'Other',assigned_at:iso(.5)}],risky:[],won:[{won_at:iso(3)}],assigned:[1,2,3],fast:[1],
  totalCny:52000,comparison:{totalCny:80000},salesStats:[{name:'Chloe',amount:52000,won:1}],...over});
-const board=(c,costs=[])=>new Function('aiDataContext','sourceNames','sumWonCny','dashboardHasSuccessfulLoad','agentDataRefreshFailed','dashboardState','inRange',`const refreshMaterialProgress=()=>{};const refreshSeoDashboard=()=>{};const seoDashboardState={status:'not_configured'};`+src+';return worldLiveBoard;')(()=>c,{website:'官网表单',email:'企业邮箱'},r=>r.length*52000,true,false,{costs},(v,s,e)=>!!v&&new Date(v)>=s&&new Date(v)<=e);
+const board=(c,costs=[])=>new Function('aiDataContext','sourceNames','sumWonCny','dashboardHasSuccessfulLoad','agentDataRefreshFailed','dashboardState','inRange',`const refreshMaterialProgress=()=>{};const refreshSeoDashboard=()=>{};const refreshSocialDashboard=()=>{};const seoDashboardState={status:'not_configured'};`+src+';return worldLiveBoard;')(()=>c,{website:'官网表单',email:'企业邮箱'},r=>r.length*52000,true,false,{costs},(v,s,e)=>!!v&&new Date(v)>=s&&new Date(v)<=e);
 
 test('Grace live board compares with the previous 30 days and names the channel that dropped most',()=>{
  const b=board(ctx())('Grace');

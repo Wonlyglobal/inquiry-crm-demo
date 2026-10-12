@@ -29,14 +29,14 @@ test('agent world renders precomputed particle holograms with a 2D fallback',()=
  assert.match(world,/if\(!v\)\{drawOrb\(c,id\);return\}/);
  assert.match(world,/querySelectorAll\('canvas\[data-role\]'\)/);
  assert.match(holo,/getContext\('webgl2'/);
- assert.match(html,/assets\/agent-world\.mjs\?v=channels-seo-20261012/);
+ assert.match(html,/assets\/agent-world\.mjs\?v=grace-light-integrations-20261012/);
 });
 test('private room shows a live board from page data and Grace opens into voice only after a real click',()=>{
  assert.match(world,/id="room-live"/);
  assert.match(world,/getLive\?\.\(selected\)/);
  assert.match(world,/if\(next==='Grace'&&event\?\.isTrusted\)/);
- assert.match(html,/getLive:name=>canUseAgentWorld\(profile,currentAuthUser\)\?worldLiveBoard\(name,seoDashboardState\):null/);
- assert.match(html,/function worldLiveBoard\(name,seo=seoDashboardState\)\{\s*const c=aiDataContext\("近30天"\)/);
+ assert.match(html,/getLive:name=>canUseAgentWorld\(profile,currentAuthUser\)\?worldLiveBoard\(name,seoDashboardState,socialDashboardState\):null/);
+ assert.match(html,/function worldLiveBoard\(name,seo=seoDashboardState,social=\{status:'loading'\}\)\{\s*const c=aiDataContext\("近30天"\)/);
  assert.match(html,/type="days";start=new Date\(now\);start\.setDate\(now\.getDate\(\)-days\+1\)/);
 });
 

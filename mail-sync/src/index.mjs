@@ -4,11 +4,13 @@ import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { writeFile } from 'node:fs/promises';
 import { parseWebsiteFormMessage, websiteInquiryTitle } from './website-form.mjs';
+import { isJunkFolder, selectSyncFolders, shouldInitializeAtLatest } from './folders.mjs';
+import { withSafeReadRetries } from './fetch-resilience.mjs';
 
 const url=process.env.SUPABASE_URL;
 const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
 if(!url||!key) throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 未配置');
-const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:withSafeReadRetries()}});
 const interval=Math.max(30,Number(process.env.SYNC_INTERVAL_SECONDS||60))*1000;
 const initialLimit=Math.max(10,Number(process.env.INITIAL_SYNC_LIMIT||100));
 const reportHour=Math.min(23,Math.max(0,Number(process.env.DAILY_LEAD_REPORT_HOUR||18)));
@@ -250,14 +252,22 @@ async function reconcileMessageCopies(row){
   return {...row,inquiry_id:canonical.inquiry_id,association_status:'matched',association_method:'duplicate_message_id'};
 }
 
-async function createInquiryFromShared(message, connection){
+async function createInquiryFromShared(message, connection, { junkFolder = false } = {}){
   if(connection.mailbox_kind!=='shared_inquiry'||message.direction!=='inbound')return null;
   const creator=connection.created_by;
-  const websiteForm=parseWebsiteFormMessage(message);
+  // Junk-folder content must always enter the human triage queue as-is. Do not
+  // auto-create companies/inquiries or invoke website-form conversion here.
+  const websiteForm=junkFolder?null:parseWebsiteFormMessage(message);
   const customerEmail=websiteForm?.email||message.sender_email;
   const receivedAt=message.received_at||new Date().toISOString();
   if(!websiteForm){
-    const {data:intake,error:intakeError}=await db.from('email_intake').insert({message_id:message.message_id||null,sender_email:customerEmail,sender_name:null,recipient_email:connection.email,subject:message.subject,body_text:message.body_text||'',received_at:receivedAt,parsed_data:{detected_source:'email'},processing_status:'pending_review',inquiry_id:null,created_by:creator,created_at:receivedAt}).select('id').single();
+    if(message.message_id){
+      const {data:existing,error:lookupError}=await db.from('email_intake').select('id').eq('message_id',message.message_id).limit(1).maybeSingle();
+      if(lookupError)throw lookupError;
+      if(existing)return {id:null,method:junkFolder?'shared_mailbox_junk_already_in_triage':'shared_mailbox_already_in_triage',intakeId:existing.id};
+    }
+    const parsedData={detected_source:'email',...(junkFolder?{mailbox_folder:message.folder,triage_reason:'ali_mail_junk_folder'}:{})};
+    const {data:intake,error:intakeError}=await db.from('email_intake').insert({message_id:message.message_id||null,sender_email:customerEmail,sender_name:null,recipient_email:connection.email,subject:message.subject,body_text:message.body_text||'',received_at:receivedAt,parsed_data:parsedData,processing_status:'pending_review',inquiry_id:null,created_by:creator,created_at:receivedAt}).select('id').single();
     if(intakeError)throw intakeError;
     const {data:markets}=await db.from('profiles').select('id').eq('role','marketing').eq('active',true);
     if(markets?.length)await db.from('notifications').insert(markets.map(p=>({recipient_id:p.id,inquiry_id:null,type:'new_inquiry_email',title:'收到待分拣邮件',body:`${customerEmail} · ${message.subject||'无主题'}`})));
@@ -330,7 +340,8 @@ async function syncFolder(connection,password,folder){
       const last=cursor?.uid_validity===uidValidity?Number(cursor.last_uid||0):0;
       // A newly connected mailbox starts at its current newest message. This
       // prevents old mailbox history from being imported as fresh CRM work.
-      if(!cursor&&(isSentFolder(folder)||connection.mailbox_kind==='shared_inquiry')){
+      const junkFolder=isJunkFolder(folder);
+      if(!cursor&&shouldInitializeAtLatest(folder,connection.mailbox_kind)){
         const baseline=Math.max(0,Number(client.mailbox.uidNext||1)-1);
         await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:baseline,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
         console.log(`${connection.email} initialized ${folder} at UID ${baseline}`);
@@ -345,12 +356,15 @@ async function syncFolder(connection,password,folder){
         const sent=isSentFolder(folder);
         const references=Array.isArray(parsed.references)?parsed.references:(parsed.references?[parsed.references]:[]);
         const record={mailbox_connection_id:connection.id,folder,uid:msg.uid,message_id:headerId(parsed.messageId),in_reply_to:headerId(parsed.inReplyTo),reference_ids:references.map(headerId),direction:sent?'outbound':'inbound',sender_email:cleanEmail(parsed.from?.value?.[0]?.address),recipient_emails:addrList(parsed.to),cc_emails:addrList(parsed.cc),subject:parsed.subject||'',body_text:parsed.text||'',body_html:typeof parsed.html==='string'?parsed.html:'',sent_at:sent?(parsed.date||new Date()).toISOString():null,received_at:sent?null:(parsed.date||new Date()).toISOString(),attachment_count:parsed.attachments?.length||0,raw_headers:{message_id:parsed.messageId||null,in_reply_to:parsed.inReplyTo||null,references}};
-        const nurturing=isInstantlyNurturing(record,connection);
-        let match=nurturing?{id:null,method:'instantly_warmup_filter'}:await matchInquiry(record,connection);
-        if(!nurturing&&!match.id)match=await createInquiryFromShared(record,connection)||match;
+        const nurturing=!junkFolder&&isInstantlyNurturing(record,connection);
+        record.folder=folder;
+        let match=nurturing?{id:null,method:'instantly_warmup_filter'}:junkFolder&&connection.mailbox_kind==='shared_inquiry'?{id:null,method:'shared_mailbox_junk_pending_triage'}:await matchInquiry(record,connection);
+        if(!nurturing&&!match.id)match=await createInquiryFromShared(record,connection,{junkFolder:junkFolder&&connection.mailbox_kind==='shared_inquiry'})||match;
         const {data:storedRow,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:nurturing?'ignored':match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
         if(error)throw error;
-        for(const [index,attachment] of (parsed.attachments||[]).entries()){
+        // Junk messages are untrusted; keep their body for human review but do
+        // not download or persist attachments before a person inspects them.
+        if(!(junkFolder&&connection.mailbox_kind==='shared_inquiry'))for(const [index,attachment] of (parsed.attachments||[]).entries()){
           if(!attachment.content?.length||attachment.content.length>10*1024*1024)continue;
           const fileName=safeFileName(attachment.filename,index),storagePath=`${storedRow.id}/${index}-${fileName}`;
           const {error:uploadError}=await db.storage.from('email-attachments').upload(storagePath,attachment.content,{upsert:true,contentType:attachment.contentType||'application/octet-stream'});
@@ -371,18 +385,22 @@ async function syncMailbox(connection){
   const password=await secretFor(connection.id);
   const probe=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:15000,greetingTimeout:15000,socketTimeout:45000});
   await probe.connect();const boxes=await probe.list();await probe.logout();
-  const inbox=boxes.find(x=>x.specialUse==='\\Inbox')?.path||'INBOX';
-  const sent=boxes.find(x=>x.specialUse==='\\Sent')?.path||boxes.find(x=>isSentFolder(x.path))?.path;
-  for(const folder of [inbox,sent].filter(Boolean))await syncFolder(connection,password,folder);
+  for(const folder of selectSyncFolders(boxes,{includeJunk:connection.mailbox_kind==='shared_inquiry'}))await syncFolder(connection,password,folder);
   await db.from('mailbox_connections').update({last_synced_at:new Date().toISOString(),error_message:null,status:'connected'}).eq('id',connection.id);
 }
 
+async function runOptionalCycleStage(name, task){
+  try{await task()}catch(error){console.error(`${name} stage failed: ${error?.name||'Error'}`)}
+}
+
 async function cycle(){
-  await processOutbox();
-  await sendDailyLeadReport();
+  // Scheduled sending/reporting is independent of mailbox ingestion. A
+  // transient queue/report failure must not prevent the IMAP sync stage.
+  await runOptionalCycleStage('mail outbox',processOutbox);
+  await runOptionalCycleStage('daily lead report',sendDailyLeadReport);
   const {data,error}=await db.from('mailbox_connections').select('*').eq('status','connected').eq('sync_enabled',true);if(error)throw error;
-  await Promise.allSettled((data||[]).map(async connection=>{try{await syncMailbox(connection);console.log(`${connection.email} synced`)}catch(error){console.error(connection.email,error);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}));
+  await Promise.allSettled((data||[]).map(async connection=>{try{await syncMailbox(connection);console.log(`${connection.mailbox_kind} mailbox synced`)}catch(error){console.error(`${connection.mailbox_kind} mailbox sync failed: ${error?.name||'Error'}`);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}));
   await writeFile('/tmp/healthy',new Date().toISOString());
 }
 
-while(true){try{await cycle()}catch(error){console.error(error)}await sleep(interval)}
+while(true){try{await cycle()}catch(error){console.error(`mail sync cycle failed: ${error?.name||'Error'}`)}await sleep(interval)}

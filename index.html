@@ -2531,6 +2531,7 @@
     <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261008-2" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
+      import {marketSummary} from './assets/agent-market-summary.mjs?v=20261012-market';
       import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow,currentQuestionWindow} from './assets/agent-question-windows.mjs?v=20261012-thread-state';
       import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261008-2';
       let graceMobile=null;
@@ -5164,11 +5165,11 @@
         if(name==="Grace"){
           const cur=count(c.created,srcKey),old=count(prev.created,srcKey),keys=[...new Set([...Object.keys(cur),...Object.keys(old)])].map(k=>({k,cur:cur[k]||0,old:old[k]||0,d:(cur[k]||0)-(old[k]||0)}));
           const top=keys.filter(x=>x.cur).sort((a,b)=>b.cur-a.cur)[0],judged=x=>x.validity&&x.validity!=="pending",vr=rate(c.created.filter(x=>x.validity==="valid").length,c.created.filter(judged).length),ovr=rate(prev.created.filter(x=>x.validity==="valid").length,prev.created.filter(judged).length);
-          const countries=count(c.created,x=>x.target_country||"未填写"),topCountry=Object.entries(countries).sort((a,b)=>b[1]-a[1])[0];
+          const market=marketSummary(c.created);
           metrics=[{code:"NEW",label:"新增询盘",value:String(c.created.length),delta:delta(c.created.length,prev.created.length),spark:spark(c.created,"created_at")},
             {code:"VALID",label:"有效率",value:vr==null?"—":vr+"%",delta:vr==null||ovr==null?null:{text:vr===ovr?`与上期持平 · 上期 ${ovr}%`:`${vr>ovr?"↑":"↓"}${Math.abs(vr-ovr)}pt · 上期 ${ovr}%`,dir:vr>ovr?"up":vr<ovr?"down":"flat",good:vr===ovr?null:vr>ovr}},
             {code:"TOP SOURCE",label:"首位渠道",value:top?`${srcName(top.k)} ${top.cur}`:"—",delta:top?delta(top.cur,top.old):null},
-            {code:"MARKET",label:"首位市场",value:topCountry?`${topCountry[0]} ${topCountry[1]}`:"—",delta:null}];
+            {code:"MARKET",label:"首位市场",value:market.value,delta:market.note?{text:market.note,dir:"flat",good:null}:null}];
           channelRows=keys.sort((a,b)=>b.cur-a.cur||b.old-a.old).map(x=>({name:srcName(x.k),current:x.cur,previous:x.old}));
           const monthKey=d=>d instanceof Date&&!Number.isNaN(d.valueOf())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`:"",paidChannels=new Set(["google_ads","meta_ads"]);
           adSpendMonths=[...new Set([monthKey(c.start),monthKey(c.end)].filter(Boolean))];

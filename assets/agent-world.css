@@ -236,3 +236,9 @@
 .system-entrance span{font-size:12px;color:#d5dfef}
 .system-entrance:focus-visible{outline:3px solid #f4d98b;outline-offset:3px}
 @media(max-width:600px){.room-systems{inset:4% 0;gap:8px}.room-systems .system-entrance{max-width:105px;padding:8px;font-size:13px}}
+/* Keep entrances inside the portrait column, independent of adjacent panels. */
+#agent-world .room-heading{isolation:isolate}
+#agent-world .room-orb .room-systems{inset:8% 8%;width:auto;max-width:84%;box-sizing:border-box}
+#agent-world .room-systems .system-entrance{background:#102543;border:1px solid #d4b66d;border-radius:14px;color:#fff;max-width:125px;padding:9px 12px;white-space:normal;overflow-wrap:anywhere;box-sizing:border-box}
+@media(max-width:1100px){#agent-world .room-orb .room-systems{position:absolute;inset:0 0 auto;max-width:100%;width:100%;grid-template-columns:repeat(3,minmax(0,1fr));align-content:start;padding:8px;gap:8px}#agent-world .room-systems .system-entrance{width:100%;max-width:none;justify-self:stretch}#agent-world .room-orb{padding-top:150px;box-sizing:content-box}#agent-world .room-heading .room-orb canvas{top:150px;height:calc(100% - 150px)}}
+@media(max-width:650px){#agent-world .room-orb .room-systems{grid-template-columns:repeat(2,minmax(0,1fr))}#agent-world .room-orb{padding-top:220px}#agent-world .room-heading .room-orb canvas{top:220px;height:calc(100% - 220px)}}

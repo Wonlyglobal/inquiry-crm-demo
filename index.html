@@ -358,6 +358,16 @@
         margin-bottom: 4px;
         font-size: 12px;
       }
+      /* Notifications retain a readable light palette in every workspace theme. */
+      #notice-panel { color:#17211b; background:#fff; border-color:#cbd5cf; max-width:calc(100vw - 24px); }
+      #notice-panel .notice-toolbar { background:#fff; border-color:#cbd5cf; }
+      #notice-panel .notice-item { color:#243a32; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+      #notice-panel .notice-item b { color:#17211b; font-size:14px; }
+      #notice-panel .notice-item small { color:#52645b; }
+      #notice-panel .notice-item.unread { background:#f2f7f3; border-left-color:#244b3a; }
+      #notice-panel .notice-filter,#notice-panel .notice-mark-all { color:#243a32; background:#eaf0ed; font-size:12px; font-weight:700; }
+      #notice-panel .notice-filter.active { color:#fff; background:#244b3a; }
+      #notice-panel button:focus-visible { outline:2px solid #244b3a; outline-offset:2px; }
       .page {
         padding-top: 24px;
       }
@@ -5293,7 +5303,7 @@
           if (item.inquiry_id||item.export_request_id) {
             const linkHint = document.createElement("small");
             linkHint.textContent = item.export_request_id?"查看导出审批 →":"查看询盘 →";
-            linkHint.style.cssText = "display:block;margin-top:5px;color:var(--green);font-weight:700";
+            linkHint.style.cssText = "display:block;margin-top:5px;color:#244b3a;font-weight:700";
             row.append(linkHint);
           }
           row.addEventListener("click", async () => {

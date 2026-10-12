@@ -64,6 +64,16 @@ export function comparisonRows(findings,categories,evidence=PUBLIC_EVIDENCE){
  const seen=new Set();return rows.filter(r=>{const k=r.dimension+'|'+r.internal.value;if(seen.has(k))return false;seen.add(k);return true}).slice(0,4);
 }
 
+// Preserve source product labels; a category name is not a confirmed model code.
+export function competitorCandidatesText(evidence){
+ const groups=new Map();
+ for(const e of evidence){const k=e.company+'|'+e.product+'|'+e.market;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(e)}
+ if(!groups.size)return '\n竞品型号：本次已收录证据没有候选；需补充官方型号资料，不能判断没有竞品。';
+ return '\n竞品型号/系列候选（沿用官方资料中的产品名称；系列或品类名称不等于已确认具体型号）：\n'+[...groups.values()].slice(0,6).map(es=>{
+ const e=es[0];return `${e.company}｜${e.product}｜市场 ${e.market}\n可对标维度：${[...new Set(es.map(x=>DIMENSIONS[x.dimension].label))].join('、')}\n来源：${[...new Set(es.map(x=>x.source_url))].join('；')}\n证据访问日期：${[...new Set(es.map(x=>x.accessed))].join('、')}；候选关联待核验，不代表已确认直接竞争。`;
+ }).join('\n\n');
+}
+
 export function comparisonText(rows){
  if(!rows.length)return '';
  return '\n同维度对照（仅并列事实，不排名、不判断优劣；测试标准、适用尺寸和配置不同则不可直接比较）：\n'+rows.map(r=>`${r.label}｜本公司资料（机器提取，未核验）：${r.internal.value}（${r.internal.asset} 第${r.internal.page}页）\n`+r.public.map(p=>`  ${p.company}·${p.product}（候选对标，未确认直接竞争）：${p.value}｜${p.market}｜官网资料 ${p.accessed} 访问${p.quote_verified?'':'，原文待人工逐字核对'}｜${p.source_url}`).join('\n')).join('\n');

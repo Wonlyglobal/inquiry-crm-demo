@@ -35,7 +35,7 @@ test('ledger shows six states and never claims competitor work or verification',
  const l=productLedger(gateMaterialEvidence(data([asset('a',doc([finding(),finding({field:'耐火',value:'60 分钟',quote:'TEST-X1 耐火 60 分钟'})]))])));
  assert.equal(l.products.length,1);assert.equal(l.human_verified,false);
  const t=productLedgerText(l);
- for(const s of ['资料覆盖','事实提取','型号核对','竞品证据：未开始','分析：未开始','待人工确认'])assert.ok(t.includes(s),s);
+ for(const s of ['资料覆盖','事实提取','型号核对','竞品证据：未开始','分析：已整理内部事实','待人工确认'])assert.ok(t.includes(s),s);
  assert.ok(!/已核验(?!）)|已确认/.test(t.replace('未人工核验','')));
 });
 test('differing values across files are listed, not resolved',()=>{

@@ -27,7 +27,7 @@ export function resetCatalogCache(){cache=null}
 // Speech transcripts may spell a model's digits in Chinese (X六零 -> X60).
 export function normalizeModelQuestion(question){
  const digits={'零':'0','〇':'0','一':'1','二':'2','三':'3','四':'4','五':'5','六':'6','七':'7','八':'8','九':'9'};
- return String(question||'').replace(/([A-Za-z]{1,3})[ \t]*([零〇一二三四五六七八九]{2,4})(?![零〇一二三四五六七八九])/g,(_,prefix,code)=>prefix+[...code].map(c=>digits[c]).join(''));
+ return String(question||'').normalize('NFKC').replace(/([A-Za-z]{1,3})[ \t]*([零〇一二三四五六七八九]{2,4})(?![零〇一二三四五六七八九])/g,(_,prefix,code)=>prefix+[...code].map(c=>digits[c]).join('')).replace(/\b([A-Za-z]{1,3})[ \t\-–—_]+(?=\d{2,4}(?!\d))/g,'$1');
 }
 // Model codes are matched longest-first so "S80 Max" never also yields "S80".
 export function findModels(question,catalog){

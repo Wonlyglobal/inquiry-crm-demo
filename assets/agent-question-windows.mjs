@@ -1,5 +1,5 @@
 const activeTurns=new WeakMap();
-export function currentQuestionWindow(host){return activeTurns.get(host)||host.querySelector('.question-window[open]')||host.lastElementChild}
+export function currentQuestionWindow(host){const active=activeTurns.get(host);if(active&&host.contains(active))return active;activeTurns.delete(host);return host.querySelector('.question-window[open]')||host.lastElementChild}
 // Keep original message nodes and file buttons: no HTML interpretation or cloned handlers.
 export function appendQuestionMessage(host,role,text){
  const node=document.createElement('div');node.className=`ai-message ${role}`;node.textContent=text;

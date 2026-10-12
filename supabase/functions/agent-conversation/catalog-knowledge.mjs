@@ -24,9 +24,14 @@ export async function loadCatalog(admin,now=Date.now()){
 }
 export function resetCatalogCache(){cache=null}
 
+// Speech transcripts may spell a model's digits in Chinese (X六零 -> X60).
+export function normalizeModelQuestion(question){
+ const digits={'零':'0','〇':'0','一':'1','二':'2','三':'3','四':'4','五':'5','六':'6','七':'7','八':'8','九':'9'};
+ return String(question||'').replace(/([A-Za-z]{1,3})[ \t]*([零〇一二三四五六七八九]{2,4})(?![零〇一二三四五六七八九])/g,(_,prefix,code)=>prefix+[...code].map(c=>digits[c]).join(''));
+}
 // Model codes are matched longest-first so "S80 Max" never also yields "S80".
 export function findModels(question,catalog){
- let q=' '+String(question||'').slice(0,500)+' ';
+ let q=' '+normalizeModelQuestion(question).slice(0,500)+' ';
  const models=[...new Set((catalog?.products||[]).map(p=>p.model).filter(Boolean))].sort((a,b)=>norm(b).length-norm(a).length);
  const hits=[];
  for(const m of models){
@@ -40,7 +45,7 @@ export function findModels(question,catalog){
 
 // Cheap pre-check before the private file is downloaded.
 export function catalogPrecheck(question){
- const q=String(question||'').slice(0,500);
+ const q=normalizeModelQuestion(question).slice(0,500);
  if(/^\s*[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?(?:\s*(?:pro|max|plus|ultra))?\s*$/i.test(q))return true;
  if(inventoryIntent(q)||selectionIntent(q))return true;
  if(FILE_REQUEST.test(q))return false;
@@ -48,7 +53,7 @@ export function catalogPrecheck(question){
 }
 
 export function catalogIntent(question,catalog){
- const q=String(question||'').slice(0,500);
+ const q=normalizeModelQuestion(question).slice(0,500);
  if(!catalog)return null;
  if(selectionIntent(q))return {kind:'selection'};
  if(inventoryIntent(q))return {kind:'inventory'};

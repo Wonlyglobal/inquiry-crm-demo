@@ -1,0 +1,37 @@
+/* Surface-specific palettes prevent light CRM table styles leaking into dark workspaces. */
+:root { --muted:#596b61; --orange-on-green:#994500; }
+.top .user { color:#243a32; }
+.top .user small,.nav-group-toggle { color:#596b61; }
+.modal,.notice-panel { color:#17211b; }
+.modal .input,.modal select,.modal textarea { color:#17211b; background:#fff; }
+#agent-world { --muted:#c3d1e8; }
+#agent-world #room-live { background:#102449; color:#f0f5ff; }
+#agent-world table { color:#f0f5ff; background:#122b54; }
+#agent-world table th { background:#142e57; color:#e4edfc; font-weight:650; }
+#agent-world table td { background:#122b54; color:#f0f5ff; }
+#agent-world table tbody tr:nth-child(even) td { background:#1a355e; }
+#agent-world table tbody tr:hover td { background:#26456f; }
+#agent-world table th,#agent-world table td { border-color:#40577b; line-height:1.6; }
+#agent-world .live-channel-table,#agent-world .live-channel-table th { font-size:13px; }
+#agent-world .live-channel-table th,#agent-world .live-channel-table td { padding:8px 10px; }
+#agent-world .live-channel-table th:not(:first-child),#agent-world .live-channel-table td:not(:first-child) { text-align:right; font-variant-numeric:tabular-nums; }
+#agent-world .live-section-title { font-size:14px; color:#f0f5ff; }
+#agent-world .live-ad-spend,#agent-world .live-seo-freshness,#agent-world .live-note,#agent-world .live-empty,#agent-world .mp-note,#agent-world .mp-pending { color:#c3d1e8; font-size:12px; line-height:1.65; overflow-wrap:anywhere; }
+#agent-world .live-seo-item { background:#1a355e; padding:10px; }
+#agent-world .live-seo-item span { color:#c3d1e8; font-size:12px; white-space:normal; overflow:visible; }
+#agent-world .live-seo-item b { color:#f0f5ff; font-size:15px; }
+#agent-world .live-delta,#agent-world .pill.off { color:#c3d1e8; }
+#agent-world .live-channel-scroll { max-height:220px; }
+#agent-world select,#agent-world .question-history { color:#f0f5ff; background:#142e57; }
+#agent-world select option { color:#f0f5ff; background:#142e57; }
+/* Embedded CRM pages deliberately remain light and use their own text tokens. */
+#agent-world .page { --muted:#596b61; color:#17211b; }
+#agent-world .page table,#agent-world .page table td { background:#fff; color:#17211b; }
+#agent-world .page table th { background:#eef3f0; color:#46594d; }
+#agent-world .page table tbody tr:nth-child(even) td { background:#f5f8f6; }
+#agent-world .page table tbody tr:hover td { background:#e8f0eb; }
+#agent-world .page select { background:#fff; color:#17211b; }
+@media(max-width:650px) {
+ #agent-world .live-channel-table th,#agent-world .live-channel-table td { padding:7px; }
+ #agent-world .live-seo-grid { gap:8px; }
+}

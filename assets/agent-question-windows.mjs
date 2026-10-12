@@ -17,7 +17,7 @@ export function appendQuestionMessage(host,role,text){
  if(role==='user'){activeTurns.set(host,card);if(card.querySelector('.ai-message.user'))node.classList.add('follow-up');card.open=true}
  card.hidden=false;card.querySelector('.question-window-body').append(node);
  if(role==='assistant')card.open=true;
- host.scrollTop=0;card.querySelector('.question-window-body').scrollTop=0;
+ host.scrollTop=0;const body=card.querySelector('.question-window-body');body.scrollTop=Math.max(0,body.scrollTop+node.getBoundingClientRect().top-body.getBoundingClientRect().top);
  return node;
 }
 export function appendQuestionMaterials(host,list){(currentQuestionWindow(host)?.querySelector('.question-window-body')||host).append(list)}

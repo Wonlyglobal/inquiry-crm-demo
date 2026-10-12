@@ -43,3 +43,10 @@
 #agent-world .model-choices button{min-height:44px;padding:10px 16px;border:1px solid #8faed3;border-radius:12px;background:#1a355e;color:#f0f5ff;font-weight:650}
 #agent-world .model-choices button:hover,#agent-world .model-choices button[aria-pressed=true]{background:#315b90;border-color:#e8bf69}
 #agent-world .model-choices button:disabled{opacity:.65;cursor:wait}
+
+#agent-world #agent-private-room #room-content .question-window-body{min-width:0;max-height:min(48vh,520px);overflow-x:hidden;overflow-y:auto;box-sizing:border-box}
+#agent-world .question-window{min-width:0;max-width:100%}
+#agent-world .question-window .ai-message.user.follow-up{width:100%;max-width:100%;min-width:0;display:block;align-self:stretch;border:0;border-top:1px solid #40577b;border-radius:0;background:none;padding:12px 0 0;margin:12px 0;color:#bfe0ff;box-sizing:border-box;overflow-wrap:anywhere}
+#agent-world .model-choices{min-width:0;max-width:100%}
+#agent-world .model-choices button{max-width:100%;white-space:normal;overflow-wrap:anywhere;box-sizing:border-box}
+#agent-world .model-choice-status{flex-basis:100%;color:#c3d1e8;font-size:13px;line-height:1.6}

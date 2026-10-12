@@ -1465,7 +1465,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=channels-seo-20261012" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=systems-20261012" />
   <link rel="stylesheet" href="./assets/ui-contrast.css?v=20261012-feedback" />
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
@@ -2539,7 +2539,7 @@
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261003-route1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
-      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20261012-face";
+      import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20261012-systems";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
         const boot = document.querySelector("#boot");
         if (!boot || boot.classList.contains("hidden")) return;

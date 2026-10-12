@@ -35,3 +35,6 @@
  #agent-world .live-channel-table th,#agent-world .live-channel-table td { padding:7px; }
  #agent-world .live-seo-grid { gap:8px; }
 }
+
+#agent-world .question-window .ai-message.user.follow-up { display:block; color:#bfe0ff; border-top:1px solid #40577b; padding-top:12px; font-weight:600; }
+#agent-world .question-new { margin:8px 12px; padding:7px 14px; border:1px solid #6f86aa; border-radius:10px; color:#f0f5ff; background:#142e57; }

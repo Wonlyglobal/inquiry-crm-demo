@@ -1,8 +1,12 @@
+const activeTurns=new WeakMap();
+export function currentQuestionWindow(host){return activeTurns.get(host)||host.querySelector('.question-window[open]')||host.lastElementChild}
 // Keep original message nodes and file buttons: no HTML interpretation or cloned handlers.
 export function appendQuestionMessage(host,role,text){
  const node=document.createElement('div');node.className=`ai-message ${role}`;node.textContent=text;
- let card=host.lastElementChild;
- if(role==='user'||!card?.classList.contains('question-window')){
+ let card=role==='user'?(host.querySelector('.question-window[open]')||currentQuestionWindow(host)):currentQuestionWindow(host);
+ const fresh=host.dataset.newQuestion==='true';
+ if((role==='user'&&(fresh||!card?.querySelector('.ai-message.user')))||!card?.classList.contains('question-window')){
+  delete host.dataset.newQuestion;
   for(const old of host.querySelectorAll('.question-window'))old.open=false;
   card=document.createElement('details');card.className='question-window';card.open=true;
   const title=document.createElement('summary');title.textContent=role==='user'?text:'智能体回复';card.append(title);
@@ -10,14 +14,16 @@ export function appendQuestionMessage(host,role,text){
   updateHistory(host);
   card.addEventListener('toggle',()=>{if(card.open)for(const other of host.querySelectorAll('.question-window'))if(other!==card)other.open=false});
  }
- card.querySelector('.question-window-body').append(node);
+ if(role==='user'){activeTurns.set(host,card);if(card.querySelector('.ai-message.user'))node.classList.add('follow-up');card.open=true}
+ card.hidden=false;card.querySelector('.question-window-body').append(node);
  if(role==='assistant')card.open=true;
  host.scrollTop=0;card.querySelector('.question-window-body').scrollTop=0;
  return node;
 }
-export function appendQuestionMaterials(host,list){(host.lastElementChild?.querySelector('.question-window-body')||host).append(list)}
+export function appendQuestionMaterials(host,list){(currentQuestionWindow(host)?.querySelector('.question-window-body')||host).append(list)}
 
 function updateHistory(host){
+ if(!host.parentElement.querySelector('.question-new')){const fresh=document.createElement('button');fresh.type='button';fresh.className='question-new';fresh.textContent='新需求';fresh.onclick=()=>{host.dataset.newQuestion='true';for(const c of host.querySelectorAll('.question-window'))c.open=false};host.before(fresh)}
  let nav=host.parentElement.querySelector('.question-history');
  if(!nav){nav=document.createElement('select');nav.className='question-history';nav.setAttribute('aria-label','查看历史问题');host.before(nav);nav.onchange=()=>{const cards=[...host.querySelectorAll('.question-window')],chosen=cards[Number(nav.value)];for(const card of cards){card.hidden=card!==chosen&&card!==cards.at(-1);card.open=card===chosen}host.scrollTop=0};}
  const cards=[...host.querySelectorAll('.question-window')];nav.replaceChildren();
@@ -30,5 +36,5 @@ export function openQuestionWindow(host,card){
  const cards=[...host.querySelectorAll('.question-window')];
  for(const c of cards){c.hidden=c!==card&&c!==cards.at(-1);c.open=c===card}
  const nav=host.parentElement.querySelector('.question-history');if(nav)nav.value=String(cards.indexOf(card));
- host.scrollTop=0;card.querySelector('.question-window-body').scrollTop=0;return true;
+ activeTurns.set(host,card);host.scrollTop=0;card.querySelector('.question-window-body').scrollTop=0;return true;
 }

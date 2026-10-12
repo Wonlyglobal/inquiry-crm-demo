@@ -54,3 +54,5 @@ test('product information routes to catalogue and family shorthand asks for exac
  assert.equal(catalogIntent('X60 Pro产品信息',fixture).kind,'models');
  assert.equal(catalogIntent('X600产品信息',fixture),null);
 });
+
+test('bare complete model replies stay on the catalogue route',()=>{for(const q of ['x60pro','X60 Pro','X60 Max','Z60 Pro'])assert.equal(catalogPrecheck(q),true);assert.equal(catalogPrecheck('hello'),false)});

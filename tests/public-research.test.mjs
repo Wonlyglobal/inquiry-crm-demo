@@ -75,3 +75,10 @@ test('public evidence reaches the 30-item target with Gulf and Mexico coverage',
  assert.ok(PUBLIC_EVIDENCE.length>=30);
  for(const m of ['SA','AE','MX'])assert.ok(PUBLIC_EVIDENCE.filter(e=>e.market===m).length>=3,m);
 });
+
+test('ledger names sourced competitor products even without overlapping dimensions',()=>{
+ const l=productLedger({status:'available',assets:[{id:'a',name:'合成手册',document:{status:'ready',research_categories:['fire_door'],product_understanding:{status:'processed',findings:[{product:'TEST-X1',field:'颜色',value:'红',page:1,quote:'红'}]}}}]},validateEvidence(file([entry])));
+ const t=productLedgerText(l);
+ assert.match(t,/公开公司｜公开产品/);assert.match(t,/可对标维度：耐火等级/);assert.match(t,/缺少同维度参数/);assert.match(t,/https:\/\/example.com\/a.pdf/);
+ assert.equal(l.products[0].comparisons.length,0);assert.ok(!/优于|胜出/.test(t));
+});

@@ -56,3 +56,16 @@ test('product information routes to catalogue and family shorthand asks for exac
 });
 
 test('bare complete model replies stay on the catalogue route',()=>{for(const q of ['x60pro','X60 Pro','X60 Max','Z60 Pro'])assert.equal(catalogPrecheck(q),true);assert.equal(catalogPrecheck('hello'),false)});
+
+test('Chinese-spoken model digits resolve the same catalogue candidates',()=>{
+ const fixture={...catalog,products:[{...catalog.products[3],model:'X60 Pro'},{...catalog.products[3],model:'X60 Max'}]};
+ assert.equal(catalogPrecheck('给我X六零的产品信息'),true);
+ assert.deepEqual(catalogIntent('给我X六零的产品信息',fixture).models,['X60 Pro','X60 Max']);
+ assert.deepEqual(findModels('X六零 Pro',fixture),['X60 Pro']);
+});
+
+test('input method width, case and model separators preserve exact variants',()=>{
+ const fixture={...catalog,products:[{...catalog.products[3],model:'X60 Pro'},{...catalog.products[3],model:'X60 Max'}]};
+ for(const q of ['x60pro','Ｘ６０ Ｐｒｏ','X-60 Pro','x 60 pro','X六零 Pro'])assert.deepEqual(findModels(q,fixture),['X60 Pro'],q);
+ assert.deepEqual(findModels('X600 Pro',fixture),[]);
+});

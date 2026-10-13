@@ -845,6 +845,8 @@
       #detail-modal .modal-head {
         position: relative;
         top: auto;
+        flex-wrap: wrap;
+        gap: 12px 16px;
         margin-bottom: 14px;
         padding: 18px 20px;
         border: 1px solid var(--line);
@@ -852,8 +854,9 @@
         background: rgba(255,255,255,.84);
         box-shadow: 0 12px 34px rgba(42,66,60,.055);
       }
-      #detail-modal .modal-head h3 { max-width:min(980px,calc(100% - 150px)); font-size:clamp(20px,2vw,28px); line-height:1.35; overflow-wrap:anywhere; }
-      #detail-modal .modal-head > .ghost { min-height:44px; padding:0 18px; }
+      #detail-modal .modal-head h3 { flex:1 1 320px; min-width:0; max-width:none; font-size:clamp(20px,2vw,28px); line-height:1.35; overflow-wrap:anywhere; }
+      #detail-modal .detail-heading-actions { flex:0 1 auto; min-width:0; flex-wrap:wrap; justify-content:flex-end; }
+      #detail-modal .detail-heading-actions > button { flex:0 0 auto; width:auto; min-height:44px; padding:0 18px; white-space:nowrap; line-height:1.2; }
       #daily-modal { position:static; inset:auto; display:block; min-width:0; max-width:100%; overflow:visible; padding:24px 0 48px; background:transparent; z-index:auto; }
       #daily-modal.hidden { display:none; }
       #daily-modal .modal { width:100%; min-width:0; max-width:100%; max-height:none; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
@@ -1433,9 +1436,10 @@
         .validity-quick-reason { grid-template-columns:1fr; }
         .legacy-detail-grid { grid-template-columns:1fr; }
         #detail-modal { padding: 16px 0; }
-        #detail-modal .modal-head { align-items:flex-start; padding:16px; }
-        #detail-modal .modal-head h3 { max-width:calc(100% - 106px); font-size:19px; }
-        #detail-modal .modal-head > .ghost { min-height:40px; padding:0 13px; font-size:12px; }
+        #detail-modal .modal-head { align-items:flex-start; flex-direction:column; padding:16px; }
+        #detail-modal .modal-head h3 { flex-basis:auto; width:100%; font-size:19px; }
+        #detail-modal .detail-heading-actions { width:100%; justify-content:flex-start; }
+        #detail-modal .detail-heading-actions > button { min-height:40px; padding:0 13px; font-size:12px; }
         .detail-kpis { grid-template-columns: 1fr 1fr; }
         .kpis {
           grid-template-columns: 1fr 1fr;
@@ -2166,7 +2170,7 @@
       <div class="modal">
         <div class="modal-head">
           <h3 id="detail-title">询盘详情</h3>
-          <div class="heading-actions"><button id="detail-review-quotes" class="ghost hidden" type="button">报价审核</button><button id="detail-direct-assignment" class="primary hidden" type="button">分配业务员</button><button id="detail-tabs-order-toggle" class="ghost" type="button">调整页签</button><button id="detail-tabs-order-reset" class="ghost hidden" type="button">恢复默认</button><button id="close-detail" class="ghost">← 返回询盘</button></div>
+          <div class="heading-actions detail-heading-actions"><button id="detail-review-quotes" class="ghost hidden" type="button">报价审核</button><button id="detail-direct-assignment" class="primary hidden" type="button">分配业务员</button><button id="detail-tabs-order-toggle" class="ghost" type="button">调整页签</button><button id="detail-tabs-order-reset" class="ghost hidden" type="button">恢复默认</button><button id="close-detail" class="ghost">← 返回询盘</button></div>
         </div>
         <div class="detail-kpis">
           <div class="detail-kpi"><span>当前阶段</span><b id="detail-kpi-stage">—</b></div>

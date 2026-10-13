@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {access,readFile} from "node:fs/promises";
-import {EXHIBITION_EVENTS,eventState,exhibitionEventKey,filterExhibitions,formatEventRange,groupExhibitionsByMonth,PARTICIPATION_STATUS_LABELS,registrationStatus} from "../assets/exhibition-calendar.mjs";
+import {EXHIBITION_EVENTS,eventState,exhibitionEventKey,filterExhibitions,formatEventRange,groupExhibitionsByMonth,PARTICIPATION_STATUS_LABELS,registrationStatus,TARGET_CUSTOMER_OPTIONS} from "../assets/exhibition-calendar.mjs";
 
 test("production calendar exposes only the public event schema",()=>{
   assert.equal(EXHIBITION_EVENTS.length,33);
@@ -87,4 +87,19 @@ test("budget stays role-scoped and booth prices require official evidence",async
   assert.match(sql,/crm_read_only/i);
   assert.match(sql,/exhibition_budget_updated/i);
   assert.match(sql,/revoke all on function public\.save_exhibition_budget/i);
+});
+
+test("target-customer planning uses controlled vocabularies and audited RPC writes",async()=>{
+  assert.ok(TARGET_CUSTOMER_OPTIONS.segments.includes("经销商"));
+  assert.ok(TARGET_CUSTOMER_OPTIONS.segments.includes("安防集成商"));
+  assert.ok(TARGET_CUSTOMER_OPTIONS.buyerRoles.includes("采购负责人"));
+  assert.equal(new Set(TARGET_CUSTOMER_OPTIONS.regions).size,TARGET_CUSTOMER_OPTIONS.regions.length);
+  const sql=await readFile(new URL("../supabase/migrations/20261013160000_exhibition_target_audience.sql",import.meta.url),"utf8");
+  assert.match(sql,/target_customer_segments text\[\]/i);
+  assert.match(sql,/segments <@ array\['经销商'/i);
+  assert.match(sql,/actor\.role not in \('owner','marketing'\)/i);
+  assert.match(sql,/crm_read_only/i);
+  assert.match(sql,/至少选择一种客户类型和采购角色/);
+  assert.match(sql,/exhibition_target_audience_updated/i);
+  assert.match(sql,/revoke all on function public\.save_exhibition_target_audience/i);
 });

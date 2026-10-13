@@ -397,3 +397,11 @@ Validation: 5 mobile regressions, module/browser syntax and whitespace checks pa
 - 授权与执行：项目负责人（用户）明确“合并”；执行人 Codex；目标为生产 Supabase 项目 `plhverjihjilnuhlhlxi` 与 `https://crm.foreverdoodle.com/`；执行时间 2026-10-13（Asia/Shanghai）。PR #249 合并为 `e35fd3f310f2322329c96bdee54937db1f4dbbb6`；生产迁移 `20261013150000_exhibition_budget_booth_price.sql` 已应用。核验结果为 7 个新增列存在、读取 RPC 可用、匿名不能执行、authenticated 可执行，且计划表仍为 0 行。
 - 验证：专项 10/10、完整离线回归 802/802、模块语法与 `git diff --check` 通过；安全工作流 `38353840594` 与 Pages 构建部署 `38353841427` 均成功。生产 Chrome 加载 `exhibition-calendar.css?v=20261013-6`，29 张卡片均显示公开展位价与公司预算区块，29 个编辑区默认收起；展开后表单完整。页面宽 1497px、小于 1512px 视口，无整体横向溢出，控制台无警告或错误。
 - 回滚：通过 reviewed revert PR 回退 #249；数据库先撤销 `save_exhibition_budget`，恢复上一版 `get_exhibition_participation_context`，确认没有新增业务数据后再删除 7 个新增列；如以后已有数据，先导出备份再删列。审计记录保留。剩余风险：主办方报价会变化，来源和核验日期需要维护；公司预算对老板和市场部可见；当前不做汇率换算，公开展位价也不包含差旅、物流等完整参展成本。目标客户构成是下一步骤，尚未实现。
+
+## 2026-10-13 展会目标客户构成（发布候选）
+
+- 按建设顺序完成第 4 项候选。每场已建立参展计划的展会可选择目标客户类型、重点区域和采购角色，并填写 2–500 字的客户画像或需求说明；卡片直接显示已规划内容，未规划时明确显示“待规划”。
+- 客户类型、区域和采购角色均采用服务端允许列表，防止任意标签污染统计口径；至少选择一种客户类型和采购角色。所有在职 CRM 账号可查看，只有老板和非只读市场部账号可保存，数据库读取 JWT `crm_read_only` 强制拒绝只读账号写入。
+- 保存必须先存在参展计划，并提供 4–500 字变更原因；每次修改写入 `audit_logs` 的 `exhibition_target_audience_updated` 事件。浏览器没有计划表直接写权限。
+- 验证：展会专项 11/11、完整离线回归 803/803、模块语法和 `git diff --check` 通过。当前为发布候选，尚未应用生产迁移或发布，也没有创建任何具体展会的目标客户数据。
+- 回滚候选：丢弃本分支。上线后通过 reviewed revert PR 回退前端，撤销 `save_exhibition_target_audience`、恢复上一版读取 RPC，并在确认无数据或完成导出后删除 4 个新增列；审计记录保留。下一步骤为历史效果。

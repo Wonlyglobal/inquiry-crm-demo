@@ -356,9 +356,11 @@ Validation: 5 mobile regressions, module/browser syntax and whitespace checks pa
 
 - 授权人：项目负责人（要求增加询盘删除/回收站、邮件全选一键已读，并要求上线）；执行人：Codex。目标：`Wonlyglobal/inquiry-crm-demo` CRM 前端及 Supabase 生产项目 `plhverjihjilnuhlhlxi` 的相应迁移。
 - 实现候选：普通询盘不做物理删除；新增仅老板可访问、须填写原因并二次确认的可恢复回收站，保留询盘、邮件、跟进和审计；邮箱收件箱增加最多 200 封未读邮件全选及批量标记 CRM 已读，RPC 仅允许本人个人邮箱入站，不修改阿里邮箱原件状态。阿里邮箱业务员已发送回信的既有同步链路经测试继续工作，本候选不宣称新建该链路。
-- 验证：全量 Node 回归 783/783，邮件同步服务测试 9/9，浏览器模块语法检查、`git diff --check` 通过。Docker 不在本机，容器构建须由 CI 检查。
-- 发布状态：本地候选基于最新 `origin/main`，暂未提交/推送/创建 PR；生产迁移尚未应用，生产网页尚未验收。不得把当前状态描述为已上线。回滚：页面通过经审核 PR revert；迁移以受控前向迁移恢复，审计记录保留。
-- 生产前置：合并并通过 GitHub CI；对生产 schema 做只读预检；使用隔离的 `is_test_data=true AND excluded_from_dashboard=true` 数据执行仓库 rollback-only 验收 SQL；检查 ACL、RLS、触发器与回滚后无残留，再应用正式迁移，最后核验生产静态网页与已登录角色功能。阿里邮箱独立同步服务部署状态需另行查证。
+- 基于主分支：提交 `525f17e` 后最新主分支更新至 `aaa4137`；已同步并解决前端/工作日志冲突，避免覆盖已经上线的每日邮箱活动日历与展会日历。迁移版本使用唯一 `20261013110000`，不与 `20261013100000_daily_mailbox_activity_calendar.sql` 冲突。
+- 验证：合并最新主分支后完整 Node 回归 797/797，邮件同步服务测试 9/9；专项 20/20、浏览器模块语法检查、`git diff --check` 通过。PR #240 当前提交的 CI 曾 2/2 通过；修正 RLS 保护后需等待最新提交重新运行。Docker 不在本机，容器构建由 CI 覆盖。
+- 生产只读预检（2026-10-13，Supabase Management API）：依赖表/列存在；归档列和四个新 RPC 不存在；隔离合成询盘和个人收件未读测试记录均有候选；未读取客户内容或改动任何行。预检发现营销只读账号还有单独 permissive SELECT policy，因此迁移新增适用于所有角色的 restrictive `inquiries_not_archived` 策略，确保 archived 行不能被其它读策略绕过。
+- 发布状态：PR #240 已创建并推送，前一提交上的 CRM regression 与 Secret scan 均通过；生产迁移尚未应用，生产网页尚未验收。不得把当前状态描述为已上线。回滚：页面通过经审核 PR revert；迁移以受控前向迁移恢复，审计记录保留。
+- 生产前置：最新提交 CI 与评审；使用隔离 `is_test_data=true AND excluded_from_dashboard=true` 数据执行仓库 rollback-only 验收 SQL；检查 ACL、RLS、触发器与回滚后无残留，再应用正式迁移，最后核验生产静态网页与已登录角色功能。阿里邮箱独立同步服务部署状态需另行查证。实际业务后态仍未改变。
 
 ## 2026-10-13 阿里邮箱每日收发跟踪（生产已发布）
 

@@ -339,8 +339,8 @@
 
 - 授权人：用户明确要求“增加删除询盘功能”“增加选择，可全选，一键已读”及“上线”；执行人：Codex。
 - 目标：CRM 静态前端、Supabase `plhverjihjilnuhlhlxi` 数据库；原因：提供可恢复的询盘清理和个人邮箱 CRM 已读管理。
-- 变更前：本地最新 `origin/main`；当前候选新增受控归档/恢复和 `email_message_reads` 批量写回函数。真实生产 schema 与 fixture 尚未重新核验；不得假定 migration 可立即执行。
+- 变更前：最新 `origin/main` `aaa4137`。Supabase Management API 只读预检显示：所需基础列与邮件回执表存在；归档列、归档/恢复/批量已读 RPC 尚不存在；存在隔离合成询盘和个人邮箱未读测试候选。未读客户正文，未修改任何数据。预检还发现额外的营销只读 permissive SELECT policy，故迁移含全角色 restrictive 归档过滤，避免其它策略绕过。
 - 变更后（仅本地候选）：四个实现/验收文件有改动，生产尚无变更。数据库迁移通过 SQL Editor/受控 API 应用前需只读检查依赖列/触发器/策略、用隔离测试记录执行并在同一事务回滚；不得触碰真实客户数据。
-- 验证结果：`node --test tests/*.test.mjs` 783/783；`node scripts/check-browser-syntax.mjs` 通过；`node --test mail-sync/tests/*.test.mjs` 9/9；`git diff --check` 通过。Docker build 未本地运行；PR CI 尚无。
-- 当前状态/恢复：未 commit、未 push、未建 PR、未应用数据库 migration、未发布页面。页面恢复方式为 review 后 revert；数据库正式上线前需记录精确事务与回滚验证。既有阿里邮箱 Sent 文件夹同步链路属于现存代码，不在本次补丁内；生产运行状态未验证。
+- 验证结果：主分支合并后 `node --test tests/*.test.mjs` 797/797；相关专项 20/20；`node scripts/check-browser-syntax.mjs`、`node --test mail-sync/tests/*.test.mjs` 9/9、`git diff --check` 均通过。PR #240 前一提交 CRM regression 与 Secret scan 2/2 成功；新增 restrictive RLS guard 后的最新提交须重新跑 CI。Docker build 未本地运行。
+- 当前状态/恢复：PR #240 已提交并推送；未合并、未应用数据库 migration、未发布页面。页面恢复方式为 review 后 revert；数据库正式上线前需记录精确事务与回滚验证。既有阿里邮箱 Sent 文件夹同步链路属于现存代码，不在本次补丁内；生产运行状态未验证。
 - 剩余风险：前端与迁移必须一同发布；旧版页面部署前不能调用新 RPC。物理删除仍禁止；一键已读只改 CRM 回执。

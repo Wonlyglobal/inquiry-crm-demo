@@ -17,6 +17,7 @@ test('inquiry archive is owner-only, reversible, reasoned, and audited', () => {
   assert.match(migration, /inquiry_restored/);
   assert.match(migration, /app\.inquiry_archive_rpc/);
   assert.match(migration, /archived_at is null and/);
+  assert.match(migration, /create policy inquiries_not_archived on public\.inquiries as restrictive for all to public[\s\S]*using \(archived_at is null\) with check \(archived_at is null\)/);
   assert.match(html, /二次确认：将询盘/);
   assert.match(html, /不执行物理删除/);
   assert.match(html, /restore_inquiry_from_archive/);

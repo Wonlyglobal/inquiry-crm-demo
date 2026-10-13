@@ -16,6 +16,12 @@ using (archived_at is null and (
   private.current_crm_role() in ('owner','sales_manager','marketing')
   or owner_id=(select auth.uid())
 ));
+-- A separate permissive read policy is used by the scoped read-only marketing role.
+-- This restrictive guard makes archived rows invisible even when another permissive
+-- policy grants access, and also prevents normal authenticated writes to archived rows.
+drop policy if exists inquiries_not_archived on public.inquiries;
+create policy inquiries_not_archived on public.inquiries as restrictive for all to public
+using (archived_at is null) with check (archived_at is null);
 
 create or replace function private.guard_inquiry_archive_fields()
 returns trigger language plpgsql security definer set search_path=''

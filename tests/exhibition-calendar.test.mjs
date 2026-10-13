@@ -103,3 +103,16 @@ test("target-customer planning uses controlled vocabularies and audited RPC writ
   assert.match(sql,/exhibition_target_audience_updated/i);
   assert.match(sql,/revoke all on function public\.save_exhibition_target_audience/i);
 });
+
+test("historical exhibition results are complete, monotonic and audited",async()=>{
+  const sql=await readFile(new URL("../supabase/migrations/20261013170000_exhibition_historical_results.sql",import.meta.url),"utf8");
+  assert.match(sql,/historical_leads_count integer/i);
+  assert.match(sql,/historical_qualified_count between 0 and historical_leads_count/i);
+  assert.match(sql,/historical_quoted_count between 0 and historical_qualified_count/i);
+  assert.match(sql,/historical_deals_count between 0 and historical_quoted_count/i);
+  assert.match(sql,/请完整填写上届年份和四项效果数据/);
+  assert.match(sql,/actor\.role not in \('owner','marketing'\)/i);
+  assert.match(sql,/crm_read_only/i);
+  assert.match(sql,/exhibition_historical_results_updated/i);
+  assert.match(sql,/revoke all on function public\.save_exhibition_historical_results/i);
+});

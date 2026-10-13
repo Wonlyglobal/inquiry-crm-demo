@@ -12,9 +12,12 @@ test('completing a follow-up refreshes the inquiry next action atomically',()=>{
   assert.match(sql,/task_completed/);
 });
 
-test('follow-up calendar exposes a direct completion action',()=>{
-  assert.match(html,/label:"完成任务",onClick:\(\)=>completeFollowUpFromCalendar\(x\)/);
-  assert.match(html,/await loadModule\("follow-calendar"\)/);
+test('follow-up calendar is now an aggregate mailbox activity view',()=>{
+  const start=html.indexOf('} else if(view==="follow-calendar")');
+  const branch=html.slice(start,html.indexOf('} else if (["inquiries"',start));
+  assert.match(branch,/get_sales_email_activity_metrics/);
+  assert.match(branch,/"阿里邮箱收件","阿里邮箱发件"/);
+  assert.doesNotMatch(branch,/completeFollowUpFromCalendar/);
 });
 
 test('daily plans persist separately with owner-scoped permissions and auditable results',()=>{
@@ -25,9 +28,9 @@ test('daily plans persist separately with owner-scoped permissions and auditable
   assert.match(sql,/daily_plan_completed/);
 });
 
-test('calendar can create plans, record key results and invoke the intelligent daily report',()=>{
-  assert.match(html,/\+ 新增每日计划/);
-  assert.match(html,/label:x\.completed_at\?"修改成果":"填写成果"/);
+test('daily plan history and intelligent daily report remain available outside the mailbox calendar',()=>{
+  assert.match(html,/create_sales_daily_plan/);
+  assert.match(html,/save_sales_daily_plan_result/);
   assert.match(html,/functions\.invoke\("daily-report-ai"/);
   assert.match(html,/一键生成日报/);
 });

@@ -5,9 +5,12 @@ import {readFile} from 'node:fs/promises';
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 const sql=await readFile(new URL('../supabase/migrations/20261013093000_reassign_open_followup_tasks.sql',import.meta.url),'utf8');
 
-test('manager calendar labels follow-up tasks with the current inquiry owner',()=>{
-  assert.match(html,/ownerNames\[inquiry\?\.owner_id\]\|\|"待分配"/);
-  assert.match(html,/Array\.isArray\(item\.inquiries\)\?item\.inquiries\[0\]\?\.owner_id:item\.inquiries\?\.owner_id/);
+test('mailbox calendar replacement does not remove reassignment synchronization',()=>{
+  const start=html.indexOf('} else if(view==="follow-calendar")');
+  const branch=html.slice(start,html.indexOf('} else if (["inquiries"',start));
+  assert.match(branch,/get_sales_email_activity_metrics/);
+  assert.doesNotMatch(branch,/from\("follow_ups"\)/);
+  assert.match(sql,/sync_open_followup_task_owner/);
 });
 
 test('inquiry reassignment moves only open task ownership and audits every move',()=>{

@@ -1,21 +1,35 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {access} from "node:fs/promises";
-import {EXHIBITION_EVENTS,eventState,filterExhibitions,formatEventRange,groupExhibitionsByMonth} from "../assets/exhibition-calendar.mjs";
+import {EXHIBITION_EVENTS,eventState,filterExhibitions,formatEventRange,groupExhibitionsByMonth,registrationStatus} from "../assets/exhibition-calendar.mjs";
 
 test("production calendar exposes only the public event schema",()=>{
-  assert.equal(EXHIBITION_EVENTS.length,28);
-  const allowed=["id","start","end","name","city","country","region","category","url","verified","frequency","statsYear","exhibitors","visitors","metricsNote","logo","registration"];
+  assert.equal(EXHIBITION_EVENTS.length,33);
+  const allowed=["id","start","end","name","city","country","region","category","url","verified","frequency","statsYear","exhibitors","visitors","metricsNote","logo","registrationOpen","registrationDeadline","registrationNote"];
   for(const event of EXHIBITION_EVENTS){
     assert.deepEqual(Object.keys(event).sort(),allowed.sort());
     assert.match(event.url,/^https:\/\//);
     assert.ok(event.start<=event.end);
     assert.ok(event.frequency&&event.statsYear&&event.metricsNote);
     assert.match(event.logo,/^\.\/assets\/exhibition-logos\/[a-z0-9.-]+$/);
-    assert.equal(event.registration,"官网未公布具体报名起止时间");
+    assert.ok(event.registrationOpen===null||typeof event.registrationOpen==="boolean");
+    assert.ok(event.registrationDeadline===null||/^\d{4}-\d{2}-\d{2}$/.test(event.registrationDeadline));
+    assert.ok(event.registrationNote);
     assert.ok(event.exhibitors===null||typeof event.exhibitors==="number"||typeof event.exhibitors==="string");
     assert.ok(event.visitors===null||typeof event.visitors==="number"||typeof event.visitors==="string");
   }
+});
+
+test("global lock and access-control exhibitions are included from official sources",()=>{
+  for(const name of ["Security Essen 2026","Intersec Global 2027","ISC West 2027","The Security Event Europe 2027","ALOA Convention & Security Expo 2027"]){
+    const event=EXHIBITION_EVENTS.find(item=>item.name===name);assert.ok(event,name);assert.equal(event.verified,true);assert.match(event.category,/门锁|门禁|锁匠/);
+  }
+});
+
+test("registration countdown never invents an unpublished deadline",()=>{
+  const today=new Date("2026-10-13T12:00:00+08:00"),intersec=EXHIBITION_EVENTS.find(event=>event.name==="Intersec Global 2027");
+  assert.deepEqual(registrationStatus(intersec,today),{kind:"open",text:"观众注册已开放；官网未公布截止日"});
+  assert.deepEqual(registrationStatus({start:"2026-12-10",end:"2026-12-12",registrationDeadline:"2026-11-12"},today),{kind:"urgent",text:"距报名截止 30 天 · 2026-11-12"});
 });
 
 test("every exhibition logo is bundled with the production site",async()=>{

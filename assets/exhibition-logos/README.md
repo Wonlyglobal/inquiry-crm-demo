@@ -26,5 +26,10 @@
 | `expoconstruccion.ico` | https://www.expoconstruccionyexpodiseno.com/ |
 | `hotel-show.svg` | https://www.thehotelshow.com/ |
 | `archidex.png` | https://archidex.com.my/ |
+| `security-essen.svg` | https://www.security-essen.de/（站内识别字样） |
+| `intersec.svg` | https://intersecglobal.ae.messefrankfurt.com/dubai/en.html（站内识别字样） |
+| `isc-west.ico` | https://www.discoverisc.com/west/en-us.html |
+| `security-event.ico` | https://www.thesecurityevent.co.uk/ |
+| `aloa.svg` | https://www.aloa.org/aloa-convention（站内识别字样） |
 
 这些图片的商标权归各自权利人所有。若官网更新品牌视觉，应重新从对应官方来源核对并替换。

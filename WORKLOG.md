@@ -370,3 +370,10 @@ Validation: 5 mobile regressions, module/browser syntax and whitespace checks pa
 - 迁移 `supabase/migrations/20261013100000_daily_mailbox_activity_calendar.sql` 已应用至生产项目 `plhverjihjilnuhlhlxi`；PR #239 已合并为 `ffb7e73713272e9ebc25eec9aee8767e06326921`，Pages 与安全检查均成功。完整离线回归 794/794 通过，`git diff --check` 通过。
 - 生产验收：使用已登录的运营经理账号打开“跟进日历”，本周返回 104 条“日期 × 业务员”记录，并读取到真实收发数量与各邮箱最新同步状态；表格在卡片内横向滚动，未撑宽页面。
 - 回滚为通过 reviewed revert PR 回退前端，并用 `supabase/migrations/20261009170000_dashboard_email_activity_metrics.sql` 中上一版函数定义覆盖恢复；迁移不写邮件或客户业务行。剩余风险为同步完整度和审计分类依赖，0 值须结合邮箱连接与同步时间判断。
+
+## 2026-10-13 门锁行业全球展会与报名倒计时候选（未发布）
+
+- 用户要求增加门锁行业全球展会，并按顺序建设报名截止倒计时、公司参展状态与负责人、预算与展位价格、目标客户构成、历史效果、关键节点时间轴和数据可信度。本候选先完成第 1 项。
+- 新增 Security Essen、Intersec Global、ISC West、The Security Event Europe、ALOA Convention & Security Expo 五个门锁、智能锁、门禁与实体安防专业展会；日期、举办地和规模均来自主办方官网。未公布规模显示待补充，不以第三方估算冒充官方数据。
+- 报名状态区分开放、尚未开放、已截止、进行中；仅在主办方公布明确截止日期时计算倒计时。Intersec 已开放但未公布截止日，ALOA 预计 2027 年春季公布报名信息，页面据实显示。
+- 当前仅为前端公开展会资料候选，不含公司参展计划、负责人、预算、客户或历史业务数据，不改变权限或生产数据库。后续第 2 项需建立受角色权限控制的内部参展计划数据。

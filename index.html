@@ -639,6 +639,9 @@
       .module-search-clear:hover { background:var(--soft); color:var(--ink); }
       .module-table-scroll { width:100%; overflow:auto; }
       #module-table { min-width:880px; }
+      #module-table.mailbox-calendar-table { min-width:1180px; }
+      #module-table.mailbox-calendar-table th,
+      #module-table.mailbox-calendar-table td { white-space:nowrap; }
       #module-table tbody tr[data-clickable="true"] { cursor:pointer; }
       #module-table tbody tr[data-clickable="true"]:hover td:first-child { color:#315f49; }
       #module-table tbody tr[data-clickable="true"]:hover { background:#fbfcfb; }
@@ -1840,7 +1843,7 @@
             <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="ghost" type="button" disabled>一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><button id="email-trash-selected" class="email-mark-warmup" type="button">移入垃圾箱</button><button id="email-restore-selected" class="ghost hidden" type="button">恢复所选</button><button id="email-delete-selected" class="email-mark-warmup hidden" type="button">彻底删除</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
             <div id="email-class-tabs" class="email-class-tabs hidden" aria-label="邮件分类"></div>
             <div id="mailbox-folder-tabs" class="email-class-tabs hidden" aria-label="邮箱文件夹"><button class="email-class-tab active" type="button" data-mailbox-folder="inbox">收件箱</button><button class="email-class-tab" type="button" data-mailbox-folder="sent">已发送</button><button class="email-class-tab" type="button" data-mailbox-folder="scheduled">定时发送</button><button class="email-class-tab" type="button" data-mailbox-folder="all">全部邮件</button></div>
-            <div id="follow-calendar-tabs" class="email-class-tabs hidden" aria-label="跟进日历范围"><button class="email-class-tab active" type="button" data-calendar-range="week">本周</button><button class="email-class-tab" type="button" data-calendar-range="month">本月</button><button class="email-class-tab" type="button" data-calendar-range="overdue">已逾期</button></div>
+            <div id="follow-calendar-tabs" class="email-class-tabs hidden" aria-label="邮件跟进日历范围"><button class="email-class-tab active" type="button" data-calendar-range="week">本周</button><button class="email-class-tab" type="button" data-calendar-range="today">今日</button><button class="email-class-tab" type="button" data-calendar-range="month">本月</button></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
             <div class="module-table-scroll"><table id="module-table"><thead><tr id="module-head"></tr></thead><tbody id="module-body"></tbody></table></div>
@@ -4350,7 +4353,7 @@
             ? ["客户管理", "统一管理本人负责的公司、联系人、商机和全部渠道跟进", "本人客户"]
             : ["客户管理", "按权限统一查看公司、联系人、商机及跨渠道客户记录", "可见客户"],
           "sales-today": ["今日工作台", "仅展示主管分配的询盘，以及已关联询盘的真实客户新回复", "销售任务"],
-          "follow-calendar": ["跟进日历", "按周、月查看本人计划跟进任务，逾期任务单独汇总", "跟进计划"],
+          "follow-calendar": ["跟进日历", "按天查看每位业务员的开发信、客户来信和邮件回复情况", "每日邮件跟进"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
           communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
           mailbox: ["我的邮箱", "与个人阿里邮箱双向同步；可直接收件、写信、查看已发送并回复客户", "邮件列表"],
@@ -4419,6 +4422,7 @@
         $("#email-class-tabs").classList.toggle("hidden",view!=="email");
         $("#mailbox-folder-tabs").classList.toggle("hidden",view!=="mailbox");
         $("#follow-calendar-tabs").classList.toggle("hidden",view!=="follow-calendar");
+        $("#module-table").classList.toggle("mailbox-calendar-table",view==="follow-calendar");
         selectedEmailIntakeIds.clear();syncEmailSelectionState();
         $("#inquiry-filter-group").classList.toggle("hidden", view !== "inquiries");
         $("#knowledge-filter-group").classList.toggle("hidden",view!=="knowledge");
@@ -4460,7 +4464,7 @@
         if (view === "whatsapp") modulePrimary.textContent = "配置 WhatsApp 通道";
         if (view === "templates") modulePrimary.textContent = "+ 新建模板";
         if (view === "knowledge") modulePrimary.textContent = "+ 新建知识";
-        if (view === "follow-calendar") modulePrimary.textContent = "+ 新增每日计划";
+        if (view === "follow-calendar") { modulePrimary.textContent = "进入我的邮箱"; modulePrimary.onclick = () => loadModule("mailbox"); }
         if (view === "performance-360") modulePrimary.textContent = "+ 创建影子评分周期";
         if (view === "risk-review") modulePrimary.textContent = "运行风险扫描";
         const denied = !canAccessView(view);
@@ -4492,7 +4496,7 @@
           return;
         }
         let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null, mailboxScheduledView = false, mailboxTemplateView = false, publicPoolRequests = [], publicPoolRequestError = null;
-        if(["sales-today","follow-calendar"].includes(view)){
+        if(view==="sales-today"){
           const rollover=await runModuleQuery(supabase.rpc("rollover_my_follow_up_tasks"),2);
           if(rollover.error)console.warn("跟进任务自动顺延失败",rollover.error);
           else if(Number(rollover.data)>0)toast(`已将 ${rollover.data} 条未完成任务顺延到今日`);
@@ -4581,25 +4585,31 @@
             }
           }
         } else if(view==="follow-calendar"){
-          const now=new Date(),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);
-          if(followCalendarRange==="week")end.setDate(start.getDate()+7);
-          else if(followCalendarRange==="month"){start.setDate(1);end.setMonth(start.getMonth()+1);end.setDate(1)}
-          const managerCalendar=profile.role==="owner";
-          const calendarQueryFactory=(from,to)=>{let q=supabase.from("follow_ups").select("id,inquiry_id,author_id,method,content,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at,priority,remind_at,original_due_at,rollover_count,inquiries(inquiry_no,title,status,owner_id,target_country)").not("next_follow_up_at","is",null).order("priority",{ascending:true}).order("next_follow_up_at",{ascending:true}).range(from,to);if(!managerCalendar)q=q.eq("author_id",profile.id);return followCalendarRange==="overdue"?q.is("completed_at",null).lt("next_follow_up_at",now.toISOString()):q.gte("next_follow_up_at",start.toISOString()).lt("next_follow_up_at",end.toISOString())};
-          const dateText=value=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(value),todayDate=dateText(now),dailyPlanQueryFactory=(from,to)=>{let q=supabase.from("sales_daily_plans").select("id,owner_id,inquiry_id,plan_date,planned_at,title,priority,key_result,completed_at,created_at,inquiries(inquiry_no,title,status,owner_id,target_country)").order("plan_date",{ascending:true}).order("planned_at",{ascending:true}).range(from,to);if(!managerCalendar)q=q.eq("owner_id",profile.id);return followCalendarRange==="overdue"?q.is("completed_at",null).lt("plan_date",todayDate):q.gte("plan_date",dateText(start)).lt("plan_date",dateText(end))};
-          query=(async()=>{const [followResult,planResult]=await Promise.all([loadModuleRowsPaged(calendarQueryFactory),loadModuleRowsPaged(dailyPlanQueryFactory)]);if(followResult.error||planResult.error)return {data:null,error:followResult.error||planResult.error};return {data:[...(planResult.data||[]).map(item=>({...item,calendar_type:"daily_plan"})),...(followResult.data||[]).map(item=>({...item,calendar_type:"follow_up"}))],error:null}})();columns=["计划时间",...(managerCalendar?["负责人"]:[]),"优先级","提醒","询盘","国家/地区","类型","计划/跟进事项","关键成果","顺延","状态","操作"];
-          mapper=(x)=>{
-            const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;
-            if(x.calendar_type==="daily_plan"){
-              const overdue=!x.completed_at&&x.plan_date<todayDate,actions=x.owner_id===profile.id?[{label:x.completed_at?"修改成果":"填写成果",onClick:()=>writeDailyPlanResult(x)}]:[];
-              if(x.inquiry_id)actions.push({label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)});
-              return{id:x.inquiry_id||x.id,meta:{risk:overdue},cells:[x.planned_at?fmtDate(x.planned_at):x.plan_date,...(managerCalendar?[ownerNames[x.owner_id]||"未知成员"]:[]),{high:"高",normal:"普通",low:"低"}[x.priority]||"普通","—",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"未关联",displayCountry(inquiry?.target_country),"每日计划",x.title,x.key_result||"待填写","—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions};
+          const now=new Date(),dateText=value=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(value),todayDate=dateText(now),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);
+          if(followCalendarRange==="today")end.setDate(start.getDate()+1);
+          else if(followCalendarRange==="week"){start.setDate(start.getDate()-6);end.setDate(end.getDate()+1)}
+          else {start.setDate(1);end.setMonth(start.getMonth()+1);end.setDate(1)}
+          const monthKeys=[...new Set([dateText(start).slice(0,7),dateText(new Date(end.getTime()-1)).slice(0,7)])];
+          query=(async()=>{
+            const results=await Promise.all(monthKeys.map(month=>runModuleQuery(supabase.rpc("get_sales_email_activity_metrics",{target_period_start:`${month}-01`}),2)));
+            const failed=results.find(result=>result.error);if(failed)return failed;
+            const peopleMap=new Map(),dailyMap=new Map();
+            results.forEach(({data})=>{(data?.people||[]).forEach(person=>peopleMap.set(person.sales_id,person));(data?.daily||[]).forEach(day=>dailyMap.set(`${day.day}|${day.sales_id}`,day))});
+            const rows=[];
+            for(let cursor=new Date(start);cursor<end;cursor.setDate(cursor.getDate()+1)){
+              const day=dateText(cursor);
+              [...peopleMap.values()].sort((a,b)=>String(a.sales_name||"").localeCompare(String(b.sales_name||""),"zh-CN")).forEach(person=>{
+                const activity=dailyMap.get(`${day}|${person.sales_id}`)||{};
+                rows.push({...person,day,total_sent:Number(activity.total_sent||0),total_received:Number(activity.total_received||0),development_sent:Number(activity.development_sent||0),customer_inbound:Number(activity.customer_inbound||0),reply_sent:Number(activity.reply_sent||0),is_today:day===todayDate});
+              });
             }
-            const overdue=!x.completed_at&&new Date(x.next_follow_up_at)<new Date(),actions=[];
-            if(!x.completed_at)actions.push({label:"完成任务",onClick:()=>completeFollowUpFromCalendar(x)});
-            actions.push({label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)});
-            return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),...(managerCalendar?[ownerNames[inquiry?.owner_id]||"待分配"]:[]),{high:"高",normal:"普通",low:"低"}[x.priority]||"普通",x.remind_at?fmtDate(x.remind_at):"未设置",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"客户跟进",x.content||"跟进客户",x.customer_feedback||"—",x.rollover_count?`${x.rollover_count} 次` : "—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions};
-          };clickable=true;
+            return {data:rows};
+          })();
+          columns=["日期","业务员","阿里邮箱收件","阿里邮箱发件","开发信","客户来信","业务员回复","当前待回复","超 24 小时","邮箱同步","当日情况"];
+          mapper=x=>{
+            const status=x.total_sent+x.total_received===0?"无邮件活动":x.is_today&&x.overdue_replies>0?"有超时待处理":x.is_today&&x.pending_replies>0?"有待回复":"收发正常",mailboxState={connected:"已连接",error:"同步异常",not_connected:"未连接"}[x.mailbox_status]||x.mailbox_status||"未连接",mailbox=x.last_synced_at?`${mailboxState} · ${fmtDate(x.last_synced_at)}`:mailboxState;
+            return{meta:{risk:x.is_today&&Number(x.overdue_replies)>0,searchText:`${x.day} ${x.sales_name} ${status}`},cells:[x.day,x.sales_name,String(x.total_received),String(x.total_sent),String(x.development_sent),String(x.customer_inbound),String(x.reply_sent),x.is_today?String(x.pending_replies||0):"—",x.is_today?String(x.overdue_replies||0):"—",mailbox,`${x.total_received} 收 · ${x.total_sent} 发 · ${status}`]};
+          };
         } else if (["inquiries", "assignment", "nurture", "public-pool", "quotes"].includes(view)) {
           if(view==="public-pool"){
             const requestResult=await loadModuleRowsPaged((from,to)=>supabase.from("inquiry_public_pool_requests").select("id,inquiry_id,requested_by,request_type,reason,status,review_reason,created_at,profiles!inquiry_public_pool_requests_requested_by_fkey(full_name)").eq("status","pending").order("created_at",{ascending:true}).range(from,to));

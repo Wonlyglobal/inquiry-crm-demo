@@ -4598,7 +4598,7 @@
             const overdue=!x.completed_at&&new Date(x.next_follow_up_at)<new Date(),actions=[];
             if(!x.completed_at)actions.push({label:"完成任务",onClick:()=>completeFollowUpFromCalendar(x)});
             actions.push({label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)});
-            return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),...(managerCalendar?[ownerNames[x.author_id]||"未知成员"]:[]),{high:"高",normal:"普通",low:"低"}[x.priority]||"普通",x.remind_at?fmtDate(x.remind_at):"未设置",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"客户跟进",x.content||"跟进客户",x.customer_feedback||"—",x.rollover_count?`${x.rollover_count} 次` : "—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions};
+            return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),...(managerCalendar?[ownerNames[inquiry?.owner_id]||"待分配"]:[]),{high:"高",normal:"普通",low:"低"}[x.priority]||"普通",x.remind_at?fmtDate(x.remind_at):"未设置",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"客户跟进",x.content||"跟进客户",x.customer_feedback||"—",x.rollover_count?`${x.rollover_count} 次` : "—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions};
           };clickable=true;
         } else if (["inquiries", "assignment", "nurture", "public-pool", "quotes"].includes(view)) {
           if(view==="public-pool"){
@@ -4770,7 +4770,7 @@
           return;
         }
         if (["inquiries", "assignment", "nurture", "public-pool", "follow-calendar"].includes(view)) {
-          const ownerIds = [...new Set((data || []).flatMap((item) => view==="follow-calendar"?[item.owner_id,item.author_id]:[item.owner_id]).filter(Boolean))];
+          const ownerIds = [...new Set((data || []).flatMap((item) => view==="follow-calendar"?[item.owner_id,item.author_id,Array.isArray(item.inquiries)?item.inquiries[0]?.owner_id:item.inquiries?.owner_id]:[item.owner_id]).filter(Boolean))];
           if (ownerIds.length) {
             try {
               const { data: owners } = await runModuleQuery(supabase.from("profiles").select("id,full_name").in("id", ownerIds), 2);

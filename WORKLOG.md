@@ -432,3 +432,10 @@ Validation: 5 mobile regressions, module/browser syntax and whitespace checks pa
 - 授权与执行：项目负责人（用户）明确批准；执行人 Codex；目标为生产 Supabase 项目 `plhverjihjilnuhlhlxi` 与 `https://crm.foreverdoodle.com/`；执行时间 2026-10-13（Asia/Shanghai）。PR #257 合并为 `1607592c918b6230c5dc7e02cd5ec4da8e2e7a8a`；迁移 `20261013180000_exhibition_milestone_timeline.sql` 已应用。
 - 验证：展会专项 15/15、完整离线回归 807/807、模块语法和 `git diff --check` 通过；主分支安全工作流 `38356724629` 与 Pages 工作流 `38356725251` 均成功。数据库核验新列与 RPC 存在、匿名不可执行、authenticated 可执行受控 RPC；参展计划表仍为 0 行。生产加载 `exhibition-calendar.mjs?v=20261013-10`，29 张卡片正常，空预算、目标客户、历史效果和关键节点维护区数量均为 0，页面无整体横向溢出，控制台无错误。
 - 回滚：通过 reviewed revert PR 回退 #257，撤销 `save_exhibition_milestones`、恢复上一版读取 RPC，并在确认无节点数据或完成导出后删除新增列；审计记录保留。剩余风险：节点日期依赖人工维护，不会自动读取主办方或物流系统；当前没有创建任何实际参展计划或节点。
+
+## 2026-10-13 展会日期状态说明优化（发布候选）
+
+- 将容易被理解为公司内部排期的“规划日期”统一改为“待官网确认”。日期说明明确：黄色日期根据公开预告或往届规律整理，尚待主办方官网最终确认；绿色日期为主办方官网已确认。
+- 同步更新展会卡片、筛选项、图例和静态资源缓存版本，并增加回归检查，避免旧文案再次出现。本变更仅调整公开页面文案，不涉及数据库、权限或业务数据。
+- 验证：展会专项 16/16、完整离线回归 808/808、模块语法和 `git diff --check` 通过。
+- 授权与执行：项目负责人（用户）提出界面问题；执行人 Codex；目标为 `Wonlyglobal/inquiry-crm-demo` 待审核分支。生产合并与发布尚未执行，等待项目负责人对具体候选改动做最终确认。

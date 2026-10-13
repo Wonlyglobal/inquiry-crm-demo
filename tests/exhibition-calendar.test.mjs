@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {access} from "node:fs/promises";
-import {EXHIBITION_EVENTS,eventState,filterExhibitions,formatEventRange,groupExhibitionsByMonth,registrationStatus} from "../assets/exhibition-calendar.mjs";
+import {access,readFile} from "node:fs/promises";
+import {EXHIBITION_EVENTS,eventState,exhibitionEventKey,filterExhibitions,formatEventRange,groupExhibitionsByMonth,PARTICIPATION_STATUS_LABELS,registrationStatus} from "../assets/exhibition-calendar.mjs";
 
 test("production calendar exposes only the public event schema",()=>{
   assert.equal(EXHIBITION_EVENTS.length,33);
@@ -58,4 +58,22 @@ test("filters and month grouping remain deterministic",()=>{
 test("cards show the complete date range, including cross-month events",()=>{
   assert.equal(formatEventRange({start:"2026-11-23",end:"2026-11-26"}),"2026.11.23—26");
   assert.equal(formatEventRange({start:"2027-03-30",end:"2027-04-02"}),"2027.03.30—04.02");
+});
+
+test("company participation uses stable public-event keys and controlled states",()=>{
+  const keys=EXHIBITION_EVENTS.map(exhibitionEventKey);
+  assert.equal(new Set(keys).size,EXHIBITION_EVENTS.length);
+  assert.ok(keys.every(key=>/^[a-z0-9-]{3,100}$/.test(key)));
+  assert.deepEqual(Object.keys(PARTICIPATION_STATUS_LABELS),["researching","planned","registered","attending","declined"]);
+});
+
+test("participation plans are protected by RPC, audit and read-only account checks",async()=>{
+  const sql=await readFile(new URL("../supabase/migrations/20261013140000_exhibition_participation_plans.sql",import.meta.url),"utf8");
+  assert.match(sql,/enable row level security/i);
+  assert.match(sql,/revoke all on public\.exhibition_participation_plans from public, anon, authenticated/i);
+  assert.match(sql,/actor\.role not in \('owner','marketing'\)/i);
+  assert.match(sql,/crm_read_only/i);
+  assert.match(sql,/target_status <> 'declined' and target_owner_id is null/i);
+  assert.match(sql,/insert into public\.audit_logs/i);
+  assert.match(sql,/change_reason/i);
 });

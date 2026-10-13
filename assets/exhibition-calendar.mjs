@@ -124,8 +124,12 @@ export const formatEventRange = event => {
   return `${first}—${start[0]===end[0]?`${start[1]===end[1]?"":`${end[1]}.`}${end[2]}`:`${end[0]}.${end[1]}.${end[2]}`}`;
 };
 
-export function mountExhibitionCalendar(root,{today=()=>new Date()}={}){
+export const exhibitionEventKey = event => `${event.start}-${event.name}`.toLocaleLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,100);
+export const PARTICIPATION_STATUS_LABELS={researching:"调研中",planned:"拟参展",registered:"已报名",attending:"已确认参展",declined:"本届不参展"};
+
+export function mountExhibitionCalendar(root,{today=()=>new Date(),loadParticipation=async()=>({plans:[],owners:[],can_edit:false}),saveParticipation=null,notify=()=>{}}={}){
   if(!root)return {render(){}};
+  let participation={plans:[],owners:[],can_edit:false},loading=false;
   const keyword=root.querySelector("#exhibition-search"),year=root.querySelector("#exhibition-year"),region=root.querySelector("#exhibition-region"),status=root.querySelector("#exhibition-status"),verification=root.querySelector("#exhibition-verification"),list=root.querySelector("#exhibition-months"),empty=root.querySelector("#exhibition-empty");
   year.value="all";
   const make=(tag,className,text)=>{const el=document.createElement(tag);if(className)el.className=className;if(text!==undefined)el.textContent=text;return el};
@@ -141,15 +145,18 @@ export function mountExhibitionCalendar(root,{today=()=>new Date()}={}){
       const section=make("section","exhibition-month"),label=make("div","exhibition-month-label"),cards=make("div","exhibition-events");
       label.append(make("b","",fmtMonth(month)),make("span","",`${events.length} 场展会`));
       events.forEach(event=>{
-        const registrationInfo=registrationStatus(event,now),card=make("article","exhibition-event"),date=make("div","exhibition-date"),body=make("div","exhibition-event-body"),head=make("div","exhibition-event-head"),brand=make("div","exhibition-brand"),logoWrap=make("span","exhibition-logo"),logo=document.createElement("img"),title=make("h3","",event.name),badge=make("span",`exhibition-badge ${event.verified?"verified":"planned"}`,event.verified?"官网已确认":"规划日期"),range=make("div","exhibition-range",formatEventRange(event)),meta=make("div","exhibition-meta"),metrics=make("div","exhibition-metrics"),note=make("small","exhibition-metrics-note",`${event.statsYear} · ${event.metricsNote}`),registration=make("div",`exhibition-registration ${registrationInfo.kind}`,`报名：${registrationInfo.text}`),link=make("a","exhibition-link","查看主办方官网 ↗");
+        const key=exhibitionEventKey(event),plan=participation.plans.find(item=>item.event_key===key),registrationInfo=registrationStatus(event,now),card=make("article","exhibition-event"),date=make("div","exhibition-date"),body=make("div","exhibition-event-body"),head=make("div","exhibition-event-head"),brand=make("div","exhibition-brand"),logoWrap=make("span","exhibition-logo"),logo=document.createElement("img"),title=make("h3","",event.name),badge=make("span",`exhibition-badge ${event.verified?"verified":"planned"}`,event.verified?"官网已确认":"规划日期"),range=make("div","exhibition-range",formatEventRange(event)),meta=make("div","exhibition-meta"),metrics=make("div","exhibition-metrics"),note=make("small","exhibition-metrics-note",`${event.statsYear} · ${event.metricsNote}`),registration=make("div",`exhibition-registration ${registrationInfo.kind}`,`报名：${registrationInfo.text}`),companyPlan=make("div","exhibition-company-plan"),planSummary=make("div","exhibition-plan-summary"),link=make("a","exhibition-link","查看主办方官网 ↗");
         logo.src=event.logo;logo.alt=`${event.name} Logo`;logo.loading="lazy";logo.addEventListener("error",()=>{logoWrap.textContent=event.name.slice(0,2).toUpperCase();logoWrap.classList.add("fallback")},{once:true});logoWrap.append(logo);brand.append(logoWrap,title);
         date.append(make("strong","",String(Number(event.start.slice(8,10))).padStart(2,"0")),make("span","",`${Number(event.start.slice(5,7))} 月`));
         head.append(brand,badge);meta.append(make("span","",`${event.country} · ${event.city}`),make("span","",event.category));
         link.href=event.url;link.target="_blank";link.rel="noopener noreferrer";
         [["举办频率",event.frequency],["参展商 / 品牌",metricValue(event.exhibitors)],["观众 / 人次",metricValue(event.visitors)]].forEach(([label,value])=>{const item=make("div","exhibition-metric");item.append(make("small","",label),make("b","",value));metrics.append(item)});
-        body.append(head,range,meta,metrics,note,registration,link);card.append(date,body);cards.append(card);
+        planSummary.append(make("b","","公司参展"),make("span",plan?`${PARTICIPATION_STATUS_LABELS[plan.status]||plan.status} · 负责人：${plan.owner_name||"待指定"}`:"未设置参展计划"));companyPlan.append(planSummary);
+        if(participation.can_edit&&saveParticipation){const form=make("form","exhibition-plan-form"),statusSelect=make("select","input"),ownerSelect=make("select","input"),reason=make("input","input"),submit=make("button","primary","保存");statusSelect.name="status";ownerSelect.name="owner";reason.name="reason";reason.placeholder="变更原因（必填）";reason.required=true;Object.entries(PARTICIPATION_STATUS_LABELS).forEach(([value,label])=>statusSelect.add(new Option(label,value,value===(plan?.status||"researching"),value===(plan?.status||"researching"))));ownerSelect.add(new Option("待指定负责人",""));participation.owners.forEach(owner=>ownerSelect.add(new Option(owner.name,owner.id,owner.id===plan?.owner_id,owner.id===plan?.owner_id)));submit.type="submit";form.append(statusSelect,ownerSelect,reason,submit);form.addEventListener("submit",async e=>{e.preventDefault();submit.disabled=true;try{await saveParticipation({event_key:key,event_name:event.name,status:statusSelect.value,owner_id:ownerSelect.value||null,reason:reason.value});await refreshParticipation();notify("参展计划已保存")}catch(error){notify(`保存失败：${error.message}`)}finally{submit.disabled=false}});companyPlan.append(form)}
+        body.append(head,range,meta,metrics,note,registration,companyPlan,link);card.append(date,body);cards.append(card);
       });section.append(label,cards);list.append(section);
     });
   }
-  [keyword,year,region,status,verification].forEach(control=>control.addEventListener(control===keyword?"input":"change",render));render();return {render};
+  async function refreshParticipation(){if(loading)return;loading=true;try{participation=await loadParticipation()||participation;render()}catch(error){console.warn("参展计划加载失败",error)}finally{loading=false}}
+  [keyword,year,region,status,verification].forEach(control=>control.addEventListener(control===keyword?"input":"change",render));render();refreshParticipation();return {render,refreshParticipation};
 }

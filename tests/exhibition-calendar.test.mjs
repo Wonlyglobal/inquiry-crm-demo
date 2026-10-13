@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {access,readFile} from "node:fs/promises";
-import {EXHIBITION_EVENTS,eventState,exhibitionEventKey,filterExhibitions,formatEventRange,groupExhibitionsByMonth,PARTICIPATION_STATUS_LABELS,registrationStatus,TARGET_CUSTOMER_OPTIONS} from "../assets/exhibition-calendar.mjs";
+import {EXHIBITION_EVENTS,eventState,exhibitionEventKey,filterExhibitions,formatEventRange,groupExhibitionsByMonth,PARTICIPATION_STATUS_LABELS,registrationStatus,TARGET_CUSTOMER_OPTIONS,EXHIBITION_MILESTONES} from "../assets/exhibition-calendar.mjs";
 
 test("production calendar exposes only the public event schema",()=>{
   assert.equal(EXHIBITION_EVENTS.length,33);
@@ -121,4 +121,21 @@ test("historical exhibition results are complete, monotonic and audited",async()
   assert.match(sql,/crm_read_only/i);
   assert.match(sql,/exhibition_historical_results_updated/i);
   assert.match(sql,/revoke all on function public\.save_exhibition_historical_results/i);
+});
+
+test("critical exhibition milestones are fixed, validated and audited",async()=>{
+  assert.deepEqual(Object.values(EXHIBITION_MILESTONES),["报名","付款","签证","样品","物流","布展","撤展"]);
+  const sql=await readFile(new URL("../supabase/migrations/20261013180000_exhibition_milestone_timeline.sql",import.meta.url),"utf8");
+  assert.match(sql,/jsonb_array_length\(milestone_timeline\)<=7/i);
+  assert.match(sql,/registration','payment','visa','samples','logistics','setup','teardown/i);
+  assert.match(sql,/kind=any\(kinds\)/i);
+  assert.match(sql,/actor\.role not in \('owner','marketing'\)/i);
+  assert.match(sql,/crm_read_only/i);
+  assert.match(sql,/exhibition_milestones_updated/i);
+  assert.match(sql,/revoke all on function public\.save_exhibition_milestones/i);
+});
+
+test("empty optional planning panels stay hidden until a participation plan exists",async()=>{
+  const source=await readFile(new URL("../assets/exhibition-calendar.mjs",import.meta.url),"utf8");
+  for(const action of ["saveBudget","saveAudience","saveHistory"])assert.match(source,new RegExp(`if\\(plan&&participation\\.can_edit&&${action}\\)`));
 });

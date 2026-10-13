@@ -139,3 +139,14 @@ test("empty optional planning panels stay hidden until a participation plan exis
   const source=await readFile(new URL("../assets/exhibition-calendar.mjs",import.meta.url),"utf8");
   for(const action of ["saveBudget","saveAudience","saveHistory"])assert.match(source,new RegExp(`if\\(plan&&participation\\.can_edit&&${action}\\)`));
 });
+
+test("unconfirmed dates use a clear label and explain their source",async()=>{
+  const [page,source]=await Promise.all([
+    readFile(new URL("../index.html",import.meta.url),"utf8"),
+    readFile(new URL("../assets/exhibition-calendar.mjs",import.meta.url),"utf8")
+  ]);
+  assert.match(page,/待官网确认/);
+  assert.match(page,/根据公开预告或往届规律整理，尚待主办方官网最终确认/);
+  assert.match(source,/待官网确认/);
+  assert.doesNotMatch(`${page}\n${source}`,/规划日期/);
+});

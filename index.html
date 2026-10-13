@@ -1474,7 +1474,7 @@
     </style>
   <link rel="stylesheet" href="./assets/agent-world.css?v=systems-inset-20261012" />
   <link rel="stylesheet" href="./assets/ui-contrast.css?v=20261012-feedback" />
-  <link rel="stylesheet" href="./assets/exhibition-calendar.css?v=20261013-10" />
+  <link rel="stylesheet" href="./assets/exhibition-calendar.css?v=20261013-11" />
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
@@ -1757,10 +1757,10 @@
           </div>
         </section>
         <section id="exhibition-calendar-page" class="page exhibition-page hidden">
-          <div class="heading exhibition-heading"><div><div class="eyebrow">MARKET INTELLIGENCE</div><h1>展会日历</h1><p>集中查看境外重点展会，提前安排参展、拜访和客户邀约。</p></div><div class="exhibition-note"><b>日期说明</b><br>绿色为官网已确认；黄色为规划日期，出行前请再次核对主办方官网。</div></div>
+          <div class="heading exhibition-heading"><div><div class="eyebrow">MARKET INTELLIGENCE</div><h1>展会日历</h1><p>集中查看境外重点展会，提前安排参展、拜访和客户邀约。</p></div><div class="exhibition-note"><b>日期说明</b><br>绿色：主办方官网已确认；黄色：根据公开预告或往届规律整理，尚待主办方官网最终确认。</div></div>
           <section class="exhibition-stats" aria-label="展会摘要"><article class="exhibition-stat"><small>未来展会</small><b data-exhibition-stat="upcoming">—</b></article><article class="exhibition-stat"><small>90 天内</small><b data-exhibition-stat="soon">—</b></article><article class="exhibition-stat"><small>官网已确认</small><b data-exhibition-stat="verified">—</b></article><article class="exhibition-stat"><small>覆盖国家 / 地区</small><b data-exhibition-stat="countries">—</b></article></section>
-          <section class="exhibition-filters" aria-label="筛选展会"><input id="exhibition-search" class="input" type="search" placeholder="搜索展会、城市或国家" aria-label="搜索展会、城市或国家"><select id="exhibition-year" class="input" aria-label="年份"><option value="all">全部年份</option><option value="2026">2026 年</option><option value="2027">2027 年</option></select><select id="exhibition-region" class="input" aria-label="地区"><option value="all">全部地区</option><option>亚洲</option><option>欧洲</option><option>中东及非洲</option><option>北美洲</option><option>拉丁美洲</option><option>大洋洲</option></select><select id="exhibition-status" class="input" aria-label="进度"><option value="upcoming" selected>即将开始</option><option value="active">进行中</option><option value="past">已结束</option><option value="all">全部状态</option></select><select id="exhibition-verification" class="input" aria-label="日期确认状态"><option value="all">全部日期状态</option><option value="verified">官网已确认</option><option value="planned">规划日期</option></select></section>
-          <div class="exhibition-list-head"><h2>按月份查看</h2><div class="exhibition-legend"><i class="verified"></i>官网已确认　 <i class="planned"></i>规划日期</div></div>
+          <section class="exhibition-filters" aria-label="筛选展会"><input id="exhibition-search" class="input" type="search" placeholder="搜索展会、城市或国家" aria-label="搜索展会、城市或国家"><select id="exhibition-year" class="input" aria-label="年份"><option value="all">全部年份</option><option value="2026">2026 年</option><option value="2027">2027 年</option></select><select id="exhibition-region" class="input" aria-label="地区"><option value="all">全部地区</option><option>亚洲</option><option>欧洲</option><option>中东及非洲</option><option>北美洲</option><option>拉丁美洲</option><option>大洋洲</option></select><select id="exhibition-status" class="input" aria-label="进度"><option value="upcoming" selected>即将开始</option><option value="active">进行中</option><option value="past">已结束</option><option value="all">全部状态</option></select><select id="exhibition-verification" class="input" aria-label="日期确认状态"><option value="all">全部日期状态</option><option value="verified">官网已确认</option><option value="planned">待官网确认</option></select></section>
+          <div class="exhibition-list-head"><h2>按月份查看</h2><div class="exhibition-legend"><i class="verified"></i>官网已确认　 <i class="planned"></i>待官网确认</div></div>
           <div id="exhibition-months"></div><div id="exhibition-empty" class="exhibition-empty hidden">没有符合当前筛选条件的展会</div>
           <p class="exhibition-footnote">此页面仅展示公开展会信息。主办方可能调整日期、地点或场次，最终安排以官网为准。</p>
         </section>
@@ -2552,7 +2552,7 @@
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
       import {marketSummary} from './assets/agent-market-summary.mjs?v=20261012-market';
-      import {mountExhibitionCalendar} from './assets/exhibition-calendar.mjs?v=20261013-10';
+      import {mountExhibitionCalendar} from './assets/exhibition-calendar.mjs?v=20261013-11';
       let exhibitionCalendarController=null;
       import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow,currentQuestionWindow} from './assets/agent-question-windows.mjs?v=20261012-thread-state';
       import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261008-2';

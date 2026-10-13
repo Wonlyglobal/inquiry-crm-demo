@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {EXHIBITION_EVENTS,eventState,filterExhibitions,groupExhibitionsByMonth} from "../assets/exhibition-calendar.mjs";
+import {EXHIBITION_EVENTS,eventState,filterExhibitions,formatEventRange,groupExhibitionsByMonth} from "../assets/exhibition-calendar.mjs";
 
 test("production calendar exposes only the public event schema",()=>{
   assert.equal(EXHIBITION_EVENTS.length,28);
@@ -29,4 +29,9 @@ test("filters and month grouping remain deterministic",()=>{
   assert.ok(asian2027.every(event=>event.start.startsWith("2027-")&&event.region==="亚洲"));
   assert.deepEqual(Object.keys(groupExhibitionsByMonth(asian2027)),[...new Set(asian2027.map(event=>event.start.slice(0,7)))]);
   assert.equal(filterExhibitions(EXHIBITION_EVENTS,{keyword:"东京",status:"all"},today)[0].name,"JAPAN BUILD Tokyo");
+});
+
+test("cards show the complete date range, including cross-month events",()=>{
+  assert.equal(formatEventRange({start:"2026-11-23",end:"2026-11-26"}),"2026.11.23—26");
+  assert.equal(formatEventRange({start:"2027-03-30",end:"2027-04-02"}),"2027.03.30—04.02");
 });

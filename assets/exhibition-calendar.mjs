@@ -53,7 +53,11 @@ export function groupExhibitionsByMonth(events){
 }
 
 const fmtMonth = key => {const [year,month]=key.split("-");return `${year} 年 ${Number(month)} 月`};
-const duration = event => Math.round((localDate(event.end)-localDate(event.start))/DAY)+1;
+export const formatEventRange = event => {
+  const start=event.start.split("-"),end=event.end.split("-");
+  const first=`${start[0]}.${start[1]}.${start[2]}`;
+  return `${first}—${start[0]===end[0]?`${start[1]===end[1]?"":`${end[1]}.`}${end[2]}`:`${end[0]}.${end[1]}.${end[2]}`}`;
+};
 
 export function mountExhibitionCalendar(root,{today=()=>new Date()}={}){
   if(!root)return {render(){}};
@@ -71,11 +75,11 @@ export function mountExhibitionCalendar(root,{today=()=>new Date()}={}){
       const section=make("section","exhibition-month"),label=make("div","exhibition-month-label"),cards=make("div","exhibition-events");
       label.append(make("b","",fmtMonth(month)),make("span","",`${events.length} 场展会`));
       events.forEach(event=>{
-        const card=make("article","exhibition-event"),date=make("div","exhibition-date"),body=make("div","exhibition-event-body"),head=make("div","exhibition-event-head"),title=make("h3","",event.name),badge=make("span",`exhibition-badge ${event.verified?"verified":"planned"}`,event.verified?"官网已确认":"规划日期"),meta=make("div","exhibition-meta"),link=make("a","exhibition-link","查看主办方官网 ↗");
-        date.append(make("strong","",String(Number(event.start.slice(8,10))).padStart(2,"0")),make("span","",`${Number(event.start.slice(5,7))}月 · ${duration(event)}天`));
+        const card=make("article","exhibition-event"),date=make("div","exhibition-date"),body=make("div","exhibition-event-body"),head=make("div","exhibition-event-head"),title=make("h3","",event.name),badge=make("span",`exhibition-badge ${event.verified?"verified":"planned"}`,event.verified?"官网已确认":"规划日期"),range=make("div","exhibition-range",formatEventRange(event)),meta=make("div","exhibition-meta"),link=make("a","exhibition-link","查看主办方官网 ↗");
+        date.append(make("strong","",String(Number(event.start.slice(8,10))).padStart(2,"0")),make("span","",`${Number(event.start.slice(5,7))} 月`));
         head.append(title,badge);meta.append(make("span","",`${event.country} · ${event.city}`),make("span","",event.category));
         link.href=event.url;link.target="_blank";link.rel="noopener noreferrer";
-        body.append(head,meta,link);card.append(date,body);cards.append(card);
+        body.append(head,range,meta,link);card.append(date,body);cards.append(card);
       });section.append(label,cards);list.append(section);
     });
   }

@@ -1474,7 +1474,7 @@
     </style>
   <link rel="stylesheet" href="./assets/agent-world.css?v=systems-inset-20261012" />
   <link rel="stylesheet" href="./assets/ui-contrast.css?v=20261012-feedback" />
-  <link rel="stylesheet" href="./assets/exhibition-calendar.css?v=20261013-6" />
+  <link rel="stylesheet" href="./assets/exhibition-calendar.css?v=20261013-7" />
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
@@ -2552,7 +2552,7 @@
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
       import {marketSummary} from './assets/agent-market-summary.mjs?v=20261012-market';
-      import {mountExhibitionCalendar} from './assets/exhibition-calendar.mjs?v=20261013-6';
+      import {mountExhibitionCalendar} from './assets/exhibition-calendar.mjs?v=20261013-7';
       let exhibitionCalendarController=null;
       import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow,currentQuestionWindow} from './assets/agent-question-windows.mjs?v=20261012-thread-state';
       import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261008-2';
@@ -5306,7 +5306,7 @@
         $("#marketing-center-page").classList.toggle("hidden",!marketingCenter);
         $("#ai-advisor-page").classList.toggle("hidden",!advisor);
         $("#module-page").classList.toggle("hidden",dashboard||exhibitionCalendar||marketingCenter||advisor);
-        if(exhibitionCalendar){exhibitionCalendarController??=mountExhibitionCalendar($("#exhibition-calendar-page"),{notify:toast,loadParticipation:async()=>{const {data,error}=await supabase.rpc("get_exhibition_participation_context");if(error)throw error;return data},saveParticipation:async item=>{const {data,error}=await supabase.rpc("save_exhibition_participation_plan",{target_event_key:item.event_key,target_event_name:item.event_name,target_status:item.status,target_owner_id:item.owner_id,change_reason:item.reason});if(error)throw error;return data},saveBudget:async item=>{const {data,error}=await supabase.rpc("save_exhibition_budget",{target_event_key:item.event_key,target_budget_amount:item.budget_amount,target_budget_currency:item.budget_currency,target_booth_price:item.booth_price,target_booth_price_currency:item.booth_price_currency,target_booth_price_unit:item.booth_price_unit,target_booth_price_source_url:item.source_url,target_booth_price_checked_on:item.checked_on,change_reason:item.reason});if(error)throw error;return data}});exhibitionCalendarController.render();exhibitionCalendarController.refreshParticipation();return}
+        if(exhibitionCalendar){exhibitionCalendarController??=mountExhibitionCalendar($("#exhibition-calendar-page"),{notify:toast,loadParticipation:async()=>{const {data,error}=await supabase.rpc("get_exhibition_participation_context");if(error)throw error;return data},saveParticipation:async item=>{const {data,error}=await supabase.rpc("save_exhibition_participation_plan",{target_event_key:item.event_key,target_event_name:item.event_name,target_status:item.status,target_owner_id:item.owner_id,change_reason:item.reason});if(error)throw error;return data},saveBudget:async item=>{const {data,error}=await supabase.rpc("save_exhibition_budget",{target_event_key:item.event_key,target_budget_amount:item.budget_amount,target_budget_currency:item.budget_currency,target_booth_price:item.booth_price,target_booth_price_currency:item.booth_price_currency,target_booth_price_unit:item.booth_price_unit,target_booth_price_source_url:item.source_url,target_booth_price_checked_on:item.checked_on,change_reason:item.reason});if(error)throw error;return data},saveAudience:async item=>{const {data,error}=await supabase.rpc("save_exhibition_target_audience",{target_event_key:item.event_key,target_customer_segments:item.customer_segments,target_regions:item.regions,target_buyer_roles:item.buyer_roles,target_customer_note:item.note,change_reason:item.reason});if(error)throw error;return data}});exhibitionCalendarController.render();exhibitionCalendarController.refreshParticipation();return}
         if(marketingCenter){renderMarketingWorkbench(dashboardState.rows);return}
         if(advisor){renderAdvisor();return}
         if (!dashboard) await loadModule(view, options);

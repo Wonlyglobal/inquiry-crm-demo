@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const [migration, html, worker] = await Promise.all([
-  readFile(new URL('../supabase/migrations/20261013100000_inquiry_archive_and_mailbox_bulk_read.sql', import.meta.url), 'utf8'),
+  readFile(new URL('../supabase/migrations/20261013110000_inquiry_archive_and_mailbox_bulk_read.sql', import.meta.url), 'utf8'),
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
   readFile(new URL('../mail-sync/src/index.mjs', import.meta.url), 'utf8'),
 ]);

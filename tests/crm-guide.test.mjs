@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+import {CRM_MODULES,crmGuideIntent,crmGuideAnswer} from '../supabase/functions/agent-conversation/crm-guide.mjs';
+test('guide references existing menus and preserves authorization limits',async()=>{const html=await readFile(new URL('../index.html',import.meta.url),'utf8');for(const [,id] of CRM_MODULES)assert.ok(html.includes(`data-view="${id}"`),id);const a=crmGuideAnswer(crmGuideIntent('介绍我们的CRM系统'));assert.match(a,/不能代替登录/);assert.match(a,/不代表所有角色/)});
+test('usage question targets relevant menu but business and company questions do not hijack',()=>{assert.equal(crmGuideIntent('我的邮箱在哪里').modules[0][0],'我的邮箱');for(const q of ['本月CRM表现分析','帮我背调ABC公司','X60介绍'])assert.equal(crmGuideIntent(q),null)});

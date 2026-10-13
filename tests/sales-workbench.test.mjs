@@ -64,14 +64,23 @@ test('dashboard ancillary datasets paginate before ranking and attribution rende
     assert.match(branch,new RegExp(`loadModuleRowsPaged\\(\\(from,to\\)=>supabase\\.from\\("${table}"`));
 });
 
-test('follow-up calendar and daily plans paginate within the selected date range',()=>{
+test('follow-up calendar uses role-scoped aggregate mailbox metrics for every day and salesperson',()=>{
   const start=html.indexOf('} else if(view==="follow-calendar")');
   const branch=html.slice(start,html.indexOf('} else if (["inquiries"',start));
-  assert.match(branch,/calendarQueryFactory=\(from,to\)/);
-  assert.match(branch,/dailyPlanQueryFactory=\(from,to\)/);
-  assert.match(branch,/loadModuleRowsPaged\(calendarQueryFactory\)/);
-  assert.match(branch,/loadModuleRowsPaged\(dailyPlanQueryFactory\)/);
-  assert.doesNotMatch(branch,/\.limit\(500\)/);
+  assert.match(branch,/rpc\("get_sales_email_activity_metrics"/);
+  assert.match(branch,/for\(let cursor=new Date\(start\);cursor<end;cursor\.setDate\(cursor\.getDate\(\)\+1\)\)/);
+  assert.match(branch,/peopleMap\.values\(\)/);
+  assert.match(branch,/total_sent:Number\(activity\.total_sent\|\|0\)/);
+  assert.match(branch,/total_received:Number\(activity\.total_received\|\|0\)/);
+  assert.match(branch,/reply_sent:Number\(activity\.reply_sent\|\|0\)/);
+});
+
+test('mailbox follow-up calendar exposes only aggregate counts and mailbox status',()=>{
+  const start=html.indexOf('} else if(view==="follow-calendar")');
+  const branch=html.slice(start,html.indexOf('} else if (["inquiries"',start));
+  assert.match(branch,/"阿里邮箱收件","阿里邮箱发件","开发信","客户来信","业务员回复"/);
+  assert.doesNotMatch(branch,/sender_email|recipient_emails|body_text|subject/);
+  assert.match(branch,/mailbox_status/);
 });
 
 test('public-pool approval queue reads every pending request',()=>{

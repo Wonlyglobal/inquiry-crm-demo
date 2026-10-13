@@ -359,3 +359,11 @@ Validation: 5 mobile regressions, module/browser syntax and whitespace checks pa
 - 验证：全量 Node 回归 783/783，邮件同步服务测试 9/9，浏览器模块语法检查、`git diff --check` 通过。Docker 不在本机，容器构建须由 CI 检查。
 - 发布状态：本地候选基于最新 `origin/main`，暂未提交/推送/创建 PR；生产迁移尚未应用，生产网页尚未验收。不得把当前状态描述为已上线。回滚：页面通过经审核 PR revert；迁移以受控前向迁移恢复，审计记录保留。
 - 生产前置：合并并通过 GitHub CI；对生产 schema 做只读预检；使用隔离的 `is_test_data=true AND excluded_from_dashboard=true` 数据执行仓库 rollback-only 验收 SQL；检查 ACL、RLS、触发器与回滚后无残留，再应用正式迁移，最后核验生产静态网页与已登录角色功能。阿里邮箱独立同步服务部署状态需另行查证。
+
+## 2026-10-13 阿里邮箱每日收发跟踪（生产已发布）
+
+- 用户要求跟进日历改为每天跟踪所有业务员的阿里邮箱收发情况，包含开发信和回复。候选页面按“日期 × 业务员”逐行展示阿里邮箱总收件、总发件、CRM 开发信、已关联客户来信、业务员 CRM 回复、当前待回复、超过 24 小时待回复及邮箱同步状态；最近 7 天、今日和本月可切换，无邮件活动也显示 0。
+- 聚合 RPC 延续 owner 全公司、sales_manager 本团队、sales 本人的既有范围，只返回计数、人员名称和同步状态，不返回正文、主题、邮箱地址或客户明细；不修改评分、排名、询盘归属或邮件内容。业务员回复仅统计 CRM 成功回复审计；阿里邮箱总发件包含同步到个人邮箱的全部外发。
+- 迁移 `supabase/migrations/20261013100000_daily_mailbox_activity_calendar.sql` 已应用至生产项目 `plhverjihjilnuhlhlxi`；PR #239 已合并为 `ffb7e73713272e9ebc25eec9aee8767e06326921`，Pages 与安全检查均成功。完整离线回归 794/794 通过，`git diff --check` 通过。
+- 生产验收：使用已登录的运营经理账号打开“跟进日历”，本周返回 104 条“日期 × 业务员”记录，并读取到真实收发数量与各邮箱最新同步状态；表格在卡片内横向滚动，未撑宽页面。
+- 回滚为通过 reviewed revert PR 回退前端，并用 `supabase/migrations/20261009170000_dashboard_email_activity_metrics.sql` 中上一版函数定义覆盖恢复；迁移不写邮件或客户业务行。剩余风险为同步完整度和审计分类依赖，0 值须结合邮箱连接与同步时间判断。

@@ -639,6 +639,9 @@
       .module-search-clear:hover { background:var(--soft); color:var(--ink); }
       .module-table-scroll { width:100%; overflow:auto; }
       #module-table { min-width:880px; }
+      #module-table.mailbox-calendar-table { min-width:1180px; }
+      #module-table.mailbox-calendar-table th,
+      #module-table.mailbox-calendar-table td { white-space:nowrap; }
       #module-table tbody tr[data-clickable="true"] { cursor:pointer; }
       #module-table tbody tr[data-clickable="true"]:hover td:first-child { color:#315f49; }
       #module-table tbody tr[data-clickable="true"]:hover { background:#fbfcfb; }
@@ -1471,6 +1474,7 @@
     </style>
   <link rel="stylesheet" href="./assets/agent-world.css?v=systems-inset-20261012" />
   <link rel="stylesheet" href="./assets/ui-contrast.css?v=20261012-feedback" />
+  <link rel="stylesheet" href="./assets/exhibition-calendar.css?v=20261013-2" />
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
@@ -1528,6 +1532,8 @@
           <i data-lucide="calendar-check"></i><span>今日工作台</span></button
         ><button class="nav" data-view="follow-calendar">
           <i data-lucide="calendar-days"></i><span>跟进日历</span></button
+        ><button class="nav" data-view="exhibition-calendar">
+          <i data-lucide="calendar-range"></i><span>展会日历</span></button
         ><button class="nav" data-view="marketing-center">
           <i data-lucide="list-checks"></i><span>市场任务中心</span></button
         ><button class="nav" data-view="ai-advisor">
@@ -1750,6 +1756,14 @@
           </div>
           </div>
         </section>
+        <section id="exhibition-calendar-page" class="page exhibition-page hidden">
+          <div class="heading exhibition-heading"><div><div class="eyebrow">MARKET INTELLIGENCE</div><h1>展会日历</h1><p>集中查看境外重点展会，提前安排参展、拜访和客户邀约。</p></div><div class="exhibition-note"><b>日期说明</b><br>绿色为官网已确认；黄色为规划日期，出行前请再次核对主办方官网。</div></div>
+          <section class="exhibition-stats" aria-label="展会摘要"><article class="exhibition-stat"><small>未来展会</small><b data-exhibition-stat="upcoming">—</b></article><article class="exhibition-stat"><small>90 天内</small><b data-exhibition-stat="soon">—</b></article><article class="exhibition-stat"><small>官网已确认</small><b data-exhibition-stat="verified">—</b></article><article class="exhibition-stat"><small>覆盖国家 / 地区</small><b data-exhibition-stat="countries">—</b></article></section>
+          <section class="exhibition-filters" aria-label="筛选展会"><input id="exhibition-search" class="input" type="search" placeholder="搜索展会、城市或国家" aria-label="搜索展会、城市或国家"><select id="exhibition-year" class="input" aria-label="年份"><option value="all">全部年份</option><option value="2026">2026 年</option><option value="2027">2027 年</option></select><select id="exhibition-region" class="input" aria-label="地区"><option value="all">全部地区</option><option>亚洲</option><option>欧洲</option><option>中东及非洲</option><option>北美洲</option><option>拉丁美洲</option><option>大洋洲</option></select><select id="exhibition-status" class="input" aria-label="进度"><option value="upcoming" selected>即将开始</option><option value="active">进行中</option><option value="past">已结束</option><option value="all">全部状态</option></select><select id="exhibition-verification" class="input" aria-label="日期确认状态"><option value="all">全部日期状态</option><option value="verified">官网已确认</option><option value="planned">规划日期</option></select></section>
+          <div class="exhibition-list-head"><h2>按月份查看</h2><div class="exhibition-legend"><i class="verified"></i>官网已确认　 <i class="planned"></i>规划日期</div></div>
+          <div id="exhibition-months"></div><div id="exhibition-empty" class="exhibition-empty hidden">没有符合当前筛选条件的展会</div>
+          <p class="exhibition-footnote">此页面仅展示公开展会信息。主办方可能调整日期、地点或场次，最终安排以官网为准。</p>
+        </section>
         <section id="marketing-center-page" class="page hidden">
           <div class="heading"><div><h1>市场任务中心</h1><p>官方询盘邮箱 inquiry@wonlyglobal.com · 从邮件接收、人工分拣、有效性判断、客户背调到提交主管分配</p></div></div>
           <div class="dashboard-toolbar card" style="margin-bottom:18px">
@@ -1831,7 +1845,7 @@
             <div id="email-class-tabs" class="email-class-tabs hidden" aria-label="邮件分类"></div>
             <div id="mailbox-folder-tabs" class="email-class-tabs hidden" aria-label="邮箱文件夹"><button class="email-class-tab active" type="button" data-mailbox-folder="inbox">收件箱</button><button class="email-class-tab" type="button" data-mailbox-folder="sent">已发送</button><button class="email-class-tab" type="button" data-mailbox-folder="scheduled">定时发送</button><button class="email-class-tab" type="button" data-mailbox-folder="all">全部邮件</button></div>
             <div id="mailbox-bulk-actions" class="email-triage-actions hidden" aria-label="CRM 邮件批量操作"><button id="mailbox-select-all" class="ghost" type="button">全选未读邮件（最多 200 封）</button><button id="mailbox-mark-read" class="primary" type="button">在 CRM 标记已读</button><span id="mailbox-selected-count" class="tag">已选 0 封</span><small class="hint">只更新 CRM 中本人的已读状态，不更改阿里邮箱原件。</small></div>
-            <div id="follow-calendar-tabs" class="email-class-tabs hidden" aria-label="跟进日历范围"><button class="email-class-tab active" type="button" data-calendar-range="week">本周</button><button class="email-class-tab" type="button" data-calendar-range="month">本月</button><button class="email-class-tab" type="button" data-calendar-range="overdue">已逾期</button></div>
+            <div id="follow-calendar-tabs" class="email-class-tabs hidden" aria-label="邮件跟进日历范围"><button class="email-class-tab active" type="button" data-calendar-range="week">本周</button><button class="email-class-tab" type="button" data-calendar-range="today">今日</button><button class="email-class-tab" type="button" data-calendar-range="month">本月</button></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
             <div class="module-table-scroll"><table id="module-table"><thead><tr id="module-head"></tr></thead><tbody id="module-body"></tbody></table></div>
@@ -2538,6 +2552,8 @@
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
       import {marketSummary} from './assets/agent-market-summary.mjs?v=20261012-market';
+      import {mountExhibitionCalendar} from './assets/exhibition-calendar.mjs?v=20261013-2';
+      let exhibitionCalendarController=null;
       import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow,currentQuestionWindow} from './assets/agent-question-windows.mjs?v=20261012-thread-state';
       import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261008-2';
       let graceMobile=null;
@@ -2697,13 +2713,13 @@
         sales: "销售",
       };
       const roleViewAccess = {
-        owner: new Set(["dashboard","sales-today","follow-calendar","marketing-center","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","risk-review","settings"]),
-        sales_manager: new Set(["dashboard","ai-advisor","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"]),
-        marketing: new Set(["dashboard","marketing-center","ai-advisor","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
-        sales: new Set(["dashboard","sales-today","follow-calendar","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
+        owner: new Set(["dashboard","sales-today","follow-calendar","exhibition-calendar","marketing-center","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","risk-review","settings"]),
+        sales_manager: new Set(["dashboard","exhibition-calendar","ai-advisor","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"]),
+        marketing: new Set(["dashboard","exhibition-calendar","marketing-center","ai-advisor","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
+        sales: new Set(["dashboard","sales-today","follow-calendar","exhibition-calendar","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
       const sidebarNavigationGroups = [
-        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","ai-advisor","sales-today","follow-calendar","marketing-center","daily"]},
+        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","ai-advisor","sales-today","follow-calendar","exhibition-calendar","marketing-center","daily"]},
         {key:"customers",label:"客户与商机",icon:"briefcase-business",views:["inquiries","customers","assignment","nurture","public-pool","research"]},
         {key:"communication",label:"沟通协作",icon:"messages-square",views:["mailbox","whatsapp","email","communications"]},
         {key:"sales-support",label:"销售支持",icon:"library-big",views:["templates","knowledge","quotes","fulfillment","legacy-projects"]},
@@ -2728,7 +2744,7 @@
         syncSidebarGroupBadges();
       }
       const roleGuideViewNames = {
-        dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
+        dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","exhibition-calendar":"展会日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
         {at:"2026-09-20 10:15",title:"新增风险审查中心第一阶段",detail:"老板可查看全公司、主管可查看本团队业务风险；确定性规则识别无人负责、首响逾期和跟进逾期，处置、解除和关闭均留不可删除事件记录。",roles:["owner","sales_manager"]},
@@ -4342,7 +4358,7 @@
             ? ["客户管理", "统一管理本人负责的公司、联系人、商机和全部渠道跟进", "本人客户"]
             : ["客户管理", "按权限统一查看公司、联系人、商机及跨渠道客户记录", "可见客户"],
           "sales-today": ["今日工作台", "仅展示主管分配的询盘，以及已关联询盘的真实客户新回复", "销售任务"],
-          "follow-calendar": ["跟进日历", "按周、月查看本人计划跟进任务，逾期任务单独汇总", "跟进计划"],
+          "follow-calendar": ["跟进日历", "按天查看每位业务员的开发信、客户来信和邮件回复情况", "每日邮件跟进"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
           communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
           mailbox: ["我的邮箱", "与个人阿里邮箱双向同步；可直接收件、写信、查看已发送并回复客户", "邮件列表"],
@@ -4416,6 +4432,7 @@
         $("#inquiry-archive-toggle").textContent=activeInquiryArchive?"返回全部询盘":"询盘回收站";
         $("#inquiry-stage-tabs").classList.toggle("hidden",activeInquiryArchive);
         $("#follow-calendar-tabs").classList.toggle("hidden",view!=="follow-calendar");
+        $("#module-table").classList.toggle("mailbox-calendar-table",view==="follow-calendar");
         selectedEmailIntakeIds.clear();syncEmailSelectionState();
         selectedMailboxMessageIds.clear();$("#mailbox-selected-count").textContent="已选 0 封";
         $("#inquiry-filter-group").classList.toggle("hidden", view !== "inquiries");
@@ -4458,7 +4475,7 @@
         if (view === "whatsapp") modulePrimary.textContent = "配置 WhatsApp 通道";
         if (view === "templates") modulePrimary.textContent = "+ 新建模板";
         if (view === "knowledge") modulePrimary.textContent = "+ 新建知识";
-        if (view === "follow-calendar") modulePrimary.textContent = "+ 新增每日计划";
+        if (view === "follow-calendar") { modulePrimary.textContent = "进入我的邮箱"; modulePrimary.onclick = () => loadModule("mailbox"); }
         if (view === "performance-360") modulePrimary.textContent = "+ 创建影子评分周期";
         if (view === "risk-review") modulePrimary.textContent = "运行风险扫描";
         const denied = !canAccessView(view);
@@ -4490,7 +4507,7 @@
           return;
         }
         let query, columns, mapper, clickable = false, ownerNames = {}, todayTaskCounts = null, mailboxScheduledView = false, mailboxTemplateView = false, publicPoolRequests = [], publicPoolRequestError = null;
-        if(["sales-today","follow-calendar"].includes(view)){
+        if(view==="sales-today"){
           const rollover=await runModuleQuery(supabase.rpc("rollover_my_follow_up_tasks"),2);
           if(rollover.error)console.warn("跟进任务自动顺延失败",rollover.error);
           else if(Number(rollover.data)>0)toast(`已将 ${rollover.data} 条未完成任务顺延到今日`);
@@ -4579,24 +4596,31 @@
             }
           }
         } else if(view==="follow-calendar"){
-          const now=new Date(),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);
-          if(followCalendarRange==="week")end.setDate(start.getDate()+7);
-          else if(followCalendarRange==="month"){start.setDate(1);end.setMonth(start.getMonth()+1);end.setDate(1)}
-          const calendarQueryFactory=(from,to)=>{let q=supabase.from("follow_ups").select("id,inquiry_id,method,content,customer_feedback,next_follow_up_at,completed_at,completion_status,created_at,priority,remind_at,original_due_at,rollover_count,inquiries(inquiry_no,title,status,owner_id,target_country)").eq("author_id",profile.id).not("next_follow_up_at","is",null).order("priority",{ascending:true}).order("next_follow_up_at",{ascending:true}).range(from,to);return followCalendarRange==="overdue"?q.is("completed_at",null).lt("next_follow_up_at",now.toISOString()):q.gte("next_follow_up_at",start.toISOString()).lt("next_follow_up_at",end.toISOString())};
-          const dateText=value=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(value),todayDate=dateText(now),dailyPlanQueryFactory=(from,to)=>{let q=supabase.from("sales_daily_plans").select("id,inquiry_id,plan_date,planned_at,title,priority,key_result,completed_at,created_at,inquiries(inquiry_no,title,status,owner_id,target_country)").eq("owner_id",profile.id).order("plan_date",{ascending:true}).order("planned_at",{ascending:true}).range(from,to);return followCalendarRange==="overdue"?q.is("completed_at",null).lt("plan_date",todayDate):q.gte("plan_date",dateText(start)).lt("plan_date",dateText(end))};
-          query=(async()=>{const [followResult,planResult]=await Promise.all([loadModuleRowsPaged(calendarQueryFactory),loadModuleRowsPaged(dailyPlanQueryFactory)]);if(followResult.error||planResult.error)return {data:null,error:followResult.error||planResult.error};return {data:[...(planResult.data||[]).map(item=>({...item,calendar_type:"daily_plan"})),...(followResult.data||[]).map(item=>({...item,calendar_type:"follow_up"}))],error:null}})();columns=["计划时间","优先级","提醒","询盘","国家/地区","类型","计划/跟进事项","关键成果","顺延","状态","操作"];
-          mapper=(x)=>{
-            const inquiry=Array.isArray(x.inquiries)?x.inquiries[0]:x.inquiries;
-            if(x.calendar_type==="daily_plan"){
-              const overdue=!x.completed_at&&x.plan_date<todayDate,actions=[{label:x.completed_at?"修改成果":"填写成果",onClick:()=>writeDailyPlanResult(x)}];
-              if(x.inquiry_id)actions.push({label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)});
-              return{id:x.inquiry_id||x.id,meta:{risk:overdue},cells:[x.planned_at?fmtDate(x.planned_at):x.plan_date,{high:"高",normal:"普通",low:"低"}[x.priority]||"普通","—",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"未关联",displayCountry(inquiry?.target_country),"每日计划",x.title,x.key_result||"待填写","—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions};
+          const now=new Date(),dateText=value=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(value),todayDate=dateText(now),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);
+          if(followCalendarRange==="today")end.setDate(start.getDate()+1);
+          else if(followCalendarRange==="week"){start.setDate(start.getDate()-6);end.setDate(end.getDate()+1)}
+          else {start.setDate(1);end.setMonth(start.getMonth()+1);end.setDate(1)}
+          const monthKeys=[...new Set([dateText(start).slice(0,7),dateText(new Date(end.getTime()-1)).slice(0,7)])];
+          query=(async()=>{
+            const results=await Promise.all(monthKeys.map(month=>runModuleQuery(supabase.rpc("get_sales_email_activity_metrics",{target_period_start:`${month}-01`}),2)));
+            const failed=results.find(result=>result.error);if(failed)return failed;
+            const peopleMap=new Map(),dailyMap=new Map();
+            results.forEach(({data})=>{(data?.people||[]).forEach(person=>peopleMap.set(person.sales_id,person));(data?.daily||[]).forEach(day=>dailyMap.set(`${day.day}|${day.sales_id}`,day))});
+            const rows=[];
+            for(let cursor=new Date(start);cursor<end;cursor.setDate(cursor.getDate()+1)){
+              const day=dateText(cursor);
+              [...peopleMap.values()].sort((a,b)=>String(a.sales_name||"").localeCompare(String(b.sales_name||""),"zh-CN")).forEach(person=>{
+                const activity=dailyMap.get(`${day}|${person.sales_id}`)||{};
+                rows.push({...person,day,total_sent:Number(activity.total_sent||0),total_received:Number(activity.total_received||0),development_sent:Number(activity.development_sent||0),customer_inbound:Number(activity.customer_inbound||0),reply_sent:Number(activity.reply_sent||0),is_today:day===todayDate});
+              });
             }
-            const overdue=!x.completed_at&&new Date(x.next_follow_up_at)<new Date(),actions=[];
-            if(!x.completed_at)actions.push({label:"完成任务",onClick:()=>completeFollowUpFromCalendar(x)});
-            actions.push({label:"打开询盘",onClick:()=>openInquiryDetail(x.inquiry_id)});
-            return{id:x.inquiry_id,meta:{risk:overdue},cells:[fmtDate(x.next_follow_up_at),{high:"高",normal:"普通",low:"低"}[x.priority]||"普通",x.remind_at?fmtDate(x.remind_at):"未设置",inquiry?`#${String(inquiry.inquiry_no||"").padStart(6,"0")} · ${inquiry.title}`:"询盘不可见",displayCountry(inquiry?.target_country),x.method||"客户跟进",x.content||"跟进客户",x.customer_feedback||"—",x.rollover_count?`${x.rollover_count} 次` : "—",x.completed_at?"已完成":overdue?"已逾期":"待完成"],actions};
-          };clickable=true;
+            return {data:rows};
+          })();
+          columns=["日期","业务员","阿里邮箱收件","阿里邮箱发件","开发信","客户来信","业务员回复","当前待回复","超 24 小时","邮箱同步","当日情况"];
+          mapper=x=>{
+            const status=x.total_sent+x.total_received===0?"无邮件活动":x.is_today&&x.overdue_replies>0?"有超时待处理":x.is_today&&x.pending_replies>0?"有待回复":"收发正常",mailboxState={connected:"已连接",error:"同步异常",not_connected:"未连接"}[x.mailbox_status]||x.mailbox_status||"未连接",mailbox=x.last_synced_at?`${mailboxState} · ${fmtDate(x.last_synced_at)}`:mailboxState;
+            return{meta:{risk:x.is_today&&Number(x.overdue_replies)>0,searchText:`${x.day} ${x.sales_name} ${status}`},cells:[x.day,x.sales_name,String(x.total_received),String(x.total_sent),String(x.development_sent),String(x.customer_inbound),String(x.reply_sent),x.is_today?String(x.pending_replies||0):"—",x.is_today?String(x.overdue_replies||0):"—",mailbox,`${x.total_received} 收 · ${x.total_sent} 发 · ${status}`]};
+          };
         } else if (["inquiries", "assignment", "nurture", "public-pool", "quotes"].includes(view)) {
           if(view==="public-pool"){
             const requestResult=await loadModuleRowsPaged((from,to)=>supabase.from("inquiry_public_pool_requests").select("id,inquiry_id,requested_by,request_type,reason,status,review_reason,created_at,profiles!inquiry_public_pool_requests_requested_by_fkey(full_name)").eq("status","pending").order("created_at",{ascending:true}).range(from,to));
@@ -4766,8 +4790,8 @@
           icons();
           return;
         }
-        if (["inquiries", "assignment", "nurture", "public-pool"].includes(view)) {
-          const ownerIds = [...new Set((data || []).map((item) => item.owner_id).filter(Boolean))];
+        if (["inquiries", "assignment", "nurture", "public-pool", "follow-calendar"].includes(view)) {
+          const ownerIds = [...new Set((data || []).flatMap((item) => view==="follow-calendar"?[item.owner_id,item.author_id,Array.isArray(item.inquiries)?item.inquiries[0]?.owner_id:item.inquiries?.owner_id]:[item.owner_id]).filter(Boolean))];
           if (ownerIds.length) {
             try {
               const { data: owners } = await runModuleQuery(supabase.from("profiles").select("id,full_name").in("id", ownerIds), 2);
@@ -5226,7 +5250,7 @@
       function enterAgentWorld(){
         if(window.CRM_EMBED||!canUseAgentWorld(profile,currentAuthUser))return false;
         $('#app').classList.add('agent-world-active');$('#agent-world-page').classList.remove('hidden');
-        ['dashboard-page','marketing-center-page','module-page','sales-profile-page','ai-advisor-page','daily-modal','detail-modal'].forEach(id=>$('#'+id)?.classList.add('hidden'));
+        ['dashboard-page','exhibition-calendar-page','marketing-center-page','module-page','sales-profile-page','ai-advisor-page','daily-modal','detail-modal'].forEach(id=>$('#'+id)?.classList.add('hidden'));
         $('#ai-assistant-open').classList.add('hidden');
         if(!worldController)worldController=mountAgentWorld($('#agent-world-page'),{isAllowed:()=>canUseAgentWorld(profile,currentAuthUser),getLive:name=>canUseAgentWorld(profile,currentAuthUser)?worldLiveBoard(name,seoDashboardState):null,onSelect:(name,slot)=>{
           if(!canUseAgentWorld(profile,currentAuthUser))return;
@@ -5268,6 +5292,7 @@
         setActiveNavigation(view);
         if (view === "daily") {
           $("#dashboard-page").classList.add("hidden");
+          $("#exhibition-calendar-page").classList.add("hidden");
           $("#marketing-center-page").classList.add("hidden");
           $("#ai-advisor-page").classList.add("hidden");
           $("#module-page").classList.add("hidden");
@@ -5275,11 +5300,13 @@
           return;
         }
         $("#daily-modal").classList.add("hidden");
-        const dashboard = view === "dashboard", marketingCenter=view==="marketing-center",advisor=view==="ai-advisor";
+        const dashboard = view === "dashboard", exhibitionCalendar=view==="exhibition-calendar",marketingCenter=view==="marketing-center",advisor=view==="ai-advisor";
         $("#dashboard-page").classList.toggle("hidden", !dashboard);
+        $("#exhibition-calendar-page").classList.toggle("hidden",!exhibitionCalendar);
         $("#marketing-center-page").classList.toggle("hidden",!marketingCenter);
         $("#ai-advisor-page").classList.toggle("hidden",!advisor);
-        $("#module-page").classList.toggle("hidden",dashboard||marketingCenter||advisor);
+        $("#module-page").classList.toggle("hidden",dashboard||exhibitionCalendar||marketingCenter||advisor);
+        if(exhibitionCalendar){exhibitionCalendarController??=mountExhibitionCalendar($("#exhibition-calendar-page"));exhibitionCalendarController.render();return}
         if(marketingCenter){renderMarketingWorkbench(dashboardState.rows);return}
         if(advisor){renderAdvisor();return}
         if (!dashboard) await loadModule(view, options);
@@ -6036,7 +6063,7 @@
         const member=dashboardState.profiles.find(x=>x.id===userId);if(!member)return toast("未找到该成员数据");
         const allowed=profile.id===userId||["owner","marketing","sales_manager"].includes(profile.role);if(!allowed)return toast("当前账号无权查看该业务员主页");
         const {start,end}=dashboardRange(),allInquiries=dashboardState.rows.filter(x=>x.owner_id===userId),commercial=allInquiries.filter(x=>x.validity==="valid"),commercialIds=new Set(commercial.map(x=>x.id)),periodInquiries=allInquiries.filter(x=>inRange(x.created_at,start,end)),valid=periodInquiries.filter(x=>x.validity==="valid"),closed=valid.filter(x=>["won","lost"].includes(x.status)),won=valid.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,start,end)),assigned=valid.filter(x=>x.assigned_at),responded=assigned.filter(x=>x.first_valid_contact_at),fast=responded.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000),overdue=commercial.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&Date.now()-new Date(x.assigned_at)>1800000),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]),amount=sumWonCny(won),usd=fxToCny("USD")||0,memberFollowups=(dashboardState.followups||[]).filter(x=>x.author_id===userId&&commercialIds.has(x.inquiry_id)),lateTasks=memberFollowups.filter(x=>x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<new Date());
-        $("#dashboard-page").classList.add("hidden");$("#marketing-center-page").classList.add("hidden");$("#ai-advisor-page").classList.add("hidden");$("#module-page").classList.add("hidden");$("#sales-profile-page").classList.remove("hidden");
+        $("#dashboard-page").classList.add("hidden");$("#exhibition-calendar-page").classList.add("hidden");$("#marketing-center-page").classList.add("hidden");$("#ai-advisor-page").classList.add("hidden");$("#module-page").classList.add("hidden");$("#sales-profile-page").classList.remove("hidden");
         currentSalesProfileUserId=userId;setMemberAvatar($("#sales-profile-avatar"),member,"销");$("#sales-profile-avatar").disabled=userId!==profile.id;$("#sales-profile-avatar-hint").classList.toggle("hidden",userId!==profile.id);$("#sales-profile-name").textContent=`${member.full_name} · 个人业务主页`;$("#sales-profile-meta").textContent=[member.english_name,member.job_title||roleNames[member.role],member.team,member.email].filter(Boolean).join(" · ");$("#sales-profile-period").textContent=`${start.toLocaleDateString("zh-CN")}—${end.toLocaleDateString("zh-CN")}`;
         const kpis=[["询盘处理量",responded.length],["30分钟首次响应率",pct(fast.length,assigned.length)],["平均首次响应",mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN)],["有效询盘率",pct(valid.length,periodInquiries.filter(x=>x.validity!=="pending").length)],["报价率",pct(valid.filter(x=>quotedStages.has(x.status)).length,valid.length)],["成交率",pct(won.length,closed.length)],["成交额",`${money(amount,"CNY")}${usd?` / ${money(amount/usd,"USD")}`:""}`],["响应超时",overdue.length],["逾期跟进",lateTasks.length]];
         $("#sales-profile-kpis").innerHTML=kpis.map(([label,value],i)=>`<div class="card"><div class="kpi-label">${label}</div><div class="kpi-value ${i>6&&Number(value)>0?"danger-text":""}">${value}</div></div>`).join("");
@@ -6593,6 +6620,7 @@
         // asynchronous list loading so startup/dashboard work cannot overwrite it.
         setActiveNavigation("inquiries");
         $("#dashboard-page").classList.add("hidden");
+        $("#exhibition-calendar-page").classList.add("hidden");
         $("#marketing-center-page").classList.add("hidden");
         $("#ai-advisor-page").classList.add("hidden");
         $("#module-page").classList.add("hidden");
@@ -7505,6 +7533,7 @@
         currentInquiry = null;
         if (detailOriginView === "sales-profile") {
           $("#dashboard-page").classList.add("hidden");
+          $("#exhibition-calendar-page").classList.add("hidden");
           $("#marketing-center-page").classList.add("hidden");
           $("#ai-advisor-page").classList.add("hidden");
           $("#module-page").classList.add("hidden");
@@ -7514,9 +7543,10 @@
         const activeView = detailOriginView&&detailOriginView!=="sales-profile"?detailOriginView:($(".nav[data-view].active")?.dataset.view||"dashboard");
         setActiveNavigation(activeView);
         $("#dashboard-page").classList.toggle("hidden", activeView !== "dashboard");
+        $("#exhibition-calendar-page").classList.toggle("hidden",activeView!=="exhibition-calendar");
         $("#marketing-center-page").classList.toggle("hidden",activeView!=="marketing-center");
         $("#ai-advisor-page").classList.toggle("hidden",activeView!=="ai-advisor");
-        $("#module-page").classList.toggle("hidden", activeView === "dashboard"||activeView==="marketing-center"||activeView==="ai-advisor");
+        $("#module-page").classList.toggle("hidden", activeView === "dashboard"||activeView==="exhibition-calendar"||activeView==="marketing-center"||activeView==="ai-advisor");
       }
       $("#close-detail").addEventListener("click", () => {
         if (location.hash.startsWith("#inquiry/")) history.back();

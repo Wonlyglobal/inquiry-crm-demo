@@ -437,3 +437,12 @@
 - 数据库：生产项目 `plhverjihjilnuhlhlxi` 已应用迁移 `supabase/migrations/20261013093000_reassign_open_followup_tasks.sql`。迁移仅同步未完成任务（`is_task=true` 且 `completed_at is null`），保留已完成跟进和沟通记录的原作者；今后 `inquiries.owner_id` 变化时由 `private.sync_open_followup_task_owner()` 自动同步任务负责人。
 - 生产验证：`sync_open_followup_task_owner` 触发器已启用；询盘 `#000082` 的询盘负责人和任务负责人均为“李文生”；对应任务存在 1 条 `task_reassigned` 审计记录。前端生产日历此前已核验显示“李文生”。
 - 回滚方式：经批准后删除 `public.inquiries` 上的 `sync_open_followup_task_owner` 触发器及 `private.sync_open_followup_task_owner()` 函数；如需回滚已迁移任务，按 `audit_logs.before_data.author_id` 恢复相关未完成任务负责人并记录新的审计原因。剩余风险：以后转派会移动所有未完成任务给新负责人，这是当前业务规则；已完成历史仍保留原作者，避免改写历史证据。
+
+## 2026-10-13 阿里邮箱每日收发跟踪（生产已发布）
+
+- 授权人：项目负责人（用户明确“批准”）；执行人：Codex；目标：生产 Supabase 项目 `plhverjihjilnuhlhlxi` 与 `https://crm.foreverdoodle.com/`；执行时间：2026-10-13 09:45—09:47（Asia/Shanghai）；原因：将“跟进日历”改为每天跟踪业务员阿里邮箱收发、开发信、客户来信和回复情况。
+- 前状态：跟进日历仍展示人工计划任务；邮件活动 RPC 的 daily 数据只有 CRM 开发信与已关联客户来信，缺少个人阿里邮箱总收件、总发件和 CRM 回复数。后状态：页面按“日期 × 授权范围内业务员”展示阿里邮箱收件、发件、开发信、客户来信、CRM 回复、待回复、超 24 小时与同步状态，并支持本周、今日、本月切换；无活动日期显示 0。
+- 权限与隐私：沿用 owner 全部在职业务员、sales_manager 本团队、sales 本人的既有范围。函数仅返回计数、姓名和同步状态，不返回邮件正文、主题、邮箱地址或客户明细；`SECURITY DEFINER=true`、固定空 `search_path`，仅 authenticated 可执行，anon 不可执行；不改评分、排名、询盘归属或邮件内容。
+- 发布与验证：PR #239 合并提交为 `ffb7e73713272e9ebc25eec9aee8767e06326921`；GitHub Pages 工作流 `38333634654` 和安全工作流 `38333635028` 均成功。完整离线回归 794/794 与 `git diff --check` 通过。生产迁移执行成功后，catalog 核验新字段 `total_sent` 已存在且 ACL 保持 `postgres`/`authenticated`；已登录运营经理打开生产“跟进日历”返回本周 104 条记录，真实样本包含李文生、刘智、石奕舒、王大平等人的收发数量，邮箱同步时间也正常显示。SQL Editor 无登录 JWT，直接调用角色受限函数按设计被拒绝；真实业务账号页面调用成功，构成角色验收。表格宽列在卡片内横向滚动，页面未发生整体横向溢出。
+- 回滚方式：通过 reviewed revert PR 回退 PR #239 前端；将生产函数替换为 `supabase/migrations/20261009170000_dashboard_email_activity_metrics.sql` 中上一版定义，随后执行 `notify pgrst,'reload schema'`。迁移仅替换只读聚合函数，不写业务行，因此无需恢复邮件、客户、评分或排名数据。
+- 剩余风险：统计依赖个人邮箱同步完整度和时间戳；总收发包含个人邮箱已同步的全部邮件，可能含非客户邮件；开发信与 CRM 回复分类依赖对应审计事件。0 既可能代表当日无邮件，也可能是邮箱未连接或尚未同步，必须结合“邮箱同步”列判断。

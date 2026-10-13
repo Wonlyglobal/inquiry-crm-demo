@@ -28,8 +28,14 @@ test("global lock and access-control exhibitions are included from official sour
 
 test("registration countdown never invents an unpublished deadline",()=>{
   const today=new Date("2026-10-13T12:00:00+08:00"),intersec=EXHIBITION_EVENTS.find(event=>event.name==="Intersec Global 2027");
-  assert.deepEqual(registrationStatus(intersec,today),{kind:"open",text:"观众注册已开放；官网未公布截止日"});
+  assert.equal(registrationStatus(intersec,today),null);
   assert.deepEqual(registrationStatus({start:"2026-12-10",end:"2026-12-12",registrationDeadline:"2026-11-12"},today),{kind:"urgent",text:"距报名截止 30 天 · 2026-11-12"});
+});
+
+test("registration rows stay hidden when no concrete registration date exists",()=>{
+  const today=new Date("2026-10-13T12:00:00+08:00");
+  assert.ok(EXHIBITION_EVENTS.every(event=>event.registrationDeadline===null));
+  assert.ok(EXHIBITION_EVENTS.every(event=>registrationStatus(event,today)===null));
 });
 
 test("every exhibition logo is bundled with the production site",async()=>{

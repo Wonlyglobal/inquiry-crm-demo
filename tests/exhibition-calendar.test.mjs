@@ -1,18 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {access} from "node:fs/promises";
 import {EXHIBITION_EVENTS,eventState,filterExhibitions,formatEventRange,groupExhibitionsByMonth} from "../assets/exhibition-calendar.mjs";
 
 test("production calendar exposes only the public event schema",()=>{
   assert.equal(EXHIBITION_EVENTS.length,28);
-  const allowed=["id","start","end","name","city","country","region","category","url","verified","frequency","statsYear","exhibitors","visitors","metricsNote"];
+  const allowed=["id","start","end","name","city","country","region","category","url","verified","frequency","statsYear","exhibitors","visitors","metricsNote","logo","registration"];
   for(const event of EXHIBITION_EVENTS){
     assert.deepEqual(Object.keys(event).sort(),allowed.sort());
     assert.match(event.url,/^https:\/\//);
     assert.ok(event.start<=event.end);
     assert.ok(event.frequency&&event.statsYear&&event.metricsNote);
+    assert.match(event.logo,/^\.\/assets\/exhibition-logos\/[a-z0-9.-]+$/);
+    assert.equal(event.registration,"官网未公布具体报名起止时间");
     assert.ok(event.exhibitors===null||typeof event.exhibitors==="number"||typeof event.exhibitors==="string");
     assert.ok(event.visitors===null||typeof event.visitors==="number"||typeof event.visitors==="string");
   }
+});
+
+test("every exhibition logo is bundled with the production site",async()=>{
+  await Promise.all(EXHIBITION_EVENTS.map(event=>access(new URL(`../${event.logo.slice(2)}`,import.meta.url))));
 });
 
 test("official date corrections are represented",()=>{

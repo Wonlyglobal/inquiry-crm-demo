@@ -31,6 +31,10 @@ const PUBLIC_EVENT_METRICS = [
   ["2027 两期","2026 预告",1100,null,"参展企业；观众未披露"],
 ];
 
+const EVENT_LOGOS = [
+  "bex.ico","batimat.ico","acetech.png","uzstroy.png","big5-global.png","construtec.ico","acetech.png","big5-global.png","london-build.ico","melbourne-build.ico","japan-build.ico","buildings-show.ico","acetech.png","bau.ico","ibs.ico","worldbex.png","uzbuild.ico","mosbuild.ico","turkeybuild.webp","architect.png","sydney-build.ico","batimatec.png","expoconstruccion.ico","big5-global.png","hotel-show.svg","big5-global.png","archidex.png","big5-global.png",
+];
+
 export const EXHIBITION_EVENTS = [
   ["2026-09-02","2026-09-04","BEX Asia","新加坡","新加坡","亚洲","建筑与绿色建筑","https://www.bex-asia.com/",false],
   ["2026-09-28","2026-10-01","BATIMAT","巴黎","法国","欧洲","建筑与建材","https://www.batimat.com/",false],
@@ -60,7 +64,7 @@ export const EXHIBITION_EVENTS = [
   ["2027-06-08","2027-06-10","Big 5 Construct South Africa","约翰内斯堡","南非","中东及非洲","建筑与建材","https://www.big5constructsouthafrica.com/",true],
   ["2027-06-30","2027-07-03","ARCHIDEX","吉隆坡","马来西亚","亚洲","建筑与设计","https://archidex.com.my/",false],
   ["2027-09-19","2027-09-22","Big 5 Construct Saudi · September","利雅得","沙特阿拉伯","中东及非洲","建筑与建材","https://www.big5constructsaudi.com/event-info/",true],
-].map(([start,end,name,city,country,region,category,url,verified],index)=>{const [frequency,statsYear,exhibitors,visitors,metricsNote]=PUBLIC_EVENT_METRICS[index];return{id:index+1,start,end,name,city,country,region,category,url,verified,frequency,statsYear,exhibitors,visitors,metricsNote}});
+].map(([start,end,name,city,country,region,category,url,verified],index)=>{const [frequency,statsYear,exhibitors,visitors,metricsNote]=PUBLIC_EVENT_METRICS[index];return{id:index+1,start,end,name,city,country,region,category,url,verified,frequency,statsYear,exhibitors,visitors,metricsNote,logo:`./assets/exhibition-logos/${EVENT_LOGOS[index]}`,registration:"官网未公布具体报名起止时间"}});
 
 const localDate = value => new Date(`${value}T00:00:00`);
 const dateKey = date => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
@@ -96,6 +100,7 @@ export function mountExhibitionCalendar(root,{today=()=>new Date()}={}){
   const currentYear=String(today().getFullYear());year.value=[...year.options].some(option=>option.value===currentYear)?currentYear:"all";
   const make=(tag,className,text)=>{const el=document.createElement(tag);if(className)el.className=className;if(text!==undefined)el.textContent=text;return el};
   const metricValue=value=>value===null||value===undefined?"待补充":typeof value==="number"?value.toLocaleString("zh-CN"):String(value);
+  const registrationText=(event,now)=>{const state=eventState(event,now);return state==="past"?"本届报名已结束":state==="active"?"展会进行中，报名以官网为准":event.registration};
   function render(){
     const now=today(),visible=filterExhibitions(EXHIBITION_EVENTS,{keyword:keyword.value,year:year.value,region:region.value,status:status.value,verification:verification.value},now),future=EXHIBITION_EVENTS.filter(event=>eventState(event,now)!=="past"),in90=future.filter(event=>(localDate(event.start)-now)/DAY<=90),countries=new Set(future.map(event=>event.country));
     root.querySelector("[data-exhibition-stat=upcoming]").textContent=future.length;
@@ -107,12 +112,13 @@ export function mountExhibitionCalendar(root,{today=()=>new Date()}={}){
       const section=make("section","exhibition-month"),label=make("div","exhibition-month-label"),cards=make("div","exhibition-events");
       label.append(make("b","",fmtMonth(month)),make("span","",`${events.length} 场展会`));
       events.forEach(event=>{
-        const card=make("article","exhibition-event"),date=make("div","exhibition-date"),body=make("div","exhibition-event-body"),head=make("div","exhibition-event-head"),title=make("h3","",event.name),badge=make("span",`exhibition-badge ${event.verified?"verified":"planned"}`,event.verified?"官网已确认":"规划日期"),range=make("div","exhibition-range",formatEventRange(event)),meta=make("div","exhibition-meta"),metrics=make("div","exhibition-metrics"),note=make("small","exhibition-metrics-note",`${event.statsYear} · ${event.metricsNote}`),link=make("a","exhibition-link","查看主办方官网 ↗");
+        const card=make("article","exhibition-event"),date=make("div","exhibition-date"),body=make("div","exhibition-event-body"),head=make("div","exhibition-event-head"),brand=make("div","exhibition-brand"),logoWrap=make("span","exhibition-logo"),logo=document.createElement("img"),title=make("h3","",event.name),badge=make("span",`exhibition-badge ${event.verified?"verified":"planned"}`,event.verified?"官网已确认":"规划日期"),range=make("div","exhibition-range",formatEventRange(event)),meta=make("div","exhibition-meta"),metrics=make("div","exhibition-metrics"),note=make("small","exhibition-metrics-note",`${event.statsYear} · ${event.metricsNote}`),registration=make("div","exhibition-registration",`报名时间：${registrationText(event,now)}`),link=make("a","exhibition-link","查看主办方官网 ↗");
+        logo.src=event.logo;logo.alt=`${event.name} Logo`;logo.loading="lazy";logo.addEventListener("error",()=>{logoWrap.textContent=event.name.slice(0,2).toUpperCase();logoWrap.classList.add("fallback")},{once:true});logoWrap.append(logo);brand.append(logoWrap,title);
         date.append(make("strong","",String(Number(event.start.slice(8,10))).padStart(2,"0")),make("span","",`${Number(event.start.slice(5,7))} 月`));
-        head.append(title,badge);meta.append(make("span","",`${event.country} · ${event.city}`),make("span","",event.category));
+        head.append(brand,badge);meta.append(make("span","",`${event.country} · ${event.city}`),make("span","",event.category));
         link.href=event.url;link.target="_blank";link.rel="noopener noreferrer";
         [["举办频率",event.frequency],["参展商 / 品牌",metricValue(event.exhibitors)],["观众 / 人次",metricValue(event.visitors)]].forEach(([label,value])=>{const item=make("div","exhibition-metric");item.append(make("small","",label),make("b","",value));metrics.append(item)});
-        body.append(head,range,meta,metrics,note,link);card.append(date,body);cards.append(card);
+        body.append(head,range,meta,metrics,note,registration,link);card.append(date,body);cards.append(card);
       });section.append(label,cards);list.append(section);
     });
   }

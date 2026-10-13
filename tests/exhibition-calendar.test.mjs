@@ -4,11 +4,14 @@ import {EXHIBITION_EVENTS,eventState,filterExhibitions,formatEventRange,groupExh
 
 test("production calendar exposes only the public event schema",()=>{
   assert.equal(EXHIBITION_EVENTS.length,28);
-  const allowed=["id","start","end","name","city","country","region","category","url","verified"];
+  const allowed=["id","start","end","name","city","country","region","category","url","verified","frequency","statsYear","exhibitors","visitors","metricsNote"];
   for(const event of EXHIBITION_EVENTS){
     assert.deepEqual(Object.keys(event).sort(),allowed.sort());
     assert.match(event.url,/^https:\/\//);
     assert.ok(event.start<=event.end);
+    assert.ok(event.frequency&&event.statsYear&&event.metricsNote);
+    assert.ok(event.exhibitors===null||typeof event.exhibitors==="number"||typeof event.exhibitors==="string");
+    assert.ok(event.visitors===null||typeof event.visitors==="number"||typeof event.visitors==="string");
   }
 });
 

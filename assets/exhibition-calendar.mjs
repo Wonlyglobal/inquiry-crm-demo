@@ -1,5 +1,36 @@
 const DAY = 86400000;
 
+const PUBLIC_EVENT_METRICS = [
+  ["每年","2026 预告",248,10000,"品牌 / 预计专业观众"],
+  ["每两年","2024 实际",1351,94680,"BATIMAT 单展独立观众"],
+  ["每年","2026 预告",500,25000,"参展品牌 / 预计行业人士"],
+  ["每年","2025 预告",200,null,"同期展合计；观众未披露"],
+  ["每年","2025 宣传口径",150,9000,"预计规模"],
+  ["每两年","2024 实际",560,46737,"四个同期展合计"],
+  ["每年","原规划资料",500,300000,"预计值，待主办方复核"],
+  ["每年","2025 实际",2866,85093,"全球展商 / 全球到场人次"],
+  ["每年","2026 预告",650,45000,"预计行业人士"],
+  ["每年","原规划资料",320,15000,"同期多展宣传口径"],
+  ["每年","2025 实际",548,33618,"东京展"],
+  ["每年","原规划资料",700,18000,"待主办方复核"],
+  ["每年","原规划资料",1450,120000,"单站或系列合计待复核"],
+  ["每两年","2025 实际",2230,180000,"专业观众"],
+  ["每年","2025 实际",1800,81000,"IBS 单展"],
+  ["每年","原规划资料",900,85000,"待主办方复核"],
+  ["每年","2025 实际",418,17000,"官方新闻口径"],
+  ["每年","2025 实际",1300,80748,"展商为会前口径；观众为会后实际"],
+  ["每年","原规划资料",null,43000,"第 49 届宣传口径"],
+  ["每年","原规划资料",null,null,"约 55,000㎡；人数待官网补充"],
+  ["每年","原规划资料",708,24753,"宣传口径"],
+  ["每年","原规划资料",1300,"60,000–80,000","宣传区间"],
+  ["每两年","原规划资料","415–550",31600,"国际品牌 / 专业观众"],
+  ["2027 两期","2026 预告",1100,null,"参展企业；观众未披露"],
+  ["每年","原规划资料",600,30000,"同期联动展宣传口径"],
+  ["每年","原规划资料",300,12000,"参展企业 / 专业观众"],
+  ["每年","原规划资料",900,34000,"宣传口径"],
+  ["2027 两期","2026 预告",1100,null,"参展企业；观众未披露"],
+];
+
 export const EXHIBITION_EVENTS = [
   ["2026-09-02","2026-09-04","BEX Asia","新加坡","新加坡","亚洲","建筑与绿色建筑","https://www.bex-asia.com/",false],
   ["2026-09-28","2026-10-01","BATIMAT","巴黎","法国","欧洲","建筑与建材","https://www.batimat.com/",false],
@@ -29,7 +60,7 @@ export const EXHIBITION_EVENTS = [
   ["2027-06-08","2027-06-10","Big 5 Construct South Africa","约翰内斯堡","南非","中东及非洲","建筑与建材","https://www.big5constructsouthafrica.com/",true],
   ["2027-06-30","2027-07-03","ARCHIDEX","吉隆坡","马来西亚","亚洲","建筑与设计","https://archidex.com.my/",false],
   ["2027-09-19","2027-09-22","Big 5 Construct Saudi · September","利雅得","沙特阿拉伯","中东及非洲","建筑与建材","https://www.big5constructsaudi.com/event-info/",true],
-].map(([start,end,name,city,country,region,category,url,verified],index)=>({id:index+1,start,end,name,city,country,region,category,url,verified}));
+].map(([start,end,name,city,country,region,category,url,verified],index)=>{const [frequency,statsYear,exhibitors,visitors,metricsNote]=PUBLIC_EVENT_METRICS[index];return{id:index+1,start,end,name,city,country,region,category,url,verified,frequency,statsYear,exhibitors,visitors,metricsNote}});
 
 const localDate = value => new Date(`${value}T00:00:00`);
 const dateKey = date => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
@@ -64,6 +95,7 @@ export function mountExhibitionCalendar(root,{today=()=>new Date()}={}){
   const keyword=root.querySelector("#exhibition-search"),year=root.querySelector("#exhibition-year"),region=root.querySelector("#exhibition-region"),status=root.querySelector("#exhibition-status"),verification=root.querySelector("#exhibition-verification"),list=root.querySelector("#exhibition-months"),empty=root.querySelector("#exhibition-empty");
   const currentYear=String(today().getFullYear());year.value=[...year.options].some(option=>option.value===currentYear)?currentYear:"all";
   const make=(tag,className,text)=>{const el=document.createElement(tag);if(className)el.className=className;if(text!==undefined)el.textContent=text;return el};
+  const metricValue=value=>value===null||value===undefined?"待补充":typeof value==="number"?value.toLocaleString("zh-CN"):String(value);
   function render(){
     const now=today(),visible=filterExhibitions(EXHIBITION_EVENTS,{keyword:keyword.value,year:year.value,region:region.value,status:status.value,verification:verification.value},now),future=EXHIBITION_EVENTS.filter(event=>eventState(event,now)!=="past"),in90=future.filter(event=>(localDate(event.start)-now)/DAY<=90),countries=new Set(future.map(event=>event.country));
     root.querySelector("[data-exhibition-stat=upcoming]").textContent=future.length;
@@ -75,11 +107,12 @@ export function mountExhibitionCalendar(root,{today=()=>new Date()}={}){
       const section=make("section","exhibition-month"),label=make("div","exhibition-month-label"),cards=make("div","exhibition-events");
       label.append(make("b","",fmtMonth(month)),make("span","",`${events.length} 场展会`));
       events.forEach(event=>{
-        const card=make("article","exhibition-event"),date=make("div","exhibition-date"),body=make("div","exhibition-event-body"),head=make("div","exhibition-event-head"),title=make("h3","",event.name),badge=make("span",`exhibition-badge ${event.verified?"verified":"planned"}`,event.verified?"官网已确认":"规划日期"),range=make("div","exhibition-range",formatEventRange(event)),meta=make("div","exhibition-meta"),link=make("a","exhibition-link","查看主办方官网 ↗");
+        const card=make("article","exhibition-event"),date=make("div","exhibition-date"),body=make("div","exhibition-event-body"),head=make("div","exhibition-event-head"),title=make("h3","",event.name),badge=make("span",`exhibition-badge ${event.verified?"verified":"planned"}`,event.verified?"官网已确认":"规划日期"),range=make("div","exhibition-range",formatEventRange(event)),meta=make("div","exhibition-meta"),metrics=make("div","exhibition-metrics"),note=make("small","exhibition-metrics-note",`${event.statsYear} · ${event.metricsNote}`),link=make("a","exhibition-link","查看主办方官网 ↗");
         date.append(make("strong","",String(Number(event.start.slice(8,10))).padStart(2,"0")),make("span","",`${Number(event.start.slice(5,7))} 月`));
         head.append(title,badge);meta.append(make("span","",`${event.country} · ${event.city}`),make("span","",event.category));
         link.href=event.url;link.target="_blank";link.rel="noopener noreferrer";
-        body.append(head,range,meta,link);card.append(date,body);cards.append(card);
+        [["举办频率",event.frequency],["参展商 / 品牌",metricValue(event.exhibitors)],["观众 / 人次",metricValue(event.visitors)]].forEach(([label,value])=>{const item=make("div","exhibition-metric");item.append(make("small","",label),make("b","",value));metrics.append(item)});
+        body.append(head,range,meta,metrics,note,link);card.append(date,body);cards.append(card);
       });section.append(label,cards);list.append(section);
     });
   }

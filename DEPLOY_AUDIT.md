@@ -335,3 +335,12 @@
 授权：用户确认自动获取信息、每日更新、重要变化、每周汇总；执行Codex。PR76/1ae0a6b，合并b64d1ed，Pages35814738990成功。408项回归、语法与合成浏览器通过；真实登录只读确认即时简报和公开资料，五份线上资产字节一致。前态无情报，后态本地规则汇总与公开feed可用。未改角色/RLS/数据库，未外发客户内容。自动化grace-brian-jay已ACTIVE，每日9点、周一周报，依赖本机和授权会话；尚无首次定时成功证据，内部周报本地/当前任务交付。回滚前端并暂停该任务，保留已有记录。
 
 2026-09-26 evidence gate candidate: user requested CRM/Grace integration; Codex added response-side material evidence validation without permission/database/model changes. 537 offline tests and browser syntax passed. Not deployed; live-file freshness and public-model answer checking remain outside this candidate. Rollback: revert this change; preserve existing audit records.
+## 2026-10-13 询盘回收站与邮箱批量已读 — 当前未部署
+
+- 授权人：用户明确要求“增加删除询盘功能”“增加选择，可全选，一键已读”及“上线”；执行人：Codex。
+- 目标：CRM 静态前端、Supabase `plhverjihjilnuhlhlxi` 数据库；原因：提供可恢复的询盘清理和个人邮箱 CRM 已读管理。
+- 变更前：本地最新 `origin/main`；当前候选新增受控归档/恢复和 `email_message_reads` 批量写回函数。真实生产 schema 与 fixture 尚未重新核验；不得假定 migration 可立即执行。
+- 变更后（仅本地候选）：四个实现/验收文件有改动，生产尚无变更。数据库迁移通过 SQL Editor/受控 API 应用前需只读检查依赖列/触发器/策略、用隔离测试记录执行并在同一事务回滚；不得触碰真实客户数据。
+- 验证结果：`node --test tests/*.test.mjs` 783/783；`node scripts/check-browser-syntax.mjs` 通过；`node --test mail-sync/tests/*.test.mjs` 9/9；`git diff --check` 通过。Docker build 未本地运行；PR CI 尚无。
+- 当前状态/恢复：未 commit、未 push、未建 PR、未应用数据库 migration、未发布页面。页面恢复方式为 review 后 revert；数据库正式上线前需记录精确事务与回滚验证。既有阿里邮箱 Sent 文件夹同步链路属于现存代码，不在本次补丁内；生产运行状态未验证。
+- 剩余风险：前端与迁移必须一同发布；旧版页面部署前不能调用新 RPC。物理删除仍禁止；一键已读只改 CRM 回执。

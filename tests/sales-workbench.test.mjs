@@ -74,6 +74,16 @@ test('follow-up calendar and daily plans paginate within the selected date range
   assert.doesNotMatch(branch,/\.limit\(500\)/);
 });
 
+test('owner calendar shows the visible team while sales stays self scoped',()=>{
+  const start=html.indexOf('} else if(view==="follow-calendar")');
+  const branch=html.slice(start,html.indexOf('} else if (["inquiries"',start));
+  assert.match(branch,/managerCalendar=profile\.role==="owner"/);
+  assert.match(branch,/if\(!managerCalendar\)q=q\.eq\("author_id",profile\.id\)/);
+  assert.match(branch,/if\(!managerCalendar\)q=q\.eq\("owner_id",profile\.id\)/);
+  assert.match(branch,/managerCalendar\?\["负责人"\]:\[\]/);
+  assert.match(branch,/x\.owner_id===profile\.id\?\[\{label:x\.completed_at\?"修改成果":"填写成果"/);
+});
+
 test('public-pool approval queue reads every pending request',()=>{
   const start=html.indexOf('if(view==="public-pool")');
   const branch=html.slice(start,html.indexOf('query =',start));

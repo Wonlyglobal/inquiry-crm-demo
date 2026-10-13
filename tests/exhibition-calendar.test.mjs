@@ -77,3 +77,14 @@ test("participation plans are protected by RPC, audit and read-only account chec
   assert.match(sql,/insert into public\.audit_logs/i);
   assert.match(sql,/change_reason/i);
 });
+
+test("budget stays role-scoped and booth prices require official evidence",async()=>{
+  const sql=await readFile(new URL("../supabase/migrations/20261013150000_exhibition_budget_booth_price.sql",import.meta.url),"utf8");
+  assert.match(sql,/can_view_budget:=actor\.role in \('owner','marketing'\)/i);
+  assert.match(sql,/case when can_view_budget then p\.budget_amount else null end/i);
+  assert.match(sql,/target_booth_price_source_url.*!~ '\^https:\/\/'/is);
+  assert.match(sql,/target_booth_price_checked_on is null/i);
+  assert.match(sql,/crm_read_only/i);
+  assert.match(sql,/exhibition_budget_updated/i);
+  assert.match(sql,/revoke all on function public\.save_exhibition_budget/i);
+});

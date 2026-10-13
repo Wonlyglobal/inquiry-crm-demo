@@ -1830,6 +1830,7 @@
             <div class="inquiry-command-head"><div><h2>询盘状态总览</h2><p>先定位待处理环节，再进入具体询盘；数字随当前数据权限实时更新。</p></div><span class="tag">点击状态可快速筛选</span></div>
             <div id="inquiry-stage-tabs" class="inquiry-stage-tabs"></div>
           </section>
+          <div id="inquiry-archive-actions" class="email-triage-actions hidden"><button id="inquiry-archive-toggle" class="ghost" type="button">询盘回收站</button><span id="inquiry-archive-note" class="hint hidden">已归档询盘仅老板可查看和恢复；记录与审计保留。</span></div>
           <div id="module-table-wrap" class="table-wrap">
             <div class="table-head"><div class="module-table-heading"><strong id="module-table-title">数据列表</strong><small id="module-table-context">按最新创建时间排列</small></div><span id="module-count" class="tag">0 条</span></div>
             <div id="module-toolbar" class="module-table-toolbar hidden">
@@ -1843,6 +1844,7 @@
             <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="ghost" type="button" disabled>一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><button id="email-trash-selected" class="email-mark-warmup" type="button">移入垃圾箱</button><button id="email-restore-selected" class="ghost hidden" type="button">恢复所选</button><button id="email-delete-selected" class="email-mark-warmup hidden" type="button">彻底删除</button><span id="email-selected-count" class="tag">已选 0 条</span></div>
             <div id="email-class-tabs" class="email-class-tabs hidden" aria-label="邮件分类"></div>
             <div id="mailbox-folder-tabs" class="email-class-tabs hidden" aria-label="邮箱文件夹"><button class="email-class-tab active" type="button" data-mailbox-folder="inbox">收件箱</button><button class="email-class-tab" type="button" data-mailbox-folder="sent">已发送</button><button class="email-class-tab" type="button" data-mailbox-folder="scheduled">定时发送</button><button class="email-class-tab" type="button" data-mailbox-folder="all">全部邮件</button></div>
+            <div id="mailbox-bulk-actions" class="email-triage-actions hidden" aria-label="CRM 邮件批量操作"><button id="mailbox-select-all" class="ghost" type="button">全选未读邮件（最多 200 封）</button><button id="mailbox-mark-read" class="primary" type="button">在 CRM 标记已读</button><span id="mailbox-selected-count" class="tag">已选 0 封</span><small class="hint">只更新 CRM 中本人的已读状态，不更改阿里邮箱原件。</small></div>
             <div id="follow-calendar-tabs" class="email-class-tabs hidden" aria-label="邮件跟进日历范围"><button class="email-class-tab active" type="button" data-calendar-range="week">本周</button><button class="email-class-tab" type="button" data-calendar-range="today">今日</button><button class="email-class-tab" type="button" data-calendar-range="month">本月</button></div>
             <div id="module-stale" class="module-stale hidden"><span id="module-stale-text">数据服务暂时不可用，当前显示最近一次成功加载的数据。</span><button id="module-stale-retry" class="table-action" type="button">重新连接</button></div>
             <div id="module-empty" class="empty hidden"><i id="module-state-icon" data-lucide="inbox"></i><b id="module-state-title" class="module-state-title">暂无记录</b><small id="module-empty-text"></small><div><button id="module-retry" class="table-action module-retry hidden" type="button">重新加载</button></div></div>
@@ -3124,7 +3126,7 @@
           : data?.error_message||"连接当前业务员的企业邮箱";
         button.setAttribute("aria-disabled",connected?"true":"false");
       }
-      let activeModuleView = "", activeInquiryScope = "", activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, knowledgeCountState = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [], mailAiDraftId = null, mailResponsePlan = null, mailFactCheckState = null, mailFactCheckRunning = false;
+      let activeModuleView = "", activeInquiryScope = "", activeInquiryArchive = false, activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, knowledgeCountState = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [], mailAiDraftId = null, mailResponsePlan = null, mailFactCheckState = null, mailFactCheckRunning = false;
       let whatsappRealtimeChannel = null, whatsappRealtimeTimer = null;
       const whatsappWorkspaceState = { connection:null, messages:[], inquiries:[], contacts:[], selectedPhone:"", selectedInquiryId:null, search:"", newChat:false, sending:false };
       const builtinMailTemplates = [
@@ -3134,6 +3136,7 @@
         {id:"sample-feedback",name:"样品反馈",subject:"Follow-up on the sample",body:"Dear Customer,\n\nMay I ask whether you have received and evaluated the sample? We would appreciate your feedback on the appearance, dimensions, operation and any points that need improvement.\n\nYour comments will help us confirm the production specification before the next step.\n\nBest regards,\nWONLY International Sales Team"},
       ];
       const selectedEmailIntakeIds=new Set();
+      const selectedMailboxMessageIds=new Set();
       function syncEmailSelectionState(){
         const count=selectedEmailIntakeIds.size,button=$("#email-convert-inquiry");
         $("#email-selected-count").textContent=`已选 ${count} 条`;
@@ -3201,15 +3204,15 @@
         }
       }
       function filterModuleRows() {
-        const unreadOnly = activeModuleView === "inquiries" && $("#inquiry-unread-filter").value === "unread";
+        const unreadOnly = activeModuleView === "inquiries" && !activeInquiryArchive && $("#inquiry-unread-filter").value === "unread";
         const query = $("#module-search").value.trim().toLocaleLowerCase();
-        const validity = activeModuleView === "inquiries" ? $("#inquiry-validity-filter").value : "";
-        const source = activeModuleView === "inquiries" ? $("#inquiry-source-filter").value : "";
+        const validity = activeModuleView === "inquiries"&&!activeInquiryArchive ? $("#inquiry-validity-filter").value : "";
+        const source = activeModuleView === "inquiries"&&!activeInquiryArchive ? $("#inquiry-source-filter").value : "";
         const knowledgeKind=activeModuleView==="knowledge"?$("#knowledge-kind-filter").value:"",knowledgeCategory=activeModuleView==="knowledge"?$("#knowledge-category-filter").value:"",knowledgeUploader=activeModuleView==="knowledge"?$("#knowledge-uploader-filter").value:"",knowledgeLanguage=activeModuleView==="knowledge"?$("#knowledge-language-filter").value:"",knowledgeTopic=activeModuleView==="knowledge"?$("#knowledge-topic-filter").value:"",knowledgeFolder=activeModuleView==="knowledge"?$("#knowledge-folder-filter").value:"";
         $("#module-search-clear").classList.toggle("hidden", !query);
         const filteredRows = moduleRows.filter((row) => {
           const matchesQuery = !query || row.cells.some((value) => String(value ?? "").toLocaleLowerCase().includes(query)) || String(row.meta?.searchText||"").toLocaleLowerCase().includes(query);
-          const matchesStage = !activeInquiryScope || activeInquiryScope === "all" || (activeInquiryScope === "open" ? row.meta?.validity === "valid" && !["won","lost"].includes(row.meta?.status) : activeInquiryScope === "risk" ? row.meta?.risk : row.meta?.status === activeInquiryScope);
+          const matchesStage = activeInquiryArchive || !activeInquiryScope || activeInquiryScope === "all" || (activeInquiryScope === "open" ? row.meta?.validity === "valid" && !["won","lost"].includes(row.meta?.status) : activeInquiryScope === "risk" ? row.meta?.risk : row.meta?.status === activeInquiryScope);
           const matchesTodayCategory = activeModuleView !== "sales-today" || activeTodayCategory === "all" || row.meta?.category === activeTodayCategory;
           const matchesKnowledge=activeModuleView!=="knowledge"||(!knowledgeKind||row.meta?.knowledgeKind===knowledgeKind)&&(!knowledgeCategory||row.meta?.knowledgeCategory===knowledgeCategory)&&(!knowledgeUploader||row.meta?.knowledgeUploader===knowledgeUploader)&&(!knowledgeLanguage||row.meta?.knowledgeLanguage===knowledgeLanguage)&&(!knowledgeTopic||row.meta?.knowledgeTopic===knowledgeTopic)&&(!knowledgeFolder||row.meta?.knowledgeFolder===knowledgeFolder);
           return (!unreadOnly || inquiryUnreadItems.has(row.id)) && matchesQuery && matchesStage && matchesTodayCategory && matchesKnowledge && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source);
@@ -3219,7 +3222,7 @@
         $("#module-filter-summary").classList.toggle("hidden", !hasFilter);
         $("#module-reset-filters").classList.toggle("hidden", !hasFilter);
         if (hasFilter) $("#module-filter-summary").textContent = `显示 ${filteredRows.length} / ${moduleRows.length} 条`;
-        $("#module-table-context").textContent = hasFilter ? "已应用筛选 · 点击任意记录查看完整详情" : activeModuleView === "sales-today" ? "按紧急程度与计划时间排列 · 点击任务进入处理" : "按最新创建时间排列 · 点击记录查看完整详情";
+        $("#module-table-context").textContent = hasFilter ? "已应用筛选 · 点击任意记录查看完整详情" : activeInquiryArchive ? "回收站 · 仅老板可见 · 可恢复，不执行物理删除" : activeModuleView === "sales-today" ? "按紧急程度与计划时间排列 · 点击任务进入处理" : "按最新创建时间排列 · 点击记录查看完整详情";
         if (hasFilter && !filteredRows.length) setModuleState("filtered");
       }
       function renderKnowledgeFilters(rows){
@@ -3277,7 +3280,7 @@
           const tr = document.createElement("tr");
           row.cells.forEach((value, index) => {
             const td = document.createElement("td"), label = columns[index];
-            if(label==="选择"){const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=selectedEmailIntakeIds.has(row.selectionId);checkbox.setAttribute("aria-label","选择邮件");checkbox.onclick=event=>event.stopPropagation();checkbox.onchange=()=>{if(checkbox.checked)selectedEmailIntakeIds.add(row.selectionId);else selectedEmailIntakeIds.delete(row.selectionId);syncEmailSelectionState()};td.append(checkbox);tr.append(td);return}
+            if(label==="选择"){const mailboxSelection=activeModuleView==="mailbox",selectionSet=mailboxSelection?selectedMailboxMessageIds:selectedEmailIntakeIds,checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=Boolean(row.selectionId&&selectionSet.has(row.selectionId));checkbox.disabled=!row.selectionId||(mailboxSelection&&selectionSet.size>=200&&!checkbox.checked);checkbox.setAttribute("aria-label",mailboxSelection?"选择未读邮件":"选择邮件");checkbox.onclick=event=>event.stopPropagation();checkbox.onchange=()=>{if(checkbox.checked){if(selectionSet.size>=200){checkbox.checked=false;toast("一次最多选择 200 封邮件");return}selectionSet.add(row.selectionId)}else selectionSet.delete(row.selectionId);if(mailboxSelection)$("#mailbox-selected-count").textContent=`已选 ${selectionSet.size} 封`;else syncEmailSelectionState();renderModuleTable(moduleColumns,moduleRows,moduleRowClick,true)};td.append(checkbox);tr.append(td);return}
             if(activeModuleView==="knowledge"&&label==="缩略图"){
               const preview=row.preview||{},box=document.createElement("div");box.className=`knowledge-thumbnail ${preview.kind||"document"}`;box.setAttribute("aria-label",preview.alt||"文件缩略图");
               fillKnowledgePreview(box,preview);
@@ -3327,7 +3330,8 @@
             if(activeModuleView==="knowledge"&&["分类 / 类型","上传人","语言","更新时间"].includes(label))td.classList.add("nowrap-cell");
             tr.append(td);
           });
-          const actions = activeModuleView === "assignment" ? (row.actions || []).slice(1) : row.actions || (row.action ? [row.action] : []);
+          let actions = activeModuleView === "assignment" ? (row.actions || []).slice(1) : row.actions || (row.action ? [row.action] : []);
+          if(activeModuleView==="inquiries"&&!activeInquiryArchive&&profile?.role==="owner"&&row.id)actions=[...actions,{label:"移入回收站",onClick:()=>archiveInquiry({id:row.id,inquiry_no:row.cells[0],title:row.cells[1]})}];
           if (actions.length) {
             const td = document.createElement("td");
             td.style.whiteSpace = "nowrap";
@@ -4345,8 +4349,9 @@
         }catch(error){toast("导入失败："+error.message)}finally{$("#customer-import-file").value="";$("#customer-import").disabled=false;$("#customer-import").textContent="导入现有客户"}
       }
       async function loadModule(view, options = {}) {
-        if (view !== "inquiries") activeInquiryScope = "";
+        if (view !== "inquiries") { activeInquiryScope = ""; activeInquiryArchive = false; }
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
+        if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryArchive")) activeInquiryArchive = Boolean(options.inquiryArchive);
         const config = {
           inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
           customers: profile.role === "sales"
@@ -4421,9 +4426,15 @@
         $("#email-triage-actions").classList.toggle("hidden",view!=="email");
         $("#email-class-tabs").classList.toggle("hidden",view!=="email");
         $("#mailbox-folder-tabs").classList.toggle("hidden",view!=="mailbox");
+        $("#mailbox-bulk-actions").classList.toggle("hidden",view!=="mailbox"||mailboxFolder!=="inbox");
+        $("#inquiry-archive-actions").classList.toggle("hidden",view!=="inquiries"||profile.role!=="owner");
+        $("#inquiry-archive-note").classList.toggle("hidden",view!=="inquiries"||profile.role!=="owner"||!activeInquiryArchive);
+        $("#inquiry-archive-toggle").textContent=activeInquiryArchive?"返回全部询盘":"询盘回收站";
+        $("#inquiry-stage-tabs").classList.toggle("hidden",activeInquiryArchive);
         $("#follow-calendar-tabs").classList.toggle("hidden",view!=="follow-calendar");
         $("#module-table").classList.toggle("mailbox-calendar-table",view==="follow-calendar");
         selectedEmailIntakeIds.clear();syncEmailSelectionState();
+        selectedMailboxMessageIds.clear();$("#mailbox-selected-count").textContent="已选 0 封";
         $("#inquiry-filter-group").classList.toggle("hidden", view !== "inquiries");
         $("#knowledge-filter-group").classList.toggle("hidden",view!=="knowledge");
         $("#inquiry-validity-filter").value = "";
@@ -4623,16 +4634,16 @@
             if(view==="public-pool"){q=q.eq("validity","valid").not("status","in","(pending_assignment,won,lost)");const reviewIds=[...new Set(publicPoolRequests.map(r=>r.inquiry_id))];q=["owner","sales_manager"].includes(profile.role)&&reviewIds.length?q.or(`owner_id.is.null,id.in.(${reviewIds.join(",")})`):q.is("owner_id",null)}
             return q;
           };
-          query = publicPoolRequestError && view==="public-pool" ? Promise.resolve({data:null,error:publicPoolRequestError}) : loadModuleRowsPaged(inquiryQueryFactory);
-          if (view === "inquiries" && activeInquiryScope === "open") {
-            query = query.eq("validity", "valid").not("status", "in", "(won,lost)");
+          query = view==="inquiries"&&activeInquiryArchive ? supabase.rpc("list_archived_inquiries") : publicPoolRequestError && view==="public-pool" ? Promise.resolve({data:null,error:publicPoolRequestError}) : loadModuleRowsPaged(inquiryQueryFactory);
+          if (view === "inquiries" && !activeInquiryArchive && activeInquiryScope === "open") {
             $("#module-table-title").textContent = "进行中询盘";
             $("#module-filter-summary").textContent = "已筛选：未成交、未丢单的进行中询盘";
             $("#module-filter-summary").classList.remove("hidden");
           }
           columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : view === "nurture" ? ["编号","询盘主题","国家/地区","优先级","成熟度","退回原因","建议复联","培育状态","操作"] : view === "quotes" ? ["编号","客户/询盘","阶段","报价金额","报价时间","下次跟进","操作"] : view === "assignment" ? ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间", "操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间", "操作"];
           mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写",requests=publicPoolRequests.filter(r=>r.inquiry_id===x.id),mine=requests.find(r=>r.requested_by===profile.id&&r.request_type==="claim"),actions=[];if(profile.role==="sales")actions.push(mine?{label:"领取申请待审核",onClick:()=>toast("该客户的领取申请正在等待主管审核")}:{label:"申请领取",onClick:()=>requestPublicPoolAction(x.id,"claim")});else{const pending=requests[0];if(pending&&["owner","sales_manager"].includes(profile.role))actions.push({label:`审核${pending.request_type==="claim"?"领取":"释放"}`,onClick:()=>reviewPublicPoolRequest(pending)});actions.push({label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)})}return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : view === "quotes" ? (x)=>({id:x.id,quoteInquiry:x,meta:{status:x.status,validity:x.validity,risk:x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryStage(x),x.estimated_amount?`${x.currency||""} ${Number(x.estimated_amount).toLocaleString()}`:"待填写",x.quoted_at?fmtDate(x.quoted_at):"待报价",x.next_follow_up_at?fmtDate(x.next_follow_up_at):"待安排"],actions:[{label:"报价单",onClick:()=>openQuoteManager(x)},{label:"询盘详情",onClick:()=>openInquiryDetail(x.id)}]}) : view === "assignment" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,source:x.source},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayCountry(x.target_country),ownerNames[x.owner_id]||"待主管分配",displayInquiryStage(x),{pending:"待确认",valid:"有效",invalid:"无效"}[x.validity]||x.validity,sourceNames[x.source]||x.source,fmtDate(x.created_at)],actions:[{label:"智能分配",onClick:()=>openDirectAssignment(x.id)},{label:"查看详情",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayCountry(x.target_country), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)], actions: [{label:"展开流水线",onClick:(button,row)=>toggleInquiryPipelinePreview(x,button,row)},...directAssignmentActions(x)] });
-          clickable = true;
+          if(activeInquiryArchive){columns=["编号","询盘主题","原负责人","归档时间","归档原因","操作"];mapper=x=>({id:x.id,meta:{searchText:`${x.inquiry_no} ${x.title} ${x.archive_reason||""}`},cells:[String(x.inquiry_no||"").padStart(6,"0"),x.title,x.owner_name||"—",fmtDate(x.archived_at),x.archive_reason||"—"],actions:[{label:"恢复询盘",onClick:()=>restoreArchivedInquiry(x)}]});}
+          clickable = !activeInquiryArchive;
         } else if (view === "email") {
           query = loadModuleRowsPaged((from,to)=>supabase.from("email_intake").select("id,sender_email,subject,processing_status,triage_label,received_at,created_at,inquiry_id,trashed_at,trashed_by").order("created_at", { ascending: false }).range(from,to));
           columns = ["选择","发件人", "邮件主题", "标记", "处理状态", "收件时间", "进入系统时间", "操作"];
@@ -4763,7 +4774,7 @@
           if (cached) {
             if(view==="knowledge")knowledgeCountState=cached.knowledgeCount||null;
             renderModuleTable(cached.columns, cached.rows, cached.onRowClick);
-            if (view === "inquiries") { renderInquiryCommand(cached.rows); filterModuleRows(); }
+            if (view === "inquiries") { if(activeInquiryArchive){$("#inquiry-stage-tabs").classList.add("hidden");$("#module-table-title").textContent="询盘回收站"}else renderInquiryCommand(cached.rows); filterModuleRows(); }
             if(view==="knowledge"){renderKnowledgeFilters(cached.rows);filterModuleRows()}
             $("#module-stale-text").textContent = `数据服务暂时不可用，显示 ${fmtDate(cached.loadedAt)} 成功加载的数据。`;
             $("#module-stale").classList.remove("hidden");
@@ -4805,14 +4816,17 @@
           $("#email-mark-warmup").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
         }
         if(view==="templates")sourceRows=sortMailTemplates(sourceRows);
+        const mailboxBulkSelectable=view==="mailbox"&&mailboxFolder==="inbox"&&!mailboxTemplateView&&!mailboxScheduledView;
+        if(mailboxBulkSelectable)columns.unshift("选择");
         const mappedRows = sourceRows.map(mapper);
+        if(mailboxBulkSelectable)mappedRows.forEach(row=>{const message=row.message;row.selectionId=message?.direction==="inbound"&&!message.mailRead?message.id:null;row.cells.unshift("")});
         if(view==="knowledge")knowledgeRowMapper=mapper;
         const onRowClick = view === "sales-today" ? (row)=>openSalesTask(row.salesTask) : view === "knowledge" ? (row)=>row.materialAsset?openMaterialAsset(row.materialAsset):row.knowledgeArticle&&openKnowledgeArticle(row.knowledgeArticle) : view === "fulfillment" ? (row)=>row.fulfillmentInquiry&&openFulfillmentManager(row.fulfillmentInquiry) : view === "customers" ? (row)=>row.customerCompanyId&&openCustomerRecord(row.customerCompanyId) : view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : view === "mailbox" ? (row)=>row.message&&openMailboxMessage(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, knowledgeCount:view==="knowledge"?knowledgeCountState:null, loadedAt:new Date().toISOString() });
         $("#module-table-context").textContent = view==="sop"?`当前角色专属流程 · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`:`${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
         if (view === "email" && $("#module-search").value.trim()) filterModuleRows();
-        if (view === "inquiries") { renderInquiryCommand(mappedRows); filterModuleRows(); }
+        if (view === "inquiries") { if(activeInquiryArchive){$("#inquiry-stage-tabs").classList.add("hidden");$("#module-table-title").textContent="询盘回收站";$("#module-table-context").textContent="仅老板可见 · 可恢复 · 不执行物理删除"}else renderInquiryCommand(mappedRows); filterModuleRows(); }
         if(view==="knowledge"){renderKnowledgeFilters(mappedRows);filterModuleRows()}
         if (view === "sales-today" && todayTaskCounts) {
           const categories=[["all","全部任务"],["assigned","主管分配询盘"],["reply","客户新回复"]];
@@ -4857,6 +4871,9 @@
       });
       $("#module-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       $("#module-refresh").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
+      $("#inquiry-archive-toggle").addEventListener("click",()=>{activeInquiryScope="";loadModule("inquiries",{inquiryArchive:!activeInquiryArchive})});
+      $("#mailbox-mark-read").addEventListener("click",markSelectedMailboxMessagesRead);
+      $("#mailbox-select-all").addEventListener("click",()=>{const ids=moduleRows.map(row=>row.selectionId).filter(Boolean).slice(0,200),allSelected=ids.length>0&&ids.every(id=>selectedMailboxMessageIds.has(id));ids.forEach(id=>allSelected?selectedMailboxMessageIds.delete(id):selectedMailboxMessageIds.add(id));$("#mailbox-selected-count").textContent=`已选 ${selectedMailboxMessageIds.size} 封`;renderModuleTable(moduleColumns,moduleRows,moduleRowClick,true)});
       $("#module-stale-retry").addEventListener("click", () => activeModuleView && loadModule(activeModuleView));
       async function downloadLegacyProjectTemplate(){
         const XLSX=await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm");
@@ -5892,6 +5909,39 @@
 
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
       function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
+      async function promptAuditedReason(title,message){
+        const accepted=await appConfirm(message,{title,confirmText:"继续",value:"请输入至少 8 字原因"});
+        if(!accepted)return null;
+        const reason=$("#app-dialog-value").value.trim();
+        if(reason.length<8){toast("原因至少需要 8 个字");return null}
+        return reason;
+      }
+      async function archiveInquiry(inquiry){
+        if(profile?.role!=="owner")return toast("仅老板角色可移入询盘回收站");
+        const reason=await promptAuditedReason("移入询盘回收站",`准备归档询盘 ${inquiry.inquiry_no||""} · ${inquiry.title||""}。\n\n这会隐藏记录但保留询盘、邮件、跟进和审计数据；可由老板恢复，不会物理删除。请填写原因。`);
+        if(!reason)return;
+        if(!await appConfirm(`二次确认：将询盘 ${inquiry.inquiry_no||""} 移入回收站？\n\n原因：${reason}\n\n系统会保留全部业务记录和审计痕迹。`,{title:"再次确认归档",confirmText:"确认归档"}))return;
+        const {error}=await supabase.rpc("archive_inquiry",{target_inquiry_id:inquiry.id,archive_reason:reason});
+        if(error)return toast("归档失败："+error.message);
+        toast("询盘已移入可恢复回收站");await loadModule("inquiries");
+      }
+      async function restoreArchivedInquiry(inquiry){
+        if(profile?.role!=="owner")return toast("仅老板角色可恢复询盘");
+        const reason=await promptAuditedReason("恢复询盘",`准备恢复询盘 ${inquiry.inquiry_no||""} · ${inquiry.title||""}。请填写恢复原因。`);
+        if(!reason)return;
+        if(!await appConfirm(`二次确认：恢复询盘 ${inquiry.inquiry_no||""}？\n\n恢复原因：${reason}`,{title:"再次确认恢复",confirmText:"确认恢复"}))return;
+        const {error}=await supabase.rpc("restore_inquiry_from_archive",{target_inquiry_id:inquiry.id,restoration_reason:reason});
+        if(error)return toast("恢复失败："+error.message);
+        toast("询盘已恢复");await loadModule("inquiries",{inquiryArchive:true});
+      }
+      async function markSelectedMailboxMessagesRead(){
+        const ids=[...selectedMailboxMessageIds];if(!ids.length)return toast("请先选择收件箱中的未读邮件");
+        if(!await appConfirm(`确认在 CRM 中将所选 ${ids.length} 封个人邮箱收件标记为已读？\n\n仅更新 CRM 已读状态，不会更改阿里邮箱原件状态。`,{title:"批量标记已读",confirmText:"确认标记"}))return;
+        const button=$("#mailbox-mark-read");button.disabled=true;
+        try{const {data,error}=await supabase.rpc("mark_my_mailbox_messages_read",{target_message_ids:ids});if(error)throw error;selectedMailboxMessageIds.clear();toast(`已在 CRM 标记 ${Number(data)||0} 封邮件为已读`);await loadModule("mailbox")}
+        catch(error){toast("标记已读失败："+(error?.message||error))}
+        finally{button.disabled=false}
+      }
       function openWhatsAppConnectionForm(){
         if(!["owner","sales_manager"].includes(profile?.role)) return openDashboardModal("WhatsApp 通道配置权限", `<p>当前账号没有配置企业通道的权限。请使用系统管理员或销售主管账号登录后，点击“配置 WhatsApp 通道”。</p><p class="hint">职位名称不等于系统权限；当前系统角色：${esc(roleNames[profile?.role] || profile?.role || "未加载")}。</p>`);
         openDashboardModal("配置 WhatsApp Business 企业通道",`<form id="whatsapp-connection-form"><div class="detail-grid"><div class="field"><label>接入方式 *</label><select id="whatsapp-provider" class="input"><option value="meta_cloud">Meta Cloud API</option><option value="official_bsp">官方 BSP</option></select></div><div class="field"><label>Business Account ID *</label><input id="whatsapp-business-id" class="input" required maxlength="120" /></div><div class="field"><label>Phone Number ID *</label><input id="whatsapp-phone-id" class="input" required maxlength="120" /></div><div class="field"><label>企业展示号码 *</label><input id="whatsapp-display-phone" class="input" required placeholder="例如 +8613800138000" maxlength="40" /></div></div><div class="field"><label>展示名称</label><input id="whatsapp-display-name" class="input" maxlength="120" placeholder="WONLY 国际销售" /></div><p class="hint">此号码属于 Meta SMB/WhatsApp Business App 类型，CRM 仅验证现有 Cloud API 通道，不调用不适用的号码注册接口。Access Token、App Secret 和 Verify Token 不会写入浏览器或数据库。</p><div class="form-actions"><button class="ghost" type="button" id="whatsapp-connection-cancel">取消</button><button class="primary" type="submit">保存并验证通道</button></div></form>`);

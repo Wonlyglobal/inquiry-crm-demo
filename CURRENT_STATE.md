@@ -2,6 +2,15 @@
 
 更新时间：2026-10-13（Asia/Shanghai）
 
+## 2026-10-13 询盘回收站与 CRM 邮箱批量已读（生产已发布）
+
+- 用户明确要求增加询盘删除功能、邮箱全选一键已读并“上线”；执行人 Codex。目标为 Supabase `plhverjihjilnuhlhlxi` 与 `Wonlyglobal/inquiry-crm-demo`。
+- 询盘采用老板专属可恢复回收站，不做物理删除；要求填写原因及二次确认，所有操作进入审计。默认所有角色与只读营销账号均由 restrictive `archived_at IS NULL` 防护，归档记录可由老板专用列表恢复。
+- 个人邮箱收件箱新增最多 200 封未读邮件全选和批量 CRM 已读。仅向 `email_message_reads` 写入 CRM 回执，不改 Aliyun 邮箱原件状态。
+- 已有业务员 Sent 回复→匹配询盘沟通进度记录逻辑原样保留，本次未改 worker 或发客户邮件；运行时健康未单独重启验证。
+- 验证：迁移 `20261013110000_inquiry_archive_and_mailbox_bulk_read.sql` 成功；生产 rollback-only 验收 PASS，所有测试写入和审计在事务回滚后无残留。RPC 固定空 `search_path`、authenticated only，anon/public 权限拒绝；前端静态源码含新入口。PR #240 合并为 `6c334acc17832eeebd0cd40e96a1b126ce294931`；CRM regression、Secret scan、GitHub Pages 发布均成功。合并前完整回归 797/797、mail-sync 测试 9/9。
+- 回滚方式：前端 reviewed revert；DB 以受控前向迁移停用函数/入口，若已有归档数据则保留数据和审计并先经授权恢复，禁止物理删除。剩余风险：未在真实业务员页面逐屏验收；一键已读不改 Aliyun 原件。
+
 ## 2026-10-13 询盘详情顶部操作区响应式修复（生产已发布）
 
 - 授权人：项目负责人；执行人：Codex；目标：修复询盘详情顶部“报价审核”“分配业务员”“调整页签”“返回询盘”在较窄窗口中被压成圆形、逐字换行及内容截断的问题。

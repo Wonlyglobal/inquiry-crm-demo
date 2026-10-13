@@ -359,8 +359,9 @@ Validation: 5 mobile regressions, module/browser syntax and whitespace checks pa
 - 基于主分支：提交 `525f17e` 后最新主分支更新至 `aaa4137`；已同步并解决前端/工作日志冲突，避免覆盖已经上线的每日邮箱活动日历与展会日历。迁移版本使用唯一 `20261013110000`，不与 `20261013100000_daily_mailbox_activity_calendar.sql` 冲突。
 - 验证：合并最新主分支后完整 Node 回归 797/797，邮件同步服务测试 9/9；专项 20/20、浏览器模块语法检查、`git diff --check` 通过。PR #240 当前提交的 CI 曾 2/2 通过；修正 RLS 保护后需等待最新提交重新运行。Docker 不在本机，容器构建由 CI 覆盖。
 - 生产只读预检（2026-10-13，Supabase Management API）：依赖表/列存在；归档列和四个新 RPC 不存在；隔离合成询盘和个人收件未读测试记录均有候选；未读取客户内容或改动任何行。预检发现营销只读账号还有单独 permissive SELECT policy，因此迁移新增适用于所有角色的 restrictive `inquiries_not_archived` 策略，确保 archived 行不能被其它读策略绕过。
-- 发布状态：PR #240 已创建并推送，前一提交上的 CRM regression 与 Secret scan 均通过；生产迁移尚未应用，生产网页尚未验收。不得把当前状态描述为已上线。回滚：页面通过经审核 PR revert；迁移以受控前向迁移恢复，审计记录保留。
-- 生产前置：最新提交 CI 与评审；使用隔离 `is_test_data=true AND excluded_from_dashboard=true` 数据执行仓库 rollback-only 验收 SQL；检查 ACL、RLS、触发器与回滚后无残留，再应用正式迁移，最后核验生产静态网页与已登录角色功能。阿里邮箱独立同步服务部署状态需另行查证。实际业务后态仍未改变。
+- 发布完成：PR #240 已以 merge commit `6c334acc17832eeebd0cd40e96a1b126ce294931` 合入 main；最新提交 `aabfbeb` 的 CRM regression 与 Secret scan 均成功（run `38336519354`）；GitHub Pages 发布成功（run `38337377440`）。只读拉取 `https://crm.foreverdoodle.com/?release_verify=pr240-6c334ac` 确认线上源码包含回收站、恢复 RPC 与邮箱批量已读入口。
+- 生产数据库执行（2026-10-13 约 10:35–10:40 Asia/Shanghai）：用户明确“上线”；执行人为 Codex，GitHub 使用 Wonlyglobal，Supabase 使用已登录 CLI；目标仅为 `plhverjihjilnuhlhlxi`。迁移 `20261013110000_inquiry_archive_and_mailbox_bulk_read.sql` 执行成功。rollback-only 生产验收 PASS：老板的隔离合成询盘可归档/恢复，个人未读收件可创建 CRM 回执；事务回滚后归档、邮件已读和审计临时行残留均为 0。后续只读核验确认三个归档列和四个 RPC 存在；全部 RPC 固定空 `search_path`、SECURITY DEFINER、authenticated 可执行、anon/public 不可执行；全角色 restrictive 归档策略有效。无真实业务行状态被写入。
+- 回滚/剩余风险：前端回滚须通过 reviewed revert PR；DB 使用后续受控迁移关闭新 RPC/入口，若已有归档数据则保留记录与审计，不物理删除。实时阿里邮箱同步 worker 未由本次变更重部署；已存在的“业务员 Sent 回复 → CRM 沟通进度”链路保持不变，容器运行状态和真实客户回信链路未在本次发送/改写业务邮件验证。
 
 ## 2026-10-13 阿里邮箱每日收发跟踪（生产已发布）
 

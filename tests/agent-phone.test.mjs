@@ -52,7 +52,7 @@ test('maximum call timer releases input and cancels capture',async t=>{
 });
 test('source retains voiceprint gate and private material speech boundary in phone mode',async()=>{
  const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');const ui=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');
- assert.ok(src.indexOf("VOICEPRINT_ENABLED')==='1'")<src.indexOf('const v9Turn='));assert.match(src,/materialSpokenReply\(materials\)/);assert.match(ui,/voiceProof:heard.voiceProof/);assert.match(ui,/phoneSignal\?\.removeEventListener\('abort',abortPhoneTurn\)/);
+ assert.ok(src.indexOf("VOICEPRINT_ENABLED')==='1'")<src.indexOf('const v9Turn='));assert.match(src,/materialSpokenReply\(materials\)/);assert.match(src,/if\(!guest&&!route.materials&&input.phone!==true\)\{qEmbedding=await embed/);assert.match(src,/memory_mode='recent_turns_only'/);assert.match(ui,/voiceProof:heard.voiceProof/);assert.match(ui,/phoneSignal\?\.removeEventListener\('abort',abortPhoneTurn\)/);
 });
 test('hangup before audio resume never requests a microphone',async()=>{
  let resume,requests=0,closed=0;class C{state='running';resume(){return new Promise(r=>resume=r)}close(){closed++;return Promise.resolve()}}

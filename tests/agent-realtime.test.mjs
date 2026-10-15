@@ -15,7 +15,7 @@ function bridgeHarness({verify=async()=> 'owner',authorizeTurn=async()=>{},histo
 }
 const appendFrames=(h,n=128000)=>{h.advance(n/32);for(let i=0,seq=1;i<n;i+=3200,seq++)h.b.append({turn:1,seq,audio:toBase64(new Uint8Array(Math.min(3200,n-i)))})};
 test('native routing keeps products, CRM, followups, fresh and sensitive input on existing path',()=>{
- for(const q of ['给我X60 Pro参数','X六零','爱克斯六零','智能锁画册v9','我们的询盘','今天天气','谢谢，请查下网站','继续','那它的价格呢','帮我打开公司背调','记住我喜欢简洁'])assert.equal(nativeConversation(q,'X60 Pro参数'),false,q);
+ for(const q of ['给我X60 Pro参数','X六零','爱克斯六零','智能锁画册v9','我们的询盘','今天天气','谢谢，请查下网站','继续','那它的价格呢','帮我打开公司背调','记住我喜欢简洁','你记得我之前的偏好吗','给我建议'])assert.equal(nativeConversation(q,'X60 Pro参数'),false,q);
  assert.throws(()=>nativeConversation('密码：abcDEF123!'));assert.equal(nativeConversation('谢谢你'),true);assert.equal(nativeConversation('讲一个简短的笑话'),true);
  assert.throws(()=>realtimeUrl('https://evil.invalid'));assert.match(realtimeUrl('ws-example'),/^wss:\/\/ws-example.cn-beijing.maas.aliyuncs.com/);
  assert.equal(sessionUpdate().session.turn_detection,null);

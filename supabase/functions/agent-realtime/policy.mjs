@@ -8,7 +8,7 @@ export function nativeConversation(question,previous=''){
  validateDialogue({action:'chat',persona:'Grace',question,history:[]});
  const q=question.trim(),route=knowledgeRoute(q,previous?[{role:'user',content:previous}]:[]);
  // Unknown business/model/follow-up questions always retain the existing knowledge and permission path.
- if(route.mode!=='general'||route.materials||route.knowledge||/我们|我司|内部|资料|公司|品牌|参数|规格|产品|型号|智能|安装|认证|合同|报价|员工|客户|CRM|WONLY|王力|[A-Za-z]\s*[零〇一二三四五六七八九十]|[爱艾]克斯|密码|密钥|账号|账户|隐私|机密|联系人|电话|邮箱|银行|预算|成本|营收|利润|[a-z]\s*\d|[A-Za-z]+[0-9]|查|搜索|数据|记住|记忆|纠正|介绍.{0,5}系统|开.{0,4}看板/i.test(q))return false;
+ if(route.mode!=='general'||route.materials||route.knowledge||/我们|我司|内部|资料|公司|品牌|参数|规格|产品|型号|智能|安装|认证|合同|报价|员工|客户|CRM|WONLY|王力|[A-Za-z]\s*[零〇一二三四五六七八九十]|[爱艾]克斯|密码|密钥|账号|账户|隐私|机密|联系人|电话|邮箱|银行|预算|成本|营收|利润|[a-z]\s*\d|[A-Za-z]+[0-9]|查|搜索|数据|记住|记忆|记得|上次|以前|之前|刚才|前面|建议|方案|分析|优化|纠正|介绍.{0,5}系统|开.{0,4}看板/i.test(q))return false;
  if(/^(继续|那|再|它|这个|这一款|刚才|上面|为什么|怎么|展开|详细|对比|好的|可以|打开|看看|介绍一下|第[一二三四五六七八九十0-9]|哪款|有哪些|区别|多少钱|多大|几种|适合|支持|能不能|能否)/.test(q))return false;
  return true;
 }

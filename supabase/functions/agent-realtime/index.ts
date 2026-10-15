@@ -31,7 +31,7 @@ async function probe(userId:string){
  return await new Promise((resolve,reject)=>{
   const ws=upstream(),started=Date.now();let bytes=0,chunks=0,first:number|null=null,settled=false,phase='config',parts:Uint8Array[]=[],manualTimer:any;
   const timer=setTimeout(()=>finish(Error('实时模型检查超时')),20000);
-  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);clearTimeout(manualTimer);ws.close();parts=[];error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true,input_transcription_verified:true,manual_verified:true,voiceprint_available:true,voiceprint_registered:typeof vp.samples==='number'&&typeof vp.required==='number'&&vp.samples>=vp.required})}
+  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);clearTimeout(manualTimer);ws.close();parts=[];error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true,input_transcription_verified:true,manual_verified:true,voiceprint_available:true,voiceprint_registered:typeof vp.samples==='number'&&typeof vp.required==='number'?vp.samples>=vp.required:null})}
   ws.onopen=()=>ws.send(JSON.stringify(sessionUpdate()));ws.onerror=()=>finish(Error('实时模型连接失败'));ws.onclose=()=>{if(!settled)finish(Error('实时模型连接已关闭'))};
   ws.onmessage=e=>{try{const d=JSON.parse(String(e.data));if(d.type==='error'){finish(Error('实时模型权限或配置尚未通过检查'));return}
    if(d.type==='session.updated'&&phase==='config'){

@@ -5,8 +5,8 @@ function abortable(task,signal){
  return new Promise((resolve,reject)=>{const abort=()=>reject(Error('通话已停止'));if(signal.aborted)abort();else signal.addEventListener('abort',abort,{once:true});Promise.resolve(task).then(resolve,reject).finally(()=>signal.removeEventListener('abort',abort))});
 }
 export function createPhoneSession({prepare,capture,transcribe,respond,cancel=()=>{},onState=()=>{},isAllowed=()=>true,now=()=>Date.now(),maxMs=20*60*1000,maxIdleMs=60000}){
- let active=false,muted=false,phase='ended',generation=0,turn=null,call=null,input=null,pending=null,deadline=null,tick=null,started=0,lastSpeech=0,turns=0,latency=null,rejections=0,interruptions=0,clipReadyAt=0;
- const snapshot=()=>({active,muted,phase,turns,interruptions,elapsedMs:active?Math.max(0,now()-started):0,latency});
+ let active=false,muted=false,phase='ended',generation=0,turn=null,call=null,input=null,pending=null,deadline=null,tick=null,started=0,lastSpeech=0,turns=0,latency=null,rejections=0,interruptions=0,clipReadyAt=0,autoInterruptStreak=0,automaticBargeIn=true;
+ const snapshot=()=>({active,muted,phase,turns,interruptions,automaticBargeIn,elapsedMs:active?Math.max(0,now()-started):0,latency});
  function emit(next,detail=''){phase=next;onState({...snapshot(),detail})}
  function clearCapture(){pending?.control.abort();pending=null}
  function release(){clearCapture();input?.release?.();input=null;clearTimeout(deadline);clearInterval(tick)}
@@ -17,8 +17,13 @@ export function createPhoneSession({prepare,capture,transcribe,respond,cancel=()
   const control=new AbortController();const item={control,task:null};pending=item;
   // Capture may finish before the old answer; keep its outcome handled and reuse its PCM.
   item.task=Promise.resolve().then(()=>capture({signal:control.signal,input,timing:PHONE_TIMING,monitor,onSpeechStart:()=>{
-   if(!active||muted||generation!==g||pending!==item)return;lastSpeech=now();
-   if(response&&turn===response&&!response.signal.aborted){interruptions++;response.abort();cancel();emit('listening','听到你插话了，请继续说')}
+   if(!active||muted||generation!==g||pending!==item)return false;lastSpeech=now();
+   if(response&&turn===response&&!response.signal.aborted){
+    // Before first audio, queue the local clip instead of repeatedly starving ASR/the answer.
+    if(phase!=='speaking'||!automaticBargeIn)return false;
+    if(autoInterruptStreak>=2){automaticBargeIn=false;emit(phase,'环境声音反复触发插话，已暂停自动打断；当前回答会继续，可使用手动打断');return false}
+    autoInterruptStreak++;interruptions++;response.abort();cancel();emit('listening','听到你插话了，请继续说');
+   }return true;
   }})).then(blob=>({blob}),error=>{if(monitor&&active&&generation===g&&pending===item)stop(error?.message||'本机监听中断，通话已结束');return {error}});return item;
  }
  async function loop(g){
@@ -37,13 +42,13 @@ export function createPhoneSession({prepare,capture,transcribe,respond,cancel=()
     emit('responding');
     await abortable(respond(heard,signal),signal);
     if(!active||generation!==g)return;if(signal.aborted)continue;
-    turns++;latency={...latency,turnMs:Math.max(0,now()-endedAt)};lastSpeech=now();
+    turns++;autoInterruptStreak=0;latency={...latency,turnMs:Math.max(0,now()-endedAt)};lastSpeech=now();
    }catch(e){if(!active||generation!==g)return;if(current.signal.aborted)continue;stop(e?.name==='NotAllowedError'?'麦克风未授权，通话未开启':e?.message||'语音连接失败，通话已结束');return}
   }
  }
  async function start(){
   if(active)return;if(!isAllowed())throw Error('当前账号不可通话');
-  active=true;muted=false;started=lastSpeech=now();turns=interruptions=0;latency=null;rejections=0;const g=++generation;emit('connecting');
+  active=true;muted=false;started=lastSpeech=now();turns=interruptions=0;latency=null;rejections=0;autoInterruptStreak=0;automaticBargeIn=true;const g=++generation;emit('connecting');
   deadline=setTimeout(()=>stop('本次通话已到20分钟，已自动挂断；可以重新拨通'),maxMs);tick=setInterval(()=>{if(!isAllowed()){stop('账号或当前页面已不可用，通话已结束');return}if(phase==='listening'&&now()-lastSpeech>=maxIdleMs){stop('一段时间没有说话，已结束通话；需要时可以重新拨通');return}onState(snapshot())},1000);
   let prepared;
   try{call=new AbortController();prepared=await prepare({signal:call.signal});if(!active||generation!==g){prepared?.release?.();return}input=prepared;void loop(g)}catch(e){prepared?.release?.();if(active&&generation===g)stop(e?.name==='NotAllowedError'?'麦克风未授权，通话未开启':e?.message||'无法开启通话')}

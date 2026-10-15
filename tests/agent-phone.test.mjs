@@ -13,7 +13,7 @@ test('one explicit call runs successive turns serially without a second wake or 
 test('interrupt cancels a pending answer and listens again; late answer cannot create overlapping turns',async()=>{
  let captures=0,answers=0,cancel=0;let answerSignal;
  const p=createPhoneSession({prepare:async()=>({release(){}}),capture:({signal})=>++captures===1?Promise.resolve(new Blob(['a'])):blocked(signal),transcribe:async()=>({text:'question'}),respond:async(_,signal)=>{answers++;answerSignal=signal;await blocked(signal)},cancel:()=>cancel++});
- try{await p.start();await flush();assert.equal(p.snapshot().phase,'responding');p.interrupt();await flush();assert.ok(answerSignal.aborted);assert.equal(captures,2);assert.equal(answers,1);assert.equal(p.snapshot().turns,0);assert.equal(cancel,1)}finally{p.stop()}
+ try{await p.start();await flush();assert.equal(p.snapshot().phase,'responding');p.interrupt();await flush();assert.ok(answerSignal.aborted);assert.equal(captures,3);assert.equal(answers,1);assert.equal(p.snapshot().turns,0);assert.equal(cancel,1)}finally{p.stop()}
 });
 test('mute toggles track and aborts capture; resume starts exactly one listener',async()=>{
  let captures=0,enabled=true;const track={get enabled(){return enabled},set enabled(v){enabled=v}};
@@ -60,4 +60,60 @@ test('hangup before audio resume never requests a microphone',async()=>{
 });
 test('unavailable speaker verification ends call without answering or retrying',async()=>{
  let captures=0;const p=createPhoneSession({prepare:async()=>({release(){}}),capture:async()=>{captures++;return new Blob(['a'])},transcribe:async()=>({ignored:'unavailable'}),respond:()=>assert.fail()});await p.start();await flush();assert.equal(p.isActive(),false);assert.equal(captures,1);
+});
+
+test('automatic barge-in cancels speech immediately but reuses the already recording clip and speaker proof',async()=>{
+ let captures=0,release=0,startSpeech,finishClip,oldSignal,second,resolveOld;const clips=[],answers=[];
+ const p=createPhoneSession({prepare:async()=>({release:()=>release++}),capture:({signal,onSpeechStart})=>{
+  captures++;if(captures===1)return Promise.resolve(new Blob(['first']));if(captures===2){startSpeech=onSpeechStart;return new Promise(r=>finishClip=r)}return blocked(signal);
+ },transcribe:async blob=>{const text=await blob.text();clips.push(text);return {text,voiceProof:{data:'verified-'+text}}},respond:(heard,signal)=>{
+  answers.push(heard);if(answers.length===1){oldSignal=signal;p.markSpeaking(50);return new Promise(r=>resolveOld=r)}second=heard;return Promise.resolve();
+ }});
+ try{await p.start();await flush();assert.equal(captures,2);assert.equal(p.snapshot().phase,'speaking');startSpeech();await flush();assert.ok(oldSignal.aborted);assert.equal(p.snapshot().phase,'listening');assert.equal(captures,2);assert.equal(clips.length,1);finishClip(new Blob(['onset and whole followup']));await flush();await flush();assert.equal(second.text,'onset and whole followup');assert.equal(second.voiceProof.data,'verified-onset and whole followup');assert.equal(p.snapshot().interruptions,1);assert.equal(p.snapshot().turns,1);resolveOld();await flush();assert.equal(p.snapshot().turns,1)}finally{p.stop()}assert.equal(release,1);
+});
+test('next speech after a completed response is not counted as interruption; mute tears down the overlap listener',async()=>{
+ let captures=0,next,onStart;const p=createPhoneSession({prepare:async()=>({release(){}}),capture:({signal,onSpeechStart})=>{if(++captures===1)return Promise.resolve(new Blob(['a']));onStart=onSpeechStart;return new Promise((resolve,reject)=>{next=resolve;signal.addEventListener('abort',()=>reject(Error('stop')),{once:true})})},transcribe:async()=>({text:'question'}),respond:async()=>{}});
+ try{await p.start();await flush();assert.equal(p.snapshot().turns,1);onStart();assert.equal(p.snapshot().interruptions,0);p.setMuted(true);p.setMuted(false);await flush();assert.equal(captures,3);next(null)}finally{p.stop()}
+});
+
+function pcmHarness({playback=null,echo=null,monitor=true}={}){
+ let processor,time=0,starts=0,encoded;const abort=new AbortController();
+ const context={sampleRate:16000,state:'running',destination:{},createMediaStreamSource:()=>({connect(){},disconnect(){}}),createGain:()=>({gain:{},connect(){},disconnect(){}}),createScriptProcessor:()=>processor={connect(){},disconnect(){}}};
+ const input={context,stream:{},playback,echo};
+ const promise=capturePhoneTurn({input,signal:abort.signal,timing:PHONE_TIMING,monitor,now:()=>time,onSpeechStart:()=>starts++,encode:samples=>{encoded=samples;return new Blob(['valid clip'])}});
+ const frame=value=>{time+=64;processor.onaudioprocess?.({inputBuffer:{getChannelData:()=>typeof value==='number'?new Float32Array(1024).fill(value):value}})};
+ return {promise,frame,abort,get starts(){return starts},get samples(){return encoded},get time(){return time}};
+}
+test('obvious speaker echo and isolated clicks never interrupt or become an upload',async()=>{
+ let ducks=0;const h=pcmHarness({playback:{active:true,supported:true,duck:()=>ducks++,restore(){}},echo:{matches:()=>true}});
+ for(let i=0;i<300;i++)h.frame(.1);assert.equal(h.starts,0);assert.equal(ducks,0);h.abort.abort();await assert.rejects(h.promise,/停止/);
+ const click=pcmHarness();click.frame(.5);for(let i=0;i<20;i++)click.frame(0);assert.equal(click.starts,0);click.abort.abort();await assert.rejects(click.promise);
+});
+test('residual echo probe restores playback without interrupting when sound stops after duck',async()=>{
+ let ducked=false,restores=0;const h=pcmHarness({playback:{active:true,supported:true,duck:()=>ducked=true,restore:()=>{ducked=false;restores++}},echo:{matches:()=>false}});
+ for(let i=0;i<3;i++)h.frame(.08);assert.equal(ducked,true);for(let i=0;i<6;i++)h.frame(0);assert.equal(restores,1);assert.equal(h.starts,0);h.abort.abort();await assert.rejects(h.promise);
+});
+test('sustained overlapping speech confirms within half a second and preserves onset in one bounded clip',async()=>{
+ let ducked=false;const h=pcmHarness({playback:{active:true,supported:true,duck:()=>ducked=true,restore:()=>ducked=false},echo:{matches:()=>false}});
+ h.frame(0);for(let i=0;i<8;i++)h.frame(.08);assert.equal(h.starts,1);assert.equal(ducked,false);for(let i=0;i<10;i++)h.frame(0);await h.promise;assert.ok(h.samples.length<16000*2);assert.equal(h.samples[1024],Math.fround(.08));assert.ok(h.time<1500);
+});
+test('unsupported playback reference fails closed for automatic barge-in; silence is bounded and abortable',async()=>{
+ const h=pcmHarness({playback:{active:true,supported:false}});for(let i=0;i<30;i++)h.frame(.2);assert.equal(h.starts,0);h.abort.abort();await assert.rejects(h.promise);
+});
+test('playback reference rejects scaled delayed echo but permits a different simultaneous signal',async()=>{
+ const {createEchoReference}=await import('../assets/agent-phone-echo.mjs');for(const rate of [16000,48000]){
+  const echo=createEchoReference(rate),signal=Float32Array.from({length:Math.round(rate*.4)},(_,i)=>.1*Math.sin(i/rate*2*Math.PI*431)+.07*Math.sin(i/rate*2*Math.PI*937));echo.push(signal);
+  const tail=signal.slice(Math.round(rate*.16),Math.round(rate*.16)+1024).map(x=>x*.45);assert.equal(echo.matches(tail),true);
+  const user=Float32Array.from({length:1024},(_,i)=>.12*Math.sin(i/rate*2*Math.PI*277)+.09*Math.sin(i/rate*2*Math.PI*1409)+tail[i]);assert.equal(echo.matches(user),false);echo.clear();assert.equal(echo.matches(tail),false);
+ }
+});
+test('input playback graph restores or releases its gain and reference nodes without reopening microphone',async()=>{
+ let reference,closed=0,tracks=0;const gains=[];class C{sampleRate=16000;state='running';destination={};resume(){return Promise.resolve()}close(){closed++;return Promise.resolve()}createGain(){const node={gain:{value:1},connect(){},disconnect(){}};gains.push(node);return node}createScriptProcessor(){return reference={connect(){},disconnect(){}}}createMediaElementSource(){return {connect(){},disconnect(){}}}}
+ const input=await preparePhoneInput({Context:C,mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop:()=>tracks++}],getAudioTracks:()=>[]})}});const audio={paused:false,ended:false};const playback=input.attachPlayback(audio);assert.equal(playback.supported,true);playback.duck();assert.equal(gains[0].gain.value,0);playback.restore();assert.equal(gains[0].gain.value,1);input.release();input.release();assert.equal(reference.onaudioprocess,null);assert.equal(closed,1);assert.equal(tracks,1);
+});
+test('an overlapping listener failure stops playback instead of pretending the call can hear',async()=>{
+ let captures=0,signal,released=0;const p=createPhoneSession({prepare:async()=>({release:()=>released++}),capture:async()=>{if(++captures===1)return new Blob(['a']);throw Error('listener failed')},transcribe:async()=>({text:'question'}),respond:async(_,s)=>{signal=s;await blocked(s)}});await p.start();await flush();assert.equal(p.isActive(),false);assert.equal(signal.aborted,true);assert.equal(released,1);
+});
+test('idle timeout still stops the open-ended overlap listener after a completed response',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval','Date']});let captures=0,released=0;const p=createPhoneSession({maxIdleMs:1000,prepare:async()=>({release:()=>released++}),capture:({signal})=>++captures===1?Promise.resolve(new Blob(['a'])):blocked(signal),transcribe:async()=>({text:'question'}),respond:async()=>{}});await p.start();await flush();assert.equal(p.snapshot().turns,1);t.mock.timers.tick(1000);await flush();assert.equal(p.isActive(),false);assert.equal(released,1);
 });

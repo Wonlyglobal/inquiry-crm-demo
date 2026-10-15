@@ -29,12 +29,12 @@ export function createPhoneSession({prepare,capture,transcribe,respond,cancel=()
     emit('listening');const item=pending||beginCapture(g),outcome=await item.task;if(pending===item)pending=null;
     if(!active||generation!==g)return;if(signal.aborted)continue;if(outcome.error)throw outcome.error;const blob=outcome.blob;
     if(!blob){if(now()-lastSpeech>=maxIdleMs){stop('一段时间没有说话，已结束通话；需要时可以重新拨通');return}continue}
-    const endedAt=now();clipReadyAt=endedAt;lastSpeech=endedAt;emit('transcribing');const heard=await abortable(transcribe(blob,signal),signal);
+    const endedAt=now();clipReadyAt=endedAt;lastSpeech=endedAt;emit('transcribing');beginCapture(g,true,current);const heard=await abortable(transcribe(blob,signal),signal);
     if(!active||generation!==g)return;if(signal.aborted)continue;
     if(heard?.ignored==='unavailable'){stop('声纹服务暂不可用，通话已结束；可以用文字提问');return}
     if(heard?.ignored||!heard?.text?.trim()){if(++rejections>=3){stop('连续三次未能确认有效语音，通话已结束；可以用文字提问');return}emit('listening',heard?.ignored?'这段声音未通过验证，请重新说':'没听清，请再说一次');continue}
     rejections=0;if(phoneEnd(heard.text)){stop();return}
-    emit('responding');beginCapture(g,true,current);
+    emit('responding');
     await abortable(respond(heard,signal),signal);
     if(!active||generation!==g)return;if(signal.aborted)continue;
     turns++;latency={...latency,turnMs:Math.max(0,now()-endedAt)};lastSpeech=now();

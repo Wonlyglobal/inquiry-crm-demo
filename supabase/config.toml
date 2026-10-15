@@ -441,3 +441,7 @@ enabled = true
 [functions.agent-conversation]
 # Validates identity and exact existing world access inside the handler.
 verify_jwt = false
+
+[functions.agent-realtime]
+# JWT and exact existing owner are checked in the first frame, before any provider connection.
+verify_jwt = false

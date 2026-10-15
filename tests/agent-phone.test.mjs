@@ -59,7 +59,7 @@ test('hangup before audio resume never requests a microphone',async()=>{
  const c=new AbortController();const p=preparePhoneInput({Context:C,signal:c.signal,mediaDevices:{getUserMedia(){requests++;throw Error('unexpected')}}});c.abort();resume();await assert.rejects(p,/停止/);assert.equal(requests,0);assert.equal(closed,1);
 });
 test('unavailable speaker verification ends call without answering or retrying',async()=>{
- let captures=0;const p=createPhoneSession({prepare:async()=>({release(){}}),capture:async()=>{captures++;return new Blob(['a'])},transcribe:async()=>({ignored:'unavailable'}),respond:()=>assert.fail()});await p.start();await flush();assert.equal(p.isActive(),false);assert.equal(captures,1);
+ let captures=0,transcribes=0,monitorSignal;const p=createPhoneSession({prepare:async()=>({release(){}}),capture:({monitor,signal})=>{if(monitor){monitorSignal=signal;return blocked(signal)}captures++;return Promise.resolve(new Blob(['a']))},transcribe:async()=>{transcribes++;return {ignored:'unavailable'}},respond:()=>assert.fail()});await p.start();await flush();assert.equal(p.isActive(),false);assert.equal(captures,1);assert.equal(transcribes,1);assert.equal(monitorSignal.aborted,true);
 });
 
 test('automatic barge-in cancels speech immediately but reuses the already recording clip and speaker proof',async()=>{
@@ -116,4 +116,8 @@ test('an overlapping listener failure stops playback instead of pretending the c
 });
 test('idle timeout still stops the open-ended overlap listener after a completed response',async t=>{
  t.mock.timers.enable({apis:['setTimeout','setInterval','Date']});let captures=0,released=0;const p=createPhoneSession({maxIdleMs:1000,prepare:async()=>({release:()=>released++}),capture:({signal})=>++captures===1?Promise.resolve(new Blob(['a'])):blocked(signal),transcribe:async()=>({text:'question'}),respond:async()=>{}});await p.start();await flush();assert.equal(p.snapshot().turns,1);t.mock.timers.tick(1000);await flush();assert.equal(p.isActive(),false);assert.equal(released,1);
+});
+
+test('speech during transcription cancels old recognition and reuses its continuous listener',async()=>{
+ let captures=0,transcribes=0,startSpeech,finishClip,oldSignal;const answers=[];const p=createPhoneSession({prepare:async()=>({release(){}}),capture:({signal,onSpeechStart})=>{if(++captures===1)return Promise.resolve(new Blob(['first']));if(captures===2){startSpeech=onSpeechStart;return new Promise(r=>finishClip=r)}return blocked(signal)},transcribe:async(blob,signal)=>{if(++transcribes===1){oldSignal=signal;return blocked(signal)}return {text:await blob.text()}},respond:async heard=>answers.push(heard.text)});try{await p.start();await flush();assert.equal(p.snapshot().phase,'transcribing');assert.equal(captures,2);startSpeech();finishClip(new Blob(['followup onset retained']));await flush();await flush();assert.equal(oldSignal.aborted,true);assert.deepEqual(answers,['followup onset retained']);assert.equal(p.snapshot().interruptions,1)}finally{p.stop()}
 });

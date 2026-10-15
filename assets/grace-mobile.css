@@ -83,6 +83,40 @@ html[data-grace-app],html[data-grace-app] body {margin:0;overflow:hidden;overscr
 #grace-mobile .mp-pending {grid-column:2/4;font-size:12px}
 #grace-mobile .mp-note {font-size:12px;line-height:1.6}
 #grace-mobile .grace-progress-refresh {border:1px solid #aaa596;border-radius:12px;background:transparent;color:inherit;padding:8px 12px}
+
+/* Quiet companion home: one focal point, one action, one input. */
+#grace-mobile .grace-scroll {display:flex;flex-direction:column}
+#grace-mobile .grace-top {flex:none;padding:12px 24px}
+#grace-mobile .grace-top>span {font-size:26px}
+#grace-mobile .grace-top button {background:transparent}
+#grace-mobile[data-view=home] .grace-home {flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 24px 32px;min-height:340px}
+#grace-mobile .grace-home .scene {width:clamp(160px,27dvh,240px);height:clamp(160px,27dvh,240px)}
+#grace-mobile .grace-home h1 {font-size:26px;line-height:1.5;margin:22px 0 6px}
+#grace-mobile .grace-home #grace-status {font-size:12px;max-width:280px;color:#a6a69b;margin:0;min-height:20px}
+#grace-mobile .grace-voice {width:144px;min-height:46px;margin:24px auto 0;padding:10px 16px;font-size:14px}
+#grace-mobile .grace-stop {margin-top:14px;min-height:44px}
+#grace-mobile [hidden] {display:none!important}
+#grace-mobile[data-view=home] .grace-sheet {display:none}
+#grace-mobile:not([data-view=history]) .grace-sheet-title,
+#grace-mobile:not([data-view=history]) .grace-prompts,
+#grace-mobile:not([data-view=history]) .grace-progress {display:none}
+#grace-mobile[data-view=history] .grace-sheet-title,
+#grace-mobile[data-view=history] .grace-progress {display:block}
+#grace-mobile[data-view=history] .grace-prompts {display:flex}
+#grace-mobile .grace-sheet {flex:1;border-radius:24px 24px 0 0;padding:24px 20px}
+#grace-mobile .grace-composer {padding:10px 20px 0;background:#222321;border:0}
+#grace-mobile #ai-assistant-form {background:#30312e!important;border:1px solid #45463f;border-radius:28px;padding:5px!important;gap:4px}
+#grace-mobile textarea {background:transparent!important;color:#eeeadf!important;border:0!important;padding:10px 12px;min-height:44px;height:44px;font-size:16px;line-height:24px}
+#grace-mobile textarea::placeholder {color:#a4a59b}
+#grace-mobile #ai-assistant-form button {min-width:52px;min-height:44px;background:#eeeadf;color:#222321;padding:8px 12px;font-size:14px}
+#grace-mobile .grace-nav {background:#222321;border:0;padding:8px 24px 4px;justify-content:space-between}
+#grace-mobile .grace-nav button {color:#989b90;padding:8px 18px;font-size:12px!important}
+#grace-mobile .grace-nav button[aria-pressed=true] {background:transparent;color:#eeeadf}
+#grace-mobile.keyboard-open[data-view=home] .grace-home {min-height:0;padding:8px}
+#grace-mobile.keyboard-open[data-view=home] .grace-orb,
+#grace-mobile.keyboard-open[data-view=home] .grace-voice {display:none}
+@media(max-height:680px){#grace-mobile[data-view=home] .grace-home{min-height:270px;padding:8px 20px 16px}#grace-mobile .grace-home .scene{width:160px;height:160px}#grace-mobile .grace-home h1{margin-top:8px;font-size:23px}#grace-mobile .grace-voice{margin-top:14px}}
+
 /* Call controls remain in page flow and leave the composer/nav reachable. */
 #grace-mobile .grace-call-extra{position:sticky;top:0;z-index:12;background:#222321;border-radius:12px;padding:8px;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;margin:12px 16px;color:var(--grace-text,#e9e9df)}
 #grace-mobile .grace-call-extra[hidden]{display:none}

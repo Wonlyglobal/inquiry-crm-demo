@@ -118,6 +118,28 @@ test('idle timeout still stops the open-ended overlap listener after a completed
  t.mock.timers.enable({apis:['setTimeout','setInterval','Date']});let captures=0,released=0;const p=createPhoneSession({maxIdleMs:1000,prepare:async()=>({release:()=>released++}),capture:({signal})=>++captures===1?Promise.resolve(new Blob(['a'])):blocked(signal),transcribe:async()=>({text:'question'}),respond:async()=>{}});await p.start();await flush();assert.equal(p.snapshot().turns,1);t.mock.timers.tick(1000);await flush();assert.equal(p.isActive(),false);assert.equal(released,1);
 });
 
-test('speech during transcription cancels old recognition and reuses its continuous listener',async()=>{
- let captures=0,transcribes=0,startSpeech,finishClip,oldSignal;const answers=[];const p=createPhoneSession({prepare:async()=>({release(){}}),capture:({signal,onSpeechStart})=>{if(++captures===1)return Promise.resolve(new Blob(['first']));if(captures===2){startSpeech=onSpeechStart;return new Promise(r=>finishClip=r)}return blocked(signal)},transcribe:async(blob,signal)=>{if(++transcribes===1){oldSignal=signal;return blocked(signal)}return {text:await blob.text()}},respond:async heard=>answers.push(heard.text)});try{await p.start();await flush();assert.equal(p.snapshot().phase,'transcribing');assert.equal(captures,2);startSpeech();finishClip(new Blob(['followup onset retained']));await flush();await flush();assert.equal(oldSignal.aborted,true);assert.deepEqual(answers,['followup onset retained']);assert.equal(p.snapshot().interruptions,1)}finally{p.stop()}
+test('speech while ASR is pending queues locally and cannot repeatedly cancel the first answer',async()=>{
+ let captures=0,transcribes=0,startSpeech,finishClip,oldSignal,finishOld;const answers=[];
+ const p=createPhoneSession({prepare:async()=>({release(){}}),capture:({signal,onSpeechStart})=>{if(++captures===1)return Promise.resolve(new Blob(['first']));if(captures===2){startSpeech=onSpeechStart;return new Promise(r=>finishClip=r)}return blocked(signal)},transcribe:async(blob,signal)=>{if(++transcribes===1){oldSignal=signal;return new Promise(r=>finishOld=r)}return {text:await blob.text()}},respond:async heard=>answers.push(heard.text)});
+ try{await p.start();await flush();assert.equal(p.snapshot().phase,'transcribing');assert.equal(startSpeech(),false);finishClip(new Blob(['followup onset retained']));await flush();assert.equal(oldSignal.aborted,false);assert.deepEqual(answers,[]);finishOld({text:'first question'});await flush();await flush();assert.deepEqual(answers,['first question','followup onset retained']);assert.equal(p.snapshot().interruptions,0)}finally{p.stop()}
+});
+test('waiting listener learns continuous room noise, ends on that noise and never streams a queued clip',async()=>{
+ let processor,time=0,starts=0,frames=0,ended=0;const controller=new AbortController();
+ const context={sampleRate:16000,state:'running',destination:{},createMediaStreamSource:()=>({connect(){},disconnect(){}}),createGain:()=>({gain:{},connect(){},disconnect(){}}),createScriptProcessor:()=>processor={connect(){},disconnect(){}}};
+ const promise=capturePhoneTurn({input:{context,stream:{}},signal:controller.signal,timing:PHONE_TIMING,monitor:true,now:()=>time,onSpeechStart:()=>{starts++;return false},onPcm:()=>frames++,onAudioEnd:()=>ended++,encode:()=>new Blob(['queued'])});
+ const frame=level=>{time+=64;processor.onaudioprocess?.({inputBuffer:{getChannelData:()=>new Float32Array(1024).fill(level)}})};
+ for(let i=0;i<50;i++)frame(.025);assert.equal(starts,0);for(let i=0;i<6;i++)frame(.12);for(let i=0;i<12;i++)frame(.025);
+ assert.equal((await promise).size,6);assert.equal(starts,1);assert.equal(frames,0);assert.equal(ended,0);
+});
+test('back-to-back automatic interruptions cannot starve every answer',async()=>{
+ let captures=0,startSpeech,finishClip,finishAnswer,currentSignal;const p=createPhoneSession({prepare:async()=>({release(){}}),capture:({signal,onSpeechStart})=>{if(++captures===1)return Promise.resolve(new Blob(['first']));startSpeech=onSpeechStart;return new Promise((resolve,reject)=>{finishClip=resolve;signal.addEventListener('abort',()=>reject(Error('stop')),{once:true})})},transcribe:async()=>({text:'question'}),respond:async(_,signal)=>{currentSignal=signal;p.markSpeaking(10);await new Promise(r=>finishAnswer=r)}});
+ try{await p.start();await flush();for(let i=0;i<2;i++){assert.equal(startSpeech(),true);finishClip(new Blob(['followup']));await flush();await flush()}assert.equal(p.snapshot().interruptions,2);assert.equal(startSpeech(),false);assert.equal(currentSignal.aborted,false);assert.equal(p.snapshot().automaticBargeIn,false);finishAnswer();await flush();assert.equal(p.snapshot().turns,1);assert.equal(p.isActive(),true)}finally{p.stop()}
+});
+
+test('steady background above the old fixed threshold neither starts nor holds open the first question',async()=>{
+ const h=pcmHarness({monitor:false});for(let i=0;i<40;i++)h.frame(.025);assert.equal(h.starts,0);for(let i=0;i<8;i++)h.frame(.12);for(let i=0;i<12;i++)h.frame(.025);await h.promise;assert.equal(h.starts,1);assert.ok(h.samples.length<16000*3);
+});
+
+test('a quiet fan starting after calibration cannot hold a spoken question open for 45 seconds',async()=>{
+ const h=pcmHarness({monitor:false});for(let i=0;i<8;i++)h.frame(0);for(let i=0;i<4;i++)h.frame(.025);for(let i=0;i<8;i++)h.frame(.12);for(let i=0;i<30;i++)h.frame(.025);await h.promise;assert.equal(h.starts,1);assert.ok(h.samples.length<16000*5);
 });

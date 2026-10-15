@@ -242,3 +242,6 @@
 #agent-world .room-systems .system-entrance{background:#102543;border:1px solid #d4b66d;border-radius:14px;color:#fff;max-width:125px;padding:9px 12px;white-space:normal;overflow-wrap:anywhere;box-sizing:border-box}
 @media(max-width:1100px){#agent-world .room-orb .room-systems{position:absolute;inset:0 0 auto;max-width:100%;width:100%;grid-template-columns:repeat(3,minmax(0,1fr));align-content:start;padding:8px;gap:8px}#agent-world .room-systems .system-entrance{width:100%;max-width:none;justify-self:stretch}#agent-world .room-orb{padding-top:150px;box-sizing:content-box}#agent-world .room-heading .room-orb canvas{top:150px;height:calc(100% - 150px)}}
 @media(max-width:650px){#agent-world .room-orb .room-systems{grid-template-columns:repeat(2,minmax(0,1fr))}#agent-world .room-orb{padding-top:220px}#agent-world .room-heading .room-orb canvas{top:220px;height:calc(100% - 220px)}}
+
+/* Explicit continuous-call controls stay in normal dock flow. */
+#agent-world #room-call{border-color:#78d7ba;color:#caffeb}#agent-world #room-call[aria-pressed=true]{border-color:#ff8d8d;color:#ffe0e0;background:#612a35}#agent-world #room-call-clock{align-self:center;min-width:45px;color:#a9e6d3;font-variant-numeric:tabular-nums}#agent-world .room-dock [hidden]{display:none!important}

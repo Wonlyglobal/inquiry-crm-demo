@@ -34,3 +34,6 @@ export function materialSpokenReply(data){
  if(!data.assets?.length)return '目前没有找到同时符合条件的资料。我建议补充产品型号或换一个关键词，避免拿其他产品的资料误导你。';
  return '找到相关资料了。建议先核对产品型号和版本，再比较具体参数；出处和资料入口已放在窗口里，尚未核实的内容我不会当作结论。';
 }
+
+// Short spoken lead for explicit calls; full written answer remains unchanged.
+export function phoneSpokenReply(answer){const text=spokenReply(answer);if(text.length<=140)return text;const lead=text.slice(0,138);const at=Math.max(lead.lastIndexOf('。'),lead.lastIndexOf('！'),lead.lastIndexOf('？'));return at>35?lead.slice(0,at+1):lead+'…'}

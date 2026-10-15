@@ -1,6 +1,6 @@
-import {LIMITS,sessionUpdate,nativeConversation,fromBase64,toBase64,pcmWav,confirmedSession} from './policy.mjs';
+import {LIMITS,sessionUpdate,nativeConversation,fromBase64,toBase64,pcmWav,confirmedSession,providerFrameMs} from './policy.mjs';
 // All network, audit and identity operations are injected. Never forwards browser provider events.
-export function createRealtimeBridge({send,openProvider,verify,authorizeTurn,proof,now=()=>Date.now(),history=[],previous='',initialTurn=0,pace=()=>new Promise(r=>setTimeout(r,10)),onError=()=>{}}){
+export function createRealtimeBridge({send,openProvider,verify,authorizeTurn,proof,now=()=>Date.now(),history=[],previous='',initialTurn=0,pace=ms=>new Promise(r=>setTimeout(r,ms)),onError=()=>{}}){
  let current=null,lastTurn=initialTurn,closed=false;let publicHistory=history.slice(-8),previousQuestion=previous;
  const emit=(type,t,data={})=>{if(!closed)send({type,turn:t.id,...data})};
  function cancel(id){const t=current;if(!t||id!==t.id)return;t.cancelled=true;clearTimeout(t.timer);try{if(t.responding&&t.socket?.readyState===1)t.socket.send(JSON.stringify({type:'response.cancel'}))}catch{}t.socket?.close();t.pending=new Uint8Array(0);t.previous=new Uint8Array(0);t.readyReject?.(Error('已打断'));current=null}
@@ -54,7 +54,7 @@ export function createRealtimeBridge({send,openProvider,verify,authorizeTurn,pro
     if(check!==part){check.set(t.previous);check.set(part,t.previous.length)}
     const speaker=await verify(pcmWav(check));if(!valid(t))return;
     if(!['owner','not_enrolled'].includes(speaker)||t.speaker&&t.speaker!==speaker){emit('ignored',t,{ignored:speaker||'unavailable'});cancel(t.id);return}
-    t.speaker=speaker;t.previous=part.slice(-LIMITS.blockBytes);for(let at=0;at<part.length;at+=6400){if(!valid(t))return;providerSend(t,{type:'input_audio_buffer.append',audio:toBase64(part.subarray(at,at+6400))});await pace()}
+    t.speaker=speaker;t.previous=part.slice(-LIMITS.blockBytes);for(let at=0;at<part.length;at+=6400){if(!valid(t))return;providerSend(t,{type:'input_audio_buffer.append',audio:toBase64(part.subarray(at,at+6400))});await pace(providerFrameMs(Math.min(6400,part.length-at)))}
    }
    if(valid(t)&&t.committing&&!t.pending.length&&!t.committed){if(t.total<2000||!t.speaker){emit('ignored',t,{ignored:'empty'});cancel(t.id);return}t.committed=true;providerSend(t,{type:'input_audio_buffer.commit'});clearTimeout(t.timer);t.timer=setTimeout(()=>fail(t,'实时语音识别超时'),15000)}
   }catch(e){fail(t,e.message)}finally{t.draining=false}

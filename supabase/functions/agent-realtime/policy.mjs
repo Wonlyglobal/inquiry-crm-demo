@@ -3,6 +3,7 @@ import {validateDialogue} from '../agent-conversation/policy.mjs';
 export const REALTIME_POLICY='bailian-realtime-guarded-v1';
 export const REALTIME_MODEL='qwen3.8-omni-flash-realtime';
 export const LIMITS=Object.freeze({sampleRate:16000,blockBytes:128000,maxAudioBytes:1440000,maxPendingBytes:256000,maxFrameBytes:6400,maxOutputBytes:1440000,rotateMs:45000,connectionMs:135000,callMs:1200000});
+export function providerFrameMs(bytes){return bytes/(LIMITS.sampleRate*2)*1000}
 export function realtimeUrl(workspace){if(typeof workspace!=='string'||!/^[a-zA-Z0-9-]{4,80}$/.test(workspace))throw Error('实时语音业务空间尚未配置');return `wss://${workspace}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime?model=${REALTIME_MODEL}`}
 export function nativeConversation(question,previous=''){
  validateDialogue({action:'chat',persona:'Grace',question,history:[]});

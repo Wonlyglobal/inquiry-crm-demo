@@ -1,15 +1,15 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createRealtimeBridge} from '../supabase/functions/agent-realtime/bridge.mjs';
-import {nativeConversation,sessionUpdate,toBase64,pcmWav,fromBase64,realtimeUrl,confirmedSession,diagnosticPcm} from '../supabase/functions/agent-realtime/policy.mjs';
+import {nativeConversation,sessionUpdate,toBase64,pcmWav,fromBase64,realtimeUrl,confirmedSession,diagnosticPcm,providerFrameMs} from '../supabase/functions/agent-realtime/policy.mjs';
 import {createRealtimeClient} from '../assets/agent-realtime-client.mjs';
 import {pcmEncoder,encodePcm,createPcmPlayer} from '../assets/agent-realtime-audio.mjs';
 const tick=()=>new Promise(r=>setImmediate(r));
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve}};
 const config={turn_detection:null,audio:{input:{format:{type:'pcm',sample_rate:16000}},output:{format:{sample_rate:24000,type:'pcm'}}}};
-function bridgeHarness({verify=async()=> 'owner',authorizeTurn=async()=>{},history=[]}={}){
+function bridgeHarness({verify=async()=> 'owner',authorizeTurn=async()=>{},history=[],pace=async()=>{}}={}){
  const out=[],up=[],verified=[],errors=[];let ws,time=100000;
- const b=createRealtimeBridge({pace:async()=>{},send:e=>out.push(e),verify:async a=>{verified.push(a);return verify(a)},authorizeTurn,proof:async()=>({data:'signed',signature:'proof'}),history,now:()=>time,openProvider:()=>{ws={readyState:1,bufferedAmount:0,send:e=>up.push(JSON.parse(e)),close(){this.readyState=3}};queueMicrotask(()=>ws.onopen());return ws},onError:e=>errors.push(e)});
+ const b=createRealtimeBridge({pace,send:e=>out.push(e),verify:async a=>{verified.push(a);return verify(a)},authorizeTurn,proof:async()=>({data:'signed',signature:'proof'}),history,now:()=>time,openProvider:()=>{ws={readyState:1,bufferedAmount:0,send:e=>up.push(JSON.parse(e)),close(){this.readyState=3}};queueMicrotask(()=>ws.onopen());return ws},onError:e=>errors.push(e)});
  const event=async e=>{ws.onmessage({data:JSON.stringify(e)});await tick()};
  return {b,out,up,errors,verified,event,advance(ms){time+=ms},async begin(){const task=b.begin(1);await tick();await event({type:'session.updated',session:config});await task},append(n=3200){b.append({turn:1,seq:up.filter(x=>x.type==='input_audio_buffer.append').length+1,audio:toBase64(new Uint8Array(n))})}};
 }
@@ -83,4 +83,11 @@ test('real diagnostic checks internal speaker readiness without recording or pub
 
 test('a delayed handshake groups queued microphone callbacks without a rate-limit burst or lost samples',async()=>{
  const h=clientHarness();await h.open();const s=h.sockets[0],f=h.c.createFeed(),frames=Array.from({length:120},()=>new Float32Array(1024).fill(.2));for(const frame of frames)f.push(frame,48000);assert.equal(s.sent.some(e=>e.type==='audio.append'),false);s.event({type:'turn.ready',turn:1});f.end();const sent=s.sent.filter(e=>e.type==='audio.append');assert.ok(sent.length<20);const actual=Buffer.concat(sent.map(e=>fromBase64(e.audio,6400))),expected=Buffer.from(pcmEncoder(48000)(new Float32Array(120*1024).fill(.2)));assert.deepEqual(actual,expected);f.cancel();h.c.close();
+});
+
+test('verified audio advances at its sample clock and cancellation stops an in-flight paced block',async()=>{
+ assert.equal(providerFrameMs(6400),200);assert.equal(providerFrameMs(3200),100);
+ const gate=deferred(),delays=[],h=bridgeHarness({pace:ms=>{delays.push(ms);return gate.promise}});await h.begin();appendFrames(h);h.b.commit(1);await tick();
+ assert.equal(h.up.filter(e=>e.type==='input_audio_buffer.append').length,1);assert.deepEqual(delays,[200]);h.b.cancel(1);gate.resolve();await tick();
+ assert.equal(h.up.filter(e=>e.type==='input_audio_buffer.append').length,1);assert.equal(h.up.some(e=>e.type==='input_audio_buffer.commit'),false);h.b.close();
 });

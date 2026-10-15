@@ -27,8 +27,9 @@ final class GraceViewController: UIViewController, WKNavigationDelegate, WKUIDel
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-        // Session-only WebKit storage avoids a persistent customer cache on shared devices.
-        config.websiteDataStore = .nonPersistent()
+        // Keep the existing auth session across app launches (user requested).
+        // Supabase still refreshes/revalidates it; explicit sign-out removes it.
+        config.websiteDataStore = .default()
         web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self; web.uiDelegate = self
         web.isOpaque = false; web.backgroundColor = view.backgroundColor

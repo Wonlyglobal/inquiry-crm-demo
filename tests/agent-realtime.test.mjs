@@ -76,3 +76,7 @@ test('provider optional null VAD echo stays gated by exact PCM; active or malfor
  assert.equal(confirmedSession(config),true);const omitted=structuredClone(config);delete omitted.turn_detection;assert.equal(confirmedSession(omitted),true);for(const vad of [false,true,{}, {type:'server_vad'}, {type:'semantic_vad'}])assert.equal(confirmedSession({...config,turn_detection:vad}),false);assert.equal(confirmedSession({output_audio_format:'pcm'}),false);assert.equal(confirmedSession({...config,audio:{...config.audio,output:{format:{type:'wav',sample_rate:24000}}}}),false);
  const diagnostic=diagnosticPcm([new Uint8Array(48000)]);assert.equal(diagnostic.length,64000);assert.deepEqual(diagnostic.slice(-32000),new Uint8Array(32000));assert.throws(()=>diagnosticPcm([new Uint8Array(200002)]));
 });
+
+test('real diagnostic checks internal speaker readiness without recording or publishing a voice template',async()=>{
+ const {readFile}=await import('node:fs/promises'),src=await readFile(new URL('../supabase/functions/agent-realtime/index.ts',import.meta.url),'utf8'),probe=src.slice(src.indexOf('async function probe'),src.indexOf('Deno.serve'));assert.match(probe,/op:'status'/);assert.match(probe,/if\(vp.status!=='ok'\)throw/);assert.match(probe,/voiceprint_available:true/);assert.doesNotMatch(probe,/embedding|op:'enroll'|op:'delete'/);
+});

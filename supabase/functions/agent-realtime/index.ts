@@ -2,7 +2,7 @@ import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
 import WebSocketClient from 'npm:ws@8.21.3';
 import {eligible,POLICY} from '../agent-conversation/policy.mjs';
 import {voiceprintCall,speakerOf,voiceProof} from '../agent-conversation/voiceprint.mjs';
-import {REALTIME_POLICY,REALTIME_MODEL,LIMITS,realtimeUrl,sessionUpdate,confirmedSession,diagnosticPcm,fromBase64,toBase64} from './policy.mjs';
+import {REALTIME_POLICY,REALTIME_MODEL,LIMITS,realtimeUrl,sessionUpdate,confirmedSession,diagnosticPcm,providerFrameMs,fromBase64,toBase64} from './policy.mjs';
 import {createRealtimeBridge} from './bridge.mjs';
 const ORIGIN='https://crm.foreverdoodle.com';
 const cors={'Access-Control-Allow-Origin':ORIGIN,'Access-Control-Allow-Headers':'authorization,content-type,apikey,x-client-info','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Cache-Control':'no-store'};
@@ -41,7 +41,7 @@ async function probe(userId:string){
     if(d.type==='session.updated'&&(phase==='output_config'||phase==='input_config')){
      if(!confirmedSession(d.session)){finish(Error('实时模型配置未确认'));return}
      if(phase==='output_config'){phase='greeting';current.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text:'只用中文说：你好，我是Grace。'}]}}));current.send(JSON.stringify({type:'response.create'}))}
-     else {phase='loopback';void (async()=>{for(let at=0;input&&at<input.length&&!settled;at+=6400){current.send(JSON.stringify({type:'input_audio_buffer.append',audio:toBase64(input.subarray(at,at+6400))}));await new Promise(r=>setTimeout(r,200))}if(!settled)current.send(JSON.stringify({type:'input_audio_buffer.commit'}));input=null})().catch(()=>finish(Error('实时输入检查失败')))}return;
+     else {phase='loopback';void (async()=>{for(let at=0;input&&at<input.length&&!settled;at+=6400){current.send(JSON.stringify({type:'input_audio_buffer.append',audio:toBase64(input.subarray(at,at+6400))}));await new Promise(r=>setTimeout(r,providerFrameMs(Math.min(6400,input.length-at))))}if(!settled)current.send(JSON.stringify({type:'input_audio_buffer.commit'}));input=null})().catch(()=>finish(Error('实时输入检查失败')))}return;
     }
     if(phase==='loopback'&&(d.type==='response.created'||d.type==='response.audio.delta')){finish(Error('实时模型未保持受控回答模式'));return}
     if(phase==='greeting'&&d.type==='response.audio.delta'){const part=fromBase64(d.delta,128000);first??=Date.now()-started;chunks++;bytes+=part.length;parts.push(part);if(bytes>200000)finish(Error('诊断回复超限'))}

@@ -60,5 +60,5 @@ test('registration failures retain only safe reason codes and never pretend reco
   const r=await voiceprintCall({...cfg,op:'enroll',audio,mime:'audio/wav'},async()=>new Response(JSON.stringify({status:'error',code,embedding:[1,2,3]}),{status:503}));assert.equal(r.code,code);assert.equal(r.status,'unavailable');assert.match(enrollmentReply(r),pattern);assert.equal(r.embedding,undefined);
  }
  const unsafe=await voiceprintCall({...cfg,op:'status'},async()=>new Response(JSON.stringify({error:'private error details'}),{status:500}));assert.equal(unsafe.code,'http_500');
- const timeout=await voiceprintCall({...cfg,op:'status'},async()=>{throw Object.assign(Error('private details'),{name:'TimeoutError'})});assert.equal(timeout.code,'connection_timeout');assert.match(enrollmentReply(timeout),/没有登记成功/);assert.match(enrollmentReply(timeout),/不必反复重录/);
+ const timeout=await voiceprintCall({...cfg,op:'status'},async()=>{throw Object.assign(Error('private details'),{name:'TimeoutError'})});assert.equal(timeout.code,'connection_timeout');assert.match(enrollmentReply(timeout),/尚未确认/);assert.match(enrollmentReply(timeout),/不必反复重录/);
 });

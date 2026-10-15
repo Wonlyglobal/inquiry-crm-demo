@@ -13,7 +13,7 @@ function bridgeHarness({verify=async()=> 'owner',authorizeTurn=async()=>{},histo
  const event=async e=>{ws.onmessage({data:JSON.stringify(e)});await tick()};
  return {b,out,up,errors,verified,event,advance(ms){time+=ms},async begin(){const task=b.begin(1);await tick();await event({type:'session.updated',session:config});await task},append(n=3200){b.append({turn:1,seq:up.filter(x=>x.type==='input_audio_buffer.append').length+1,audio:toBase64(new Uint8Array(n))})}};
 }
-const appendFrames=(h,n=64000)=>{for(let i=0,seq=1;i<n;i+=3200,seq++)h.b.append({turn:1,seq,audio:toBase64(new Uint8Array(Math.min(3200,n-i)))})};
+const appendFrames=(h,n=128000)=>{h.advance(n/32);for(let i=0,seq=1;i<n;i+=3200,seq++)h.b.append({turn:1,seq,audio:toBase64(new Uint8Array(Math.min(3200,n-i)))})};
 test('native routing keeps products, CRM, followups, fresh and sensitive input on existing path',()=>{
  for(const q of ['给我X60 Pro参数','X六零','爱克斯六零','智能锁画册v9','我们的询盘','今天天气','谢谢，请查下网站','继续','那它的价格呢','帮我打开公司背调','记住我喜欢简洁'])assert.equal(nativeConversation(q,'X60 Pro参数'),false,q);
  assert.throws(()=>nativeConversation('密码：abcDEF123!'));assert.equal(nativeConversation('谢谢你'),true);assert.equal(nativeConversation('讲一个简短的笑话'),true);
@@ -46,7 +46,7 @@ test('cancel stops provider generation, discards late deltas and keeps next turn
 });
 test('frames are bounded, ordered, wall-clock paced and speaker consistent',async()=>{
  const h=bridgeHarness();await h.begin();assert.throws(()=>h.b.append({turn:1,seq:2,audio:toBase64(new Uint8Array(100))}));assert.throws(()=>h.b.append({turn:1,seq:1,audio:toBase64(new Uint8Array(6402))}));h.b.close();
- let n=0;const mixed=bridgeHarness({verify:async()=>++n===1?'owner':'not_enrolled'});await mixed.begin();appendFrames(mixed);await tick();mixed.advance(2000);for(let seq=21;seq<=40;seq++)mixed.b.append({turn:1,seq,audio:toBase64(new Uint8Array(3200))});await tick();assert.equal(mixed.out.at(-1).ignored,'not_enrolled');assert.equal(mixed.up.filter(e=>e.type==='input_audio_buffer.append').length,1);mixed.b.close();
+ let n=0;const mixed=bridgeHarness({verify:async()=>++n===1?'owner':'not_enrolled'});await mixed.begin();appendFrames(mixed);await tick();mixed.advance(4000);for(let seq=41;seq<=80;seq++)mixed.b.append({turn:1,seq,audio:toBase64(new Uint8Array(3200))});await tick();assert.equal(mixed.out.at(-1).ignored,'not_enrolled');assert.equal(mixed.up.filter(e=>e.type==='input_audio_buffer.append').length,1);mixed.b.close();
 });
 test('PCM codec preserves chunked resampling and WAV boundaries',()=>{
  const src=Float32Array.from({length:4800},(_,i)=>Math.sin(i*.05)*.6),whole=pcmEncoder(48000)(src),encode=pcmEncoder(48000),chunks=[];for(let i=0;i<src.length;i+=137)chunks.push(encode(src.slice(i,i+137)));assert.deepEqual(Buffer.concat(chunks),Buffer.from(whole));assert.equal(whole.length,3200);assert.deepEqual(fromBase64(encodePcm(whole),6400),whole);assert.equal(pcmWav(whole).length,whole.length+44);assert.throws(()=>fromBase64('garbage!',6400));assert.throws(()=>pcmEncoder(1));

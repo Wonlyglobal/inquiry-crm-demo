@@ -1,4 +1,4 @@
-import {pcmEncoder,encodePcm,decodePcm,createPcmPlayer} from './agent-realtime-audio.mjs?v=20261015-realtime1';
+import {pcmEncoder,encodePcm,decodePcm,createPcmPlayer} from './agent-realtime-audio.mjs?v=20261015-realtime2';
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});promise.catch(()=>{});return {promise,resolve,reject}};
 // A provider key never enters this module. The CRM session token is sent once over TLS,
 // in the first frame, never in a URL, local storage, transcript, or diagnostics.

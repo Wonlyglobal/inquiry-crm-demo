@@ -1,10 +1,12 @@
 // Streaming PCM codec/player; no account, network, storage or document access.
 export function pcmEncoder(sourceRate){
- let tail=new Float32Array(0),position=0;const ratio=sourceRate/16000;
- if(!Number.isFinite(ratio)||ratio<.5||ratio>12)throw Error('录音采样率不支持');
- return frame=>{const data=new Float32Array(tail.length+frame.length);data.set(tail);data.set(frame,tail.length);const n=Math.max(0,Math.floor((data.length-position)/ratio)),bytes=new Uint8Array(n*2),view=new DataView(bytes.buffer);
-  for(let i=0;i<n;i++){const at=Math.floor(position),end=Math.min(data.length,Math.max(at+1,Math.floor(position+ratio)));let sum=0;for(let j=at;j<end;j++)sum+=data[j];const x=Math.max(-1,Math.min(1,sum/(end-at)));view.setInt16(i*2,x*(x<0?32768:32767),true);position+=ratio}
-  const keep=Math.floor(position);tail=data.slice(keep);position-=keep;return bytes;
+ let tail=new Float32Array(0),base=0,nextIndex=0,total=0;
+ if(!Number.isInteger(sourceRate)||sourceRate<8000||sourceRate>192000)throw Error('录音采样率不支持');
+ return frame=>{const data=new Float32Array(tail.length+frame.length);data.set(tail);data.set(frame,tail.length);total+=frame.length;const endIndex=Math.floor(total*16000/sourceRate),bytes=new Uint8Array((endIndex-nextIndex)*2),view=new DataView(bytes.buffer);
+  // Derive every boundary from integer sample counts; fractional phase must not drift
+  // across 1024-frame callbacks (notably Safari's 44.1kHz AudioContext).
+  for(let i=nextIndex;i<endIndex;i++){const at=Math.floor(i*sourceRate/16000),end=Math.max(at+1,Math.floor((i+1)*sourceRate/16000));let sum=0;for(let j=at;j<end;j++)sum+=data[j-base];const x=Math.max(-1,Math.min(1,sum/(end-at)));view.setInt16((i-nextIndex)*2,x*(x<0?32768:32767),true)}
+  const consumed=Math.floor(endIndex*sourceRate/16000);tail=data.slice(consumed-base);base=consumed;nextIndex=endIndex;return bytes;
  };
 }
 export function encodePcm(bytes){let s='';for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(s)}

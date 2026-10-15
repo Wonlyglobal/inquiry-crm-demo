@@ -1,6 +1,6 @@
 # Grace 受控实时语音
 
-2026-10-15，发布候选。部署和真人验收状态以项目工作日志为准。
+2026-10-15。部署和真人验收状态以项目工作日志为准。
 
 ## 行为
 
@@ -22,8 +22,10 @@
 
 新函数需要既有 DASHSCOPE_API_KEY、BAILIAN_AGENT_POLICY、公司声纹签名配置，另设 BAILIAN_REALTIME_WORKSPACE_ID 与 BAILIAN_REALTIME_POLICY=bailian-realtime-guarded-v1。workspace 必须是当前北京业务空间。密钥留在服务端，不创建浏览器临时提供商密钥。
 
-先部署关闭状态，使用主动点击的“检查实时语音”发送固定公开问候文本，检查提供商权限、PCM配置、实际音频分段及首段时间；不采集麦克风，不构成真人 ASR、声纹、端到端响应速度或 iPhone 外放验收。通过后再启用策略并核验已登录状态；匿名状态请求应拒绝。再核验连续提问、回声、插话、静音和挂断。
+先部署关闭状态，使用主动点击的“检查实时语音”发送固定公开问候文本，检查提供商权限、PCM配置、实际音频分段及首段时间，并将同一固定公开问候的合成音频回送做转写与手动模式检查；启用后还核验浏览器认证通道；不采集麦克风，不构成真人 ASR、声纹、端到端响应速度或 iPhone 外放验收。通过后再启用策略并核验已登录状态；匿名状态请求应拒绝。再核验连续提问、回声、插话、静音和挂断。
 
 回滚把 BAILIAN_REALTIME_POLICY 改为 disabled，前端连接检查回到原通话；必要时回退本次前端与新函数。不删除知识、业务资料或审计。不声称已安装新的原生包、PSTN电话或离线后台通话。
 
 依据（2026-10-15查阅）：[百炼实时模型与地域接口](https://help.aliyun.com/zh/model-studio/realtime)、[客户端受控事件与输入转写配置](https://help.aliyun.com/zh/model-studio/client-events)、[服务端事件](https://help.aliyun.com/zh/model-studio/server-events)、[Supabase WebSocket](https://supabase.com/docs/guides/functions/websockets)。因既有声纹前置和内部资料边界，未采用直接浏览器自动 VAD 上云。
+
+兼容性核验：真实提供商在关闭VAD后省略 turn_detection 字段。只接受缺省或显式null且16k/24k PCM完整回显；任何VAD对象均拒绝。合成回环追加一秒静音，核验输入转写并等待一秒，出现未经 response.create 的回答即失败；仍保持声纹和回答路由门禁。

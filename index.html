@@ -1474,7 +1474,7 @@
         }
       }
     </style>
-  <link rel="stylesheet" href="./assets/agent-world.css?v=phone-20261015" />
+  <link rel="stylesheet" href="./assets/agent-world.css?v=20261015-history2" />
   <link rel="stylesheet" href="./assets/ui-contrast.css?v=20261012-feedback" />
   <link rel="stylesheet" href="./assets/exhibition-calendar.css?v=20261013-11" />
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
@@ -2550,13 +2550,13 @@
       <div class="ai-suggestions"><button data-ai-question="生成今日销售日报">今日销售日报</button><button data-ai-question="生成本周销售周报">本周销售周报</button><button data-ai-question="总结当前经营情况">总结经营情况</button><button data-ai-question="业务员销售额排名">销售额排名</button><button data-ai-question="有哪些超时和风险询盘">风险询盘</button><button data-ai-question="分析当前商机漏斗">商机漏斗</button></div>
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
-    <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261015-stable-call1" />
+    <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261015-history2" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
       import {marketSummary} from './assets/agent-market-summary.mjs?v=20261012-market';
       import {mountExhibitionCalendar} from './assets/exhibition-calendar.mjs?v=20261013-11';
       let exhibitionCalendarController=null;
-      import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow,currentQuestionWindow} from './assets/agent-question-windows.mjs?v=20261012-thread-state';
+      import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow,currentQuestionWindow,restoreHistoryQuestion} from './assets/agent-question-windows.mjs?v=20261015-history2';
       import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261015-stable-call1';
       let graceMobile=null;
       if(isGraceApp()){
@@ -2570,7 +2570,7 @@
         document.querySelector('#boot').textContent='Grace 正在准备…';
       }
       import {createRealtimeClient} from './assets/agent-realtime-client.mjs?v=20261015-realtime3';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20261015-stable-call1';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20261015-history2';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261003-route1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
@@ -5292,7 +5292,7 @@
           realtimeFactory:({onFailure})=>createRealtimeClient({url:'wss://plhverjihjilnuhlhlxi.supabase.co/functions/v1/agent-realtime',getToken:async()=>{const {data:{session}}=await supabase.auth.getSession();if(!session)throw Error('请重新登录');return session.access_token},onFailure}),
           realtimeRequest:async action=>{const {data:{session}}=await supabase.auth.getSession();if(!session)throw Error('请重新登录');const response=await fetch('https://plhverjihjilnuhlhlxi.supabase.co/functions/v1/agent-realtime',{method:'POST',headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({action}),signal:AbortSignal.timeout(action==='probe'?40000:10000)});const result=await response.json();if(!response.ok)throw Error(result.error||'实时语音连接失败');return result},
           onSelectPersona:name=>$('#agent-world-page [data-advisor="'+name+'"]').click(),getPersona:()=>worldPersona||'Jay',isAllowed:()=>!!worldPersona&&canUseAgentWorld(profile,currentAuthUser),
-          getResponseCard:()=>currentQuestionWindow($('#ai-assistant-messages')),onOpenRequest:entry=>{const host=$('#ai-assistant-messages');let card=entry.card;if(!card||!host.contains(card)){card=appendQuestionMessage(host,'user',entry.question).closest('.question-window');appendQuestionMessage(host,'assistant','这条历史需求未保存完整回答。以下是当时保留的资料入口；你可以重新提问以取得当前信息。');if(entry.windows?.children.length)appendQuestionMaterials(host,entry.windows)}openQuestionWindow(host,card);worldController?.showResponse();graceMobile?.showConversation();return card},timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,materialFile:agentMaterialFile,crmAnswer:question=>crmLiveAnswer(question,{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad}),crmChart:aiChart,onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>{worldController?.setStatus(text);graceMobile?.setStatus(text)},onMode:mode=>{worldController?.setMode(mode);graceMobile?.setMode(mode)},onMessage:(role,text)=>{addAiMessage(role,text);graceMobile?.showConversation()},onTranscript:text=>{$('#ai-assistant-input').value=text},
+          getResponseCard:()=>currentQuestionWindow($('#ai-assistant-messages')),onOpenRequest:entry=>{const host=$('#ai-assistant-messages');let card=entry.card;if(!card||!host.contains(card)){card=restoreHistoryQuestion(host,entry.question,entry.windows,question=>{if(worldModel?.busy())return toast('请等待当前回答完成，或先停止回答');host.dataset.newQuestion='true';return worldModel?.ask(question,{voice:false})})}openQuestionWindow(host,card,{viewOnly:true});worldController?.showResponse();graceMobile?.showConversation();return card},timelineRoot:$('#room-timeline'),materialRow:agentMaterialRow,materialFile:agentMaterialFile,crmAnswer:question=>crmLiveAnswer(question,{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad}),crmChart:aiChart,onMaterials:assets=>{const list=document.createElement('div');for(const asset of assets)list.append(agentMaterialRow(asset));appendQuestionMaterials($('#ai-assistant-messages'),list)},onStatus:text=>{worldController?.setStatus(text);graceMobile?.setStatus(text)},onMode:mode=>{worldController?.setMode(mode);graceMobile?.setMode(mode)},onMessage:(role,text)=>{addAiMessage(role,text);graceMobile?.showConversation()},onTranscript:text=>{$('#ai-assistant-input').value=text},
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');
             const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';

@@ -245,3 +245,5 @@
 
 /* Explicit continuous-call controls stay in normal dock flow. */
 #agent-world #room-call{border-color:#78d7ba;color:#caffeb}#agent-world #room-call[aria-pressed=true]{border-color:#ff8d8d;color:#ffe0e0;background:#612a35}#agent-world #room-call-clock{align-self:center;min-width:45px;color:#a9e6d3;font-variant-numeric:tabular-nums}#agent-world .room-dock [hidden]{display:none!important}
+
+#agent-world .question-retry{display:block;margin:14px 0;padding:11px 16px;min-height:44px;border:1px solid #8caace;border-radius:12px;background:#254b76;color:#f1f5ff;font:inherit;cursor:pointer}

@@ -2,6 +2,8 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
+    <script>if(location.pathname==='/grace.html'||new URLSearchParams(location.search).get('app')==='grace'){document.documentElement.dataset.graceApp='true';document.documentElement.dataset.graceEntry='true'}</script>
+    <link rel="stylesheet" href="./assets/grace-entry.css?v=20261015-1" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>王力 · 全球询盘 CRM</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -2555,8 +2557,18 @@
       import {mountExhibitionCalendar} from './assets/exhibition-calendar.mjs?v=20261013-11';
       let exhibitionCalendarController=null;
       import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow,currentQuestionWindow} from './assets/agent-question-windows.mjs?v=20261012-thread-state';
-      import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261008-2';
+      import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261015-entry';
       let graceMobile=null;
+      if(isGraceApp()){
+        document.title='Grace · 王力随身 AI';
+        const card=document.querySelector('#login-form');
+        card.querySelector('h1').textContent='你好，我是 Grace';
+        card.querySelector('p').textContent='登录后，继续我们的对话。';
+        card.querySelector('.brand-mark').innerHTML='<span class="grace-login-eyes"><i></i><i></i></span>';
+        card.querySelector('.brand-mark').title='Grace';
+        card.querySelector('button[type="submit"]').textContent='登录 Grace';
+        document.querySelector('#boot').textContent='Grace 正在准备…';
+      }
       import { mountConversation } from './assets/agent-conversation.mjs?v=20261015-inline';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261003-route1';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
@@ -2972,6 +2984,20 @@
         toast("当前账号的导出/下载能力已因风险保护暂停，请联系老板完成复验和解除");return false;
       }
       async function showApp() {
+        if(isGraceApp()){
+          $('#boot').classList.add('hidden');
+          if(!canUseAgentWorld(profile,currentAuthUser)){
+            $('#app').classList.add('hidden');$('#login').classList.remove('hidden');
+            $('#login-error').textContent='当前账号尚未开通 Grace，请使用已获授权的账号。';
+            return;
+          }
+          $('#login').classList.add('hidden');$('#password-modal').classList.add('hidden');$('#app').classList.remove('hidden');
+          restoreAgentLocation();
+          // Shared local business analysis still receives the same permitted data;
+          // unrelated CRM startup never blocks the Grace interface.
+          void Promise.allSettled([loadInquiries(),loadDashboardPreferences(),loadMyRiskControls()]);
+          return;
+        }
         $("#login").classList.add("hidden");
         $("#password-modal").classList.add("hidden");
         $("#app").classList.remove("hidden");
@@ -5156,7 +5182,7 @@
       }
       function restoreAgentLocation(){
         if(window.CRM_EMBED||!canUseAgentWorld(profile,currentAuthUser))return;
-        if(isGraceApp()){switchView('agent-world');$('#agent-world-page [data-advisor="Grace"]').click();if(!graceMobile)graceMobile=mountGraceMobile({host:$('#agent-world-page'),model:worldModel,readProgress:async()=>{await refreshMaterialProgress(true);return materialProgressState},onLogout:()=>$('#logout').click()});return;}
+        if(isGraceApp()){if(graceMobile){graceMobile.showConversation();return;}switchView('agent-world');$('#agent-world-page [data-advisor="Grace"]').click();if(!graceMobile)graceMobile=mountGraceMobile({host:$('#agent-world-page'),model:worldModel,readProgress:async()=>{await refreshMaterialProgress(true);return materialProgressState},onLogout:()=>$('#logout').click()});return;}
         try{const saved=JSON.parse(sessionStorage.getItem('wonly_agent_location_'+profile.id)||'null');
           if(saved?.world!==true)return;
           switchView('agent-world');
@@ -5278,6 +5304,7 @@
       }
       $('#world-switch').onclick=()=>{if(!canUseAgentWorld(profile,currentAuthUser))return;switchView($('#app').classList.contains('agent-world-active')?'dashboard':'agent-world')};
       async function switchView(view, options = {}) {
+        if(isGraceApp()&&view!=='agent-world'){toast('请直接向 Grace 提问，当前 App 保持在对话界面');return;}
         if (!canAccessView(view)) {
           toast("当前角色无权进入该功能");
           view = "dashboard";
@@ -9307,7 +9334,7 @@
       } else if (sessionError) $("#login-error").textContent = "数据服务暂时无法连接，请检查网络后重试";
       if (!sessionReady && !recoveryActive) $("#login").classList.remove("hidden");
       const initialInquiry = location.hash.match(/^#inquiry\/(.+)$/);
-      if (sessionReady && initialInquiry)
+      if (sessionReady && !isGraceApp() && initialInquiry)
         await openInquiryDetail(initialInquiry[1]);
       // Agent "open it for me" links: https://crm.foreverdoodle.com/#view=<view> opens that CRM page (role checks still apply).
       const initialView = location.hash.match(/^#view=([a-z0-9-]{2,40})$/);

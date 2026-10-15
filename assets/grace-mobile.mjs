@@ -1,5 +1,5 @@
 import {progressBlock} from './agent-material-progress.mjs';
-export const isGraceApp=()=>new URLSearchParams(location.search).get('app')==='grace';
+export const isGraceApp=()=>location.pathname==='/grace.html'||new URLSearchParams(location.search).get('app')==='grace';
 export function orbState(mode,online=true){return !online?'offline':({idle:'idle',listening:'listen',thinking:'think',speaking:'speak',interrupt:'interrupt',offline:'offline'}[mode]||'idle')}
 // Presentation only: all questions, permissions, materials and history remain in
 // the existing Grace controller. This module has no network client or API keys.

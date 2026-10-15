@@ -31,7 +31,7 @@ async function probe(userId:string){
   function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);ws.close();error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true})}
   ws.onopen=()=>ws.send(JSON.stringify(sessionUpdate()));ws.onerror=()=>finish(Error('实时模型连接失败'));ws.onclose=()=>{if(!settled)finish(Error('实时模型连接已关闭'))};
   ws.onmessage=e=>{try{const d=JSON.parse(String(e.data));if(d.type==='error'){finish(Error('实时模型权限或配置尚未通过检查'));return}if(d.type==='session.updated'){
-    if(d.session?.turn_detection!==null||d.session?.audio?.output?.format?.type!=='pcm'){finish(Error('实时模型配置未确认'));return}
+    if(d.session?.turn_detection!==null||d.session?.audio?.output?.format?.type!=='pcm'){finish(Error('实时模型配置未确认：'+JSON.stringify({manual:d.session?.turn_detection===null,vad_present:d.session?.turn_detection!==undefined,nested_output_pcm:d.session?.audio?.output?.format?.type==='pcm',legacy_output_pcm:d.session?.output_audio_format==='pcm',nested_input_rate:d.session?.audio?.input?.format?.sample_rate||0,nested_output_rate:d.session?.audio?.output?.format?.sample_rate||0})));return}
     ws.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text:'只用中文说：你好，我是Grace。'}]}}));ws.send(JSON.stringify({type:'response.create'}));
    }if(d.type==='response.audio.delta'){first??=Date.now()-started;chunks++;bytes+=Math.floor(String(d.delta).length*3/4);if(bytes>200000)finish(Error('诊断回复超限'))}if(d.type==='response.done'){if(!chunks||d.response?.status!=='completed')finish(Error('实时模型未返回完整音频'));else finish()}}catch{finish(Error('实时模型事件无效'))}};
  });

@@ -29,15 +29,15 @@ async function probe(userId:string){
  const statusTask=voiceprintCall({actor:userId,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET'),op:'status'}).then(vp=>{if(vp.status!=='ok')throw Error('公司声纹服务暂不可用，实时通话保持关闭');return vp});statusTask.catch(()=>{});
  let stop:any;
  const modelTask=new Promise<any>((resolve,reject)=>{
-  let ws:any,phase='output_config',bytes=0,chunks=0,first:number|null=null,settled=false,parts:Uint8Array[]=[],input:Uint8Array|null=null,manualTimer:any;
+  let ws:any,phase='output_config',bytes=0,chunks=0,first:number|null=null,settled=false,parts:Uint8Array[]=[],input:Uint8Array|null=null,manualTimer:any,inputEvents:string[]=[];
   const sockets:any[]=[],started=Date.now();
-  const timer=setTimeout(()=>finish(Error('实时模型检查超时（'+({output_config:'输出配置',greeting:'合成问候',input_config:'输入配置',loopback:'输入转写'}[phase]||'连接')+'）')),20000);
+  const timer=setTimeout(()=>finish(Error('实时模型检查超时（'+({output_config:'输出配置',greeting:'合成问候',input_config:'输入配置',loopback:'输入转写'}[phase]||'连接')+'；事件 '+inputEvents.join(',')+'）')),30000);
   function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);clearTimeout(manualTimer);for(const s of sockets){s.onerror=()=>{};s.onclose=()=>{};s.onmessage=()=>{};s.close()}parts=[];input=null;error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true,input_transcription_verified:true,manual_verified:true})}
   stop=finish;
   function open(){
    const current=upstream();ws=current;sockets.push(current);
    current.onopen=()=>current.send(JSON.stringify(sessionUpdate()));current.onerror=()=>finish(Error('实时模型连接失败'));current.onclose=()=>{if(!settled&&ws===current)finish(Error('实时模型连接已关闭'))};
-   current.onmessage=e=>{if(settled||ws!==current)return;try{const d=JSON.parse(String(e.data));if(d.type==='error'){finish(Error('实时模型权限或配置尚未通过检查'));return}
+   current.onmessage=e=>{if(settled||ws!==current)return;try{const d=JSON.parse(String(e.data));if(phase==='loopback'&&typeof d.type==='string'&&/^[a-z_.]{1,100}$/.test(d.type)&&inputEvents.length<12&&!inputEvents.includes(d.type))inputEvents.push(d.type);if(d.type==='error'){finish(Error('实时模型权限或配置尚未通过检查'));return}
     if(d.type==='session.updated'&&(phase==='output_config'||phase==='input_config')){
      if(!confirmedSession(d.session)){finish(Error('实时模型配置未确认'));return}
      if(phase==='output_config'){phase='greeting';current.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text:'只用中文说：你好，我是Grace。'}]}}));current.send(JSON.stringify({type:'response.create'}))}

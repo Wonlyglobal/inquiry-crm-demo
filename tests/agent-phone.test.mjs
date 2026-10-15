@@ -1,0 +1,63 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createPhoneSession,PHONE_TIMING,phoneEnd} from '../assets/agent-phone.mjs';
+import {capturePhoneTurn,preparePhoneInput} from '../assets/agent-phone-input.mjs';
+import {phoneSpokenReply} from '../supabase/functions/agent-conversation/conversation-style.mjs';
+import {validateDialogue,requestBody} from '../supabase/functions/agent-conversation/policy.mjs';
+const flush=()=>new Promise(r=>setImmediate(r));
+const blocked=signal=>new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(Error('stop')),{once:true}));
+test('one explicit call runs successive turns serially without a second wake or microphone request',async()=>{
+ let prepared=0,released=0,transcribed=0,responded=0,inFlight=0,max=0;const heard=[];
+ const p=createPhoneSession({prepare:async()=>{prepared++;return {release:()=>released++}},capture:({signal})=>transcribed<3?Promise.resolve(new Blob(['clip'])):blocked(signal),transcribe:async()=>{transcribed++;return {text:'question '+transcribed,voiceProof:{data:'same-proof'}}},respond:async q=>{max=Math.max(max,++inFlight);heard.push(q);await flush();responded++;inFlight--}});
+ try{await p.start();for(let i=0;i<8;i++)await flush();assert.equal(responded,3);assert.equal(max,1);assert.equal(prepared,1);assert.equal(p.snapshot().turns,3);assert.equal(heard[0].voiceProof.data,'same-proof')}finally{p.stop()}assert.equal(released,1);
+});
+test('interrupt cancels a pending answer and listens again; late answer cannot create overlapping turns',async()=>{
+ let captures=0,answers=0,cancel=0;let answerSignal;
+ const p=createPhoneSession({prepare:async()=>({release(){}}),capture:({signal})=>++captures===1?Promise.resolve(new Blob(['a'])):blocked(signal),transcribe:async()=>({text:'question'}),respond:async(_,signal)=>{answers++;answerSignal=signal;await blocked(signal)},cancel:()=>cancel++});
+ try{await p.start();await flush();assert.equal(p.snapshot().phase,'responding');p.interrupt();await flush();assert.ok(answerSignal.aborted);assert.equal(captures,2);assert.equal(answers,1);assert.equal(p.snapshot().turns,0);assert.equal(cancel,1)}finally{p.stop()}
+});
+test('mute toggles track and aborts capture; resume starts exactly one listener',async()=>{
+ let captures=0,enabled=true;const track={get enabled(){return enabled},set enabled(v){enabled=v}};
+ const p=createPhoneSession({prepare:async()=>({stream:{getAudioTracks:()=>[track]},release(){}}),capture:({signal})=>{captures++;return blocked(signal)},transcribe:()=>assert.fail(),respond:()=>assert.fail()});
+ try{await p.start();p.setMuted(true);p.setMuted(false);await flush();assert.equal(captures,2);assert.equal(enabled,true);p.setMuted(true);assert.equal(enabled,false);assert.equal(p.snapshot().phase,'muted')}finally{p.stop()}
+});
+test('hangup during microphone permission request releases late input without capturing',async()=>{
+ let finish,releases=0;const p=createPhoneSession({prepare:()=>new Promise(r=>finish=r),capture:()=>assert.fail(),transcribe:()=>assert.fail(),respond:()=>assert.fail()});const pending=p.start();p.stop();finish({release:()=>releases++});await pending;assert.equal(releases,1);assert.equal(p.isActive(),false);
+});
+test('silence never transcribes; voiceprint rejection is not answered; verified hangup ends call',async()=>{
+ let time=0,transcribes=0;const p=createPhoneSession({now:()=>time,maxIdleMs:100,prepare:async()=>({release(){}}),capture:async()=>{time=200;return null},transcribe:()=>assert.fail(),respond:()=>assert.fail()});await p.start();await flush();assert.equal(p.isActive(),false);
+ const q=createPhoneSession({prepare:async()=>({release(){}}),capture:async()=>new Blob(['a']),transcribe:async()=>++transcribes===1?{ignored:'other',text:'private'}:{text:'挂断电话'},respond:()=>assert.fail()});await q.start();await flush();assert.equal(q.isActive(),false);assert.equal(transcribes,2);assert.equal(phoneEnd('结束通话'),true);assert.equal(phoneEnd('Grace，挂断电话吧'),true);assert.equal(phoneEnd('讲解挂断电话的方法'),false);
+});
+test('network errors stop instead of reconnecting or uploading in the background',async()=>{
+ let calls=0,release=0;const p=createPhoneSession({prepare:async()=>({release:()=>release++}),capture:async()=>new Blob(['a']),transcribe:async()=>{calls++;throw Error('network failure')},respond:()=>assert.fail()});await p.start();await flush();assert.equal(calls,1);assert.equal(release,1);assert.equal(p.isActive(),false);
+});
+test('PCM capture keeps valid pre-roll, returns a bounded WAV and does not close the call microphone',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date']});let processor,closed=0,stopped=0,time=0;
+ const context={sampleRate:16000,state:'running',destination:{},close:()=>closed++,createMediaStreamSource:()=>({connect(){},disconnect(){}}),createGain:()=>({gain:{},connect(){},disconnect(){}}),createScriptProcessor:()=>processor={connect(){},disconnect(){}}};
+ const input={context,stream:{getTracks:()=>[{stop:()=>stopped++}]}};
+ const p=capturePhoneTurn({signal:new AbortController().signal,input,timing:PHONE_TIMING,now:()=>time});
+ const frame=level=>{time+=64;processor.onaudioprocess?.({inputBuffer:{getChannelData:()=>new Float32Array(1024).fill(level)}})};
+ for(let i=0;i<100;i++)frame(0);for(let i=0;i<5;i++)frame(.1);for(let i=0;i<13;i++)frame(0);
+ const blob=await p;assert.equal(blob.type,'audio/wav');assert.ok(blob.size<60000);const header=new TextDecoder().decode((await blob.arrayBuffer()).slice(0,12));assert.equal(header.slice(0,4),'RIFF');assert.equal(closed,0);assert.equal(stopped,0);assert.equal(processor.onaudioprocess,null);
+});
+test('PCM silence and aborted turn return no upload; late microphone permission releases all resources',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let stopped=0,closed=0,permission;
+ class C{state='running';resume(){return Promise.resolve()}close(){closed++;return Promise.resolve()}}
+ const c=new AbortController();const p=preparePhoneInput({Context:C,signal:c.signal,mediaDevices:{getUserMedia:()=>new Promise(r=>permission=r)}});await Promise.resolve();c.abort();permission({getTracks:()=>[{stop:()=>stopped++}],getAudioTracks:()=>[]});await assert.rejects(p,/停止/);assert.equal(stopped,1);assert.equal(closed,1);
+});
+test('phone mode cannot bypass voice policy and keeps speech short',()=>{
+ const q={action:'chat',persona:'Grace',question:'公开渠道分析',history:[],voice:true,phone:true};assert.doesNotThrow(()=>validateDialogue(q));assert.throws(()=>validateDialogue({...q,voice:false}),/通话/);assert.throws(()=>validateDialogue({...q,phone:'true'}),/通话/);assert.equal(requestBody(q,'qwen-plus','PUBLIC').max_tokens,1400);assert.match(requestBody(q,'qwen-plus','PUBLIC').messages[0].content,/连续电话/);assert.ok(phoneSpokenReply('内容'.repeat(150)).length<=140);
+});
+test('maximum call timer releases input and cancels capture',async t=>{
+ t.mock.timers.enable({apis:['setInterval','setTimeout','Date']});let release=0;const p=createPhoneSession({maxMs:1000,prepare:async()=>({release:()=>release++}),capture:({signal})=>blocked(signal),transcribe:()=>assert.fail(),respond:()=>assert.fail()});await p.start();t.mock.timers.tick(1000);await Promise.resolve();assert.equal(p.isActive(),false);assert.equal(release,1);
+});
+test('source retains voiceprint gate and private material speech boundary in phone mode',async()=>{
+ const {readFileSync}=await import('node:fs');const src=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');const ui=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');
+ assert.ok(src.indexOf("VOICEPRINT_ENABLED')==='1'")<src.indexOf('const v9Turn='));assert.match(src,/materialSpokenReply\(materials\)/);assert.match(src,/if\(!guest&&!route.materials&&input.phone!==true\)\{qEmbedding=await embed/);assert.match(src,/memory_mode='recent_turns_only'/);assert.match(ui,/voiceProof:heard.voiceProof/);assert.match(ui,/phoneSignal\?\.removeEventListener\('abort',abortPhoneTurn\)/);
+});
+test('hangup before audio resume never requests a microphone',async()=>{
+ let resume,requests=0,closed=0;class C{state='running';resume(){return new Promise(r=>resume=r)}close(){closed++;return Promise.resolve()}}
+ const c=new AbortController();const p=preparePhoneInput({Context:C,signal:c.signal,mediaDevices:{getUserMedia(){requests++;throw Error('unexpected')}}});c.abort();resume();await assert.rejects(p,/停止/);assert.equal(requests,0);assert.equal(closed,1);
+});
+test('unavailable speaker verification ends call without answering or retrying',async()=>{
+ let captures=0;const p=createPhoneSession({prepare:async()=>({release(){}}),capture:async()=>{captures++;return new Blob(['a'])},transcribe:async()=>({ignored:'unavailable'}),respond:()=>assert.fail()});await p.start();await flush();assert.equal(p.isActive(),false);assert.equal(captures,1);
+});

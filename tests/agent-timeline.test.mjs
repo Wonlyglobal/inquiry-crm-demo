@@ -36,9 +36,9 @@ test('embed mode: same-origin only, no agent world inside the iframe',()=>{
  const conv=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');assert.doesNotMatch(conv,/window\.open\(/);
  const tl=readFileSync(new URL('../assets/agent-timeline.mjs',import.meta.url),'utf8');assert.doesNotMatch(tl,/window\.open\(|win\.open\(/);
 });
-test('catalogue opens enlarged for a new request; empty answers are never shown blank',()=>{
+test('resources stay inline until explicitly enlarged; empty answers are never shown blank',()=>{
  const tl=readFileSync(new URL('../assets/agent-timeline.mjs',import.meta.url),'utf8');
- assert.match(tl,/autoBig:i===firstBig/);assert.match(tl,/compact:true/);assert.match(tl,/e\.key!=='Escape'/);
+ assert.doesNotMatch(tl,/if\(open&&.*autoBig\)\{d.classList.add/);assert.match(tl,/gt-win.gt-big\{position:relative/);assert.doesNotMatch(tl,/position:fixed/);assert.match(tl,/for\(const d of list.querySelectorAll\('\.gt-win'\)\)/);assert.match(tl,/compact:true/);assert.match(tl,/e\.key!=='Escape'/);
  const conv=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');
  assert.match(conv,/if\(!String\(result\?\.answer\|\|''\)\.trim\(\)\)/);assert.match(conv,/这次没有生成回答/);
 });

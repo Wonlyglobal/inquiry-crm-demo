@@ -42,7 +42,7 @@ test('silence transcribes to empty text instead of an error',async()=>{
  assert.equal(transcriptText({choices:[{finish_reason:'stop',message:{content:''}}]}),'');
  assert.equal(transcriptText({}),'');assert.equal(transcriptText({choices:[{message:{content:' 你好 '}}]}),'你好');
 });
-test('timeline pops out the first chart like the catalogue',async()=>{
+test('timeline charts remain inline and never auto-enlarge',async()=>{
  const {readFileSync}=await import('node:fs');const tl=readFileSync(new URL('../assets/agent-timeline.mjs',import.meta.url),'utf8');
- assert.match(tl,/firstBig=windows\.findIndex\(w=>w\.kind==='chart'\)/);assert.match(tl,/w\.kind==='catalog'\|\|w\.kind==='chart'\)&&autoBig/);
+ assert.match(tl,/windows.map\(w=>addWindow\(li,w,\{open:true\}\)\)/);assert.doesNotMatch(tl,/autoBig|position:fixed/);
 });

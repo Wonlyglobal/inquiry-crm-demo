@@ -32,14 +32,14 @@ const CSS=`.gt{display:flex;flex-direction:column;min-height:0;max-height:65vh;b
 .gt-win>summary::-webkit-details-marker{display:none}.gt-win>summary b{color:#f4e2bb;font-weight:600;white-space:nowrap}
 .gt-win>summary span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gt-body{padding:8px}.gt-body iframe{width:100%;height:420px;border:0;border-radius:8px;background:#fff;display:block}
-.gt-win.gt-big{position:fixed;inset:12px;z-index:9998;margin:0;display:flex;flex-direction:column;box-shadow:0 10px 40px #000a}
-.gt-win.gt-big .gt-body{flex:1;overflow:auto}.gt-win.gt-big .gt-body iframe{height:100%;min-height:70vh}
+.gt-win.gt-big{position:relative;inset:auto;z-index:auto;max-width:100%;max-height:55dvh;margin:0;display:flex;flex-direction:column;box-shadow:0 10px 40px #000a}
+.gt-win.gt-big .gt-body{flex:1;overflow:auto}.gt-win.gt-big .gt-body iframe{height:100%;min-height:220px}
 .gt-card blockquote{margin:6px 0;padding:6px 10px;border-left:3px solid #f4c46b;background:#131d30;color:#e5ebf5;font-style:italic;overflow-wrap:anywhere}
 .gt-card .gt-meta,.gt-note{color:#8f9bb0;font-size:12px}.gt a{color:#93c5fd;overflow-wrap:anywhere}
 .gt-results{margin:6px 0 0;padding-left:18px}.gt-results li{margin:3px 0}
 .gt-summary{white-space:pre-wrap;max-height:220px;overflow:auto;color:#dbe3ef}
 .gt .acv{margin:0}.gt .acv .acv-stage{height:260px}
-.gt-win.gt-big .gt-body{display:flex;flex-direction:column;height:calc(100vh - 72px);box-sizing:border-box}.gt-win.gt-big .acv{flex:1;display:flex;flex-direction:column;min-height:0}.gt-win.gt-big .acv .acv-stage{flex:1;height:auto;min-height:0}`;
+.gt-win.gt-big .gt-body{display:flex;flex-direction:column;height:min(48dvh,520px);box-sizing:border-box}.gt-win.gt-big .acv{flex:1;display:flex;flex-direction:column;min-height:0}.gt-win.gt-big .acv .acv-stage{flex:1;height:auto;min-height:0}`;
 
 const two=n=>String(n).padStart(2,'0');
 export function timeLabel(iso,now=new Date()){const d=new Date(iso);if(Number.isNaN(+d))return '';const hm=two(d.getHours())+':'+two(d.getMinutes());return d.toDateString()===now.toDateString()?hm:`${d.getMonth()+1}/${d.getDate()} ${hm}`}
@@ -151,12 +151,12 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
   if(w.kind==='material'){const row=materialRow?.(w.asset||{id:w.id,name:w.name});if(row)body.append(row);else body.append(mk('div','',w.name));return}
   if(w.kind==='link'){const a=mk('a','',w.label);a.href=w.url;a.target='_blank';a.rel='noopener noreferrer';body.append(a);return}
  }
- function addWindow(item,w,{open=true,autoBig=false}={}){
+ function addWindow(item,w,{open=true}={}){
   const d=mk('details','gt-win');d.open=open;const sum=mk('summary');sum.append(mk('b','',KIND_LABEL[w.kind]||'窗口'),mk('span','',w.kind==='search'?w.query:w.kind==='evidence'?(w.card?.label||'竞品证据'):w.kind==='material'?w.name:(w.label||'')));
   const big=mk('button','gt-mini','放大');big.type='button';big.onclick=e=>{e.preventDefault();const on=!d.classList.contains('gt-big');d.classList.toggle('gt-big',on);big.textContent=on?'缩小':'放大';if(on)d.open=true};
   sum.append(big);const body=mk('div','gt-body');d.append(sum,body);item.querySelector('.gt-wins').append(d);
   d.addEventListener('keydown',e=>{if(e.key==='Escape'&&d.classList.contains('gt-big')){d.classList.remove('gt-big');big.textContent='放大'}});
-  if(open&&(w.kind==='catalog'||w.kind==='chart')&&autoBig){d.classList.add('gt-big');big.textContent='缩小'}
+  // Resources stay inline; enlargement requires an explicit click.
   let loaded=null;const load=()=>{if(!loaded)loaded=render(w,body,item).catch(e=>{body.replaceChildren(mk('div','gt-err',String(e?.message||'打不开')))});return loaded};
   if(open)load();else d.addEventListener('toggle',()=>{if(d.open)load()});
   return load;
@@ -175,7 +175,7 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
  }
 
  function begin(question){
-  for(const d of list.querySelectorAll('.gt-win[open]:not(.gt-big)'))d.open=false;
+  for(const d of list.querySelectorAll('.gt-win')){d.classList.remove('gt-big');d.open=false;const b=d.querySelector('summary .gt-mini');if(b)b.textContent='放大'}
   const started=new Date().toISOString(),persona=getPersona();const li=itemNode({question,created_at:started,status:'running'});li.responseCard=getResponseCard?.();list.prepend(li);refresh();li.scrollIntoView?.({block:'nearest'});
   li.stage('need','active');let saved=false;
   const save=async(status,route,steps,windows)=>{if(saved)return;saved=true;try{const r=await call({action:'timeline',op:'add',persona,question:String(question).slice(0,500),status,route,steps,windows:windows.map(storable).filter(Boolean)});if(Number.isInteger(r?.id))li.setId(r.id)}catch{}};
@@ -184,9 +184,8 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
    done(result){
     li.stage('need','done');const labels=sourceLabels(result);li.sources(labels);li.stage('data',labels.length?'done':'skip');
     const windows=windowsFrom(result);li.stage('act',windows.length?'active':'skip');
-    // Catalogues and charts pop out enlarged (like the retail catalogue); Esc or 缩小 puts them back.
-    let firstBig=windows.findIndex(w=>w.kind==='catalog');if(firstBig<0)firstBig=windows.findIndex(w=>w.kind==='chart');
-    const loads=windows.map((w,i)=>addWindow(li,w,{open:true,autoBig:i===firstBig}));
+    // Keep resources inside the timeline so the conversation input remains reachable.
+    const loads=windows.map(w=>addWindow(li,w,{open:true}));
     li.stage('answer','done');li.dataset.status='done';
     const settle=Promise.race([Promise.allSettled(loads.map(l=>l())),new Promise(r=>setTimeout(r,20000))]);
     settle.then(()=>{if(windows.length)li.stage('act','done');save('done',String(result?.context?.route||result?.provider||''),labels,windows)});

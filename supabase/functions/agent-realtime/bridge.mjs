@@ -1,6 +1,6 @@
 import {LIMITS,sessionUpdate,nativeConversation,fromBase64,toBase64,pcmWav,confirmedSession} from './policy.mjs';
 // All network, audit and identity operations are injected. Never forwards browser provider events.
-export function createRealtimeBridge({send,openProvider,verify,authorizeTurn,proof,now=()=>Date.now(),history=[],previous='',initialTurn=0,onError=()=>{}}){
+export function createRealtimeBridge({send,openProvider,verify,authorizeTurn,proof,now=()=>Date.now(),history=[],previous='',initialTurn=0,pace=()=>new Promise(r=>setTimeout(r,10)),onError=()=>{}}){
  let current=null,lastTurn=initialTurn,closed=false;let publicHistory=history.slice(-8),previousQuestion=previous;
  const emit=(type,t,data={})=>{if(!closed)send({type,turn:t.id,...data})};
  function cancel(id){const t=current;if(!t||id!==t.id)return;t.cancelled=true;clearTimeout(t.timer);try{if(t.responding&&t.socket?.readyState===1)t.socket.send(JSON.stringify({type:'response.cancel'}))}catch{}t.socket?.close();t.pending=new Uint8Array(0);t.previous=new Uint8Array(0);t.readyReject?.(Error('已打断'));current=null}
@@ -54,14 +54,14 @@ export function createRealtimeBridge({send,openProvider,verify,authorizeTurn,pro
     if(check!==part){check.set(t.previous);check.set(part,t.previous.length)}
     const speaker=await verify(pcmWav(check));if(!valid(t))return;
     if(!['owner','not_enrolled'].includes(speaker)||t.speaker&&t.speaker!==speaker){emit('ignored',t,{ignored:speaker||'unavailable'});cancel(t.id);return}
-    t.speaker=speaker;t.previous=part.slice(-LIMITS.blockBytes);providerSend(t,{type:'input_audio_buffer.append',audio:toBase64(part)});
+    t.speaker=speaker;t.previous=part.slice(-LIMITS.blockBytes);for(let at=0;at<part.length;at+=6400){if(!valid(t))return;providerSend(t,{type:'input_audio_buffer.append',audio:toBase64(part.subarray(at,at+6400))});await pace()}
    }
    if(valid(t)&&t.committing&&!t.pending.length&&!t.committed){if(t.total<2000||!t.speaker){emit('ignored',t,{ignored:'empty'});cancel(t.id);return}t.committed=true;providerSend(t,{type:'input_audio_buffer.commit'});clearTimeout(t.timer);t.timer=setTimeout(()=>fail(t,'实时语音识别超时'),15000)}
   }catch(e){fail(t,e.message)}finally{t.draining=false}
  }
  return {
   begin,
-  append({turn,seq,audio}){const t=current;if(!t||t.id!==turn||t.committing||seq!==t.seq+1)throw Error('音频帧顺序无效');const bytes=fromBase64(audio,LIMITS.maxFrameBytes);t.seq=seq;t.total+=bytes.length;if(t.total>LIMITS.maxAudioBytes||t.total>32000*((now()-t.at)/1000+2))throw Error('输入语音超限');if(t.pending.length+bytes.length>LIMITS.maxPendingBytes)throw Error('声纹校验积压，请稍后重试');const next=new Uint8Array(t.pending.length+bytes.length);next.set(t.pending);next.set(bytes,t.pending.length);t.pending=next;void drain(t)},
+  append({turn,seq,audio}){const t=current;if(!t||t.id!==turn||t.committing||seq!==t.seq+1)throw Error('音频帧顺序无效');const bytes=fromBase64(audio,LIMITS.maxFrameBytes);t.seq=seq;t.total+=bytes.length;if(t.total>LIMITS.maxAudioBytes||t.total>32000*((now()-t.at)/1000+LIMITS.maxPendingBytes/32000))throw Error('输入语音超限');if(t.pending.length+bytes.length>LIMITS.maxPendingBytes)throw Error('声纹校验积压，请稍后重试');const next=new Uint8Array(t.pending.length+bytes.length);next.set(t.pending);next.set(bytes,t.pending.length);t.pending=next;void drain(t)},
   commit(id){const t=current;if(!t||t.id!==id||t.committing)throw Error('提交轮次无效');t.committing=true;void drain(t)},
   respond(id){const t=current;if(!t||t.id!==id||!t.native||!t.transcribed||t.responding||t.generated)throw Error('回答尚未通过校验');t.responding=true;providerSend(t,{type:'response.create'})},
   heard(id){const t=current;if(!t||t.id!==id||!t.generated)throw Error('回答尚未播完');publicHistory=[...publicHistory,{role:'user',content:t.question.slice(0,1000)},{role:'assistant',content:t.answer.slice(0,1000)}].slice(-8);cancel(id)},

@@ -18,7 +18,7 @@ import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
 import {seoContextLabel,socialContextLabel} from './agent-seo-status.mjs?v=20260923-3';
 import {createWakeConversation} from './agent-wake.mjs?v=20261001-onewake';
 import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261001-mat1';
-import {createTimeline,priceChart,dataChart} from './agent-timeline.mjs?v=20261012-request';
+import {createTimeline,priceChart,dataChart} from './agent-timeline.mjs?v=20261015-inline';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
 export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,onOpenRequest=null,getResponseCard=null,timelineRoot=null,materialRow=null,materialFile=null,crmAnswer=null,crmChart=null,autoVoice=true}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
@@ -108,7 +108,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(busy||recorder||player){state(recorder?'正在录音，请先结束录音':player?'正在播报，请先点击停止再提问':'正在处理上一条问题，请稍候或点击停止',recorder?'listening':player?'speaking':'thinking');return true}
   if(!ready){const epoch=version;state('正在重新连接…','thinking');await checkConnection();if(epoch!==version||!ready)return true}
   if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question);showPending();return true}
-  pending=null;reveal.hidden=true;
+  pending=null;reveal.hidden=true;delete host.dataset.graceEvidenceCheck;
   stopAll({keepWake:voice});const epoch=version,persona=getPersona();controller=new AbortController();busy=true;lastTicket=null;state(voice?'':'收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
   // Owner 2026-09-28: every request becomes a step in the Grace timeline; nothing opens a new browser window.
   const entry=timeline?.begin(question)||null;
@@ -121,6 +121,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    // Like a person: only say "let me look" when the answer is not ready within 1.5 s.
    if(voice){const quick=await Promise.race([pendingCall.then(()=>true,()=>true),new Promise(r=>setTimeout(()=>r(false),1500))]);if(!quick&&version===epoch){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true}busy=true;state('','thinking')}}
    const result=await pendingCall;if(version!==epoch||persona!==getPersona()){entry?.fail('已停止或切换了智能体');return true}
+   if(result.context?.evidence_check){const c=result.context.evidence_check;host.dataset.graceEvidenceCheck=JSON.stringify({source_status:c.source_status,source_code:c.source_code,assets:c.assets,pages:c.pages,findings:c.findings,rejected:c.rejected,source_freshness_verified:false,human_verified:false})}else delete host.dataset.graceEvidenceCheck;
    if(result.ignored){entry?.discard();busy=false;state(autoVoice?'':'这段声音未通过验证，请重试或使用文字提问');return true}
    // Never leave an empty answer window: say what happened and let the person ask again.
    if(!String(result?.answer||'').trim()){const why=String(result?.error||'').replace(/百炼/g,'智能服务').slice(0,80);entry?.fail(why||'服务没有返回内容');busy=false;onMessage('assistant','这次没有生成回答'+(why?'（'+why+'）':'（服务没有返回内容）')+'，可以再问一次，或者换个说法。');state(voice?'':'回答未完成，可重试');return true}

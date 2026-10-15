@@ -17,3 +17,10 @@ test('private material paths return before unrelated external enrichment; diagno
  assert.match(src,/materialAuditError\)return json/);assert.match(src,/evidence_check:evidenceCheck\(materials\)/);
  const ui=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');assert.match(ui,/delete host.dataset.graceEvidenceCheck/);assert.match(ui,/human_verified:false/);
 });
+import {privateV9Turn} from '../supabase/functions/agent-conversation/private-v9-turn.mjs';
+test('private v9 follow-up preserves one model without treating V9 as another model',()=>{
+ const first=privateV9Turn('根据智能锁画册v9，查询S922的参数');assert.match(first.question,/S922/);
+ const next=privateV9Turn('那它的安装要求呢？',[first.question]);assert.match(next.question,/S922/);assert.match(next.question,/安装/);assert.match(next.question,/智能锁画册v9/);assert.equal(next.clarification,undefined);
+ assert.equal(privateV9Turn('S936产品信息',[first.question]),null);
+ assert.match(privateV9Turn('那它的安装要求呢，按智能锁画册v9').clarification,/型号/);
+});

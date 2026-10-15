@@ -26,34 +26,40 @@ async function audit(userId:string,action:string,operation:string,limit:number,e
 function upstream(){return new WebSocketClient(realtimeUrl(Deno.env.get('BAILIAN_REALTIME_WORKSPACE_ID')), {headers:{Authorization:'Bearer '+key()},maxPayload:200000,handshakeTimeout:8000,perMessageDeflate:false,followRedirects:false})}
 async function probe(userId:string){
  await audit(userId,'agent_realtime_probe','synthetic_public_loopback',2);
- const vp=await voiceprintCall({actor:userId,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET'),op:'status'});
- if(vp.status!=='ok')throw Error('公司声纹服务暂不可用，实时通话保持关闭');
- return await new Promise((resolve,reject)=>{
-  const ws=upstream(),started=Date.now();let bytes=0,chunks=0,first:number|null=null,settled=false,phase='config',parts:Uint8Array[]=[],manualTimer:any;
-  const timer=setTimeout(()=>finish(Error('实时模型检查超时')),20000);
-  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);clearTimeout(manualTimer);ws.close();parts=[];error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true,input_transcription_verified:true,manual_verified:true,voiceprint_available:true,voiceprint_registered:typeof vp.samples==='number'&&typeof vp.required==='number'?vp.samples>=vp.required:null})}
-  ws.onopen=()=>ws.send(JSON.stringify(sessionUpdate()));ws.onerror=()=>finish(Error('实时模型连接失败'));ws.onclose=()=>{if(!settled)finish(Error('实时模型连接已关闭'))};
-  ws.onmessage=e=>{try{const d=JSON.parse(String(e.data));if(d.type==='error'){finish(Error('实时模型权限或配置尚未通过检查'));return}
-   if(d.type==='session.updated'&&phase==='config'){
-    if(!confirmedSession(d.session)){finish(Error('实时模型配置未确认'));return}phase='greeting';
-    ws.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text:'只用中文说：你好，我是Grace。'}]}}));ws.send(JSON.stringify({type:'response.create'}));return;
-   }
-   if(phase==='loopback'&&(d.type==='response.created'||d.type==='response.audio.delta')){finish(Error('实时模型未保持受控回答模式'));return}
-   if(phase==='greeting'&&d.type==='response.audio.delta'){const part=fromBase64(d.delta,128000);first??=Date.now()-started;chunks++;bytes+=part.length;parts.push(part);if(bytes>200000)finish(Error('诊断回复超限'))}
-   if(phase==='greeting'&&d.type==='response.done'){
-    if(!chunks||d.response?.status!=='completed'){finish(Error('实时模型未返回完整音频'));return}
-    // No microphone/browser audio is accepted by this diagnostic. Only the fixed
-    // public greeting produced above is returned to the same provider for ASR.
-    const audio=diagnosticPcm(parts);parts=[];phase='loopback';
-    for(let at=0;at<audio.length;at+=6400)ws.send(JSON.stringify({type:'input_audio_buffer.append',audio:toBase64(audio.subarray(at,at+6400))}));ws.send(JSON.stringify({type:'input_audio_buffer.commit'}));return;
-   }
-   if(phase==='loopback'&&d.type==='conversation.item.input_audio_transcription.failed'){finish(Error('实时输入语音检查失败'));return}
-   if(phase==='loopback'&&d.type==='conversation.item.input_audio_transcription.completed'){
-    if(!String(d.transcript||'').trim()){finish(Error('实时输入语音没有转写'));return}if(!manualTimer)manualTimer=setTimeout(()=>finish(),1000);
-   }
-  }catch{finish(Error('实时模型事件无效'))}};
+ const statusTask=voiceprintCall({actor:userId,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET'),op:'status'}).then(vp=>{if(vp.status!=='ok')throw Error('公司声纹服务暂不可用，实时通话保持关闭');return vp});statusTask.catch(()=>{});
+ let stop:any;
+ const modelTask=new Promise<any>((resolve,reject)=>{
+  let ws:any,phase='output_config',bytes=0,chunks=0,first:number|null=null,settled=false,parts:Uint8Array[]=[],input:Uint8Array|null=null,manualTimer:any,inputEvents:string[]=[];
+  const sockets:any[]=[],started=Date.now();
+  const timer=setTimeout(()=>finish(Error('实时模型检查超时（'+({output_config:'输出配置',greeting:'合成问候',input_config:'输入配置',loopback:'输入转写'}[phase]||'连接')+'；事件 '+inputEvents.join(',')+'）')),30000);
+  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);clearTimeout(manualTimer);for(const s of sockets){s.onerror=()=>{};s.onclose=()=>{};s.onmessage=()=>{};s.close()}parts=[];input=null;error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true,input_transcription_verified:true,manual_verified:true})}
+  stop=finish;
+  function open(){
+   const current=upstream();ws=current;sockets.push(current);
+   current.onopen=()=>current.send(JSON.stringify(sessionUpdate()));current.onerror=()=>finish(Error('实时模型连接失败'));current.onclose=()=>{if(!settled&&ws===current)finish(Error('实时模型连接已关闭'))};
+   current.onmessage=e=>{if(settled||ws!==current)return;try{const d=JSON.parse(String(e.data));if(phase==='loopback'&&typeof d.type==='string'&&/^[a-z_.]{1,100}$/.test(d.type)&&inputEvents.length<12&&!inputEvents.includes(d.type))inputEvents.push(d.type);if(d.type==='error'){finish(Error('实时模型权限或配置尚未通过检查'));return}
+    if(d.type==='session.updated'&&(phase==='output_config'||phase==='input_config')){
+     if(!confirmedSession(d.session)){finish(Error('实时模型配置未确认'));return}
+     if(phase==='output_config'){phase='greeting';current.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text:'只用中文说：你好，我是Grace。'}]}}));current.send(JSON.stringify({type:'response.create'}))}
+     else {phase='loopback';void (async()=>{for(let at=0;input&&at<input.length&&!settled;at+=6400){current.send(JSON.stringify({type:'input_audio_buffer.append',audio:toBase64(input.subarray(at,at+6400))}));await new Promise(r=>setTimeout(r,10))}if(!settled)current.send(JSON.stringify({type:'input_audio_buffer.commit'}));input=null})().catch(()=>finish(Error('实时输入检查失败')))}return;
+    }
+    if(phase==='loopback'&&(d.type==='response.created'||d.type==='response.audio.delta')){finish(Error('实时模型未保持受控回答模式'));return}
+    if(phase==='greeting'&&d.type==='response.audio.delta'){const part=fromBase64(d.delta,128000);first??=Date.now()-started;chunks++;bytes+=part.length;parts.push(part);if(bytes>200000)finish(Error('诊断回复超限'))}
+    if(phase==='greeting'&&d.type==='response.done'){
+     if(!chunks||d.response?.status!=='completed'){finish(Error('实时模型未返回完整音频'));return}
+     // A fresh input-only session mirrors a real call; no user audio/template enters this probe.
+     input=diagnosticPcm(parts);parts=[];phase='input_config';current.onerror=()=>{};current.onclose=()=>{};current.onmessage=()=>{};current.close();open();return;
+    }
+    if(phase==='loopback'&&d.type==='conversation.item.input_audio_transcription.failed'){finish(Error('实时输入语音检查失败'));return}
+    if(phase==='loopback'&&d.type==='conversation.item.input_audio_transcription.completed'){if(!String(d.transcript||'').trim()){finish(Error('实时输入语音没有转写'));return}if(!manualTimer)manualTimer=setTimeout(()=>finish(),1000)}
+   }catch{finish(Error('实时模型事件无效'))}};
+  }
+  open();
  });
+ try{const [vp,result]=await Promise.all([statusTask,modelTask]);return {...result,voiceprint_available:true,voiceprint_registered:typeof vp.samples==='number'&&typeof vp.required==='number'?vp.samples>=vp.required:null}}
+ catch(error){stop?.(error);throw error}
 }
+
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response('ok',{headers:cors});if(req.headers.get('origin')&&req.headers.get('origin')!==ORIGIN)return json({error:'来源不允许'},403);
  const upgrade=req.headers.get('upgrade')?.toLowerCase()==='websocket';

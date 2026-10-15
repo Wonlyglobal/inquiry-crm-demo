@@ -29,7 +29,12 @@ export function createRealtimeClient({url,getToken,Socket=globalThis.WebSocket,p
    await pending.promise;
   }catch(e){pending.reject(e);if(opening===pending)opening=null;throw e}finally{token=''}
  }
- function flush(f){if(!f.ready||f.cancelled||current!==f)return;for(const bytes of f.pending)send({type:'audio.append',turn:f.id,seq:++f.seq,audio:encodePcm(bytes)});f.pending=[];f.bytes=0;if(f.ended&&!f.committed){f.committed=true;send({type:'audio.commit',turn:f.id})}}
+ function flush(f){if(!f.ready||f.cancelled||current!==f)return;
+  // Group callbacks into 100–200ms PCM frames. A slow handshake must not flush
+  // dozens of tiny audio callbacks into the gateway's one-second rate window.
+  while(f.bytes>=3200||f.ended&&f.bytes){const size=f.bytes>=6400?6400:f.ended?f.bytes:3200,bytes=new Uint8Array(size);let at=0;while(at<size){const first=f.pending[0],take=Math.min(first.length,size-at);bytes.set(first.subarray(0,take),at);at+=take;f.bytes-=take;if(take===first.length)f.pending.shift();else f.pending[0]=first.slice(take)}send({type:'audio.append',turn:f.id,seq:++f.seq,audio:encodePcm(bytes)})}
+  if(f.ended&&!f.committed){f.committed=true;send({type:'audio.commit',turn:f.id})}
+ }
  function createFeed(){
   if(closed||socket?.readyState!==1||opening)throw Error('实时语音连接未就绪');if(current)cancel();
   const f={id:lastTurn+1,seq:0,ready:false,ended:false,committed:false,cancelled:false,pending:[],bytes:0,heard:deferred(),done:deferred(),encoder:null,player:null};current=f;

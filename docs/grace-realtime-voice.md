@@ -29,3 +29,5 @@
 依据（2026-10-15查阅）：[百炼实时模型与地域接口](https://help.aliyun.com/zh/model-studio/realtime)、[客户端受控事件与输入转写配置](https://help.aliyun.com/zh/model-studio/client-events)、[服务端事件](https://help.aliyun.com/zh/model-studio/server-events)、[Supabase WebSocket](https://supabase.com/docs/guides/functions/websockets)。因既有声纹前置和内部资料边界，未采用直接浏览器自动 VAD 上云。
 
 兼容性核验：真实提供商在关闭VAD后省略 turn_detection 字段。只接受缺省或显式null且16k/24k PCM完整回显；任何VAD对象均拒绝。合成回环追加一秒静音，核验输入转写并等待一秒，出现未经 response.create 的回答即失败；仍保持声纹和回答路由门禁。
+
+连接预热期间麦克风回调合并为100–200ms帧，避免握手后瞬间发送大量小帧触发限流；队列最多8秒，允许匹配该队列的有限时钟突发。通过声纹的4秒分段再拆为200ms小帧、间隔10ms送给实时模型，取消时立即停止剩余发送。诊断的合成输出和音频输入采用独立模型会话，以贴近真实电话的输入先行时序；公司状态与模型诊断并行，失败均关闭资源。

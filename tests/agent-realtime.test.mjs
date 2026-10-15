@@ -67,3 +67,7 @@ test('client cancels old turn without reusing counter or playing late audio',asy
 test('server-directed rotation preserves unsent onset and resumes with a fresh session token',async()=>{
  const h=clientHarness();await h.open();const a=h.sockets[0],f=h.c.createFeed();f.push(new Float32Array(1024).fill(.2),48000);a.event({type:'rotate',resume:{data:'signed-state',signature:'sig'}});await tick();const b=h.sockets[1];assert.equal(b.sent[0].resume.data,'signed-state');b.event({type:'ready',lastTurn:0});b.event({type:'turn.ready',turn:1});assert.equal(b.sent.filter(e=>e.type==='audio.append').length,1);assert.equal(b.sent.find(e=>e.type==='audio.append').seq,1);assert.equal(h.getTokens(),2);f.cancel();h.c.close();
 });
+
+test('fractional-rate streaming resampling matches one buffer at every supported device rate',()=>{
+ for(const rate of [8000,16000,22050,24000,44100,48000,96000,192000]){const source=Float32Array.from({length:rate/10},(_,i)=>Math.sin(i*.2)*.7),full=pcmEncoder(rate)(source),encode=pcmEncoder(rate),parts=[];for(let i=0;i<source.length;i+=1024)parts.push(encode(source.slice(i,i+1024)));assert.equal(full.length,3200);assert.deepEqual(Buffer.concat(parts),Buffer.from(full),String(rate))}
+});

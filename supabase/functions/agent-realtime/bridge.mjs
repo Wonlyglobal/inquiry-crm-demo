@@ -13,6 +13,7 @@ export function createRealtimeBridge({send,openProvider,verify,authorizeTurn,pro
    const s=e.session;if(s?.turn_detection!==null||s?.audio?.input?.format?.sample_rate!==16000||s?.audio?.output?.format?.sample_rate!==24000||s?.audio?.output?.format?.type!=='pcm')throw Error('实时模型未确认受控音频配置');t.configured=true;t.readyResolve();return;
   }
   if(e.type==='error')throw Error('实时模型请求失败，请稍后重试');
+  if(e.type==='conversation.item.input_audio_transcription.failed')throw Error('实时语音识别失败，请重新说一次');
   if(e.type==='conversation.item.input_audio_transcription.completed'){
    if(!t.committed||t.transcribed)throw Error('转写时序无效');const text=String(e.transcript||'').trim();if(!text){emit('ignored',t,{ignored:'empty'});cancel(t.id);return}
    const native=nativeConversation(text,previousQuestion);t.transcribed=true;t.question=text;t.native=native;previousQuestion=text.slice(0,500);clearTimeout(t.timer);

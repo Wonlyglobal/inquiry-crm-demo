@@ -12,7 +12,7 @@ import android.view.WindowManager;
 import android.widget.*;
 
 public final class MainActivity extends Activity {
-    private static final String HOME = "https://crm.foreverdoodle.com/?app=grace";
+    private static final String HOME = "https://crm.foreverdoodle.com/grace.html";
     private WebView web;
     private PermissionRequest pending;
     private Button retry;

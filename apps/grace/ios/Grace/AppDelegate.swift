@@ -13,7 +13,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 final class GraceViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
-    private let home = URL(string: "https://crm.foreverdoodle.com/?app=grace")!
+    private let home = URL(string: "https://crm.foreverdoodle.com/grace.html")!
     private var web: WKWebView!
     private let retry = UIButton(type: .system)
     private let privacy = UIView()
@@ -66,7 +66,10 @@ final class GraceViewController: UIViewController, WKNavigationDelegate, WKUIDel
             // Existing signed material POSTs stay inside their sandboxed document frame.
             decisionHandler(url.scheme == "https" || url.scheme == "blob" || url.absoluteString == "about:blank" ? .allow : .cancel); return
         }
-        if trusted(url) { decisionHandler(.allow); return }
+        if trusted(url) {
+            if url.path != home.path { decisionHandler(.cancel); webView.load(URLRequest(url: home)); return }
+            decisionHandler(.allow); return
+        }
         if navigationAction.navigationType == .linkActivated && url.scheme == "https" && url.user == nil && url.password == nil { UIApplication.shared.open(url) }
         decisionHandler(.cancel)
     }

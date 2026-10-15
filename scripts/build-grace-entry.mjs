@@ -4,7 +4,7 @@ import {readFile,writeFile} from 'node:fs/promises';
 export function graceDocument(source){
  return source.replace('<html lang="zh-CN">','<html lang="zh-CN" data-grace-app="true" data-grace-entry="true">')
  .replace('<title>王力 · 全球询盘 CRM</title>','<title>Grace · 王力随身 AI</title>')
- .replace(/<aside class="login-showcase"[\s\S]*?<\/aside>/,'')
+ .replace(/[ \t]*<aside class="login-showcase"[\s\S]*?<\/aside>/,'')
  .replace('正在进入询盘 CRM…','Grace 正在准备…')
  .replace('<div class="brand-mark" title="全球询盘"><i data-lucide="messages-square"></i></div>','<div class="brand-mark" title="Grace"><span class="grace-login-eyes"><i></i><i></i></span></div>')
  .replace('<h1>全球询盘 CRM</h1>','<h1>你好，我是 Grace</h1>')

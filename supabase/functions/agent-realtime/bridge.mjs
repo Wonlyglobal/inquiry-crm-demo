@@ -1,4 +1,4 @@
-import {LIMITS,sessionUpdate,nativeConversation,fromBase64,toBase64,pcmWav} from './policy.mjs';
+import {LIMITS,sessionUpdate,nativeConversation,fromBase64,toBase64,pcmWav,confirmedSession} from './policy.mjs';
 // All network, audit and identity operations are injected. Never forwards browser provider events.
 export function createRealtimeBridge({send,openProvider,verify,authorizeTurn,proof,now=()=>Date.now(),history=[],previous='',initialTurn=0,onError=()=>{}}){
  let current=null,lastTurn=initialTurn,closed=false;let publicHistory=history.slice(-8),previousQuestion=previous;
@@ -10,7 +10,7 @@ export function createRealtimeBridge({send,openProvider,verify,authorizeTurn,pro
  async function event(t,e){
   if(!valid(t))return;
   if(e.type==='session.updated'){
-   const s=e.session;if(s?.turn_detection!==null||s?.audio?.input?.format?.sample_rate!==16000||s?.audio?.output?.format?.sample_rate!==24000||s?.audio?.output?.format?.type!=='pcm')throw Error('实时模型未确认受控音频配置');t.configured=true;t.readyResolve();return;
+   const s=e.session;if(!confirmedSession(s))throw Error('实时模型未确认受控音频配置');t.configured=true;t.readyResolve();return;
   }
   if(e.type==='error')throw Error('实时模型请求失败，请稍后重试');
   if(e.type==='conversation.item.input_audio_transcription.failed')throw Error('实时语音识别失败，请重新说一次');

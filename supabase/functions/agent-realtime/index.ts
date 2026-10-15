@@ -2,7 +2,7 @@ import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
 import WebSocketClient from 'npm:ws@8.21.3';
 import {eligible,POLICY} from '../agent-conversation/policy.mjs';
 import {voiceprintCall,speakerOf,voiceProof} from '../agent-conversation/voiceprint.mjs';
-import {REALTIME_POLICY,REALTIME_MODEL,LIMITS,realtimeUrl,sessionUpdate} from './policy.mjs';
+import {REALTIME_POLICY,REALTIME_MODEL,LIMITS,realtimeUrl,sessionUpdate,confirmedSession,diagnosticPcm,fromBase64,toBase64} from './policy.mjs';
 import {createRealtimeBridge} from './bridge.mjs';
 const ORIGIN='https://crm.foreverdoodle.com';
 const cors={'Access-Control-Allow-Origin':ORIGIN,'Access-Control-Allow-Headers':'authorization,content-type,apikey,x-client-info','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Cache-Control':'no-store'};
@@ -25,15 +25,31 @@ async function audit(userId:string,action:string,operation:string,limit:number,e
 }
 function upstream(){return new WebSocketClient(realtimeUrl(Deno.env.get('BAILIAN_REALTIME_WORKSPACE_ID')), {headers:{Authorization:'Bearer '+key()},maxPayload:200000,handshakeTimeout:8000,perMessageDeflate:false,followRedirects:false})}
 async function probe(userId:string){
- await audit(userId,'agent_realtime_probe','synthetic_public_text',2);
+ await audit(userId,'agent_realtime_probe','synthetic_public_loopback',2);
  return await new Promise((resolve,reject)=>{
-  const ws=upstream(),started=Date.now();let bytes=0,chunks=0,first:number|null=null,settled=false;const timer=setTimeout(()=>finish(Error('实时模型检查超时')),20000);
-  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);ws.close();error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true})}
+  const ws=upstream(),started=Date.now();let bytes=0,chunks=0,first:number|null=null,settled=false,phase='config',parts:Uint8Array[]=[],manualTimer:any;
+  const timer=setTimeout(()=>finish(Error('实时模型检查超时')),20000);
+  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);clearTimeout(manualTimer);ws.close();parts=[];error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true,input_transcription_verified:true,manual_verified:true})}
   ws.onopen=()=>ws.send(JSON.stringify(sessionUpdate()));ws.onerror=()=>finish(Error('实时模型连接失败'));ws.onclose=()=>{if(!settled)finish(Error('实时模型连接已关闭'))};
-  ws.onmessage=e=>{try{const d=JSON.parse(String(e.data));if(d.type==='error'){finish(Error('实时模型权限或配置尚未通过检查'));return}if(d.type==='session.updated'){
-    if(d.session?.turn_detection!==null||d.session?.audio?.output?.format?.type!=='pcm'){finish(Error('实时模型配置未确认：'+JSON.stringify({manual:d.session?.turn_detection===null,vad_present:d.session?.turn_detection!==undefined,nested_output_pcm:d.session?.audio?.output?.format?.type==='pcm',legacy_output_pcm:d.session?.output_audio_format==='pcm',nested_input_rate:d.session?.audio?.input?.format?.sample_rate||0,nested_output_rate:d.session?.audio?.output?.format?.sample_rate||0})));return}
-    ws.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text:'只用中文说：你好，我是Grace。'}]}}));ws.send(JSON.stringify({type:'response.create'}));
-   }if(d.type==='response.audio.delta'){first??=Date.now()-started;chunks++;bytes+=Math.floor(String(d.delta).length*3/4);if(bytes>200000)finish(Error('诊断回复超限'))}if(d.type==='response.done'){if(!chunks||d.response?.status!=='completed')finish(Error('实时模型未返回完整音频'));else finish()}}catch{finish(Error('实时模型事件无效'))}};
+  ws.onmessage=e=>{try{const d=JSON.parse(String(e.data));if(d.type==='error'){finish(Error('实时模型权限或配置尚未通过检查'));return}
+   if(d.type==='session.updated'&&phase==='config'){
+    if(!confirmedSession(d.session)){finish(Error('实时模型配置未确认'));return}phase='greeting';
+    ws.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text:'只用中文说：你好，我是Grace。'}]}}));ws.send(JSON.stringify({type:'response.create'}));return;
+   }
+   if(phase==='loopback'&&(d.type==='response.created'||d.type==='response.audio.delta')){finish(Error('实时模型未保持受控回答模式'));return}
+   if(phase==='greeting'&&d.type==='response.audio.delta'){const part=fromBase64(d.delta,128000);first??=Date.now()-started;chunks++;bytes+=part.length;parts.push(part);if(bytes>200000)finish(Error('诊断回复超限'))}
+   if(phase==='greeting'&&d.type==='response.done'){
+    if(!chunks||d.response?.status!=='completed'){finish(Error('实时模型未返回完整音频'));return}
+    // No microphone/browser audio is accepted by this diagnostic. Only the fixed
+    // public greeting produced above is returned to the same provider for ASR.
+    const audio=diagnosticPcm(parts);parts=[];phase='loopback';
+    for(let at=0;at<audio.length;at+=6400)ws.send(JSON.stringify({type:'input_audio_buffer.append',audio:toBase64(audio.subarray(at,at+6400))}));ws.send(JSON.stringify({type:'input_audio_buffer.commit'}));return;
+   }
+   if(phase==='loopback'&&d.type==='conversation.item.input_audio_transcription.failed'){finish(Error('实时输入语音检查失败'));return}
+   if(phase==='loopback'&&d.type==='conversation.item.input_audio_transcription.completed'){
+    if(!String(d.transcript||'').trim()){finish(Error('实时输入语音没有转写'));return}if(!manualTimer)manualTimer=setTimeout(()=>finish(),1000);
+   }
+  }catch{finish(Error('实时模型事件无效'))}};
  });
 }
 Deno.serve(async req=>{

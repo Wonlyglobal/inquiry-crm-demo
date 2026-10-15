@@ -1,12 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createRealtimeBridge} from '../supabase/functions/agent-realtime/bridge.mjs';
-import {nativeConversation,sessionUpdate,toBase64,pcmWav,fromBase64,realtimeUrl} from '../supabase/functions/agent-realtime/policy.mjs';
+import {nativeConversation,sessionUpdate,toBase64,pcmWav,fromBase64,realtimeUrl,confirmedSession,diagnosticPcm} from '../supabase/functions/agent-realtime/policy.mjs';
 import {createRealtimeClient} from '../assets/agent-realtime-client.mjs';
 import {pcmEncoder,encodePcm,createPcmPlayer} from '../assets/agent-realtime-audio.mjs';
 const tick=()=>new Promise(r=>setImmediate(r));
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve}};
-const config={turn_detection:null,audio:{input:{format:{sample_rate:16000}},output:{format:{sample_rate:24000,type:'pcm'}}}};
+const config={turn_detection:null,audio:{input:{format:{type:'pcm',sample_rate:16000}},output:{format:{sample_rate:24000,type:'pcm'}}}};
 function bridgeHarness({verify=async()=> 'owner',authorizeTurn=async()=>{},history=[]}={}){
  const out=[],up=[],verified=[],errors=[];let ws,time=100000;
  const b=createRealtimeBridge({send:e=>out.push(e),verify:async a=>{verified.push(a);return verify(a)},authorizeTurn,proof:async()=>({data:'signed',signature:'proof'}),history,now:()=>time,openProvider:()=>{ws={readyState:1,bufferedAmount:0,send:e=>up.push(JSON.parse(e)),close(){this.readyState=3}};queueMicrotask(()=>ws.onopen());return ws},onError:e=>errors.push(e)});
@@ -15,7 +15,7 @@ function bridgeHarness({verify=async()=> 'owner',authorizeTurn=async()=>{},histo
 }
 const appendFrames=(h,n=64000)=>{for(let i=0,seq=1;i<n;i+=3200,seq++)h.b.append({turn:1,seq,audio:toBase64(new Uint8Array(Math.min(3200,n-i)))})};
 test('native routing keeps products, CRM, followups, fresh and sensitive input on existing path',()=>{
- for(const q of ['给我X60 Pro参数','智能锁画册v9','我们的询盘','今天天气','谢谢，请查下网站','继续','那它的价格呢','帮我打开公司背调','记住我喜欢简洁'])assert.equal(nativeConversation(q,'X60 Pro参数'),false,q);
+ for(const q of ['给我X60 Pro参数','X六零','爱克斯六零','智能锁画册v9','我们的询盘','今天天气','谢谢，请查下网站','继续','那它的价格呢','帮我打开公司背调','记住我喜欢简洁'])assert.equal(nativeConversation(q,'X60 Pro参数'),false,q);
  assert.throws(()=>nativeConversation('密码：abcDEF123!'));assert.equal(nativeConversation('谢谢你'),true);assert.equal(nativeConversation('讲一个简短的笑话'),true);
  assert.throws(()=>realtimeUrl('https://evil.invalid'));assert.match(realtimeUrl('ws-example'),/^wss:\/\/ws-example.cn-beijing.maas.aliyuncs.com/);
  assert.equal(sessionUpdate().session.turn_detection,null);
@@ -70,4 +70,9 @@ test('server-directed rotation preserves unsent onset and resumes with a fresh s
 
 test('fractional-rate streaming resampling matches one buffer at every supported device rate',()=>{
  for(const rate of [8000,16000,22050,24000,44100,48000,96000,192000]){const source=Float32Array.from({length:rate/10},(_,i)=>Math.sin(i*.2)*.7),full=pcmEncoder(rate)(source),encode=pcmEncoder(rate),parts=[];for(let i=0;i<source.length;i+=1024)parts.push(encode(source.slice(i,i+1024)));assert.equal(full.length,3200);assert.deepEqual(Buffer.concat(parts),Buffer.from(full),String(rate))}
+});
+
+test('provider optional null VAD echo stays gated by exact PCM; active or malformed VAD is rejected',()=>{
+ assert.equal(confirmedSession(config),true);const omitted=structuredClone(config);delete omitted.turn_detection;assert.equal(confirmedSession(omitted),true);for(const vad of [false,true,{}, {type:'server_vad'}, {type:'semantic_vad'}])assert.equal(confirmedSession({...config,turn_detection:vad}),false);assert.equal(confirmedSession({output_audio_format:'pcm'}),false);assert.equal(confirmedSession({...config,audio:{...config.audio,output:{format:{type:'wav',sample_rate:24000}}}}),false);
+ const diagnostic=diagnosticPcm([new Uint8Array(48000)]);assert.equal(diagnostic.length,64000);assert.deepEqual(diagnostic.slice(-32000),new Uint8Array(32000));assert.throws(()=>diagnosticPcm([new Uint8Array(200002)]));
 });

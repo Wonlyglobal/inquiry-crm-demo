@@ -26,10 +26,12 @@ async function audit(userId:string,action:string,operation:string,limit:number,e
 function upstream(){return new WebSocketClient(realtimeUrl(Deno.env.get('BAILIAN_REALTIME_WORKSPACE_ID')), {headers:{Authorization:'Bearer '+key()},maxPayload:200000,handshakeTimeout:8000,perMessageDeflate:false,followRedirects:false})}
 async function probe(userId:string){
  await audit(userId,'agent_realtime_probe','synthetic_public_loopback',2);
+ const vp=await voiceprintCall({actor:userId,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET'),op:'status'});
+ if(vp.status!=='ok')throw Error('公司声纹服务暂不可用，实时通话保持关闭');
  return await new Promise((resolve,reject)=>{
   const ws=upstream(),started=Date.now();let bytes=0,chunks=0,first:number|null=null,settled=false,phase='config',parts:Uint8Array[]=[],manualTimer:any;
   const timer=setTimeout(()=>finish(Error('实时模型检查超时')),20000);
-  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);clearTimeout(manualTimer);ws.close();parts=[];error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true,input_transcription_verified:true,manual_verified:true})}
+  function finish(error?:Error){if(settled)return;settled=true;clearTimeout(timer);clearTimeout(manualTimer);ws.close();parts=[];error?reject(error):resolve({ready:true,model:REALTIME_MODEL,audio_chunks:chunks,audio_bytes:bytes,first_audio_ms:first,elapsed_ms:Date.now()-started,synthetic:true,input_transcription_verified:true,manual_verified:true,voiceprint_available:true,voiceprint_registered:typeof vp.samples==='number'&&typeof vp.required==='number'?vp.samples>=vp.required:null})}
   ws.onopen=()=>ws.send(JSON.stringify(sessionUpdate()));ws.onerror=()=>finish(Error('实时模型连接失败'));ws.onclose=()=>{if(!settled)finish(Error('实时模型连接已关闭'))};
   ws.onmessage=e=>{try{const d=JSON.parse(String(e.data));if(d.type==='error'){finish(Error('实时模型权限或配置尚未通过检查'));return}
    if(d.type==='session.updated'&&phase==='config'){
@@ -77,7 +79,7 @@ Deno.serve(async req=>{
      if(resume.user!==user.id||!Number.isFinite(resume.expires)||resume.expires<Date.now()||!Number.isFinite(resume.started)||resume.started>Date.now()||Date.now()-resume.started>LIMITS.callMs||!Number.isSafeInteger(resume.lastTurn)||resume.lastTurn<0||resume.lastTurn>5000||!Array.isArray(resume.history)||resume.history.length>8||resume.history.some((m:any)=>!['user','assistant'].includes(m.role)||typeof m.content!=='string'||m.content.length>1000)||typeof resume.previous!=='string'||resume.previous.length>500)throw Error('续接状态过期');callStarted=resume.started;
     }
     authenticated=true;clearTimeout(authTimer);started=Date.now();bridge=createRealtimeBridge({send,history:resume?.history||[],previous:resume?.previous||'',initialTurn:resume?.lastTurn||0,openProvider:upstream,authorizeTurn:async()=>{if(!enabled()||Date.now()-callStarted>LIMITS.callMs)throw Error('本次通话已结束');await authorize(token);await audit(user.id,'agent_bailian_request','realtime_turn',12)},verify:async audio=>{
-     const result=await voiceprintCall({actor:user.id,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET'),op:'verify',audio,mime:'audio/wav'});const speaker=speakerOf(result);
+     const result=await voiceprintCall({actor:user.id,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET'),op:'verify',audio,mime:'audio/wav'});const speaker=result.status==='unavailable'&&['http_422','too_short'].includes(result.code)?'uncertain':speakerOf(result);
      const {error}=await admin().from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_voiceprint',after_data:{op:'verify',speaker,transport:'realtime',dropped:!['owner','not_enrolled'].includes(speaker)},reason:'实时语音分段先核验说话人，未确认音频不送外部模型'});if(error)throw Error('声纹审计未完成');return speaker;
     },proof:(speaker,text)=>voiceProof({user:user.id,speaker,text},mac),onError:()=>close('实时语音中断，请重新拨通')});send({type:'ready',model:REALTIME_MODEL,lastTurn:resume?.lastTurn||0});return;
    }

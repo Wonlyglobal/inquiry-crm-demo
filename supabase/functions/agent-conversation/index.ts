@@ -159,9 +159,9 @@ Deno.serve(async req=>{
    if(limitError)return json({error:'暂时无法核验访问限额'},503);if((count||0)>=10)return json({error:'操作较多，请一分钟后重试'},429);
    const audio=input.op==='enroll'?form?.get('audio'):null;if(input.op==='enroll'&&!(audio instanceof File))return json({error:'录音文件缺失'},400);
    const result=await voiceprintCall({...materialConfig,op:input.op,audio:audio instanceof File?new Uint8Array(await audio.arrayBuffer()):null,mime:audio instanceof File?audio.type.split(';')[0]:null});
-   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_voiceprint',after_data:{op:input.op,status:result.status,samples:result.samples??null,deleted:result.deleted??null},reason:'声纹注册/查询/删除；特征只存内网物料服务器，本系统不保存录音或特征'});
+   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_voiceprint',after_data:{op:input.op,status:result.status,code:result.code??null,samples:result.samples??null,deleted:result.deleted??null},reason:'声纹注册/查询/删除；特征只存内网物料服务器，本系统不保存录音或特征'});
    if(auditError)return json({error:'声纹操作审计失败'},503);
-   return json({message:enrollmentReply(result),status:result.status,samples:result.samples??null,required:result.required??null});
+   return json({message:enrollmentReply(result),status:result.status,code:result.code??null,samples:result.samples??null,required:result.required??null});
   }
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});

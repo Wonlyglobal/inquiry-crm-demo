@@ -126,3 +126,7 @@ html[data-grace-app],html[data-grace-app] body {margin:0;overflow:hidden;overscr
 #grace-mobile .grace-stop[hidden]{display:none}
 
 #grace-mobile .grace-enroll-shortcut{display:block;margin:12px auto 0;padding:10px 20px;border:1px solid #aaa893;border-radius:24px;background:transparent;color:#efeddd;font:inherit;font-size:14px;min-height:44px}#grace-mobile .grace-enroll-shortcut:focus-visible{outline:3px solid #bbb0e3;outline-offset:3px}
+
+#grace-mobile .grace-tools [role=status]{color:#51444e;font-weight:650;line-height:1.6}#grace-mobile .grace-tools>.hint{color:#565d53}
+
+#grace-mobile .question-retry{display:block;margin:14px 0;padding:10px 16px;border-radius:12px;background:#dedbcc;color:#222321;min-height:44px}

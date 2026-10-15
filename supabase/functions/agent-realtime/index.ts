@@ -65,7 +65,10 @@ Deno.serve(async req=>{
  const upgrade=req.headers.get('upgrade')?.toLowerCase()==='websocket';
  if(!upgrade){if(req.method!=='POST')return json({error:'仅支持受控通话'},405);try{
   const user=await authorize((req.headers.get('authorization')||'').replace(/^Bearer /,''));const body=await req.text();if(body.length>500)return json({error:'请求过大'},400);const d=JSON.parse(body);
-  if(d.action==='status')return json({configured:configured(),enabled:enabled(),ready:configured()&&enabled(),model:REALTIME_MODEL});
+  if(d.action==='status'){
+   const active=configured()&&enabled();let vp:any=null;if(active)vp=await voiceprintCall({actor:user.id,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET'),op:'status'});
+   return json({configured:configured(),enabled:enabled(),ready:active&&vp?.status==='ok',voiceprint_available:vp?vp.status==='ok':null,model:REALTIME_MODEL});
+  }
   if(d.action==='probe'&&configured()&&Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY)return json(await probe(user.id));return json({error:'实时语音尚未启用'},503);
  }catch(e){return json({error:e instanceof Error?e.message:'连接失败'},403)}}
  if(req.method!=='GET'||new URL(req.url).search)return json({error:'通话地址无效'},400);

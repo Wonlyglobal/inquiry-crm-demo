@@ -14,6 +14,7 @@ export const PACK_HINT='首次使用语音唤醒要下载本机语音包：点�
 const VOICE_EMOTIONS=['neutral','happy','sad','angry','surprised','fearful','disgusted'];
 import {createResponsePreferences} from './agent-response-preferences.mjs?v=20260924-1';
 import {createCompatibleRecorder,audioExtension} from './grace-recorder.mjs?v=20261006-1';
+import {captureEnrollment} from './agent-voiceprint-capture.mjs?v=20261016-enroll1';
 import {captureUtterance} from './agent-utterance.mjs?v=20260924-2';
 import {playWithDeadline} from './agent-audio.mjs?v=20260924-1';
 import {prepareMicrophone} from './agent-microphone.mjs?v=20260923-1';
@@ -33,22 +34,11 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  const note=el('p','智能推理仅发送你主动输入的非机密问题、该模式近期对话、公开资料、背调样本分布、近30天权限内脱敏统计，以及已批准的SEO与社媒只读摘要；Hello唤醒前录音不上传；唤醒后说话片段发送至阿里云语音服务转写；切换浏览器标签页继续，Hello 唤醒模式在播报期间暂停录音，停止或退出私人空间即结束。请勿输入客户机密或凭证。声音由AI生成；语音回答优先播报简短结果，完整信息显示在窗口。');note.textContent+=' 点击开始通话后无需反复唤醒；普通通话在说话片段结束后处理；实时通道启用时，已通过声纹检查的分段音频会边说边传送，每次讲话最长45秒，播报期间本机持续检测插话，确认后停止旧回答并接住新问题；静音或挂断立即停止采集。无法建立回声参考的浏览器保留手动打断。';note.className='hint';
  stop.setAttribute('data-voice-stop','true');const startWake=el('button','恢复聆听');startWake.type='button';startWake.setAttribute('data-voice-start','true');startWake.hidden=true;bar.append(startWake);bar.append(mode,installWake,wakeButton,mic,stop,replay,check,status,note);host.prepend(bar);
  // Voiceprint (owner approved 2026-09-28): the template is stored only on the internal material server.
- const enroll=el('button','注册声纹'),forget=el('button','删除声纹'),enrollmentStatus=el('button','查看登记进度');enroll.type=forget.type=enrollmentStatus.type='button';enroll.setAttribute('data-voiceprint-enroll','true');enroll.title='录一段 8 秒左右的话，共 3 段；只保存声纹特征数字，不保存录音';
+ const enroll=el('button','注册声纹'),forget=el('button','删除声纹'),enrollmentStatus=el('button','查看登记进度');enroll.type=forget.type=enrollmentStatus.type='button';enroll.setAttribute('data-voiceprint-enroll','true');enroll.title='共录入 3 段，每段连续说话 5 到 10 秒，最多等待 20 秒；只保存声纹特征，不保存录音';
  const vpNote=el('span','');vpNote.className='hint';bar.append(enroll,enrollmentStatus,forget,vpNote);let forgetArmed=null;
- async function recordClip(ms,signal){
-  const acquired=await navigator.mediaDevices.getUserMedia({audio:true});let clipRecorder;
-  try{if(signal.aborted)throw Error('录音已停止');clipRecorder=await createCompatibleRecorder(acquired);if(signal.aborted)throw Error('录音已停止');
-   return await new Promise((resolve,reject)=>{const chunks=[];let limit,done=false;
-    const finish=error=>{if(done)return;done=true;clearTimeout(limit);signal.removeEventListener('abort',abort);clipRecorder.onstop=null;clipRecorder.ondataavailable=null;clipRecorder.onerror=null;if(clipRecorder.state==='recording')clipRecorder.stop();error?reject(error):resolve({blob:new Blob(chunks,{type:clipRecorder.mimeType}),mime:clipRecorder.mimeType})};
-    const abort=()=>finish(Error('录音已停止'));signal.addEventListener('abort',abort,{once:true});
-    clipRecorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};clipRecorder.onstop=()=>finish();clipRecorder.onerror=()=>finish(Error('录音失败，请重试'));
-    clipRecorder.start(500);limit=setTimeout(()=>clipRecorder.stop(),ms);
-   });
-  }finally{if(clipRecorder?.state==='recording')clipRecorder.stop();acquired.getTracks().forEach(t=>t.stop())}
- }
  async function voiceprint(op,clip,signal){const form=new FormData();form.append('action','voiceprint');form.append('persona',getPersona());form.append('op',op);if(clip)form.append('audio',clip.blob,'voiceprint.'+audioExtension(clip.mime));return call(form,signal)}
  enroll.onclick=async()=>{if(phone.isActive()){state('请先挂断通话，再录入声纹');return}if(busy||recorder)return;stopAll();const epoch=version;controller=new AbortController();const signal=controller.signal;busy=true;enroll.disabled=true;
-  try{state('正在检查声纹登记连接…','thinking');const preflight=await voiceprint('status',null,signal);if(epoch!==version)return;if(preflight.status!=='ok'){vpNote.textContent=preflight.message||'公司声纹服务连接不上，尚未开始录音';state('声纹登记连接未就绪，尚未开始录音');return}state('请用正常语速说一段话（约 8 秒），例如介绍今天的工作…','listening');const clip=await recordClip(8000,signal);if(epoch!==version)return;state('正在登记声纹…','thinking');const r=await voiceprint('enroll',clip,signal);if(epoch!==version)return;vpNote.textContent=r.message||'';state('声纹：'+(r.status==='ok'?'已记录':'未完成'))}
+  try{state('正在检查声纹登记连接…','thinking');const preflight=await voiceprint('status',null,signal);if(epoch!==version)return;if(preflight.status!=='ok'){vpNote.textContent=preflight.message||'公司声纹服务连接不上，尚未开始录音';state('声纹登记连接未就绪，尚未开始录音');return}state('请用正常语速说一段话（约 8 秒），例如介绍今天的工作…','listening');const clip=await captureEnrollment({signal,onProgress:text=>{if(epoch===version)state(text,'listening')}});if(epoch!==version)return;state('正在登记声纹…','thinking');const r=await voiceprint('enroll',clip,signal);if(epoch!==version)return;vpNote.textContent=r.message||'';state(r.status==='ok'?'声纹：'+(r.samples>=r.required?'已完成':`已记录 ${r.samples}/${r.required} 段，请换一句话继续录入`):'声纹未完成：'+(r.message||'请查看登记进度'))}
   catch(e){if(epoch===version)state(e.name==='NotAllowedError'?'麦克风未授权':e.message)}finally{if(epoch===version)busy=false;enroll.disabled=false;sync()}};
  enrollmentStatus.onclick=async()=>{if(busy||recorder)return;enrollmentStatus.disabled=true;try{const r=await voiceprint('status');vpNote.textContent=r.message||'登记进度暂不可用';state(r.status==='ok'?'声纹登记进度已更新':'声纹登记进度暂不可用')}catch(e){state(e.message)}finally{enrollmentStatus.disabled=false}};
  forget.onclick=async()=>{if(!forgetArmed){forget.textContent='确认删除声纹';forgetArmed=setTimeout(()=>{forgetArmed=null;forget.textContent='删除声纹'},6000);return}clearTimeout(forgetArmed);forgetArmed=null;forget.textContent='删除声纹';try{const r=await voiceprint('delete');vpNote.textContent=r.message||'';state(r.message||'已删除声纹')}catch(e){state(e.message)}};

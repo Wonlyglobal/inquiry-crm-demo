@@ -62,3 +62,10 @@ test('failure is visible per task and clears stale model context; overflow and w
 test('cancelling a compound request prevents later child requests',async()=>{const c=new AbortController();let calls=0;const r=await runQuestionPlan(questionPlan('介绍CRM，并说明新员工跟进步骤'),{signal:c.signal,run:async()=>{calls++;c.abort();return {answer:'late answer'}}});assert.equal(calls,1);assert.ok(r.results.every(x=>!x.ok));assert.doesNotMatch(r.answer,/late answer/)});
 
 test('a negated feature synonym cannot become a positive selection match',()=>{const r=selectProducts({products:[{model:'TEST100',catalog:'synthetic',page:1,category:'smart_lock',specs:{开锁方式:'人脸开锁'}}]},selectionRequirements('智能锁选型，不要人脸识别'));assert.equal(r.rows[0].status,'unknown')});
+
+// Pages excludes the server directory; its browser asset must remain byte-identical.
+test('browser and deployed question planners stay identical',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ assert.equal(await readFile(new URL('../assets/agent-question-plan.mjs',import.meta.url),'utf8'),await readFile(new URL('../supabase/functions/agent-conversation/question-plan.mjs',import.meta.url),'utf8'));
+ const client=await readFile(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');assert.match(client,/from '\.\/agent-question-plan\.mjs/);
+});

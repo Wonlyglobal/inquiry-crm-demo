@@ -1,4 +1,4 @@
-import {mountPrivateIntelligence} from './agent-private-intelligence.mjs?v=20261019-private1';
+import {mountPrivateIntelligence} from './agent-private-intelligence.mjs?v=20261019-private2';
 import {createConnectionCheck} from './agent-connection.mjs?v=20261019-connect1';
 import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=20261019-private1';
 import {createPhoneSession} from './agent-phone.mjs?v=20261015-stable-call1';

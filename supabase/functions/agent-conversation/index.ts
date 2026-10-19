@@ -172,6 +172,11 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    if(error)return json({error:'私有知识同步未完成：请核对包格式、授权和日期；本次事务未提交'},400);
    return json(data);
   }
+  if(input.action==='private-intelligence-list'){
+   const {data,error}=await client.rpc('read_agent_private_intelligence',{p_kind:null,p_from:null,p_to:null,p_key:null,p_limit:5});
+   if(error)return json({error:'私有知识回读未完成'},400);
+   return json({receipts:(data?.documents||[]).map((r:any)=>({id:r.id,key:r.document.key,digest:r.digest,imported_at:r.imported_at}))});
+  }
   if(input.action==='private-intelligence-receipt'){
    if(!/^[0-9a-f-]{36}$/i.test(input.id||''))return json({error:'知识编号无效'},400);
    const {data,error}=await client.rpc('receipt_agent_private_intelligence',{p_id:input.id});

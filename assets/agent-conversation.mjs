@@ -1,4 +1,4 @@
-import {questionPlan,nextMaterialHistory} from '../supabase/functions/agent-conversation/question-plan.mjs?v=20261019-dialogue2';
+import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=20261019-dialogue3';
 import {createPhoneSession} from './agent-phone.mjs?v=20261015-stable-call1';
 import {preparePhoneInput,capturePhoneTurn} from './agent-phone-input.mjs?v=20261015-stable-call1';
 import {modelChoiceButtons,clarificationButtons,clarificationChoices} from './agent-model-choices.mjs?v=20261012-feedback';

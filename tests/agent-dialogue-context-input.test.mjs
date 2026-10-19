@@ -4,7 +4,7 @@ import {findModels,catalogIntent,catalogAnswer} from '../supabase/functions/agen
 import {resolveMaterialTurn} from '../supabase/functions/agent-conversation/material-dialogue.mjs';
 import {privateV9Turn} from '../supabase/functions/agent-conversation/private-v9-turn.mjs';
 import {selectionRequirements,selectProducts} from '../supabase/functions/agent-conversation/product-selection.mjs';
-import {questionPlan,runQuestionPlan,nextMaterialHistory} from '../assets/agent-question-plan.mjs';
+import {questionPlan,runQuestionPlan,nextMaterialHistory} from '../supabase/functions/agent-conversation/question-plan.mjs';
 import {crmGuideIntent,crmGuideAnswer} from '../supabase/functions/agent-conversation/crm-guide.mjs';
 import {validateDialogue} from '../supabase/functions/agent-conversation/policy.mjs';
 const catalog={sources:[{id:'c4',edition:'2026-08'}],products:['X60 Pro','X60 Max','S936'].map(model=>({model,catalog:'c4',page:1,category:'smart_lock',specs:{},confidence:'high'}))};

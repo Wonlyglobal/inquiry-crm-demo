@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {privateIntelligenceIntent,privateIntelligenceQuery,privateIntelligenceAnswer,readPrivateIntelligence} from '../supabase/functions/agent-conversation/private-intelligence.mjs';
 import {crmLiveAnswer} from '../assets/agent-crm-live.mjs';
+import {validPrivateReceipt} from '../assets/agent-private-intelligence.mjs';
+test('empty or malformed receipts cannot be presented as successful verification',()=>{
+ const r={id:'11111111-1111-4111-8111-111111111111',key:'weekly-2026-10-12-2026-10-18',digest:'a'.repeat(64)};
+ assert.ok(validPrivateReceipt(r));for(const x of [null,{}, {...r,id:undefined},{...r,digest:''},{...r,key:'arbitrary'}])assert.equal(validPrivateReceipt(x),false);
+});
 
 test('private report questions resolve Shanghai previous week without sending an AI request',()=>{
  assert.equal(privateIntelligenceIntent('查看上周周报以及新增证据'),true);

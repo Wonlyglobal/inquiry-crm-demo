@@ -37,6 +37,7 @@ test('authenticated handler preserves context, handles every clause and enforces
    modelEnabled=false;
    const imported=await request('',{action:'private-intelligence-import',documents:[{synthetic:true}]});assert.equal(imported.http,200);assert.equal(imported.receipts[0].id,'private-test');
    const receipt=await request('',{action:'private-intelligence-receipt',id:'00000000-0000-4000-8000-000000000001'});assert.equal(receipt.http,200);assert.equal(receipt.receipt.digest,'synthetic-digest');
+   const listed=await request('',{action:'private-intelligence-list'});assert.equal(listed.receipts[0].id,'private-test');assert.ok(!JSON.stringify(listed).includes('SYNTHETIC-INTERNAL-NOT-FOR-MODEL'));
    const r=await request('查看上周周报，列出风险和证据');assert.equal(r.model,'private-intelligence');assert.equal(r.provider,'internal');assert.match(r.answer,/SYNTHETIC-INTERNAL-NOT-FOR-MODEL/);assert.equal(r.context.receipts[0].id,'private-test');
    assert.equal((await request('',{action:'private-intelligence-import',documents:[]},'invalid')).http,401);
    modelEnabled=true;

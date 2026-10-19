@@ -1,12 +1,13 @@
+import {normalizeProductInput} from './product-input.mjs';
 import {generalMind} from './grace-mind.mjs';
 import {analysisIntent} from './deep-analysis.mjs';
 // Deterministic, auditable routing; no model-selected URLs or arbitrary tools.
 export function knowledgeRoute(question,history=[]){
- const q=String(question),previous=history.filter(x=>x.role==='user').at(-1)?.content||'';
+ const q=normalizeProductInput(question),previous=history.filter(x=>x.role==='user').at(-1)?.content||'';
  const followup=/^(那|继续|展开|详细|为什么|怎么做|再|它|他们|这个|上面)/.test(q)&&q.length<80;
  const topic=followup?q+' '+previous:q;
  const productInternal=/(我们|我司|王力|wonly)/i.test(topic)&&/产品|型号|材质|规格|尺寸|认证|防火|隔音|质保|安装|参数/i.test(topic);
- const modelQuestion=/\b[A-Za-z][A-Za-z0-9_-]*\d[A-Za-z0-9_-]*\b/.test(topic)&&/参数|尺寸|材质|型号|规格|防火|隔音|安装|认证|质保/.test(topic);
+ const modelQuestion=/\b[A-Za-z][A-Za-z0-9_-]*\d[A-Za-z0-9_-]*\b/.test(topic)&&/资料|信息|介绍|功能|配置|供电|电池|维护|保养|参数|尺寸|材质|型号|规格|防火|隔音|安装|认证|质保/.test(topic);
  const materials=productInternal||modelQuestion||/物料|资料库|产品系列|系列目录|产品线|产品知识|知识覆盖|解析进度|产品手册|宣传册|安装视频|公司动态|公司资料|找.{0,12}(资料|文件|视频|图片)/.test(topic)
   ||/(有没有|找|发|给我|要|调出|调取).{0,16}(PPT|ppt|案例|检测报告|测试报告|报告|证书|彩页|样本|手册|视频|图片|演示|方案书)/.test(topic);
  const business=/我们|王力|wonly|CRM|询盘|线索|商机|客户|复盘|背调|网站|SEO|GSC|GA4|社媒|帖子|粉丝|转化率|销售阶段/i.test(topic)

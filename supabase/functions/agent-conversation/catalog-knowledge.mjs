@@ -1,3 +1,4 @@
+import {normalizeProductInput} from './product-input.mjs';
 import {selectionIntent,selectionAnswer} from './product-selection.mjs';
 import {inventoryIntent,inventoryAnswer} from './product-inventory.mjs';
 // Deterministic answers from the private WONLY overseas catalogue knowledge (wonly-catalog-v1).
@@ -8,7 +9,7 @@ export const PRIVATE_CATALOG={bucket:'agent-private-knowledge',path:'wonly-catal
 const CATALOG_NAMES={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 const CATEGORY_NAMES={smart_lock:'智能锁',smart_door:'智能门',security_door:'防盗门',wooden_door:'木门',hospital_door:'医院门',school_door:'学校门',refuge_door:'避难门',fire_window:'防火窗',lock_body:'锁体',lock_core:'锁芯',hinge:'合页',door_viewer:'猫眼',other:'其他'};
 const CATEGORY_WORDS=[['smart_lock',/智能锁|指纹锁|人脸锁|门锁|smart ?lock/i],['smart_door',/智能门|smart ?door/i],['security_door',/防盗门|入户门|钢门|security ?door/i],['wooden_door',/木门|静音门|室内门|wooden ?door/i],['hospital_door',/医院门|医疗门|病房门/],['school_door',/学校门|教室门/],['refuge_door',/避难门|避难间/],['fire_window',/防火窗/],['lock_body',/锁体/],['lock_core',/锁芯/],['hinge',/合页|铰链/],['door_viewer',/猫眼/]];
-const SPEC_WORDS=/产品信息|信息|产品介绍|了解|画册|型号|参数|规格|尺寸|厚度|等级|锁体|锁芯|门扇|门框|面板|颜色|配色|色号|认证|标准|国标|功能|配置|开锁方式|屏幕|供电|电池|续航|区别|对比|差别|哪款|哪些|有什么|多少|是什么|介绍/;
+const SPEC_WORDS=/资料|产品信息|信息|产品介绍|了解|画册|型号|参数|规格|尺寸|厚度|等级|锁体|锁芯|门扇|门框|面板|颜色|配色|色号|认证|安装|维护|质保|适用|条件|标准|国标|功能|配置|开锁方式|屏幕|供电|电池|续航|区别|对比|差别|哪款|哪些|有什么|多少|是什么|介绍/;
 const FILE_REQUEST=/发(给)?我|发一下|下载|文件|资料包|链接|PDF|pdf|原图|图片|视频/;
 const FACT_TOPICS=[['patents',/专利/],['rnd',/研发(投入|团队|人员|中心|基地)?/],['capacity',/产能|年产/],['bases',/生产基地|工厂|基地/],['listing',/上市|股票|605268/],['brand_value',/品牌价值/],['awards',/获奖|奖项|红点|iF/i],['challenge',/开锁挑战|百万挑战|挑战/],['landmarks',/地标|标杆项目|案例|项目业绩/],['developers',/开发商|地产商|百强/],['service',/服务网点|售后|服务团队/],['lock_core',/锁芯|C级|GA\/T/],['triple_protection',/三防分离|三重防护/],['remote_sensing',/远感|雷达/],['standards',/标准/],['fire_window',/防火窗/],['coating',/涂装|附着力|磷化/],['founding',/成立|创立|哪一年/]];
 const CONFLICT_TOPICS={patents:/专利/,rnd_team:/研发(团队|人员|人数)/,users:/用户数|服务用户/,keyway:/钥匙槽|钥匙孔|键槽|keyway/i,lock_core_ratio:/锁芯|C级|A级|倍/,wood_leaf:/木门.*厚|门扇厚/,s80_colour:/S80/i};
@@ -25,10 +26,7 @@ export async function loadCatalog(admin,now=Date.now()){
 export function resetCatalogCache(){cache=null}
 
 // Speech transcripts may spell a model's digits in Chinese (X六零 -> X60).
-export function normalizeModelQuestion(question){
- const digits={'零':'0','〇':'0','一':'1','二':'2','三':'3','四':'4','五':'5','六':'6','七':'7','八':'8','九':'9'};
- return String(question||'').normalize('NFKC').replace(/([A-Za-z]{1,3})[ \t]*([零〇一二三四五六七八九]{2,4})(?![零〇一二三四五六七八九])/g,(_,prefix,code)=>prefix+[...code].map(c=>digits[c]).join('')).replace(/\b([A-Za-z]{1,3})[ \t\-–—_]+(?=\d{2,4}(?!\d))/g,'$1');
-}
+export const normalizeModelQuestion=normalizeProductInput;
 // Model codes are matched longest-first so "S80 Max" never also yields "S80".
 export function findModels(question,catalog){
  let q=' '+normalizeModelQuestion(question).slice(0,500)+' ';
@@ -100,6 +98,16 @@ const HEAD=catalog=>`按 ${String(catalog.sources?.[0]?.edition||'2026-08').repl
 const NOTE='（画册摘录，尚待产品负责人抽检；页码是 PDF 页码；本回答未发送给外部模型。）';
 const TAIL='对外报价或投标前，以原画册和产品负责人确认的参数为准；画册没写的参数我不会补。'+NOTE;
 
+function missingRequestedTopics(question,models,catalog){
+ const rows=catalog.products.filter(p=>models.some(m=>norm(m)===norm(p.model)));
+ const keys=rows.flatMap(p=>Object.keys(p.specs||{})).join(' '),missing=[];
+ for(const [label,ask,fields] of [
+  ['安装与维护',/安装|维护|保养/,/安装|维护|保养|install|maintenance/i],
+  ['认证与测试条件',/认证|证书|测试条件/,/认证|证书|标准|certif|standard|test/i],
+  ['交付与售后',/交期|保修|质保|售后/,/交期|保修|质保|售后|warranty|delivery/i]
+ ])if(ask.test(question)&&!fields.test(keys))missing.push(`${label}：本次画册索引未取得这一项的明确字段，不能用行业常识补写；需要继续核对对应型号的现行手册或负责人。`);
+ return missing.length?'本轮要求中的资料缺口：\n'+missing.join('\n'):'';
+}
 export function catalogAnswer(intent,catalog,question=''){
  if(!intent||!catalog)return null;
  if(intent.kind==='model_choices')return '画册中有这些相关型号：'+intent.models.join('、')+'。请点击下方型号选项。确认完整型号后，我会按对应画册页给出参数和资料入口，避免混用不同版本。';
@@ -108,7 +116,7 @@ export function catalogAnswer(intent,catalog,question=''){
  if(intent.kind==='models'){
   const cards=intent.models.map(m=>card(m,catalog)).filter(Boolean);if(!cards.length)return null;
   const warn=conflictLines(question,catalog,intent.models);
-  return [HEAD(catalog),...cards,...warn,TAIL].join('\n\n');
+  return [HEAD(catalog),...cards,...warn,missingRequestedTopics(question,intent.models,catalog),TAIL].filter(Boolean).join('\n\n');
  }
  if(intent.kind==='list'){
   const blocks=intent.categories.slice(0,2).map(cat=>{

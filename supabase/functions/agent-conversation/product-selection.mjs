@@ -2,7 +2,7 @@
 export const selectionIntent=q=>/选型|推荐.*(门|锁|产品|型号)|帮我选/.test(String(q));
 const CATS=[[/智能锁/,['smart_lock']],[/木门/,['wooden_door']],[/防盗门/,['security_door']],[/医院门|医疗门/,['hospital_door']],[/防火窗/,['fire_window']]];
 export function selectionRequirements(question){
- const q=String(question),category=CATS.find(([re])=>re.test(q))?.[1]||null;
+ const q=String(question).normalize('NFKC').replace(/(指纹|人脸|密码|掌静脉)(?:解锁|识别)/g,'$1开锁'),category=CATS.find(([re])=>re.test(q))?.[1]||null;
  // Only literal catalogue matching is automated; fire/structural certification requires review.
  const constraints=[];
  for(const [id,re,key] of [

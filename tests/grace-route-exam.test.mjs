@@ -19,5 +19,5 @@ test('spec lookup: catalogue values with pages, never generic numbers',()=>{
 });
 test('a named model goes to the model card, not the spec lookup',async()=>{
  const {readFileSync}=await import('node:fs');const ts=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');
- assert.match(ts,/catalog&&!findModels\(input\.question,catalog\)\.length\?specAnswer/);
+ assert.match(ts,/catalog&&!findModels\((?:input\.question|catalogQuestion),catalog\)\.length\?specAnswer/);
 });

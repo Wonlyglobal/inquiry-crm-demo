@@ -1,5 +1,5 @@
 // Versioned code-derived help only. No customer data, provider calls or permission changes.
-export const CRM_GUIDE_VERSION='2026-10-13';
+export const CRM_GUIDE_VERSION='2026-10-19';
 export const CRM_MODULES=[
  ['经营看板','dashboard','查看权限范围内的经营指标、渠道与统计周期'],
  ['今日工作台','sales-today','查看今天需要处理的销售工作'],
@@ -27,17 +27,18 @@ export const CRM_MODULES=[
  ['角色操作指南','sop','查看角色相关操作说明'],
  ['AI 智能体','ai-advisor','打开智能体入口，选择 Grace、Brian 或 Jay']
 ];
-const HOW=/介绍|怎么|如何|在哪|入口|使用|操作|功能|模块|指南|教程|了解|会什么|能做什么/;
+const HOW=/介绍|说明|怎么|如何|在哪|入口|使用|操作|功能|模块|指南|教程|了解|会什么|能做什么/;
 export function crmGuideIntent(question){
  const q=String(question||'').normalize('NFKC').slice(0,500);
  if(/本月|上月|多少|统计|表现|趋势|分析|排名|客户名称/.test(q))return null;
  if(!HOW.test(q))return null;
  const modules=CRM_MODULES.filter(([name])=>q.includes(name));
- const crm=/CRM|crm|我们的系统|询盘系统|客户管理系统/.test(q);
+ const workflow=/跟进|询盘/.test(q)&&/步骤|流程|新员工|如何|怎么/.test(q);
+ const crm=/CRM|crm|我们的系统|询盘系统|客户管理系统/.test(q)||workflow&&/新员工/.test(q);
  if(!crm&&!modules.length)return null;
- return {modules};
+ return {modules,workflow,detail:/详细|全部|所有|逐项/.test(q)};
 }
 export function crmGuideAnswer(intent){
- const modules=intent.modules.length?intent.modules:CRM_MODULES;
- return `王力 CRM 系统使用说明（代码核对版本 ${CRM_GUIDE_VERSION}）\n系统围绕询盘、客户、沟通、报价与履约开展工作。以下是当前代码中的功能入口，不代表所有角色均可使用或各外部连接已验收。\n\n`+modules.map(([name,,purpose],i)=>`${i+1}. ${name}：${purpose}。入口：返回 CRM 主界面 → 左侧“${name}”。`).join('\n')+'\n\n权限说明：仅查看当前账号获授权的数据。菜单未显示时先查角色操作指南，不通过 Grace 绕过权限。导出、客户转移和风险解除仍按既有业务审批执行；语音不能代替登录权限。\n\n建议下一步：告诉我你要完成的操作，例如“如何查看询盘商机”或“我的邮箱在哪里”。本说明不会替你修改客户、发信或提交审批。';
+ const modules=intent.modules.length?intent.modules:intent.workflow?CRM_MODULES.filter(([name])=>['今日工作台','询盘商机','我的邮箱','客户沟通记录','跟进日历','报价管理'].includes(name)):CRM_MODULES;
+ return `王力 CRM 系统使用说明（代码核对版本 ${CRM_GUIDE_VERSION}）\n系统围绕询盘、客户、沟通、报价与履约开展工作。以下是当前代码中的功能入口，不代表所有角色均可使用或各外部连接已验收。\n\n`+(!intent.modules.length&&!intent.workflow&&!intent.detail?'主要功能\n1. 线索与客户：待分配、培育、公海、询盘商机和客户管理。\n2. 沟通与跟进：我的邮箱、WhatsApp、沟通记录、今日工作台和跟进日历。\n3. 报价与履约：报价管理、既有审批和履约跟踪。\n4. 经营与协作：经营看板、市场任务、销售日报、知识库和历史工程。\n5. 治理与辅助：客户背调、风险审查、角色操作指南，以及 Grace、Brian、Jay。\n常用顺序：查本人询盘 → 核对需求与沟通 → 实际联系 → 登记结果和下次计划 → 按流程报价及履约。':modules.map(([name,,purpose],i)=>`${i+1}. ${name}：${purpose}。入口：返回 CRM 主界面 → 左侧“${name}”。`).join('\n'))+(intent.workflow?'\n\n新员工跟进询盘步骤\n1. 从“今日工作台”或“询盘商机”打开本人有权限的询盘，核对负责人、有效性和当前阶段；尚未确认有效或有待审无效申请时，先按页面规则处理，不绕过锁定。\n2. 查看需求和最近沟通原文，确认产品型号、数量、用途、认证要求和时间；未知信息列为待确认，不凭摘要承诺。\n3. 在原邮件、WhatsApp或电话入口实际联系客户；Grace提供建议不等于已经发出消息。\n4. 沟通发生后填写“新增跟进记录”或工作台的“记录实际跟进”，如实记录本次结果、客户反馈和下次跟进时间，再保存。保存不自动完成其他待办，也不自动算首次有效联系。\n5. 回到“跟进日历”和今日工作台核对下次计划；已有任务只在实际完成后确认。需要报价时进入报价管理，按既有流程核对和审批。\n完成检查：实际沟通有记录、下次计划可查；没有回复就记录未回复，不把计划当成已完成。':'')+'\n\n权限说明：仅查看当前账号获授权的数据。菜单未显示时先查角色操作指南，不通过 Grace 绕过权限。导出、客户转移和风险解除仍按既有业务审批执行；语音不能代替登录权限。\n\n建议下一步：告诉我你要完成的操作，例如“如何查看询盘商机”或“我的邮箱在哪里”。本说明不会替你修改客户、发信或提交审批。';
 }

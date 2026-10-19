@@ -1,17 +1,19 @@
+import {normalizeProductInput,modelCodes,bareModel} from './product-input.mjs';
 import {productLedger,productLedgerText} from './product-coverage.mjs';
 import {profileEvidence} from './knowledge-profile.mjs';
 import {materialQuery,coverageSummary} from './document-knowledge.mjs';
-const modelIds=q=>[...new Set((String(q).match(/\b[A-Za-z][A-Za-z0-9_-]{0,38}\d[A-Za-z0-9_-]*\b/g)||[]).map(x=>x.toUpperCase()))].slice(0,4);
-const fields=q=>['防火','隔音','尺寸','规格','材质','型号','认证','安装','质保','保养','参数'].filter(x=>String(q).includes(x));
+const modelIds=modelCodes;
+const fields=q=>['功能','配置','供电','电池','维护','防火','隔音','尺寸','规格','材质','型号','认证','安装','质保','保养','参数'].filter(x=>String(q).includes(x));
 export function resolveMaterialTurn(question,history=[]){
- const q=String(question).trim(),previous=history.at(-1)||'';
+ const q=normalizeProductInput(question).trim(),previous=normalizeProductInput(history.at(-1)||'');
+ if(!previous&&/^(那它|它|这个型号|该型号)/.test(q)&&fields(q).length)return {question:'物料：'+q,clarification:'请告诉我具体产品型号，或选择上一个型号后继续查询。新需求不会沿用上一段对话的型号。'};
  if(!previous||/换个话题|新话题|不查资料|天气|天空|社媒|网站|询盘|营销|新闻/.test(q))return {question:q};
  const prior=materialQuery(previous),ids=modelIds(q),oldIds=modelIds(previous),properties=fields(q);
  if(/^(下一页|下页|继续看下一页|物料下一页)[。？?！!]*$/.test(q))return {question:`物料：${prior.query} 第${Math.min(10000,prior.page+1)}页`};
  if(/^第\s*\d+\s*页[。？?]*$/.test(q))return {question:`物料：${prior.query} ${q}`};
  if(/^(继续|展开|详细一点|详细说明)[。？?！!]*$/.test(q))return {question:`物料：${prior.query} 第${prior.page}页`,detail:true};
  if(/产品手册|宣传册|产品目录|资料库|物料：|查找|寻找|安装视频/.test(q)&&! /^(那|它|这个|该型号)/.test(q))return {question:q};
- const followup=/^(那|它|这个|该型号|还有)/.test(q)||q.length<=35&&(properties.length>0||ids.length>0&&/呢|怎么样|如何/.test(q));
+ const followup=/^(那|它|这个|该型号|还有)/.test(q)||q.length<=60&&(properties.length>0||ids.length>0&&(/呢|怎么样|如何/.test(q)||bareModel(q)));
  if(!followup)return {question:q};
  const target=ids.length?ids:oldIds;
  if(target.length!==1)return {question:'物料：'+q,clarification:'请告诉我具体产品型号，或直接输入“物料：关键词”。当前上下文无法唯一确定你指的是哪款产品。'};

@@ -1,5 +1,11 @@
 // Explicit file selection; same authenticated internal endpoint. No browser persistence or AI calls.
 export function validPrivateReceipt(r){return !!r&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.id||'')&&/^[0-9a-f]{64}$/.test(r.digest||'')&&/^(weekly|daily|evidence)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?$/.test(r.key||'')}
+export function privateReceiptLabel(key){const m=String(key).match(/^(weekly|daily|evidence)-(20\d{2}-\d{2}-\d{2})(?:-(20\d{2}-\d{2}-\d{2}))?$/);return m?`${{weekly:'周报',daily:'日报',evidence:'证据'}[m[1]]} · ${m[2]}${m[3]?'—'+m[3]:''}`:'未知报告'}
+export function privateReportButtons(receipts,onAsk){
+ if(receipts?.length!==1||!validPrivateReceipt(receipts[0]))return null;
+ const bar=document.createElement('div');bar.className='private-report-actions';bar.setAttribute('aria-label','继续查看这份报告');
+ for(const [label,q] of [['查看风险','风险呢'],['查看下一步','下一步呢'],['查看来源与缺口','来源有哪些']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>onAsk(`查看私有知识 ${receipts[0].key}，${q}`);bar.append(b)}return bar;
+}
 export function mountPrivateIntelligence(host,{invoke,isAllowed}){
  const el=(tag,text)=>{const n=document.createElement(tag);if(text)n.textContent=text;return n};
  const box=el('details');box.className='voice-settings-card';box.dataset.privateKnowledge='true';
@@ -9,13 +15,17 @@ export function mountPrivateIntelligence(host,{invoke,isAllowed}){
  const refresh=el('button','回读已同步知识');refresh.type='button';
  const status=el('p','选择由内部简报生成的知识包后同步。');status.setAttribute('role','status');
  const receipts=el('div');receipts.setAttribute('aria-label','私有知识同步回执');box.append(input,submit,refresh,status,receipts);host.append(box);
- const busy=v=>{submit.disabled=refresh.disabled=v};
+ const busy=v=>{submit.disabled=refresh.disabled=input.disabled=v;box.setAttribute('aria-busy',String(v))};
+ const allowed=()=>{if(!isAllowed()){receipts.replaceChildren();throw Error('账号已退出，未继续读取')} };
  async function verify(rows){
   if(!Array.isArray(rows)||rows.length>5||rows.some(r=>!validPrivateReceipt(r))||new Set(rows.map(r=>r.id)).size!==rows.length)throw Error('回执格式或编号不完整');
-  for(const r of rows){const check=await invoke({action:'private-intelligence-receipt',id:r.id});
+  const cards=[];for(const r of rows){allowed();const check=await invoke({action:'private-intelligence-receipt',id:r.id});allowed();
    if(!validPrivateReceipt(check.receipt)||check.receipt.id!==r.id||check.receipt.digest!==r.digest||check.receipt.key!==r.key)throw Error('回读校验不一致，请重新检查同步状态');
-   const p=el('p',`${r.key}｜知识编号 ${r.id}｜校验 ${r.digest}`);p.dataset.evidenceId=r.id;receipts.append(p);
+   const card=el('div');card.className='private-receipt';card.dataset.evidenceId=r.id;
+   card.append(el('strong',privateReceiptLabel(r.key)),el('p','已回读 · 版本校验一致'));
+   const detail=el('details');detail.append(el('summary','查看编号与校验详情'),el('p',`知识编号 ${r.id}`),el('p',`SHA-256 ${r.digest}`));card.append(detail);cards.push(card);
   }
+  allowed();receipts.replaceChildren(...cards);
  }
  refresh.onclick=async()=>{
   if(!isAllowed())return;busy(true);receipts.replaceChildren();status.textContent='正在回读已同步知识…';

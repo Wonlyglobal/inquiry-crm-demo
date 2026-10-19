@@ -1,4 +1,5 @@
 import {privateIntelligenceIntent,readPrivateIntelligence} from './private-intelligence.mjs';
+import {privateReportQuestion} from './private-report-context.mjs';
 import {questionPlan,runQuestionPlan} from './question-plan.mjs';
 import {normalizeProductInput,bareModel} from './product-input.mjs';
 import {privateV9Turn} from './private-v9-turn.mjs';
@@ -183,8 +184,8 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    if(error)return json({error:'私有知识回读未完成'},400);return json(data);
   }
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
-  const privateReply=async()=>{const result=await readPrivateIntelligence(client,input.question);return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
-  if(input.action==='chat'&&input.voice!==true&&privateIntelligenceIntent(input.question)&&!questionPlan(input.question).parts.length){
+  const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey));return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
+  if(input.action==='chat'&&input.voice!==true&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&!questionPlan(input.question).parts.length){
    validateDialogue(input);return await privateReply();
   }
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});
@@ -236,7 +237,7 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
     const choices=combined.results.find((r:any)=>r.result?.context?.kind==='model_choices')?.result.context;
     return json({answer:combined.answer,provider:'internal',model:'compound-requests',materials:combined.results.flatMap((r:any)=>r.result?.materials||[]).slice(0,20),actions:combined.results.flatMap((r:any)=>r.result?.actions||[]).slice(0,8),context:{route:'compound',tasks:combined.results.map((r:any)=>({question:r.question,status:r.ok?'answered':'failed'})),...(combined.materialHistory.length?{material_question:combined.materialHistory[0]}:{}),...(choices?{kind:'model_choices',model_choices:choices.model_choices,material_question:input.question.slice(0,500)}:{})},ticket:await ticket({user:user.id,persona:input.persona,text:'我按你提出的各项要求分别整理了结果，未完成的项目也单独说明了，详细内容在窗口里。',expires:Date.now()+300000},key)});
    }
-   if(privateIntelligenceIntent(input.question)){
+   if(privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))){
     if(guest)return json({answer:'内部周报与私有证据只供已授权本人查询。',provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:[]}});
     return await privateReply();
    }

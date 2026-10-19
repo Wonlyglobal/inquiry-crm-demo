@@ -194,10 +194,19 @@ html[data-grace-app],html[data-grace-app] body {margin:0;overflow:hidden;overscr
 #grace-mobile .grace-feedback .agent-response-feedback button[aria-pressed=true]{background:#355c43;color:#fff}
 
 /* Private report import stays inside its own settings card on narrow screens. */
-#grace-mobile [data-private-knowledge] p{font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+#grace-mobile [data-private-knowledge] p{font-size:13px;line-height:1.7;overflow-wrap:anywhere;color:#424b3d}
 #grace-mobile [data-private-knowledge] input{display:block;max-width:100%;width:100%;margin:12px 0;box-sizing:border-box;font-size:13px}
 #grace-mobile [data-private-knowledge] button{min-height:44px;width:100%;font-size:14px}
 
 .agent-conversation-tools [data-private-knowledge]{flex-basis:100%;max-width:100%;min-width:0}
 .agent-conversation-tools [data-private-knowledge] p{overflow-wrap:anywhere}
 .agent-conversation-tools [data-private-knowledge] input{max-width:100%;box-sizing:border-box}
+#grace-mobile [data-private-knowledge] [role=status]{padding:10px 12px;background:#e8eee4;color:#283e2e;border-radius:10px}
+#grace-mobile .private-receipt{margin-top:10px;padding:12px;border:1px solid #c9d1c1;background:#fffef9;border-radius:12px;min-width:0}
+#grace-mobile .private-receipt strong{display:block;font-size:14px;color:#283e2e;line-height:1.5;overflow-wrap:anywhere}
+#grace-mobile .private-receipt p{margin:6px 0}
+#grace-mobile .private-receipt details{border-top:1px solid #dce0d5;margin-top:8px;padding-top:8px}
+#grace-mobile .private-receipt summary{font-size:12px;min-height:32px;align-items:center}
+.private-report-actions{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0;max-width:100%}
+.private-report-actions button{min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+#grace-mobile .private-report-actions button{background:#e3e9dc!important;color:#293e2d!important;border:1px solid #b9c6b0!important;border-radius:12px;padding:9px 12px!important;font-size:13px!important}

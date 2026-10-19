@@ -1,4 +1,4 @@
-import {questionPlan,runQuestionPlan} from '../../../assets/agent-question-plan.mjs';
+import {questionPlan,runQuestionPlan} from './question-plan.mjs';
 import {normalizeProductInput,bareModel} from './product-input.mjs';
 import {privateV9Turn} from './private-v9-turn.mjs';
 import {evidenceCheck,sourceStatusIntent,sourceStatusAnswer} from './acceptance-status.mjs';

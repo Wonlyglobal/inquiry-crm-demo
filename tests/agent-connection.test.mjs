@@ -37,3 +37,8 @@ test('real page transports preserve gateway HTTP errors and stop after a cancell
   let finish;client.auth.getSession=()=>new Promise(r=>finish=r);const control=new AbortController(),waiting=request('status',control.signal);control.abort();finish({data:{session:{access_token:'synthetic-only'}}});await assert.rejects(waiting,/停止/);assert.equal(fetches,1);
  }
 });
+
+test('a hung voice check cannot delay text readiness and cancelled late voice cannot change it',async()=>{
+ let voice,seen=0;const c=createConnectionCheck({status:async()=>ok,realtimeStatus:()=>new Promise(r=>voice=r),onCore:r=>{seen++;assert.equal(r.core,ok)}});
+ const full=c.check(),text=c.checkCore();assert.equal((await text).core,ok);assert.equal(seen,1);assert.equal(c.pending,true);c.cancel();voice({ready:true});assert.deepEqual(await full,{cancelled:true});
+});

@@ -16,7 +16,7 @@ async function bounded(request,signal,timeoutMs){
  catch(error){if(signal.aborted)throw stopped();if(timedOut)throw Object.assign(Error('连接检查超时'),{connectionTimeout:true});throw error}
  finally{clearTimeout(timer);combined.removeEventListener('abort',abort)}
 }
-export function createConnectionCheck({status,realtimeStatus=null,isAllowed=()=>true,onRetry=()=>{},attempts=3,timeoutMs=8000,sleep=pause}){
+export function createConnectionCheck({status,realtimeStatus=null,isAllowed=()=>true,onRetry=()=>{},onCore=()=>{},attempts=3,timeoutMs=8000,sleep=pause}){
  let flight=null,epoch=0;
  async function read(request,signal,source){
   for(let attempt=1;attempt<=attempts;attempt++){
@@ -27,14 +27,19 @@ export function createConnectionCheck({status,realtimeStatus=null,isAllowed=()=>
  }
  return {
   check(){
-   if(flight)return flight.promise;const control=new AbortController(),id=++epoch,item={control,promise:null};flight=item;
-   item.promise=(async()=>{try{
-    const [core,realtime]=await Promise.all([read(status,control.signal,'core'),realtimeStatus?read(realtimeStatus,control.signal,'realtime'):null]);
+   if(flight)return flight.promise;const control=new AbortController(),id=++epoch,item={control,promise:null,corePromise:null};flight=item;
+   const diagnostic=r=>r?{state:r.state,attempts:r.attempts,...(r.reason?{reason:r.reason}:{})}:null;
+   item.corePromise=read(status,control.signal,'core').then(core=>{
     if(control.signal.aborted||epoch!==id||!isAllowed())return {cancelled:true};
-    const diagnostic=r=>r?{state:r.state,attempts:r.attempts,...(r.reason?{reason:r.reason}:{})}:null;
-    return {core:core.value||null,realtime:realtime?.value||null,error:core.error||null,realtimeFailed:!!realtime?.error,diagnostics:{core:diagnostic(core),realtime:diagnostic(realtime)}};
-   }catch(error){if(control.signal.aborted||epoch!==id||!isAllowed())return {cancelled:true};throw error}finally{if(flight===item)flight=null}})();return item.promise;
+    const result={core:core.value||null,error:core.error||null,diagnostics:{core:diagnostic(core),realtime:null}};onCore(result);return result;
+   }).catch(error=>{if(control.signal.aborted||epoch!==id||!isAllowed())return {cancelled:true};throw error});
+   item.promise=(async()=>{try{
+    const [core,realtime]=await Promise.all([item.corePromise,realtimeStatus?read(realtimeStatus,control.signal,'realtime'):null]);
+    if(control.signal.aborted||epoch!==id||!isAllowed())return {cancelled:true};
+    return {core:core.core,realtime:realtime?.value||null,error:core.error||null,realtimeFailed:!!realtime?.error,diagnostics:{core:core.diagnostics.core,realtime:diagnostic(realtime)}};
+   }catch(error){if(control.signal.aborted||epoch!==id||!isAllowed())return {cancelled:true};throw error}finally{if(flight===item)flight=null}})();item.promise.catch(()=>{});return item.promise;
   },
+  checkCore(){this.check();return flight.corePromise},
   cancel(){epoch++;const previous=flight;flight=null;previous?.control.abort()},
   get pending(){return !!flight}
  };

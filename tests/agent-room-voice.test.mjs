@@ -57,3 +57,8 @@ test('manual voice rejection explains the result instead of silently idling',asy
  const {model,states}=setup(async body=>body.action==='status'?{enabled:true,configured:true}:{ignored:'unverified'},{autoVoice:false});
  await model.enter();await model.ask('Synthetic voice question',{voice:true});assert.match(states.at(-1),/未通过验证/);model.stop();
 });
+
+test('text answers while voice readiness is pending, without a late status overwriting the reply',async()=>{
+ let voice,chats=0;const {model,states,messages}=setup(async body=>{if(body.action==='status')return {enabled:true,configured:true};chats++;return {answer:'Synthetic text while voice waits',provider:'internal',context:{route:'conversation'}}},{autoVoice:false,realtimeRequest:()=>new Promise(r=>voice=r)});
+ const entering=model.enter();await new Promise(r=>setImmediate(r));await model.ask('Synthetic text question');assert.equal(chats,1);assert.match(messages.at(-1).text,/Synthetic text/);assert.equal(states.at(-1),'回答完成');voice({ready:true});await entering;assert.equal(states.at(-1),'回答完成');assert.equal(Recognition.instances.length,0);model.stop();
+});

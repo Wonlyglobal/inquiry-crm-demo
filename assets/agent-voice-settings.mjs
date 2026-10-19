@@ -20,7 +20,9 @@ export function arrangeVoiceSettings(tools,root){
  const mode=el('label','回答方式','voice-settings-mode');move(mode,['mode']);advanced.append(mode);
  advanced.append(el('p','Hello 唤醒与单次录音','voice-settings-description'));const advancedActions=el('div',null,'voice-settings-actions');move(advancedActions,['wake','start-wake','install','mic','replay','reveal']);advanced.append(advancedActions);
  const privacy=el('details',null,'voice-settings-card voice-settings-privacy');privacy.append(el('summary','数据与隐私说明'));move(privacy,['privacy']);
- tools.append(live,call,voiceprint,connection,advanced,privacy);
+ tools.append(live,call,voiceprint,connection);
+ const knowledge=tools.querySelector('[data-private-knowledge]');if(knowledge)tools.append(knowledge);
+ tools.append(advanced,privacy);
  const paint=()=>{const samples=Number(tools.dataset.voiceprintSamples),required=Number(tools.dataset.voiceprintRequired),known=tools.dataset.voiceprintSamples!==undefined&&required>0;
   count.textContent=known?`${tools.dataset.voiceprintConfirmed==='false'?'上次确认：':''}${Math.min(samples,required)} / ${required} 段`:'待检查登记进度';
   [...dots.children].forEach((dot,i)=>{dot.classList.toggle('complete',known&&i<samples);dot.setAttribute('aria-label',`第 ${i+1} 段${!known?'状态待检查':i<samples?'已记录':'待录入'}`)});

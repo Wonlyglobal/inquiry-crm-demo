@@ -192,3 +192,12 @@ html[data-grace-app],html[data-grace-app] body {margin:0;overflow:hidden;overscr
 #grace-mobile .grace-feedback .agent-response-feedback{background:transparent!important;color:#343f2e!important;border:0!important;padding:10px 0!important;margin:0!important}
 #grace-mobile .grace-feedback .agent-response-feedback button{padding:7px 10px;margin:4px 4px 4px 0;background:#e2e2d6;color:#3a4634;border-radius:10px;font-size:12px;min-height:40px}
 #grace-mobile .grace-feedback .agent-response-feedback button[aria-pressed=true]{background:#355c43;color:#fff}
+
+/* Private report import stays inside its own settings card on narrow screens. */
+#grace-mobile [data-private-knowledge] p{font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+#grace-mobile [data-private-knowledge] input{display:block;max-width:100%;width:100%;margin:12px 0;box-sizing:border-box;font-size:13px}
+#grace-mobile [data-private-knowledge] button{min-height:44px;width:100%;font-size:14px}
+
+.agent-conversation-tools [data-private-knowledge]{flex-basis:100%;max-width:100%;min-width:0}
+.agent-conversation-tools [data-private-knowledge] p{overflow-wrap:anywhere}
+.agent-conversation-tools [data-private-knowledge] input{max-width:100%;box-sizing:border-box}

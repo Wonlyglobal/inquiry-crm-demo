@@ -15,7 +15,7 @@ test('authenticated handler preserves context, handles every clause and enforces
   await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(code)).toString('base64'));
   const request=async(question,extra={},token='owner')=>{const res=await handler(new Request('https://example.invalid/functions/v1/agent-conversation',{method:'POST',headers:{Origin:'https://crm.foreverdoodle.com',Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action:'chat',persona:'Grace',question,history:[],...extra})}));return {http:res.status,...await res.json()}};
   await t.test('catalogue answer supplies query context; followup retains variant across three turns',async()=>{
-   let r=await request('给我艾克斯六十Pro产品信息');assert.equal(r.http,200);assert.match(r.context.material_question,/X60/);assert.equal(r.model,'wonly-catalog');
+   let r=await request('艾克斯六十Pro。');assert.equal(r.http,200);assert.match(r.context.material_question,/X60/);assert.equal(r.model,'wonly-catalog');
    for(const q of ['那它的安装条件呢','尺寸呢','认证呢']){r=await request(q,{materialHistory:[r.context.material_question]});assert.equal(r.model,'wonly-catalog');assert.match(r.answer,/X60 Pro/);assert.doesNotMatch(r.answer,/请告诉我具体产品型号/)}
    const fresh=await request('那它的安装条件呢');assert.match(fresh.answer,/具体产品型号/);assert.doesNotMatch(fresh.answer,/【X60 Pro】/);
    r=await request('S九三六呢',{materialHistory:[r.context.material_question]});assert.match(r.answer,/S936/);assert.doesNotMatch(r.answer,/【X60 Pro】/);

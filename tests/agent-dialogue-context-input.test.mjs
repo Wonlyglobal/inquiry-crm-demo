@@ -9,7 +9,7 @@ import {crmGuideIntent,crmGuideAnswer} from '../supabase/functions/agent-convers
 import {validateDialogue} from '../supabase/functions/agent-conversation/policy.mjs';
 const catalog={sources:[{id:'c4',edition:'2026-08'}],products:['X60 Pro','X60 Max','S936'].map(model=>({model,catalog:'c4',page:1,category:'smart_lock',specs:{},confidence:'high'}))};
 test('input methods and spoken number spellings keep an exact model identity',()=>{
- for(const q of ['x60pro','Ｘ６０ Ｐｒｏ','X六零Pro','X六十 Pro','艾克斯60 Pro','埃克斯六十Pro','x sixty pro','x six zero pro','X-60-Pro'])assert.deepEqual(findModels(q,catalog),['X60 Pro'],q);
+ for(const q of ['x60pro','Ｘ６０ Ｐｒｏ','X六零Pro','X六十 Pro','艾克斯60 Pro','埃克斯六十Pro','x sixty pro','x six zero pro','X-60-Pro','X六十Pro。'])assert.deepEqual(findModels(q,catalog),['X60 Pro'],q);
  for(const q of ['S九三六','S九百三十六','s nine three six'])assert.deepEqual(findModels(q,catalog),['S936'],q);
  for(const q of ['X600 Pro','x sixty five pro','X60 ProMax','没有指定型号'])assert.deepEqual(findModels(q,catalog),[],q);
  assert.equal(normalizeProductInput('三十分钟内安装，六十毫米厚'),'三十分钟内安装，六十毫米厚'.normalize('NFKC'));
@@ -28,6 +28,7 @@ test('V9 scope survives model selection and followups without treating V9 as ano
  const next=privateV9Turn('那它的安装条件呢',[chosen.question]);assert.match(next.question,/S936 安装/);assert.match(next.question,/智能锁画册v9/);assert.equal(next.clarification,undefined);
  assert.equal(privateV9Turn('介绍我们的CRM系统',[next.question]),null);
  assert.match(privateV9Turn('说明安装条件',[next.question]).question,/智能锁画册v9/);
+ assert.match(privateV9Turn('S九三六呢',[next.question]).question,/S936.*智能锁画册v9/);
  assert.equal(privateV9Turn('查询智能锁画册V90参数',[next.question]),null);
  assert.equal(privateV9Turn('查询智能锁画册V8参数',[next.question]),null);
 });

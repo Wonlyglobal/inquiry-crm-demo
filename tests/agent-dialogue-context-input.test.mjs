@@ -3,7 +3,7 @@ import {normalizeProductInput,modelCodes} from '../supabase/functions/agent-conv
 import {findModels,catalogIntent,catalogAnswer} from '../supabase/functions/agent-conversation/catalog-knowledge.mjs';
 import {resolveMaterialTurn} from '../supabase/functions/agent-conversation/material-dialogue.mjs';
 import {privateV9Turn} from '../supabase/functions/agent-conversation/private-v9-turn.mjs';
-import {selectionRequirements} from '../supabase/functions/agent-conversation/product-selection.mjs';
+import {selectionRequirements,selectProducts} from '../supabase/functions/agent-conversation/product-selection.mjs';
 import {questionPlan,runQuestionPlan,nextMaterialHistory} from '../assets/agent-question-plan.mjs';
 import {crmGuideIntent,crmGuideAnswer} from '../supabase/functions/agent-conversation/crm-guide.mjs';
 import {validateDialogue} from '../supabase/functions/agent-conversation/policy.mjs';
@@ -60,3 +60,5 @@ test('failure is visible per task and clears stale model context; overflow and w
 });
 
 test('cancelling a compound request prevents later child requests',async()=>{const c=new AbortController();let calls=0;const r=await runQuestionPlan(questionPlan('介绍CRM，并说明新员工跟进步骤'),{signal:c.signal,run:async()=>{calls++;c.abort();return {answer:'late answer'}}});assert.equal(calls,1);assert.ok(r.results.every(x=>!x.ok));assert.doesNotMatch(r.answer,/late answer/)});
+
+test('a negated feature synonym cannot become a positive selection match',()=>{const r=selectProducts({products:[{model:'TEST100',catalog:'synthetic',page:1,category:'smart_lock',specs:{开锁方式:'人脸开锁'}}]},selectionRequirements('智能锁选型，不要人脸识别'));assert.equal(r.rows[0].status,'unknown')});

@@ -1,3 +1,4 @@
+import {createConnectionCheck} from './agent-connection.mjs?v=20261019-connect1';
 import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=20261019-dialogue3';
 import {createPhoneSession} from './agent-phone.mjs?v=20261015-stable-call1';
 import {preparePhoneInput,capturePhoneTurn} from './agent-phone-input.mjs?v=20261015-stable-call1';
@@ -95,9 +96,15 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   try{return await Promise.race([invoke(body,combined),new Promise((_,reject)=>{const fail=()=>reject(Error(timeout?'语音或回答服务超时，请重试':'对话已停止'));if(combined.aborted)fail();else combined.addEventListener('abort',fail,{once:true})})])}finally{clearTimeout(timer)}
  }
  function release(){clearTimeout(timer);timer=null;stream?.getTracks().forEach(t=>t.stop());stream=null}
- function stopAll({keepWake=false,keepPhone=false}={}){if(!keepWake)wake?.stop();if(!keepPhone)phone?.stop();installing=false;version++;controller?.abort();controller=null;if(recorder){recorder.onstop=null;try{recorder.stop()}catch{}recorder=null}release();if(player){player.pause();player=null}if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null}busy=false;state('已停止')}
+ function stopAll({keepWake=false,keepPhone=false}={}){connection.cancel();if(!keepWake)wake?.stop();if(!keepPhone)phone?.stop();installing=false;version++;controller?.abort();controller=null;if(recorder){recorder.onstop=null;try{recorder.stop()}catch{}recorder=null}release();if(player){player.pause();player=null}if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null}busy=false;state('已停止')}
  async function greeting(persona,kind='wake'){const cacheKey=persona+':'+kind;if(greetings.has(cacheKey))return greetings.get(cacheKey);if(!greetingLoads.has(cacheKey))greetingLoads.set(cacheKey,call({action:'greeting',persona,kind}).then(blob=>{greetings.set(cacheKey,blob);return blob}).finally(()=>greetingLoads.delete(cacheKey)));return greetingLoads.get(cacheKey)}
- async function checkConnection(){const epoch=version;check.disabled=true;try{const s=await call({action:'status'});let rt=null;try{rt=await realtimeRequest?.('status')}catch{}if(epoch!==version)return;realtimeReady=!!rt?.ready;phoneServiceReady=rt?.voiceprint_available!==false;host.dataset.graceVoiceTransport=realtimeReady?'realtime':'turn';ready=!!s.enabled&&!!s.configured;state(!s.configured?'尚未配置百炼密钥':!s.enabled?'数据范围等待批准启用':(!phoneServiceReady?'公司声纹服务连接不上，语音暂不可用；可以文字提问':realtimeReady?'实时语音连接已就绪':'连接已就绪'),ready?'idle':'offline')}catch(e){if(epoch===version){ready=false;state(e.message,'offline')}}finally{check.disabled=false;sync()}}
+ const connection=createConnectionCheck({status:signal=>call({action:'status'},signal),realtimeStatus:realtimeRequest?signal=>realtimeRequest('status',signal):null,isAllowed,onRetry:()=>state('网络连接暂时不稳定，正在自动重试…','thinking')});
+ async function checkConnection(){const epoch=version;check.disabled=true;try{
+  const result=await connection.check();if(result.cancelled||epoch!==version)return;
+  host.dataset.graceConnection=JSON.stringify(result.diagnostics);if(result.error)throw result.error;
+  const s=result.core,rt=result.realtime;realtimeReady=!!rt?.ready;phoneServiceReady=!result.realtimeFailed&&rt?.voiceprint_available!==false;host.dataset.graceVoiceTransport=realtimeReady?'realtime':'turn';ready=!!s?.enabled&&!!s?.configured;
+  state(!s?.configured?'尚未配置百炼密钥':!s.enabled?'数据范围等待批准启用':result.realtimeFailed?'语音连接检查尚未完成，可以文字提问或重试连接':!phoneServiceReady?'公司声纹服务连接不上，语音暂不可用；可以文字提问':realtimeReady?'实时语音连接已就绪':'连接已就绪',ready?'idle':'offline');
+ }catch(e){if(epoch===version){ready=false;state(e?.status===401||e?.status===403?'登录或通话授权需要重新确认，请重新登录':/Failed to fetch|NetworkError|Load failed/i.test(String(e.message))?'暂时无法连接服务，请检查网络后点击检查连接':e.message,'offline')}}finally{check.disabled=connection.pending;sync()}}
  async function playBlob(blob,epoch,signal=controller?.signal,onStart=()=>{}){
   if(version!==epoch)throw Error('对话已停止');audioUrl=URL.createObjectURL(blob);player=new Audio(audioUrl);
   const current=player,url=audioUrl,playback=phone?.attachPlayback(current);

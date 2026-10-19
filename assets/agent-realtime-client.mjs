@@ -10,8 +10,8 @@ export function createRealtimeClient({url,getToken,Socket=globalThis.WebSocket,p
  function fail(message){if(closed)return;const e=Error(message);opening?.reject(e);opening=null;discard(current,e);close();onFailure(message)}
  async function connect(signal){
   if(closed||signal?.aborted)throw Error('通话已停止');if(socket?.readyState===1&&!opening)return;if(opening)return opening.promise;
-  const pending=deferred();opening=pending;let token;
-  try{token=await getToken();if(closed||signal?.aborted)throw Error('通话已停止');const ws=new Socket(url);socket=ws;const timeout=setTimeout(()=>fail('实时语音接通超时'),12000);pending.promise.finally(()=>clearTimeout(timeout)).catch(()=>{});
+  const pending=deferred();opening=pending;let token;const timeout=setTimeout(()=>fail('实时语音接通超时'),12000);
+  try{token=await Promise.race([getToken(),pending.promise]);if(closed||signal?.aborted)throw Error('通话已停止');const ws=new Socket(url);socket=ws;
    ws.onopen=()=>{if(socket!==ws||closed)return;ws.send(JSON.stringify({type:'auth',token,...(resume?{resume}:{})}));token=''};
    ws.onmessage=event=>{if(socket!==ws||closed)return;try{
     if(typeof event.data!=='string'||event.data.length>200000)throw Error('实时语音事件超限');const d=JSON.parse(event.data),f=current;
@@ -27,7 +27,7 @@ export function createRealtimeClient({url,getToken,Socket=globalThis.WebSocket,p
    }catch(e){fail(e.message)}};
    ws.onerror=()=>{if(socket===ws)fail('实时语音连接失败')};ws.onclose=()=>{if(socket===ws&&!closed)fail('实时语音连接已断开，请重新拨通')};
    await pending.promise;
-  }catch(e){pending.reject(e);if(opening===pending)opening=null;throw e}finally{token=''}
+  }catch(e){pending.reject(e);if(opening===pending)opening=null;throw e}finally{clearTimeout(timeout);token=''}
  }
  function flush(f){if(!f.ready||f.cancelled||current!==f)return;
   // Group callbacks into 100–200ms PCM frames. A slow handshake must not flush

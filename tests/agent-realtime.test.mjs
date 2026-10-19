@@ -91,3 +91,13 @@ test('verified audio advances at its sample clock and cancellation stops an in-f
  assert.equal(h.up.filter(e=>e.type==='input_audio_buffer.append').length,1);assert.deepEqual(delays,[200]);h.b.cancel(1);gate.resolve();await tick();
  assert.equal(h.up.filter(e=>e.type==='input_audio_buffer.append').length,1);assert.equal(h.up.some(e=>e.type==='input_audio_buffer.commit'),false);h.b.close();
 });
+
+test('opening timeout includes a hung token lookup and closes without creating a socket',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let sockets=0;const failures=[];
+ const client=createRealtimeClient({url:'wss://crm.invalid/agent-realtime',getToken:()=>new Promise(()=>{}),Socket:class{constructor(){sockets++}},onFailure:e=>failures.push(e)});
+ const opening=client.open({},{signal:new AbortController().signal});t.mock.timers.tick(12000);await assert.rejects(opening,/超时/);assert.equal(sockets,0);assert.equal(failures.length,1);client.close();
+});
+test('hangup while session lookup is pending settles immediately and discards a late token',async()=>{
+ let token,sockets=0;const control=new AbortController();const client=createRealtimeClient({url:'wss://crm.invalid/agent-realtime',getToken:()=>new Promise(r=>token=r),Socket:class{constructor(){sockets++}}});
+ const opening=client.open({},{signal:control.signal});control.abort();await assert.rejects(opening,/停止/);token('late-secret-session');await tick();assert.equal(sockets,0);client.close();
+});

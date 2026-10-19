@@ -39,6 +39,7 @@ test('authenticated handler preserves context, handles every clause and enforces
    const receipt=await request('',{action:'private-intelligence-receipt',id:'00000000-0000-4000-8000-000000000001'});assert.equal(receipt.http,200);assert.equal(receipt.receipt.digest,'synthetic-digest');
    const listed=await request('',{action:'private-intelligence-list'});assert.equal(listed.receipts[0].id,'private-test');assert.ok(!JSON.stringify(listed).includes('SYNTHETIC-INTERNAL-NOT-FOR-MODEL'));
    const r=await request('查看上周周报，列出风险和证据');assert.equal(r.model,'private-intelligence');assert.equal(r.provider,'internal');assert.match(r.answer,/SYNTHETIC-INTERNAL-NOT-FOR-MODEL/);assert.equal(r.context.receipts[0].id,'private-test');
+   const follow=await request('下一步呢',{privateReportKey:'weekly-2026-10-12-2026-10-18'});assert.equal(follow.model,'private-intelligence');assert.equal(rpcCalls.at(-1)[1].p_key,'weekly-2026-10-12-2026-10-18');assert.match(follow.answer,/2026-10-12—2026-10-18/);
    assert.equal((await request('',{action:'private-intelligence-import',documents:[]},'invalid')).http,401);
    modelEnabled=true;
    const combined=await request('查看上周周报，并介绍我们的CRM系统');assert.equal(combined.model,'compound-requests');assert.equal(combined.context.tasks.length,2);assert.match(combined.answer,/SYNTHETIC-INTERNAL-NOT-FOR-MODEL/);assert.match(combined.answer,/CRM 系统使用说明/);
@@ -47,6 +48,9 @@ test('authenticated handler preserves context, handles every clause and enforces
    const before=rpcCalls.length;const unsigned=await request('查看上周周报',{voice:true});assert.equal(unsigned.ignored,'unverified');assert.equal(rpcCalls.length,before);
    const text='查看上周周报';const sign=async value=>{const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(KEY),{name:'HMAC',hash:'SHA-256'},false,['sign']);return Buffer.from(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(value))).toString('hex')};
    const proof=await voiceProof({user:OWNER,speaker:'other',text},sign);const other=await request(text,{voice:true,voiceProof:proof});assert.equal(other.provider,'internal');assert.equal(other.ignored,'other');assert.equal(rpcCalls.length,before);
+   const question='风险呢',privateReportKey='weekly-2026-10-12-2026-10-18';
+   const unsignedFollow=await request(question,{voice:true,privateReportKey});assert.equal(unsignedFollow.ignored,'unverified');assert.equal(rpcCalls.length,before);
+   const verified=await request(question,{voice:true,privateReportKey,voiceProof:await voiceProof({user:OWNER,speaker:'owner',text:question},sign)});assert.equal(verified.model,'private-intelligence');assert.equal(rpcCalls.at(-1)[1].p_key,privateReportKey);
   });
   await t.test('unauthenticated and client-supplied dispatch flags are rejected',async()=>{
    assert.equal((await request('介绍CRM，并说明新员工跟进步骤',{},'invalid')).http,401);

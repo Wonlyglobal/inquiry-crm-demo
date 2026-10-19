@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {privateIntelligenceIntent,privateIntelligenceQuery,privateIntelligenceAnswer,readPrivateIntelligence} from '../supabase/functions/agent-conversation/private-intelligence.mjs';
+import {crmLiveAnswer} from '../assets/agent-crm-live.mjs';
 
 test('private report questions resolve Shanghai previous week without sending an AI request',()=>{
  assert.equal(privateIntelligenceIntent('查看上周周报以及新增证据'),true);
@@ -18,6 +19,11 @@ test('readback retains source dates, evidence IDs, gaps and raw uncertainty as t
  assert.equal(r.receipts[0].digest,'sha-1');
  assert.match(privateIntelligenceAnswer({documents:[]}),/没有查到/);
  await assert.rejects(readPrivateIntelligence({rpc:async()=>({error:{message:'SECRET'}})},'周报'),e=>!e.message.includes('SECRET'));
+});
+test('private report metrics cannot be silently replaced by current live CRM totals',()=>{
+ for(const question of ['查看上周周报，列出新增询盘和风险','私有证据里的来源有哪些','内部简报的商机有多少']){
+  assert.equal(crmLiveAnswer(question,{ready:true,compute:()=>{throw Error('must not compute current totals')}}),null);
+ }
 });
 test('private path has transactional owner-only persistence, no external memory fallback or public bucket',()=>{
  const sql=readFileSync(new URL('../supabase/migrations/20261019020000_agent_private_intelligence.sql',import.meta.url),'utf8');

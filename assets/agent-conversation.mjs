@@ -124,7 +124,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(!ready){const epoch=version;state('正在重新连接…','thinking');await checkConnection({textOnly:true});if(epoch!==version||!ready)return true}
   if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question);showPending();return true}
   if(host.querySelector('#ai-assistant-messages')?.dataset?.newQuestion==='true'){histories.delete(getPersona());materialHistories.delete(getPersona())}
-  pending=null;reveal.hidden=true;delete host.dataset.graceEvidenceCheck;
+  pending=null;reveal.hidden=true;delete host.dataset.graceEvidenceCheck;delete host.dataset.gracePrivateKnowledgeCheck;
   stopAll({keepWake:voice,keepPhone:!!phoneSignal});const epoch=version,persona=getPersona(),askedAt=performance.now();controller=new AbortController();busy=true;lastTicket=null;state(voice?(phoneSignal?'听到了，正在整理…':''):'收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
   // Owner 2026-09-28: every request becomes a step in the Grace timeline; nothing opens a new browser window.
   const abortPhoneTurn=()=>{if(version===epoch)stopAll({keepPhone:true})};phoneSignal?.addEventListener('abort',abortPhoneTurn,{once:true});if(phoneSignal?.aborted){abortPhoneTurn();phoneSignal.removeEventListener('abort',abortPhoneTurn);clearTimeout(progress);return true}

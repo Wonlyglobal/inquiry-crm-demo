@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mountConversation} from '../assets/agent-conversation.mjs';
-class Element{children=[];value='';style={};dataset={};querySelector(){return {after(){}}}append(...nodes){this.children.push(...nodes);if(!this.value&&nodes[0]?.value)this.value=nodes[0].value}prepend(...nodes){this.children.unshift(...nodes)}setAttribute(){}}
+class Element{children=[];value='';style={};dataset={};dispatchEvent(){}querySelector(){return {after(){}}}append(...nodes){this.children.push(...nodes);if(!this.value&&nodes[0]?.value)this.value=nodes[0].value}prepend(...nodes){this.children.unshift(...nodes)}setAttribute(){}}
 class Recognition{static instances=[];static async available(){return 'available'}start(){Recognition.instances.push(this)}abort(){this.aborted=true}}
 Recognition.prototype.processLocally=false;
 function setup(invoke=async()=>({enabled:true,configured:true,model:'test'}),options={}){
@@ -61,4 +61,9 @@ test('manual voice rejection explains the result instead of silently idling',asy
 test('text answers while voice readiness is pending, without a late status overwriting the reply',async()=>{
  let voice,chats=0;const {model,states,messages}=setup(async body=>{if(body.action==='status')return {enabled:true,configured:true};chats++;return {answer:'Synthetic text while voice waits',provider:'internal',context:{route:'conversation'}}},{autoVoice:false,realtimeRequest:()=>new Promise(r=>voice=r)});
  const entering=model.enter();await new Promise(r=>setImmediate(r));await model.ask('Synthetic text question');assert.equal(chats,1);assert.match(messages.at(-1).text,/Synthetic text/);assert.equal(states.at(-1),'回答完成');voice({ready:true});await entering;assert.equal(states.at(-1),'回答完成');assert.equal(Recognition.instances.length,0);model.stop();
+});
+
+test('explicit call prepares audio in the click before a slow voice preflight, but never captures if it fails',async()=>{
+ let prepared=0,released=0,captured=0,voice;const {model,host}=setup(async body=>{if(body.action==='status')return {enabled:true,configured:true};return new Blob(['synthetic'])},{autoVoice:false,phoneInputFactory:async()=>{prepared++;return {release:()=>released++}},phoneCapture:async()=>{captured++;throw Error('unexpected capture')},realtimeRequest:()=>new Promise(r=>voice=r)});
+ const phone=host.children.flatMap(e=>e.children||[]).find(e=>e.dataset.voiceTool==='phone');const starting=phone.onclick();assert.equal(prepared,1);await new Promise(r=>setImmediate(r));assert.equal(captured,0);voice({ready:false,voiceprint_available:false});await starting;assert.equal(model.phone.isActive(),false);assert.equal(captured,0);assert.equal(released,1);model.stop();
 });

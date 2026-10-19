@@ -1,0 +1,64 @@
+// Explicit isolated SQL acceptance. Pass the installed pinned PGlite module URL as argv[2].
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const {PGlite}=await import(process.argv[2]||'@electric-sql/pglite');
+const db=new PGlite();let checks=0;
+const owner='c43bd3c2-6e3a-4228-99c7-dc95f33643f2';
+await db.exec(`create role anon;create role authenticated;create schema auth;
+ create function auth.uid() returns uuid language sql stable as $$select (nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub')::uuid$$;
+ create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb)$$;
+ grant usage on schema auth to authenticated,anon;
+ create table public.profiles(id uuid primary key,active boolean,role text);
+ insert into public.profiles values('${owner}',true,'owner');
+ create table public.audit_logs(id bigint generated always as identity,actor_id uuid,entity_type text,entity_id uuid,action text,after_data jsonb,reason text,created_at timestamptz default clock_timestamp());`);
+await db.exec(await readFile(new URL('../supabase/migrations/20261019020000_agent_private_intelligence.sql',import.meta.url),'utf8'));
+const as=async(sub=owner,email='chloelee@wonlyglobal.com',role='authenticated')=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub,email})]);await db.exec('set role '+role)};
+const query=async(sql,args=[])=>db.query(sql,args);
+const rejected=async(fn)=>{await assert.rejects(fn);checks++};
+const ok=(x)=>{assert.ok(x);checks++};
+const doc={schema:'grace-private-intelligence-v1',key:'weekly-2026-10-12-2026-10-18',kind:'weekly',title:'合成周报',generated_at:'2026-10-19T00:00:00Z',period:{from:'2026-10-12',to:'2026-10-18'},sections:[{title:'合成范围',body:'仅合成数据，未核验，不可据此决策'}],evidence:[{id:'source-test',title:'合成来源',fact:'获取失败，不表示无变化',inference:'不推断',url:'https://example.com/',published_at:null,observed_at:'2026-10-19T00:00:00Z',gap:'未核实'}],source_sha256:'a'.repeat(64),human_verified:false};
+const sync=async(ds)=>((await query('select public.sync_agent_private_intelligence($1::jsonb) as r',[JSON.stringify(ds)])).rows[0].r);
+const read=async()=>((await query("select public.read_agent_private_intelligence('weekly','2026-10-12','2026-10-18',null,5) as r")).rows[0].r);
+const clone=()=>structuredClone(doc);
+await as();const saved=(await sync([doc])).receipts[0];ok(saved.digest.length===64&&saved.id);
+ok((await sync([doc])).receipts[0].id===saved.id);
+ok((await read()).documents[0].digest===saved.digest);
+ok((await query('select public.receipt_agent_private_intelligence($1) as r',[saved.id])).rows[0].r.receipt.digest===saved.digest);
+await rejected(()=>query('select * from public.agent_private_intelligence_versions'));
+await rejected(()=>query('update public.agent_private_intelligence_versions set digest=\'x\''));
+await rejected(()=>sync([{...doc,extra:'unapproved'}]));
+await rejected(()=>sync([{...doc,human_verified:true}]));
+await rejected(()=>sync([{...doc,key:'weekly-2026-10-13-2026-10-18'}]));
+await rejected(()=>sync([{...doc,generated_at:'2099-10-19T00:00:00Z'}]));
+await rejected(()=>sync([{...doc,sections:[{title:'秘密',body:'access_token: opaque-synthetic-value'}]}]));
+await rejected(()=>sync([{...doc,evidence:[{...doc.evidence[0],url:'https://u:p@example.com/'}]}]));
+await rejected(()=>sync([{...doc,evidence:[{...doc.evidence[0],url:'http://example.com/'}]}]));
+await rejected(()=>sync([{...doc,evidence:[doc.evidence[0],doc.evidence[0]]}]));
+await rejected(()=>sync([{...doc,sections:[{title:'过长',body:'X'.repeat(3001)}]}]));
+await rejected(()=>sync(Array(6).fill(doc)));
+await rejected(()=>sync([doc,doc]));
+const newer={...clone(),generated_at:'2026-10-19T00:01:00Z',sections:[{title:'新版本',body:'仍然是合成数据'}]};
+const revised=(await sync([newer])).receipts[0];ok(revised.id!==saved.id);ok((await read()).documents[0].id===revised.id);
+await rejected(()=>sync([doc]));
+const good={...doc,key:'daily-2026-10-19',kind:'daily',period:{from:'2026-10-19',to:'2026-10-19'}};
+await rejected(()=>sync([good,{...doc,sections:[]}]));
+await db.exec('reset role');ok((await query("select count(*)::int n from public.agent_private_intelligence_versions where document_key='daily-2026-10-19'")).rows[0].n===0);
+// Even a failure after the row insert must roll back the entire import and preserve the prior version.
+await db.exec(`create function reject_audit() returns trigger language plpgsql as $$begin if new.action='agent_private_intelligence_synced' then raise exception 'synthetic audit failure';end if;return new;end;$$;
+ create trigger reject_private_audit before insert on public.audit_logs for each row execute function reject_audit();`);
+await as();await rejected(()=>sync([good]));await db.exec('reset role');
+ok((await query("select count(*)::int n from public.agent_private_intelligence_versions where document_key='daily-2026-10-19'")).rows[0].n===0);
+await db.exec('drop trigger reject_private_audit on public.audit_logs');
+await as('11111111-1111-4111-8111-111111111111');await rejected(()=>sync([doc]));await rejected(()=>read());await rejected(()=>query('select public.receipt_agent_private_intelligence($1)',[saved.id]));
+await as(owner,'wrong@example.com');await rejected(()=>read());
+await db.exec('reset role');await query("update public.profiles set active=false where id=$1",[owner]);await as();await rejected(()=>read());
+await db.exec('reset role');await query("update public.profiles set active=true,role='marketing' where id=$1",[owner]);await as();await rejected(()=>sync([doc]));
+await as(null,'','anon');await rejected(()=>read());await rejected(()=>sync([doc]));await rejected(()=>query('select * from public.agent_private_intelligence_versions'));
+await db.exec('reset role');ok((await query("select count(*)::int n from public.audit_logs where action='agent_private_intelligence_synced'")).rows[0].n===3);
+// Optional local schema validation of the authorized import bundle. Never print payloads/errors.
+let bundleValidated=false;
+if(process.argv[3]){const bundle=JSON.parse(await readFile(process.argv[3],'utf8'));
+ for(const d of bundle.documents){try{await query('select public.validate_private_intelligence($1::jsonb)',[JSON.stringify(d)]);checks++}catch{console.error('Authorized bundle failed private schema validation; content omitted');process.exitCode=1;break}}
+ bundleValidated=!process.exitCode;
+}
+await db.close();console.log(JSON.stringify({checks,isolated:true,synthetic_persistence_only:true,bundle_schema_validated:bundleValidated,production_writes:false}));

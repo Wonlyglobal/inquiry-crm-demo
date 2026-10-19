@@ -1,3 +1,4 @@
+import {privateIntelligenceIntent,readPrivateIntelligence} from './private-intelligence.mjs';
 import {questionPlan,runQuestionPlan} from './question-plan.mjs';
 import {normalizeProductInput,bareModel} from './product-input.mjs';
 import {privateV9Turn} from './private-v9-turn.mjs';
@@ -165,7 +166,22 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    if(auditError)return json({error:'声纹操作审计失败'},503);
    return json({message:enrollmentReply(result),status:result.status,code:result.code??null,samples:result.samples??null,required:result.required??null});
   }
+  // Private import/readback uses the caller's JWT and transaction-audited RPCs, never model memory.
+  if(input.action==='private-intelligence-import'){
+   const {data,error}=await client.rpc('sync_agent_private_intelligence',{p_documents:input.documents});
+   if(error)return json({error:'私有知识同步未完成：请核对包格式、授权和日期；本次事务未提交'},400);
+   return json(data);
+  }
+  if(input.action==='private-intelligence-receipt'){
+   if(!/^[0-9a-f-]{36}$/i.test(input.id||''))return json({error:'知识编号无效'},400);
+   const {data,error}=await client.rpc('receipt_agent_private_intelligence',{p_id:input.id});
+   if(error)return json({error:'私有知识回读未完成'},400);return json(data);
+  }
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
+  const privateReply=async()=>{const result=await readPrivateIntelligence(client,input.question);return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
+  if(input.action==='chat'&&input.voice!==true&&privateIntelligenceIntent(input.question)&&!questionPlan(input.question).parts.length){
+   validateDialogue(input);return await privateReply();
+  }
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});
   if(!enabled)return json({error:'百炼数据范围尚未批准启用',code:'POLICY_PENDING'},503);
   if(!key)return json({error:'百炼服务密钥尚未配置',code:'KEY_MISSING'},503);
@@ -214,6 +230,10 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
     }});
     const choices=combined.results.find((r:any)=>r.result?.context?.kind==='model_choices')?.result.context;
     return json({answer:combined.answer,provider:'internal',model:'compound-requests',materials:combined.results.flatMap((r:any)=>r.result?.materials||[]).slice(0,20),actions:combined.results.flatMap((r:any)=>r.result?.actions||[]).slice(0,8),context:{route:'compound',tasks:combined.results.map((r:any)=>({question:r.question,status:r.ok?'answered':'failed'})),...(combined.materialHistory.length?{material_question:combined.materialHistory[0]}:{}),...(choices?{kind:'model_choices',model_choices:choices.model_choices,material_question:input.question.slice(0,500)}:{})},ticket:await ticket({user:user.id,persona:input.persona,text:'我按你提出的各项要求分别整理了结果，未完成的项目也单独说明了，详细内容在窗口里。',expires:Date.now()+300000},key)});
+   }
+   if(privateIntelligenceIntent(input.question)){
+    if(guest)return json({answer:'内部周报与私有证据只供已授权本人查询。',provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:[]}});
+    return await privateReply();
    }
    const courtesy=guest&&courtesyReply(input.question)?'你好，我是 Grace。现在我只回答公开的问题，内部资料需要 Chloe 本人来问。':courtesyReply(input.question);
    if(courtesy){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'courtesy',persona:input.persona,provider:'internal'},reason:'固定礼貌回复，不发送对话正文或业务资料'});if(error)return json({error:'调用审计失败'},503);return json({answer:courtesy,provider:'internal',model:'courtesy',context:{route:'conversation'},ticket:await ticket({user:user.id,persona:input.persona,text:courtesy,expires:Date.now()+300000},key)});}

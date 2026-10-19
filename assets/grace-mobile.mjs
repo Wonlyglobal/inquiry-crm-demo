@@ -1,4 +1,4 @@
-import {arrangeVoiceSettings,tidyMobileMessages} from './agent-voice-settings.mjs?v=20261016-settings1';
+import {arrangeVoiceSettings,tidyMobileMessages} from './agent-voice-settings.mjs?v=20261019-private1';
 import {progressBlock} from './agent-material-progress.mjs';
 export const isGraceApp=()=>location.pathname==='/grace.html'||new URLSearchParams(location.search).get('app')==='grace';
 export function orbState(mode,online=true){return !online?'offline':({idle:'idle',listening:'listen',thinking:'think',speaking:'speak',interrupt:'interrupt',offline:'offline'}[mode]||'idle')}

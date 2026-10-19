@@ -2,7 +2,7 @@
 export function questionPlan(question){
  const q=String(question||'').trim();
  const parts=q.split(/[；;\n]+|[，,]?\s*(?:并且|并|同时|另外|以及|然后|还要)\s*(?=请|介绍|说明|告诉|查询|检查|列出|解释|给出|比较|分析|如何|怎么|帮我)/).map(s=>s.trim().replace(/^[，,、]+|[，,。]+$/g,'')).filter(Boolean);
- const read=/^(?:请)?(?:帮我)?(?:介绍|说明|告诉|查询|检查|列出|解释|给出|比较|分析|如何|怎么|看|找|总结|推荐|对比|了解|打开|调出|调取|搜索|给我)/;
+ const read=/^(?:请)?(?:帮我)?(?:介绍|说明|告诉|查询|查看|检查|列出|解释|给出|比较|分析|如何|怎么|看|找|总结|推荐|对比|了解|打开|调出|调取|搜索|给我)/;
  if(parts.length<2||parts.some(s=>!read.test(s))||parts.some(s=>/^(?:请)?(?:帮我)?(?:记住|忘记|删除|清空|保存|提交|批准|发送|发布|撤销|纠错)/.test(s)))return {parts:[],overflow:false};
  return {parts,overflow:parts.length>3};
 }

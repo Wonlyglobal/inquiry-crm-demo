@@ -1,5 +1,6 @@
+import {mountPrivateIntelligence} from './agent-private-intelligence.mjs?v=20261019-private1';
 import {createConnectionCheck} from './agent-connection.mjs?v=20261019-connect1';
-import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=20261019-dialogue3';
+import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=20261019-private1';
 import {createPhoneSession} from './agent-phone.mjs?v=20261015-stable-call1';
 import {preparePhoneInput,capturePhoneTurn} from './agent-phone-input.mjs?v=20261015-stable-call1';
 import {modelChoiceButtons,clarificationButtons,clarificationChoices} from './agent-model-choices.mjs?v=20261012-feedback';
@@ -56,6 +57,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  const realtimeCheck=el('button','检查实时语音');realtimeCheck.type='button';realtimeCheck.setAttribute('data-realtime-check','true');bar.append(realtimeCheck);
  const phoneToggle=el('button','开始通话'),phoneInterrupt=el('button','手动打断'),phoneMute=el('button','静音');
  for(const [b,attr] of [[phoneToggle,'data-phone-toggle'],[phoneInterrupt,'data-phone-interrupt'],[phoneMute,'data-phone-mute']]){b.type='button';b.setAttribute(attr,'true');bar.append(b)}
+ mountPrivateIntelligence(bar,{invoke:body=>call(body),isAllowed});
  let wake=null,wakeTransition=false,installing=false;const greetings=new Map(),greetingLoads=new Map();
  let preferenceStorage;try{preferenceStorage=window.localStorage}catch{preferenceStorage={getItem:()=>null,setItem:()=>{throw Error('unavailable')},removeItem:()=>{throw Error('unavailable')}}}
  const preferenceStores=new Map();const preferences=()=>{const persona=getPersona();if(!preferenceStores.has(persona))preferenceStores.set(persona,createResponsePreferences(preferenceStorage,'wonly-agent-preferences-chloe-v1-'+persona));return preferenceStores.get(persona)};
@@ -137,6 +139,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
    if(voice&&!phoneSignal){const quick=await Promise.race([pendingCall.then(()=>true,()=>true),new Promise(r=>setTimeout(()=>r(false),1500))]);if(!quick&&version===epoch){try{await playBlob(await greeting(persona,'ack'),epoch)}catch(e){if(version!==epoch)return true}busy=true;state('','thinking')}}
    let ackTimer,ackControl,ackTask;if(phoneSignal){ackTimer=setTimeout(()=>{const cached=greetings.get(persona+':ack');if(cached&&version===epoch&&!phoneSignal.aborted){ackControl=new AbortController();ackTask=playBlob(cached,epoch,ackControl.signal).catch(()=>{})}},900)}
    let result;try{result=await pendingCall}finally{clearTimeout(ackTimer);ackControl?.abort();await ackTask}if(version!==epoch||persona!==getPersona()){entry?.fail('已停止或切换了智能体');return true}
+   if(result.context?.route==='private_intelligence')host.dataset.gracePrivateKnowledgeCheck=JSON.stringify({route:'private_intelligence',receipts:result.context.receipts||[]});else delete host.dataset.gracePrivateKnowledgeCheck;
    if(result.context?.evidence_check){const c=result.context.evidence_check;host.dataset.graceEvidenceCheck=JSON.stringify({source_status:c.source_status,source_code:c.source_code,assets:c.assets,pages:c.pages,findings:c.findings,rejected:c.rejected,source_freshness_verified:false,human_verified:false})}else delete host.dataset.graceEvidenceCheck;
    if(result.ignored){entry?.discard();busy=false;state(autoVoice?'':'这段声音未通过验证，请重试或使用文字提问');return true}
    // Never leave an empty answer window: say what happened and let the person ask again.

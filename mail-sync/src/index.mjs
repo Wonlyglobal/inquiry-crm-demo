@@ -4,6 +4,7 @@ import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { writeFile } from 'node:fs/promises';
 import { parseWebsiteFormMessage, websiteInquiryTitle } from './website-form.mjs';
+import { processManualSharedMailSync } from './manual-sync.mjs';
 import { isJunkFolder, selectSyncFolders, shouldInitializeAtLatest } from './folders.mjs';
 import { withSafeReadRetries } from './fetch-resilience.mjs';
 
@@ -398,8 +399,10 @@ async function cycle(){
   // transient queue/report failure must not prevent the IMAP sync stage.
   await runOptionalCycleStage('mail outbox',processOutbox);
   await runOptionalCycleStage('daily lead report',sendDailyLeadReport);
+  let manuallySyncedConnectionId=null;
+  try{manuallySyncedConnectionId=await processManualSharedMailSync({db,syncMailbox,log:message=>console.error(message)})}catch(error){console.error(`manual mail sync request stage failed: ${error?.name||'Error'}`)}
   const {data,error}=await db.from('mailbox_connections').select('*').eq('status','connected').eq('sync_enabled',true);if(error)throw error;
-  await Promise.allSettled((data||[]).map(async connection=>{try{await syncMailbox(connection);console.log(`${connection.mailbox_kind} mailbox synced`)}catch(error){console.error(`${connection.mailbox_kind} mailbox sync failed: ${error?.name||'Error'}`);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}));
+  await Promise.allSettled((data||[]).filter(connection=>connection.id!==manuallySyncedConnectionId).map(async connection=>{try{await syncMailbox(connection);console.log(`${connection.mailbox_kind} mailbox synced`)}catch(error){console.error(`${connection.mailbox_kind} mailbox sync failed: ${error?.name||'Error'}`);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}));
   await writeFile('/tmp/healthy',new Date().toISOString());
 }
 

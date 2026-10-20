@@ -1,43 +1,49 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-09-24T09:07:21.376490+08:00",
-  "coverage": "2026-09-24复核六个公开来源。核验时间仅代表本轮检查；首页可读不等于新闻完整覆盖，部分动态页面和旧缓存仍存在。首次发现旧闻不作为新事件预警。",
+  "checked_at": "2026-10-20T01:00:56Z",
+  "coverage": "2026-10-20实际检查六个既有公开来源，核验一条10月19日发布的建筑师活动新闻（活动10月15—16日），作为行业观察而非新品、订单或量产证明。保留历史动态和原发布日期；部分可读、无近期条目或获取失败均不表示没有变化。",
   "sources": [
     {
       "name": "WONLY 官方网站",
       "url": "https://www.wonlyglobal.com/",
       "status": "partial",
-      "note": "本轮仅提取到网站标题；安全门与智能锁定位沿用历史基线，今日正文和新动态未能核验。"
+      "note": "页面仅取得标题，无可读正文；今日新闻与产品变化未核验，不能据此确认无变化。",
+      "last_checked_at": "2026-10-20T01:00:56Z"
     },
     {
       "name": "Hörmann 门业官网",
       "url": "https://www.hoermann.com/en/",
       "status": "partial",
-      "note": "公司介绍可读，门、门框与驱动系统定位可核对；本轮未完成新闻栏目覆盖，不能断言无新动态。"
+      "note": "公司介绍及门、门框、驱动品类可读；近期新闻与产品变更未完成核验。",
+      "last_checked_at": "2026-10-20T01:00:56Z"
     },
     {
       "name": "ASSA ABLOY 官方新闻",
       "url": "https://www.assaabloy.com/group/en/news-media/press-releases",
-      "status": "checked",
-      "note": "新闻索引与9月16日PACLOCK收购正文可读；该事件今日首次收录，但不是今日发生。"
+      "status": "partial",
+      "note": "新闻页仅取得标题及导航，未取得具体新公告正文；不以搜索摘要或目录代替全文核验。",
+      "last_checked_at": "2026-10-20T01:00:56Z"
     },
     {
       "name": "dormakaba 官方新闻",
       "url": "https://www.dormakabagroup.com/en/newsroom",
-      "status": "checked",
-      "note": "新闻索引与9月23日可持续报告奖项正文可读；既有拟收购和机器人试点仍保留原始语义。"
+      "status": "partial",
+      "note": "官方新闻索引及10月19日Chicago建筑师峰会文章全文已读；活动实际在10月15—16日举行，非新品、成交或量产公告。其余历史条目本轮未重验。",
+      "last_checked_at": "2026-10-20T01:00:56Z"
     },
     {
       "name": "Al Kuhaimi Metal Industries 官网",
       "url": "https://alkuhaimimetal.com/",
       "status": "partial",
-      "note": "官网门业产品可读；Media页面工具返回上月缓存，仅见2024年条目，不能据此认定近期没有新动作。"
+      "note": "产品/解决方案目录可读，新闻日期和证书适用范围未核验；动态计数占位值不作为经营事实。",
+      "last_checked_at": "2026-10-20T01:00:56Z"
     },
     {
       "name": "Puertas Asturmex 官网",
       "url": "https://puertasasturmex.com/",
       "status": "partial",
-      "note": "官网门产品、经销网络与Revit资料可读；博客索引返回三周前缓存且未显示发布日期，不能据此认定近期无变化。"
+      "note": "本轮恢复取得产品、认证及Revit入口目录；未核验证书文件适用型号或近期新闻日期，不能据此认定新上市或无变化。",
+      "last_checked_at": "2026-10-20T01:00:56Z"
     }
   ],
   "findings": [
@@ -91,6 +97,19 @@
       "fact": "9月16日官方公告称已收购美国挂锁与安全五金制造商PACLOCK，纳入美洲事业部住宅业务板块。本轮首次核实，不是今日新发生的收购。",
       "implication": "推测：可作为安全五金产品组合扩展的行业观察；挂锁不等于智能门锁，尚无证据证明此次交易改变具体门业项目竞争或渠道安排。",
       "url": "https://www.assaabloy.com/group/en/news-media/press-releases/id.faf92c5f528cee84",
+      "importance": "watch"
+    },
+    {
+      "id": "dormakaba-chicago-architects-connect-20261019",
+      "published_at": "2026-10-19",
+      "observed_at": "2026-10-20T01:00:56Z",
+      "agent": "Grace",
+      "brand": "dormakaba",
+      "category": "建筑师渠道与品牌",
+      "title": "dormakaba发布Chicago建筑师峰会回顾",
+      "fact": "官方10月19日报道，其与RIBAJ合作并与AIA协作，在Chicago于10月15—16日举办architects connect峰会，主题涉及建筑、安全、信任及技术。公告是活动回顾，不是新品发布、订单或量产证明。",
+      "implication": "推测：可观察门禁厂商通过建筑师交流培育项目渠道的方式；没有证据表明该活动改变具体门锁参数、项目选型或采购结果。",
+      "url": "https://www.dormakabagroup.com/en/news/49bb8173-dd88-4c76-a212-898b4e92da01/dormakaba-brings-global-architectural-summit-to-chicago",
       "importance": "watch"
     }
   ]

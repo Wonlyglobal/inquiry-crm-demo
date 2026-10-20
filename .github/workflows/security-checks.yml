@@ -31,7 +31,8 @@ jobs:
           pnpm --dir mail-sync install --prod --frozen-lockfile --ignore-scripts
           node --test mail-sync/tests/*.test.mjs
       - name: Build mail service image without starting the service
-        run: docker build --tag crm-mail-sync:check mail-sync
+        # GitHub runners use the upstream image; company deployments retain the Dockerfile default mirror.
+        run: docker build --build-arg NODE_BASE_IMAGE=docker.io/library/node:22-bookworm-slim --tag crm-mail-sync:check mail-sync
       - name: Check whitespace errors
         run: git diff --check HEAD
   secrets:

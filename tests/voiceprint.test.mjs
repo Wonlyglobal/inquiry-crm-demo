@@ -54,3 +54,11 @@ test('only Chloe is processed: others, uncertain and unverifiable voices are dro
  assert.match(src,/input\.voice===true&&Deno\.env\.get\('VOICEPRINT_ENABLED'\)==='1'&&\(speaker===null\|\|ignoredSpeaker\(speaker\)\)\)return json\(\{ignored/);
  assert.match(enrollmentReply({status:'ok',samples:3,required:3}),/别人的声音我不转写、不回答、不记录/);
 });
+
+test('registration failures retain only safe reason codes and never pretend recording succeeded',async()=>{
+ for(const [code,pattern] of [['too_short',/有效说话时间太短/],['decode_failed',/未能解析/],['busy',/正在处理/]]){
+  const r=await voiceprintCall({...cfg,op:'enroll',audio,mime:'audio/wav'},async()=>new Response(JSON.stringify({status:'error',code,embedding:[1,2,3]}),{status:503}));assert.equal(r.code,code);assert.equal(r.status,'unavailable');assert.match(enrollmentReply(r),pattern);assert.equal(r.embedding,undefined);
+ }
+ const unsafe=await voiceprintCall({...cfg,op:'status'},async()=>new Response(JSON.stringify({error:'private error details'}),{status:500}));assert.equal(unsafe.code,'http_500');
+ const timeout=await voiceprintCall({...cfg,op:'status'},async()=>{throw Object.assign(Error('private details'),{name:'TimeoutError'})});assert.equal(timeout.code,'connection_timeout');assert.match(enrollmentReply(timeout),/尚未确认/);assert.match(enrollmentReply(timeout),/不必反复重录/);
+});

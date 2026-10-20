@@ -8,6 +8,7 @@ import {signMaterialRequest} from './material-request-proof.mjs';
 import {boundedBytes} from './bailian.mjs';
 export const VOICEPRINT_PATH='/api/integrations/crm/voiceprint';
 export const SPEAKERS=['owner','other','uncertain','not_enrolled','unavailable'];
+const FAILURES=new Set(['too_short','decode_failed','invalid_audio','busy','embed_failed','embed_invalid','voiceprint_unavailable','material_account_unavailable','unauthorized','request_replayed']);
 const OPS=['enroll','verify','status','delete'];
 
 export function voiceprintUrl(serviceUrl){
@@ -22,11 +23,11 @@ export async function voiceprintCall({op,audio=null,mime=null,actor,privateJwk,s
  try{
   const body=JSON.stringify({op,...audio?{mime,audio:base64(audio)}:{}});
   const proof=await signMaterialRequest({body,actor,privateJwk,path:VOICEPRINT_PATH});
-  const r=await fetcher(url,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${secret}`,'X-CRM-Proof':proof,'Content-Type':'application/json'},body,signal:AbortSignal.timeout(op==='verify'?6000:15000)});
+  const r=await fetcher(url,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${secret}`,'X-CRM-Proof':proof,'Content-Type':'application/json'},body,signal:AbortSignal.timeout(op==='verify'?6000:op==='status'?5000:op==='enroll'?25000:15000)});
   const data=JSON.parse(new TextDecoder().decode(await boundedBytes(r,64*1024)));
-  if(!r.ok)return {status:'unavailable',code:String(data?.error||'http_'+r.status).slice(0,40)};
+  if(!r.ok){const code=data?.code||data?.error;return {status:'unavailable',code:FAILURES.has(code)?code:'http_'+r.status}}
   return sanitize(data);
- }catch(error){console.error('voiceprint_failure',op,error instanceof Error?error.name:'unknown');return {status:'unavailable',code:'connection_failed'}}
+ }catch(error){console.error('voiceprint_failure',op,error instanceof Error?error.name:'unknown');return {status:'unavailable',code:error?.name==='TimeoutError'?'connection_timeout':error?.name==='SyntaxError'?'invalid_response':error?.name==='TypeError'?'connection_failed':'request_failed'}}
 }
 // Only whitelisted, non-biometric fields leave this module (never the embedding).
 export function sanitize(d){
@@ -54,8 +55,15 @@ export const guestInstruction='当前语音的说话人经声纹比对不是已�
 export function enrollmentReply(result){
  if(result.status==='not_configured')return '声纹服务还没有接通，需要先在物料服务器上线声纹模块。';
  if(result.status==='invalid_audio')return '这段录音太短或格式不支持，请用正常语速说 5 到 10 秒再试。';
- if(result.status!=='ok')return result.code==='too_short'?'这段录音里有效说话时间太短，请连续说 5 到 10 秒再试。':'声纹服务暂时不可用，请稍后再试。';
+ if(result.status!=='ok'){
+  if(result.code==='too_short')return '这段录音里有效说话时间太短，请连续说 5 到 10 秒再试。';
+  if(result.code==='decode_failed'||result.code==='invalid_audio')return '公司声纹服务未能解析这段录音，刚才没有登记成功。需要检查录音格式，不必反复重录。';
+  if(result.code==='busy')return '公司声纹服务正在处理其他请求，刚才没有登记成功。请等一会儿再试。';
+  if(['connection_timeout','connection_failed','http_502','http_503','http_504'].includes(result.code))return '暂时连接不上公司声纹服务，登记结果尚未确认。不必反复重录；恢复连接后先查看登记进度。';
+  return '公司声纹服务返回异常，登记结果尚未确认。请先查看登记进度，不必反复重录。';
+ }
  if(result.deleted!==undefined)return `已删除你的声纹（${result.deleted} 段样本特征），之后我不再按声音识别说话人。`;
+ if(result.samples===0&&result.required)return `尚未登记声纹，需要录入 ${result.required} 段，每段约 8 秒。`;
  if(result.samples!==undefined&&result.required!==undefined)return result.samples>=result.required?`声纹已注册完成（${result.samples} 段）。之后语音只处理你的声音，别人的声音我不转写、不回答、不记录。`:`已记录第 ${result.samples} 段，还需要 ${result.required-result.samples} 段。换一句话再录一次即可。`;
  return '声纹操作已完成。';
 }

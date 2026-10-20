@@ -16,6 +16,8 @@ const VIEWS=[
 
 export function crmDataIntent(question){
  const q=String(question||'').trim();
+ // A dated private report must not be replaced with today's browser aggregates.
+ if(/周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据/.test(q))return null;
  if(!q||q.length>120||!DATA.test(q)||!LOOKUP.test(q)||ADVICE.test(q))return null;
  const hit=VIEWS.find(([re])=>re.test(q));
  return {view:hit?.[1]||'dashboard',label:hit?.[2]||'经营看板'};

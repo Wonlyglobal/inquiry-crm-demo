@@ -1,0 +1,9 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "imapflow": "npm:imapflow@1.7.6",
+    "mailparser": "npm:mailparser@3.9.20",
+    "nodemailer": "npm:nodemailer@9.1.1",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.57.4"
+  }
+}

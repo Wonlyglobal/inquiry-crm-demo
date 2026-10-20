@@ -122,3 +122,69 @@ end;
 $$;
 revoke all on function public.finish_shared_mail_sync_request(uuid,text,text) from public,anon,authenticated;
 grant execute on function public.finish_shared_mail_sync_request(uuid,text,text) to service_role;
+
+-- A durable lease prevents overlapping cron invocations from opening multiple
+-- IMAP sessions for the same mailboxes. The random token is per invocation and
+-- only service_role can acquire or release it.
+create table if not exists public.mail_sync_worker_leases (
+  lease_name text primary key check (lease_name='edge-mail-sync'),
+  lease_nonce uuid not null,
+  lease_until timestamptz not null
+);
+alter table public.mail_sync_worker_leases enable row level security;
+revoke all on public.mail_sync_worker_leases from public,anon,authenticated;
+grant select,insert,update on public.mail_sync_worker_leases to service_role;
+
+create or replace function public.acquire_mail_sync_worker_lease(target_nonce uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare acquired boolean:=false;
+begin
+  if coalesce(auth.role(),'')<>'service_role' then raise exception '仅邮件同步服务可获取执行租约'; end if;
+  insert into public.mail_sync_worker_leases(lease_name,lease_nonce,lease_until)
+  values('edge-mail-sync',target_nonce,pg_catalog.clock_timestamp()+interval '3 minutes')
+  on conflict (lease_name) do update
+    set lease_nonce=excluded.lease_nonce,lease_until=excluded.lease_until
+    where public.mail_sync_worker_leases.lease_until<pg_catalog.clock_timestamp()
+  returning true into acquired;
+  return coalesce(acquired,false);
+end;
+$$;
+revoke all on function public.acquire_mail_sync_worker_lease(uuid) from public,anon,authenticated;
+grant execute on function public.acquire_mail_sync_worker_lease(uuid) to service_role;
+
+create or replace function public.release_mail_sync_worker_lease(target_nonce uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare released integer;
+begin
+  if coalesce(auth.role(),'')<>'service_role' then raise exception '仅邮件同步服务可释放执行租约'; end if;
+  update public.mail_sync_worker_leases
+  set lease_until=pg_catalog.clock_timestamp()
+  where lease_name='edge-mail-sync' and lease_nonce=target_nonce;
+  get diagnostics released=row_count;
+  return released=1;
+end;
+$$;
+revoke all on function public.release_mail_sync_worker_lease(uuid) from public,anon,authenticated;
+grant execute on function public.release_mail_sync_worker_lease(uuid) to service_role;
+
+-- The worker token is held in Vault for pg_cron -> pg_net invocation only;
+-- never place mailbox credentials or customer content in scheduler state.
+do $$
+begin
+  if not exists(select 1 from vault.decrypted_secrets where name='mail_sync_worker_token') then
+    perform vault.create_secret(
+      pg_catalog.gen_random_uuid()::text||pg_catalog.gen_random_uuid()::text,
+      'mail_sync_worker_token',
+      'High-entropy shared token for the CRM Supabase Edge mail sync worker'
+    );
+  end if;
+end;
+$$;

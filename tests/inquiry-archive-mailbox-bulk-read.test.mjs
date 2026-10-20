@@ -37,7 +37,8 @@ test('CRM mailbox bulk-read is capped and limited to own personal inbound mail',
 test('Ali Mail sent messages continue to produce CRM inquiry follow-up progress', () => {
   assert.match(worker, /selectSyncFolders\(boxes/);
   assert.match(worker, /direction:sent\?'outbound':'inbound'/);
-  assert.match(worker, /async function applyMatchedMessage\(row, connection\)/);
-  assert.match(worker, /if\(row\?\.inquiry_id\)await applyMatchedMessage\(row,connection\)/);
+  assert.match(worker, /async function applyMatchedMessage\(row, connection,\{triggerAi=true\}=\{\}\)/);
+  assert.match(worker, /if\(row\?\.inquiry_id\)await applyMatchedMessage\(row,connection,\{triggerAi:!edge\}\)/);
+  assert.match(worker, /if\(!triggerAi\)return/);
   assert.match(worker, /record_synced_email_followup/);
 });

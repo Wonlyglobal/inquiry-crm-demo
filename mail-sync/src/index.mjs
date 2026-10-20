@@ -3,10 +3,12 @@ import { simpleParser } from 'mailparser';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { parseWebsiteFormMessage, websiteInquiryTitle } from './website-form.mjs';
 import { processManualSharedMailSync } from './manual-sync.mjs';
 import { isJunkFolder, selectSyncFolders, shouldInitializeAtLatest } from './folders.mjs';
 import { withSafeReadRetries } from './fetch-resilience.mjs';
+import { runEdgeMailCycle, runWithEdgeWorkerLease } from './edge-cycle.mjs';
 
 const url=process.env.SUPABASE_URL;
 const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -312,7 +314,7 @@ function ruleSummary(message){
   return `${direction}：${message.subject||'无主题'}${body?`。内容摘要：${body}`:''}`;
 }
 
-async function applyMatchedMessage(row, connection){
+async function applyMatchedMessage(row, connection,{triggerAi=true}={}){
   const {data:inq}=await db.from('inquiries').select('id,owner_id,title').eq('id',row.inquiry_id).single();
   if(!inq)return;
   const {error:followupError}=await db.rpc('record_synced_email_followup',{target_email_message_id:row.id});
@@ -323,15 +325,15 @@ async function applyMatchedMessage(row, connection){
     if(recipients.length)await db.from('notifications').insert([...new Set(recipients)].map(id=>({recipient_id:id,inquiry_id:inq.id,type:'customer_email_reply',title:'客户有新邮件回复',body:`${row.sender_email||''} · ${row.subject||inq.title}`})));
   }
   await db.from('communication_summaries').insert({inquiry_id:inq.id,source_message_id:row.id,summary_zh:ruleSummary(row),latest_customer_request:row.direction==='inbound'?(row.body_text||'').slice(0,2000):null,provider:'rules'});
+  if(!triggerAi)return;
   try{
     const response=await fetch(`${url}/functions/v1/email-communication-ai`,{method:'POST',headers:{Authorization:`Bearer ${key}`,apikey:key,'Content-Type':'application/json'},body:JSON.stringify({message_id:row.id,trigger:'mail_sync'}),signal:AbortSignal.timeout(45000)});
     if(!response.ok)console.error(`AI summary ${row.id}: ${await response.text()}`);
   }catch(error){console.error(`AI summary ${row.id}:`,error?.message||error)}
 }
 
-async function syncFolder(connection,password,folder){
-  console.log(`${connection.email} syncing ${folder}`);
-  const client=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:15000,greetingTimeout:15000,socketTimeout:45000});
+async function syncFolder(connection,password,folder,{edge=false,maxMessages=Infinity,deadline=Infinity}={}){
+  const client=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:edge?8000:15000,greetingTimeout:edge?8000:15000,socketTimeout:edge?15000:45000});
   await client.connect();
   try{
     const lock=await client.getMailboxLock(folder);
@@ -344,14 +346,17 @@ async function syncFolder(connection,password,folder){
       const junkFolder=isJunkFolder(folder);
       if(!cursor&&shouldInitializeAtLatest(folder,connection.mailbox_kind)){
         const baseline=Math.max(0,Number(client.mailbox.uidNext||1)-1);
-        await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:baseline,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
-        console.log(`${connection.email} initialized ${folder} at UID ${baseline}`);
-        return;
+        const {error:baselineError}=await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:baseline,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
+        if(baselineError)throw baselineError;
+        console.log(`mailbox initialized ${folder} at UID ${baseline}`);
+        return {complete:true,processed:0};
       }
       const start=last?last+1:Math.max(1,Number(client.mailbox.uidNext||1)-initialLimit);
-      let maxUid=last;
+      let maxUid=last,processed=0,hitLimit=false,timedOut=false;
       for await(const msg of client.fetch(`${start}:*`,{uid:true,source:{start:0,maxLength:12_000_000},envelope:true,headers:['message-id','in-reply-to','references']})){
         if(msg.uid<=last)continue;
+        if(Date.now()>=deadline){timedOut=true;break}
+        if(processed>=maxMessages){hitLimit=true;break}
         maxUid=Math.max(maxUid,msg.uid);
         const parsed=await simpleParser(msg.source);
         const sent=isSentFolder(folder);
@@ -369,25 +374,37 @@ async function syncFolder(connection,password,folder){
           if(!attachment.content?.length||attachment.content.length>10*1024*1024)continue;
           const fileName=safeFileName(attachment.filename,index),storagePath=`${storedRow.id}/${index}-${fileName}`;
           const {error:uploadError}=await db.storage.from('email-attachments').upload(storagePath,attachment.content,{upsert:true,contentType:attachment.contentType||'application/octet-stream'});
-          if(uploadError){console.error(`Attachment upload ${storagePath}: ${uploadError.message}`);continue}
+          if(uploadError){console.error(edge?'Attachment upload failed':`Attachment upload ${storagePath}: ${uploadError.message}`);continue}
           const {error:attachmentError}=await db.from('email_attachments').upsert({email_message_id:storedRow.id,file_name:fileName,content_type:attachment.contentType||null,size_bytes:attachment.content.length,storage_path:storagePath,content_id:attachment.contentId||null,inline:attachment.contentDisposition==='inline'},{onConflict:'storage_path'});
-          if(attachmentError)console.error(`Attachment record ${storagePath}: ${attachmentError.message}`);
+          if(attachmentError)console.error(edge?'Attachment record failed':`Attachment record ${storagePath}: ${attachmentError.message}`);
         }
         const row=await reconcileMessageCopies(storedRow);
-        if(row?.inquiry_id)await applyMatchedMessage(row,connection);
+        if(row?.inquiry_id)await applyMatchedMessage(row,connection,{triggerAi:!edge});
+        processed++;
       }
-      await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:maxUid,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
-      console.log(`${connection.email} finished ${folder} at UID ${maxUid}`);
+      const {error:cursorError}=await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:maxUid,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
+      if(cursorError)throw cursorError;
+      return {complete:!hitLimit&&!timedOut,processed};
     }finally{lock.release()}
   }finally{await client.logout().catch(()=>{})}
 }
 
-async function syncMailbox(connection){
+async function syncMailbox(connection,{edge=false,maxMessagesPerFolder=Infinity,deadline=Infinity}={}){
   const password=await secretFor(connection.id);
-  const probe=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:15000,greetingTimeout:15000,socketTimeout:45000});
-  await probe.connect();const boxes=await probe.list();await probe.logout();
-  for(const folder of selectSyncFolders(boxes,{includeJunk:connection.mailbox_kind==='shared_inquiry'}))await syncFolder(connection,password,folder);
-  await db.from('mailbox_connections').update({last_synced_at:new Date().toISOString(),error_message:null,status:'connected'}).eq('id',connection.id);
+  const probe=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:edge?8000:15000,greetingTimeout:edge?8000:15000,socketTimeout:edge?15000:45000});
+  await probe.connect();let boxes;try{boxes=await probe.list()}finally{await probe.logout().catch(()=>{})}
+  let complete=true;
+  for(const folder of selectSyncFolders(boxes,{includeJunk:connection.mailbox_kind==='shared_inquiry'})){
+    if(Date.now()>=deadline){complete=false;break}
+    const result=await syncFolder(connection,password,folder,{edge,maxMessages:maxMessagesPerFolder,deadline});
+    if(!result?.complete)complete=false;
+  }
+  const syncState=complete
+    ?{last_synced_at:new Date().toISOString(),error_message:null,status:'connected'}
+    :{error_message:'本轮同步未完成，将在下次周期继续'};
+  const {error:updateError}=await db.from('mailbox_connections').update(syncState).eq('id',connection.id);
+  if(updateError)throw updateError;
+  return {complete};
 }
 
 async function runOptionalCycleStage(name, task){
@@ -406,4 +423,22 @@ async function cycle(){
   await writeFile('/tmp/healthy',new Date().toISOString());
 }
 
-while(true){try{await cycle()}catch(error){console.error(`mail sync cycle failed: ${error?.name||'Error'}`)}await sleep(interval)}
+export async function runEdgeCycle(){
+  const deadline=Date.now()+105_000;
+  const syncForEdge=(connection,{manual=false}={})=>syncMailbox(connection,{edge:true,maxMessagesPerFolder:manual?60:30,deadline});
+  return runWithEdgeWorkerLease({
+    db,
+    log:message=>console.error(message),
+    run:()=>runEdgeMailCycle({
+      db,
+      now:Date.now(),
+      processManual:()=>processManualSharedMailSync({db,syncMailbox:connection=>syncForEdge(connection,{manual:true}),log:message=>console.error(message)}),
+      syncMailbox:connection=>syncForEdge(connection),
+      log:message=>console.error(message),
+    }),
+  });
+}
+
+if(import.meta.main===true||(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1])){
+  while(true){try{await cycle()}catch(error){console.error(`mail sync cycle failed: ${error?.name||'Error'}`)}await sleep(interval)}
+}

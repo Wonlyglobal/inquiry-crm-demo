@@ -10,7 +10,11 @@ export async function processManualSharedMailSync({db,syncMailbox,log=()=>{}}){
       .eq('mailbox_kind','shared_inquiry').eq('status','connected').eq('sync_enabled',true).maybeSingle();
     if(error)throw error;
     if(!connection){resultCode='mailbox_unavailable';targetStatus='failed'}
-    else{connectionId=connection.id;await syncMailbox(connection)}
+    else{
+      connectionId=connection.id;
+      const result=await syncMailbox(connection);
+      if(result?.complete===false){resultCode='sync_failed';targetStatus='failed'}
+    }
   }catch(error){
     resultCode='sync_failed';targetStatus='failed';
     log(`manual shared mailbox sync failed: ${error?.name||'Error'}`);

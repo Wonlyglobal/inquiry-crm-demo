@@ -2,7 +2,8 @@
 // 听懂需求 → 调取资料 → 执行动作 → 给出回答 - and every resource or action opens as a window inside that
 // step (catalogue pages, CRM pages, inquiry details, competitor evidence, search results, materials).
 // Nothing opens a new browser window. History is kept in a private CRM table (descriptors only).
-import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261001-mat1';
+import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261020-layout4';
+import {revealInPanel} from './agent-panel-scroll.mjs?v=20261020-layout4';
 
 export const STAGES=[['need','听懂需求'],['data','调取资料'],['act','执行动作'],['answer','给出回答']];
 const ROUTES={conversation:'对话',materials:'物料库',general:'通用知识',research:'公开资料',catalog:'海外画册',actions:'CRM 页面与动作',memory:'长期记忆',feedback:'回答反馈',corrections:'纠错知识',company:'背调系统',competitor:'竞品证据',crm_local:'CRM 本地统计',intelligence:'智能体情报简报'};
@@ -153,7 +154,7 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
  }
  function addWindow(item,w,{open=true}={}){
   const d=mk('details','gt-win');d.open=open;const sum=mk('summary');sum.append(mk('b','',KIND_LABEL[w.kind]||'窗口'),mk('span','',w.kind==='search'?w.query:w.kind==='evidence'?(w.card?.label||'竞品证据'):w.kind==='material'?w.name:(w.label||'')));
-  const big=mk('button','gt-mini','放大');big.type='button';big.onclick=e=>{e.preventDefault();const on=!d.classList.contains('gt-big');d.classList.toggle('gt-big',on);big.textContent=on?'缩小':'放大';if(on)d.open=true};
+  const big=mk('button','gt-mini','放大');big.type='button';big.hidden=w.kind==='catalog';big.onclick=e=>{e.preventDefault();const on=!d.classList.contains('gt-big');d.classList.toggle('gt-big',on);big.textContent=on?'缩小':'放大';if(on)d.open=true};
   sum.append(big);const body=mk('div','gt-body');d.append(sum,body);item.querySelector('.gt-wins').append(d);
   d.addEventListener('keydown',e=>{if(e.key==='Escape'&&d.classList.contains('gt-big')){d.classList.remove('gt-big');big.textContent='放大'}});
   // Resources stay inline; enlargement requires an explicit click.
@@ -176,7 +177,7 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
 
  function begin(question){
   for(const d of list.querySelectorAll('.gt-win')){d.classList.remove('gt-big');d.open=false;const b=d.querySelector('summary .gt-mini');if(b)b.textContent='放大'}
-  const started=new Date().toISOString(),persona=getPersona();const li=itemNode({question,created_at:started,status:'running'});li.responseCard=getResponseCard?.();list.prepend(li);refresh();li.scrollIntoView?.({block:'nearest'});
+  const started=new Date().toISOString(),persona=getPersona();const li=itemNode({question,created_at:started,status:'running'});li.responseCard=getResponseCard?.();list.prepend(li);refresh();revealInPanel(li,root);
   li.stage('need','active');let saved=false;
   const save=async(status,route,steps,windows)=>{if(saved)return;saved=true;try{const r=await call({action:'timeline',op:'add',persona,question:String(question).slice(0,500),status,route,steps,windows:windows.map(storable).filter(Boolean)});if(Number.isInteger(r?.id))li.setId(r.id)}catch{}};
   return {

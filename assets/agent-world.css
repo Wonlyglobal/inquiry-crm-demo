@@ -132,7 +132,7 @@
  #agent-world #agent-private-room{flex:1;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;gap:8px;width:100%}
  #agent-world #room-back{justify-self:start;padding:6px 14px}
  #agent-world .room-layout{min-height:0;height:100%;align-items:stretch;gap:16px}
- #agent-world .room-left{min-height:0;overflow:hidden}
+ #agent-world .room-left{min-height:0;overflow:clip}
  #agent-world .room-left .room-live{flex:none;padding:12px;gap:8px}
  #agent-world .room-left #room-timeline{flex:1;min-height:0;overflow:auto}
  #agent-world .live-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
@@ -247,3 +247,15 @@
 #agent-world #room-call{border-color:#78d7ba;color:#caffeb}#agent-world #room-call[aria-pressed=true]{border-color:#ff8d8d;color:#ffe0e0;background:#612a35}#agent-world #room-call-clock{align-self:center;min-width:45px;color:#a9e6d3;font-variant-numeric:tabular-nums}#agent-world .room-dock [hidden]{display:none!important}
 
 #agent-world .question-retry{display:block;margin:14px 0;padding:11px 16px;min-height:44px;border:1px solid #8caace;border-radius:12px;background:#254b76;color:#f1f5ff;font:inherit;cursor:pointer}
+
+/* Each left panel owns its scroll; intrinsic viewer controls cannot widen or pan the column. */
+#agent-world .room-left,#agent-world #room-timeline,#agent-world .room-live{min-width:0;max-width:100%}
+#agent-world .room-left #room-timeline{align-self:stretch;width:100%;box-sizing:border-box}
+#agent-world #room-timeline .gt,#agent-world #room-timeline .gt-list,#agent-world #room-timeline .gt-item,#agent-world #room-timeline .gt-body{min-width:0;max-width:100%;box-sizing:border-box}
+#agent-world #room-timeline .gt{width:100%}
+@media(min-width:821px) and (min-height:420px){
+ #agent-world .room-left{overflow:clip}
+ #agent-world .room-left .room-live,#agent-world .room-left #room-timeline{overflow-x:hidden;overflow-y:auto;scrollbar-gutter:stable}
+ #agent-world .room-left .room-live{width:100%;box-sizing:border-box;flex-shrink:1}
+ #agent-world .room-layout{overflow:clip}
+}

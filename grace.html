@@ -8301,7 +8301,8 @@
           .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
         const normalizeCompanyName = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b(ltda|eireli|sa|s\/a|inc|llc|limited|industria|comercio)\b/g,"").replace(/[^a-z0-9]/g,"");
         const normalizeCountry = (value) => ({brasil:"brazil",br:"brazil",巴西:"brazil",argentina:"argentina",阿根廷:"argentina",china:"china",中国:"china"}[String(value||"").trim().toLowerCase()]||String(value||"").trim().toLowerCase());
-        const candidateDomain = normalizeDomain($("#detail-research-domain").value || inferExternalResearchDomain(intakeEmail));
+        const websiteLead = currentInquiry.source === "website" || isWebsiteFormServiceDomain(currentInquiry.email_intake?.parsed_data?.transport_sender);
+        const candidateDomain = normalizeDomain($("#detail-research-domain").value || (websiteLead ? "" : inferExternalResearchDomain(intakeEmail)));
         let domain = publicEmailDomains.has(candidateDomain) ? "" : candidateDomain;
         const companyName = $("#detail-research-company").value.trim() || currentInquiry.companies?.name || "";
         const companyCountry = $("#detail-smart-country").value.trim() || currentInquiry.target_country || "";

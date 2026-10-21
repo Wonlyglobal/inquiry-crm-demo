@@ -26,7 +26,7 @@ begin
 
   marker := '    if contact_id_value is null then';
   if position(marker in definition)=0 then raise exception 'ingest_website_inquiry source drift: contact-creation marker missing'; end if;
-  definition := replace(definition, marker, E'    if company_id_value is not null then\n      select c.id into contact_id_value from public.contacts c\n      where c.company_id=company_id_value and lower(c.email)=customer_email\n      order by c.created_at limit 1;\n    end if;\n    if contact_id_value is null and company_id_value is not null then');
+  definition := replace(definition, marker, E'    if company_id_value is not null then\n      select c.id into contact_id_value from public.contacts c\n      where c.company_id=company_id_value and lower(c.email)=customer_email\n      order by c.created_at limit 1;\n    end if;\n    if contact_id_value is null and company_id_value is not null\n       and not exists(select 1 from public.contacts c where lower(c.email)=customer_email) then');
 
   execute definition;
 end;

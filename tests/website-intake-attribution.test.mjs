@@ -77,6 +77,7 @@ test("Web3Forms remains provider metadata; company identity comes only from expl
   assert.match(companyIdentityMigration,/payload->>''website_url''/);
   assert.match(companyIdentityMigration,/company_id_value is null and company_name is not null/);
   assert.match(companyIdentityMigration,/contact_id_value is null and company_id_value is not null/);
+  assert.match(companyIdentityMigration,/not exists\(select 1 from public.contacts c where lower\(c.email\)=customer_email\)/);
   assert.match(html,/webformProviderIdentityBlocked/);
   assert.match(html,/Web3Forms 是官网表单服务商/);
 });

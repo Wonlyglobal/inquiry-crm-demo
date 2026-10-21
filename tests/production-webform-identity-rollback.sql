@@ -30,6 +30,7 @@ begin
   if result->>'status' <> 'completed' then raise exception 'other company intake failed: %',result; end if;
   select company_id into linked_id from public.inquiries where id=(result->>'inquiry_id')::uuid;
   if linked_id is null or linked_id=buyer_id then raise exception 'email reused unrelated company'; end if;
+  if exists(select 1 from public.inquiries where id=(result->>'inquiry_id')::uuid and contact_id is not null) then raise exception 'unrelated contact attached'; end if;
 end;
 $$;
 select 'webform_identity_rollback_passed' as result;

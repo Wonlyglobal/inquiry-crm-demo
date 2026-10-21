@@ -72,7 +72,7 @@ test("Web3Forms remains provider metadata; company identity comes only from expl
   assert.match(sync,/const companyName=websiteForm\?\.companyName\|\|null/);
   assert.match(sync,/if\(!companyId&&companyName\)/);
   assert.match(sync,/if\(companyId\)\{/);
-  assert.match(edge,/isWebformProvider\(payload\.company\)/);
+  assert.match(edge,/isWebformProvider\(payload\[field\]\)/);
   assert.match(imageFunction,/hostname === "web3forms\.com" \|\| hostname\.endsWith\("\.web3forms\.com"\)/);
   assert.match(companyIdentityMigration,/payload->>''website_url''/);
   assert.match(companyIdentityMigration,/company_id_value is null and company_name is not null/);

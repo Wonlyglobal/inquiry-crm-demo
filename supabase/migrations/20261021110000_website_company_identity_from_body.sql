@@ -14,7 +14,7 @@ begin
 
   marker := E'    select c.id,c.company_id into contact_id_value,company_id_value\n    from public.contacts c where lower(c.email)=customer_email\n    order by c.created_at limit 1;';
   if position(marker in definition)=0 then raise exception 'ingest_website_inquiry source drift: existing-contact marker missing'; end if;
-  definition := replace(definition, marker, E'    if company_name is not null then\n' || marker || E'\n    end if;');
+  definition := replace(definition, marker, '    -- Resolve the company from submitted fields before reusing its contact.');
 
   marker := E'    domain_value:=split_part(customer_email,''@'',2);\n    if domain_value in (''gmail.com'',''googlemail.com'',''outlook.com'',''hotmail.com'',''live.com'',''yahoo.com'',''icloud.com'',''qq.com'',''163.com'',''126.com'') then\n      domain_value:=null;\n    end if;';
   if position(marker in definition)=0 then raise exception 'ingest_website_inquiry source drift: email-domain fallback marker missing'; end if;
@@ -26,7 +26,7 @@ begin
 
   marker := '    if contact_id_value is null then';
   if position(marker in definition)=0 then raise exception 'ingest_website_inquiry source drift: contact-creation marker missing'; end if;
-  definition := replace(definition, marker, '    if contact_id_value is null and company_id_value is not null then');
+  definition := replace(definition, marker, E'    if company_id_value is not null then\n      select c.id into contact_id_value from public.contacts c\n      where c.company_id=company_id_value and lower(c.email)=customer_email\n      order by c.created_at limit 1;\n    end if;\n    if contact_id_value is null and company_id_value is not null then');
 
   execute definition;
 end;

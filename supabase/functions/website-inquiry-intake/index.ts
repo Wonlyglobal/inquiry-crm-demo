@@ -59,10 +59,8 @@ Deno.serve(async request=>{
     payload=JSON.parse(raw);
   }catch{return json({error:"Invalid JSON"},400,request)}
   // Form providers are transport metadata, never the lead's company identity.
-  if(isWebformProvider(payload.company)||isWebformProvider(payload.company_name)||isWebformProvider(payload.company_domain)||isWebformProvider(payload.domain)){
-    payload.company=null;
-    payload.company_name=null;
-    payload.company_domain=null;
+  for(const field of ["company","company_name","company_domain","company_website","website","website_url","domain"]){
+    if(isWebformProvider(payload[field]))payload[field]=null;
   }
   if(isWebformProvider(payload.email)||isWebformProvider(payload.sender_email))return json({error:"Form provider address cannot be used as the inquiry contact"},400,request);
   const submissionId=String(payload.submission_id||request.headers.get("x-idempotency-key")||"").trim();

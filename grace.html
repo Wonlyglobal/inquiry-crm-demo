@@ -6519,8 +6519,12 @@
         const namedCompany = originalText.match(/\bat\s+([A-Z][A-Za-z0-9&.' -]{1,80}?)\s+(?:in\s+[A-Z]|[,.\n])/i)?.[1]?.trim();
         const domainCompany = inferredDomain ? inferredDomain.split(".")[0].replace(/(^|[-_])([a-z])/g, (_m, prefix, letter) => `${prefix}${letter.toUpperCase()}`) : "";
         currentInquiry.webformProviderIdentityBlocked = isWebsiteFormServiceCompany(company.name) || isWebsiteFormServiceDomain(company.domain);
-        $("#detail-research-company").value = currentInquiry.webformProviderIdentityBlocked ? "" : company.name || namedCompany || domainCompany;
-        $("#detail-research-domain").value = currentInquiry.webformProviderIdentityBlocked ? "" : company.domain || inferredDomain;
+        const websiteLead = inquiry.source === "website" || isWebsiteFormServiceDomain(senderEmail) || isWebsiteFormServiceDomain(intake?.parsed_data?.transport_sender);
+        const bodyCompany = originalText.match(/(?:^|\n)\s*company(?:[ _]name)?\s*:\s*([^\n]+)/i)?.[1]?.trim() || "";
+        const submittedCompanyName = !isWebsiteFormServiceCompany(bodyCompany) && !/^https?:\/\//i.test(bodyCompany) ? bodyCompany : "";
+        const submittedWebsite = originalText.match(/(?:^|\n)\s*(?:company[ _](?:website|domain)|website(?:[ _]url)?)\s*:\s*([^\n]+)/i)?.[1]?.trim() || "";
+        $("#detail-research-company").value = currentInquiry.webformProviderIdentityBlocked ? "" : company.name || (websiteLead ? submittedCompanyName : namedCompany || domainCompany);
+        $("#detail-research-domain").value = currentInquiry.webformProviderIdentityBlocked ? "" : company.domain || (websiteLead ? inferExternalResearchDomain(submittedWebsite) : inferredDomain);
         const savedResearchBrief = company.research_sales_brief || {};
         const domainAliases = Array.isArray(savedResearchBrief.domain_aliases) ? savedResearchBrief.domain_aliases : [];
         $("#detail-research-domain-aliases").value = domainAliases.map((item) => typeof item === "string" ? item : item?.domain).filter(Boolean).join("\n");

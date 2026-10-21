@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { parseWebsiteFormMessage, websiteInquiryTitle } from './website-form.mjs';
+import { parseWebsiteFormMessage, websiteInquiryTitle, isWebsiteFormServiceDomain } from './website-form.mjs';
 import { processManualSharedMailSync } from './manual-sync.mjs';
 import { isJunkFolder, selectSyncFolders, shouldInitializeAtLatest } from './folders.mjs';
 import { withSafeReadRetries } from './fetch-resilience.mjs';
@@ -206,6 +206,22 @@ async function processOutbox(){
 }
 
 async function matchInquiry(message, connection){
+  // A provider sends submissions for unrelated buyers. Only the exact original
+  // Message-ID can reuse a submission; sender, subject and reference headers
+  // must never collapse a new shared-inbox form into an earlier buyer's lead.
+  if(connection.mailbox_kind==='shared_inquiry'&&message.direction==='inbound'&&
+    (isWebsiteFormServiceDomain(message.sender_email)||parseWebsiteFormMessage(message))){
+    const originalId=headerId(message.message_id);
+    if(originalId){
+      const {data:intakes,error}=await db.from('email_intake').select('inquiry_id,id').eq('message_id',originalId).limit(1);
+      if(error)throw error;
+      if(intakes?.length)return {id:intakes[0].inquiry_id||null,intakeId:intakes[0].id,method:'website_submission_message_id'};
+      const {data:copies,error:copyError}=await db.from('email_messages').select('inquiry_id').eq('message_id',originalId).not('inquiry_id','is',null).limit(1);
+      if(copyError)throw copyError;
+      if(copies?.[0]?.inquiry_id)return {id:copies[0].inquiry_id,method:'website_submission_message_id'};
+    }
+    return {id:null,method:'website_new_submission'};
+  }
   const ids=[message.in_reply_to,...message.reference_ids,message.message_id].map(headerId).filter(Boolean);
   if(ids.length){
     const {data:prior}=await db.from('email_messages').select('inquiry_id').in('message_id',ids).not('inquiry_id','is',null).limit(1);
@@ -257,6 +273,11 @@ async function reconcileMessageCopies(row){
 
 async function createInquiryFromShared(message, connection, { junkFolder = false } = {}){
   if(connection.mailbox_kind!=='shared_inquiry'||message.direction!=='inbound')return null;
+  if(message.message_id){
+    const {data:existing,error}=await db.from('email_intake').select('id,inquiry_id').eq('message_id',message.message_id).limit(1).maybeSingle();
+    if(error)throw error;
+    if(existing)return {id:existing.inquiry_id||null,intakeId:existing.id,method:'shared_mailbox_existing_intake'};
+  }
   const creator=connection.created_by;
   // Junk-folder content must always enter the human triage queue as-is. Do not
   // auto-create companies/inquiries or invoke website-form conversion here.

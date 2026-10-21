@@ -25,6 +25,13 @@ const safeEqual=async(a:string,b:string)=>{
   return difference===0;
 };
 
+const isWebformProvider=(value:unknown)=>{
+  const raw=String(value||'').trim().toLowerCase();
+  const candidate=raw.includes('@')?raw.split('@').pop()||'':raw;
+  const host=candidate.replace(/^https?:\/\//,'').replace(/^www\./,'').split(/[/?#:]/)[0];
+  return /(^|[^a-z0-9])web3forms([^a-z0-9]|$)/i.test(raw)||host==='web3forms.com'||host.endsWith('.web3forms.com');
+};
+
 Deno.serve(async request=>{
   const origin=request.headers.get("origin")||"";
   if(origin&&!allowedOrigins().has(origin))return json({error:"Origin not allowed"},403,request);
@@ -51,6 +58,13 @@ Deno.serve(async request=>{
     if(new TextEncoder().encode(raw).byteLength>128*1024)return json({error:"Payload too large"},413,request);
     payload=JSON.parse(raw);
   }catch{return json({error:"Invalid JSON"},400,request)}
+  // Form providers are transport metadata, never the lead's company identity.
+  if(isWebformProvider(payload.company)||isWebformProvider(payload.company_name)||isWebformProvider(payload.company_domain)||isWebformProvider(payload.domain)){
+    payload.company=null;
+    payload.company_name=null;
+    payload.company_domain=null;
+  }
+  if(isWebformProvider(payload.email)||isWebformProvider(payload.sender_email))return json({error:"Form provider address cannot be used as the inquiry contact"},400,request);
   const submissionId=String(payload.submission_id||request.headers.get("x-idempotency-key")||"").trim();
   if(!submissionId)return json({error:"submission_id is required"},400,request);
   payload.submission_id=submissionId;

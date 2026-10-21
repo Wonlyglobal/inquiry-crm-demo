@@ -277,14 +277,16 @@ async function createInquiryFromShared(message, connection, { junkFolder = false
     return {id:null,method:'shared_mailbox_pending_triage',intakeId:intake.id};
   }
   const domain=websiteForm.companyDomain||null;
-  const companyName=websiteForm?.companyName||domain||customerEmail;
+  const companyName=websiteForm?.companyName||null;
   let companyId=null,contactId=null;
   if(domain){const {data:c}=await db.from('companies').select('id').ilike('domain',domain).maybeSingle();companyId=c?.id||null}
   if(!companyId&&websiteForm?.companyName){const {data:c}=await db.from('companies').select('id').ilike('name',websiteForm.companyName).limit(1);companyId=c?.[0]?.id||null}
-  if(!companyId){const {data:c}=await db.from('companies').insert({name:companyName,domain,country:websiteForm?.country||null,created_by:creator}).select('id').single();companyId=c?.id||null}
-  else if(websiteForm?.country)await db.from('companies').update({country:websiteForm.country,updated_at:new Date().toISOString()}).eq('id',companyId).is('country',null);
-  const {data:existing}=await db.from('contacts').select('id').eq('email',customerEmail).maybeSingle();contactId=existing?.id||null;
-  if(!contactId){const {data:c}=await db.from('contacts').insert({company_id:companyId,full_name:websiteForm?.name||null,email:customerEmail,phone:websiteForm?.phone||null,job_title:websiteForm?.jobTitle||null,created_by:creator}).select('id').single();contactId=c?.id||null}
+  if(!companyId&&companyName){const {data:c}=await db.from('companies').insert({name:companyName,domain,country:websiteForm?.country||null,created_by:creator}).select('id').single();companyId=c?.id||null}
+  else if(companyId&&websiteForm?.country)await db.from('companies').update({country:websiteForm.country,updated_at:new Date().toISOString()}).eq('id',companyId).is('country',null);
+  if(companyId){
+    const {data:existing}=await db.from('contacts').select('id').eq('company_id',companyId).eq('email',customerEmail).maybeSingle();contactId=existing?.id||null;
+    if(!contactId){const {data:c}=await db.from('contacts').insert({company_id:companyId,full_name:websiteForm?.name||null,email:customerEmail,phone:websiteForm?.phone||null,job_title:websiteForm?.jobTitle||null,created_by:creator}).select('id').single();contactId=c?.id||null}
+  }
   const title=websiteForm?websiteInquiryTitle(websiteForm):(message.subject||`来自 ${message.sender_email} 的邮件询盘`);
   const inquiryPayload={company_id:companyId,contact_id:contactId,title,product_category:websiteForm?.product||null,quantity:websiteForm?.quantity||null,target_country:websiteForm?.country||null,source:websiteForm?'website':'email',source_detail:websiteForm?.sourceDetail||null,original_message:message.body_text||'',status:'pending_assignment',created_by:creator,updated_by:creator,created_at:receivedAt,first_contact_due_at:new Date(new Date(receivedAt).getTime()+10*60000).toISOString(),last_change_reason:websiteForm?'官网表单自动解析入库':'公共询盘邮箱自动收件'};
   const {data:inq,error}=await db.from('inquiries').insert(inquiryPayload).select('id').single();

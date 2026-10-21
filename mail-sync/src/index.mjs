@@ -9,6 +9,7 @@ import { processManualSharedMailSync } from './manual-sync.mjs';
 import { isJunkFolder, selectSyncFolders, shouldInitializeAtLatest } from './folders.mjs';
 import { withSafeReadRetries } from './fetch-resilience.mjs';
 import { runEdgeMailCycle, runWithEdgeWorkerLease } from './edge-cycle.mjs';
+import { deliverDailyLeadReport } from './daily-lead-report.mjs';
 
 const url=process.env.SUPABASE_URL;
 const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -46,34 +47,7 @@ function chinaParts(date=new Date()){
 }
 
 async function sendDailyLeadReport(){
-  if(!feishuWebhook&&!dingtalkWebhook)return;
-  const now=chinaParts();
-  if(now.hour<reportHour)return;
-  const start=`${now.date}T00:00:00+08:00`,endDate=new Date(start);endDate.setDate(endDate.getDate()+1);const end=endDate.toISOString();
-  const {data:sent,error:sentError}=await db.from('audit_logs').select('id').eq('action','daily_lead_feishu_report').gte('created_at',start).lt('created_at',end).limit(1);
-  if(sentError)throw sentError;if(sent?.length)return;
-  const [{data:profiles,error:profileError},{data:inquiries,error:inquiryError}]=await Promise.all([
-    db.from('profiles').select('id,full_name,role').eq('role','sales').eq('active',true),
-    db.from('inquiries').select('id,inquiry_no,created_by,source,target_country,product_category,validity,status,created_at').eq('excluded_from_dashboard',false).gte('created_at',start).lt('created_at',end).order('created_at',{ascending:true}),
-  ]);
-  if(profileError)throw profileError;if(inquiryError)throw inquiryError;
-  const people=new Map((profiles||[]).map(x=>[x.id,x.full_name||'未命名业务员']));
-  const rows=(inquiries||[]).filter(x=>people.has(x.created_by));
-  const bySales=new Map(),bySource=new Map();
-  rows.forEach(row=>{const seller=people.get(row.created_by);bySales.set(seller,(bySales.get(seller)||0)+1);const source=sourceNames[row.source]||row.source||'待补充';bySource.set(source,(bySource.get(source)||0)+1);});
-  const lines=[`【每日新增客户线索日报】${now.date}`,`今日新增：${rows.length} 条`];
-  if(rows.length){
-    lines.push(`业务员汇总：${[...bySales].sort((a,b)=>b[1]-a[1]).map(([name,count])=>`${name} ${count}条`).join('；')}`);
-    lines.push(`渠道汇总：${[...bySource].sort((a,b)=>b[1]-a[1]).map(([name,count])=>`${name} ${count}条`).join('；')}`,'','线索明细：');
-    rows.slice(0,60).forEach((row,index)=>{const no=String(row.inquiry_no||'').padStart(6,'0');lines.push(`${index+1}. #${no} | ${people.get(row.created_by)} | ${sourceNames[row.source]||row.source||'待补充'}`,`国家/地区：${row.target_country||'待补充'} | 产品：${row.product_category||'待补充'}`,`有效性：${validityNames[row.validity]||row.validity||'待确认'} | 阶段：${statusNames[row.status]||row.status||'待补充'}`,`CRM：http://crm.foreverdoodle.com/#inquiry/${row.id}`);});
-    if(rows.length>60)lines.push(`还有 ${rows.length-60} 条未展开，请进入 CRM 查看。`);
-  }else lines.push('今日暂无业务员新增客户线索。');
-  lines.push('','说明：本日报由 CRM 根据业务员本人新建的真实线索自动生成，不含客户公司名和邮箱。');
-  const content=lines.join('\n'),results=[];
-  if(feishuWebhook){const response=await fetch(feishuWebhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg_type:'text',content:{text:content}}),signal:AbortSignal.timeout(15000)});const result=await response.json();if(!response.ok||result.code!==0)throw new Error(`飞书日报发送失败：${result.msg||response.status}`);results.push('feishu')}
-  if(dingtalkWebhook){const response=await fetch(dingtalkWebhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msgtype:'text',text:{content}}),signal:AbortSignal.timeout(15000)});const result=await response.json();if(!response.ok||Number(result.errcode)!==0)throw new Error(`钉钉日报发送失败：${result.errmsg||response.status}`);results.push('dingtalk')}
-  const {error:auditError}=await db.from('audit_logs').insert({actor_id:null,entity_type:'system',entity_id:null,action:'daily_lead_feishu_report',after_data:{report_date:now.date,lead_count:rows.length,channels:results,sales_counts:Object.fromEntries(bySales),source_counts:Object.fromEntries(bySource)},reason:'每日新增客户线索自动发送到已配置群机器人'});
-  if(auditError)throw auditError;console.log(`daily lead report ${now.date}: ${rows.length} leads sent`);
+  return deliverDailyLeadReport({db,feishuWebhook,dingtalkWebhook,reportHour});
 }
 
 async function secretFor(id){const {data,error}=await db.rpc('read_mailbox_secret',{target_connection_id:id});if(error||!data)throw error||new Error('邮箱凭据不存在');return data}
@@ -452,13 +426,16 @@ export async function runEdgeCycle(){
   return runWithEdgeWorkerLease({
     db,
     log:message=>console.error(message),
-    run:()=>runEdgeMailCycle({
+    run:async()=>{
+      await runOptionalCycleStage('daily lead report',sendDailyLeadReport);
+      return runEdgeMailCycle({
       db,
       now:Date.now(),
       processManual:()=>processManualSharedMailSync({db,syncMailbox:connection=>syncForEdge(connection,{manual:true}),log:message=>console.error(message)}),
       syncMailbox:connection=>syncForEdge(connection),
       log:message=>console.error(message),
-    }),
+      });
+    },
   });
 }
 

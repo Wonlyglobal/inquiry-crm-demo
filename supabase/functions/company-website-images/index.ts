@@ -27,6 +27,7 @@ function safeWebsite(value: unknown) {
   if (!raw) throw new Error("请先填写公司官网");
   const url = new URL(/^https?:\/\//i.test(raw) ? raw : "https://" + raw);
   const hostname = url.hostname.toLowerCase();
+  if (hostname === "web3forms.com" || hostname.endsWith(".web3forms.com")) throw new Error("Web3Forms 是官网表单服务商，不是询盘公司官网");
   if (url.protocol !== "https:" || hostname === "localhost" || hostname.endsWith(".local") || /^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname)) {
     throw new Error("仅支持公开 HTTPS 公司官网");
   }

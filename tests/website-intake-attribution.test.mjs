@@ -7,6 +7,8 @@ const sql=await readFile(new URL("../supabase/migrations/20260910101733_website_
 const edge=await readFile(new URL("../supabase/functions/website-inquiry-intake/index.ts",import.meta.url),"utf8");
 const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
 const sync=await readFile(new URL("../mail-sync/src/index.mjs",import.meta.url),"utf8");
+const imageFunction=await readFile(new URL("../supabase/functions/company-website-images/index.ts",import.meta.url),"utf8");
+const companyIdentityMigration=await readFile(new URL("../supabase/migrations/20261021110000_website_company_identity_from_body.sql",import.meta.url),"utf8");
 
 test("website intake is idempotent, monitored and keeps service credentials server-side",()=>{
   assert.match(sql,/event_key text not null unique/);
@@ -54,4 +56,36 @@ test("email fallback extracts and stores UTM attribution",()=>{
   assert.equal(parsed?.attribution?.utmCampaign,"security-doors");
   assert.match(sync,/inquiry_marketing_touches/);
   assert.match(sync,/utm_source:a\.utmSource/);
+});
+
+test("Web3Forms remains provider metadata; company identity comes only from explicit body fields",()=>{
+  const providerNamed=parseWebsiteFormMessage({subject:"New WONLY Website Enquiry",sender_email:"notify@web3forms.com",body_text:"Name: Jane Doe\nCompany: Web3Forms\nEmail: jane@realbuyer.example\nMessage: Please quote 200 doors"});
+  assert.equal(providerNamed.companyName,"");
+  assert.equal(providerNamed.companyDomain,null);
+  const bodyCompany=parseWebsiteFormMessage({subject:"New WONLY Website Enquiry",sender_email:"notify@web3forms.com",body_text:"Name: Jane Doe\nCompany: Real Buyer Ltd\nCompany Website: https://realbuyer.example\nEmail: jane@gmail.com\nMessage: Please quote 200 doors"});
+  assert.equal(bodyCompany.companyName,"Real Buyer Ltd");
+  assert.equal(bodyCompany.companyDomain,"realbuyer.example");
+  const noBodyCompany=parseWebsiteFormMessage({subject:"New WONLY Website Enquiry",sender_email:"notify@web3forms.com",body_text:"Name: Jane Doe\nEmail: jane@realbuyer.example\nMessage: Please quote 200 doors"});
+  assert.equal(noBodyCompany.companyName,"");
+  assert.equal(noBodyCompany.companyDomain,null);
+  assert.equal(parseWebsiteFormMessage({subject:"New WONLY Website Enquiry",sender_email:"notify@web3forms.com",body_text:"Name: Jane Doe\nEmail: jane@web3forms.com\nMessage: hello"}),null);
+  assert.match(sync,/const companyName=websiteForm\?\.companyName\|\|null/);
+  assert.match(sync,/if\(!companyId&&companyName\)/);
+  assert.match(sync,/if\(companyId\)\{/);
+  assert.match(edge,/isWebformProvider\(payload\[field\]\)/);
+  assert.match(imageFunction,/hostname === "web3forms\.com" \|\| hostname\.endsWith\("\.web3forms\.com"\)/);
+  assert.match(companyIdentityMigration,/payload->>''website_url''/);
+  assert.match(companyIdentityMigration,/company_id_value is null and company_name is not null/);
+  assert.match(companyIdentityMigration,/contact_id_value is null and company_id_value is not null/);
+  assert.match(companyIdentityMigration,/not exists\(select 1 from public.contacts c where lower\(c.email\)=customer_email\)/);
+  assert.match(html,/webformProviderIdentityBlocked/);
+  assert.match(html,/Web3Forms 是官网表单服务商/);
+});
+
+test("smart organizer recognizes International Sales & Business Development",()=>{
+  const functionSource=html.match(/function organizeInquiryText\(inquiry\) \{[\s\S]*?\n      \}/)?.[0];
+  assert.ok(functionSource,"organizeInquiryText should remain locally testable");
+  const organize=new Function(`${functionSource}; return organizeInquiryText;`)();
+  const result=organize({original_message:"Name: Ehtesham Uddin Ahmed\nInternational Sales & Business Development\nPlease quote door locks",email_intake:{sender_email:"ehtesham@example.com",parsed_data:{}}});
+  assert.equal(result.title,"International Sales & Business Development");
 });

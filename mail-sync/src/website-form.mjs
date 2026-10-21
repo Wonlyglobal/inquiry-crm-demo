@@ -1,9 +1,17 @@
 const clean = (value) => String(value || '').trim();
 
-const genericEmailDomains = new Set([
-  'gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com',
-  'yahoo.com', 'icloud.com', 'qq.com', '163.com', '126.com',
-]);
+const websiteFormServiceDomains = new Set(['web3forms.com']);
+
+export function isWebsiteFormServiceDomain(value) {
+  const raw = clean(value).toLowerCase();
+  const candidate = raw.includes('@') ? raw.split('@').pop() : raw;
+  const hostname = candidate.replace(/^https?:\/\//, '').replace(/^www\./, '').split(/[/?#:]/)[0];
+  return [...websiteFormServiceDomains].some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
+}
+
+export function isWebsiteFormServiceCompany(value) {
+  return /(^|[^a-z0-9])web3forms([^a-z0-9]|$)/i.test(clean(value)) || isWebsiteFormServiceDomain(value);
+}
 
 const journeyEventNames = new Set([
   'cta_click', 'form_open', 'form_start', 'form_submit', 'generate_lead',
@@ -57,9 +65,17 @@ export function parseWebsiteFormMessage(message) {
 
   const email = clean(fields.email).toLowerCase();
   if (!email || !email.includes('@')) return null;
-  const emailDomain = email.split('@')[1] || '';
-  const companyName = clean(fields.company) || emailDomain || email;
-  const companyDomain = emailDomain && !genericEmailDomains.has(emailDomain) ? emailDomain : null;
+  if (isWebsiteFormServiceDomain(email)) return null;
+  const submittedCompany = clean(fields.company || fields.company_name);
+  const companyName = isWebsiteFormServiceCompany(submittedCompany) ? '' : submittedCompany;
+  const explicitCompanyWebsite = clean(fields.company_website || fields.company_domain || fields.website || fields.website_url || fields.domain);
+  let companyDomain = null;
+  if (explicitCompanyWebsite && !isWebsiteFormServiceCompany(explicitCompanyWebsite)) {
+    try {
+      const host = new URL(/^https?:\/\//i.test(explicitCompanyWebsite) ? explicitCompanyWebsite : `https://${explicitCompanyWebsite}`).hostname.toLowerCase().replace(/^www\./, '');
+      if (host && !isWebsiteFormServiceDomain(host)) companyDomain = host;
+    } catch { /* invalid company website is not an identity */ }
+  }
   const product = clean(fields.interests || fields.interest || fields.product || fields.product_category);
   const sourceDetail = clean(fields.source) || 'website_form';
   const journeyEvents = parseWebsiteJourney(fields);

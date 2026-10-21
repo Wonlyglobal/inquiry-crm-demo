@@ -2902,6 +2902,8 @@
         const title = first(
           parsed.contact_job_title,
           parsed.job_title,
+          text.match(/(?:job\s*title|position|designation|职称|职位)\s*[:：-]\s*([^\n,;|]{2,120})/i)?.[1],
+          text.match(/\b((?:(?:international|global|regional|export)\s+)?(?:sales\s*(?:&|and)\s*business\s+development|business\s+development)|(?:international|global|regional|export)\s+sales\s*(?:&|and)\s*business\s+development)\b/i)?.[1],
           text.match(/\b((?:senior\s+|chief\s+|general\s+|assistant\s+)?(?:purchasing|procurement|sourcing|project|product|sales|business development|engineering|operations?)\s+(?:manager|director|officer|specialist|engineer|coordinator|supervisor)|(?:ceo|cfo|coo|cto|owner|president|founder|director|manager))\b/i)?.[1],
         );
         let name = first(parsed.contact_name, parsed.sender_name, intake.sender_name);
@@ -6516,8 +6518,13 @@
         const inferredDomain = inferExternalResearchDomain(senderDomain) || inferExternalResearchDomain(bodyDomain);
         const namedCompany = originalText.match(/\bat\s+([A-Z][A-Za-z0-9&.' -]{1,80}?)\s+(?:in\s+[A-Z]|[,.\n])/i)?.[1]?.trim();
         const domainCompany = inferredDomain ? inferredDomain.split(".")[0].replace(/(^|[-_])([a-z])/g, (_m, prefix, letter) => `${prefix}${letter.toUpperCase()}`) : "";
-        $("#detail-research-company").value = company.name || namedCompany || domainCompany;
-        $("#detail-research-domain").value = company.domain || inferredDomain;
+        currentInquiry.webformProviderIdentityBlocked = isWebsiteFormServiceCompany(company.name) || isWebsiteFormServiceDomain(company.domain);
+        const websiteLead = inquiry.source === "website" || isWebsiteFormServiceDomain(senderEmail) || isWebsiteFormServiceDomain(intake?.parsed_data?.transport_sender);
+        const bodyCompany = originalText.match(/(?:^|\n)\s*company(?:[ _]name)?\s*:\s*([^\n]+)/i)?.[1]?.trim() || "";
+        const submittedCompanyName = !isWebsiteFormServiceCompany(bodyCompany) && !/^https?:\/\//i.test(bodyCompany) ? bodyCompany : "";
+        const submittedWebsite = originalText.match(/(?:^|\n)\s*(?:company[ _](?:website|domain)|website(?:[ _]url)?)\s*:\s*([^\n]+)/i)?.[1]?.trim() || "";
+        $("#detail-research-company").value = currentInquiry.webformProviderIdentityBlocked ? "" : company.name || (websiteLead ? submittedCompanyName : namedCompany || domainCompany);
+        $("#detail-research-domain").value = currentInquiry.webformProviderIdentityBlocked ? "" : company.domain || (websiteLead ? inferExternalResearchDomain(submittedWebsite) : inferredDomain);
         const savedResearchBrief = company.research_sales_brief || {};
         const domainAliases = Array.isArray(savedResearchBrief.domain_aliases) ? savedResearchBrief.domain_aliases : [];
         $("#detail-research-domain-aliases").value = domainAliases.map((item) => typeof item === "string" ? item : item?.domain).filter(Boolean).join("\n");
@@ -8102,6 +8109,15 @@
       function companySearchQuery() {
         return [$("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim(), $("#detail-smart-country").value.trim()].filter(Boolean).join(" ");
       }
+      function isWebsiteFormServiceDomain(value) {
+        const raw = String(value || "").trim().toLowerCase();
+        const candidate = raw.includes("@") ? raw.split("@").pop() : raw;
+        const host = candidate.replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#:]/)[0];
+        return host === "web3forms.com" || host.endsWith(".web3forms.com");
+      }
+      function isWebsiteFormServiceCompany(value) {
+        return /(^|[^a-z0-9])web3forms([^a-z0-9]|$)/i.test(String(value || "")) || isWebsiteFormServiceDomain(value);
+      }
       function safeExternalUrl(value) {
         try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) ? url.toString() : ""; } catch { return ""; }
       }
@@ -8131,7 +8147,7 @@
       }
       async function loadCompanyImages() {
         const website = $("#detail-research-domain").value.trim();
-        if (!website || !currentInquiry) { renderCompanyImages([]); return; }
+        if (!website || !currentInquiry || currentInquiry.webformProviderIdentityBlocked || isWebsiteFormServiceCompany($("#detail-research-company").value) || isWebsiteFormServiceDomain(website)) { renderCompanyImages([]); return; }
         try {
           const { data, error } = await supabase.functions.invoke("company-website-images", { body: { inquiry_id: currentInquiry.id, website, company_name: $("#detail-research-company").value.trim() } });
           if (error) throw error;
@@ -8207,8 +8223,9 @@
       });
       $("#find-company-address").addEventListener("click", () => locateCompanyAutomatically());
       async function locateCompanyAutomatically() {
-        if (!currentInquiry) return;
+        if (!currentInquiry || currentInquiry.webformProviderIdentityBlocked) return;
         const companyName = $("#detail-research-company").value.trim();
+        if (isWebsiteFormServiceCompany(companyName) || isWebsiteFormServiceDomain($("#detail-research-domain").value)) return;
         if (!companyName) { $("#detail-research-map-address").value = "未识别到公司名称，无法定位"; return; }
         const previousAddress = $("#detail-research-map-address").value;
         const previousGoogleUrl = $("#detail-research-map-url").value;
@@ -8235,7 +8252,8 @@
         const domain = String(value || "").trim().toLowerCase()
           .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
         // Internal test/forwarding senders are not evidence of the buyer's identity.
-        return domain === "wonlyglobal.com" || domain.endsWith(".wonlyglobal.com") ? "" : domain;
+        const isFormProvider = domain === "web3forms.com" || domain.endsWith(".web3forms.com");
+        return domain === "wonlyglobal.com" || domain.endsWith(".wonlyglobal.com") || isFormProvider ? "" : domain;
       }
       function persistAutonomousResearch() {
         const saveButton = $("#save-detail-research");
@@ -8274,6 +8292,7 @@
       }
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
+        if (currentInquiry.webformProviderIdentityBlocked || isWebsiteFormServiceCompany($("#detail-research-company").value) || isWebsiteFormServiceDomain($("#detail-research-domain").value)) return toast("Web3Forms 只是官网表单服务商，不能作为询盘公司背调；请先核实邮件正文中的真实公司");
         if (autonomousResearchInquiryId === currentInquiry.id) return;
         const button = $("#run-business-research");
         const intakeEmail = currentInquiry.email_intake?.sender_email || "";
@@ -8282,7 +8301,8 @@
           .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
         const normalizeCompanyName = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b(ltda|eireli|sa|s\/a|inc|llc|limited|industria|comercio)\b/g,"").replace(/[^a-z0-9]/g,"");
         const normalizeCountry = (value) => ({brasil:"brazil",br:"brazil",巴西:"brazil",argentina:"argentina",阿根廷:"argentina",china:"china",中国:"china"}[String(value||"").trim().toLowerCase()]||String(value||"").trim().toLowerCase());
-        const candidateDomain = normalizeDomain($("#detail-research-domain").value || inferExternalResearchDomain(intakeEmail));
+        const websiteLead = currentInquiry.source === "website" || isWebsiteFormServiceDomain(currentInquiry.email_intake?.parsed_data?.transport_sender);
+        const candidateDomain = normalizeDomain($("#detail-research-domain").value || (websiteLead ? "" : inferExternalResearchDomain(intakeEmail)));
         let domain = publicEmailDomains.has(candidateDomain) ? "" : candidateDomain;
         const companyName = $("#detail-research-company").value.trim() || currentInquiry.companies?.name || "";
         const companyCountry = $("#detail-smart-country").value.trim() || currentInquiry.target_country || "";
@@ -8851,6 +8871,7 @@
       });
       $("#save-detail-research").addEventListener("click", async () => {
         if (!currentInquiry) return;
+        if (currentInquiry.webformProviderIdentityBlocked || isWebsiteFormServiceCompany($("#detail-research-company").value) || isWebsiteFormServiceDomain($("#detail-research-domain").value)) return toast("Web3Forms 是官网表单服务商，不能保存为询盘公司；请先核实邮件正文中的真实公司");
         const reason = $("#detail-research-reason").value.trim() || "保存客户背调信息";
         const name = $("#detail-research-company").value.trim();
         if (!name) return toast("请填写公司名称");

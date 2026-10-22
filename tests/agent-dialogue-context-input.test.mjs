@@ -69,3 +69,9 @@ test('browser and deployed question planners stay identical',async()=>{
  assert.equal(await readFile(new URL('../assets/agent-question-plan.mjs',import.meta.url),'utf8'),await readFile(new URL('../supabase/functions/agent-conversation/question-plan.mjs',import.meta.url),'utf8'));
  const client=await readFile(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');assert.match(client,/from '\.\/agent-question-plan\.mjs/);
 });
+
+test('v9 source/page/version and English dimension followups keep the dedicated private source',()=>{
+ let previous='S922 智能锁画册v9';
+ for(const q of ['来源和页码呢','版本呢','dimensions and installation','那它不适合户外零下20度吗']){const next=privateV9Turn(q,[previous]);assert.ok(next,q);assert.match(next.question,/S922/);assert.match(next.question,/智能锁画册v9/);assert.equal(next.clarification,undefined);previous=next.question}
+ assert.equal(privateV9Turn('网站来源有哪些',[previous]),null);
+});

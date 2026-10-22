@@ -8352,7 +8352,7 @@
         if (!currentInquiry || autonomousResearchInquiryId) return;
         const id=currentInquiry.id, button=$("#run-business-research");
         if (!$("#detail-research-domain").value.trim()) { $("#detail-research-status").textContent="缺少已核对官网，尚未执行独立核验；请补充官网或公开来源，不代表公司不存在。"; return; }
-        const {researchCompanyDomain}=await import("./assets/business-public-research.mjs");
+        const {researchCompanyDomain}=await import("./assets/business-public-research.mjs?v=20261022-2");
         if(!researchCompanyDomain($("#detail-research-domain").value.trim()))return toast("邮箱平台或表单服务商不能当作客户官网，请核对邮件正文中的真实公司网站");
         autonomousResearchInquiryId=id; button.disabled=true;
         try {
@@ -8362,7 +8362,7 @@
           if(currentInquiry?.id!==id)return;
           const fresh=currentInquiry.publicWebsiteResearch;
           if(!fresh){$("#detail-research-status").textContent="官网访问未完成，保留历史证据；尚未发布或入库。请核对域名或补充可公开来源。";return;}
-          const {websiteFacts,appendPublicFactRow}=await import("./assets/business-public-research.mjs");
+          const {websiteFacts,appendPublicFactRow}=await import("./assets/business-public-research.mjs?v=20261022-2");
           const editor=$("#business-public-evidence-rows");editor.replaceChildren();editor.dataset.inquiryId=id;
           const extractedFacts=websiteFacts(fresh.data,fresh.accessedAt);
           for(const fact of extractedFacts.length?extractedFacts:[{}])appendPublicFactRow(editor,fact);
@@ -8375,17 +8375,18 @@
           $("#detail-research-status").textContent="官网检索完成（"+pages.length+"页），独立证据待补充；未存入 Business。";
           assessResearchQuality();
           await maybeGeneratePostCreateOutreach();
-        }finally{autonomousResearchInquiryId=null;button.disabled=false;}
+        }catch{if(currentInquiry?.id===id)$("#detail-research-status").textContent="本次背调未完成，未公开保存；请刷新页面后重试，必要时补充公开证据。";}
+        finally{autonomousResearchInquiryId=null;button.disabled=false;}
       });
       $("#add-business-public-fact").addEventListener("click",async()=>{
         const rows=$("#business-public-evidence-rows");
         if(rows.dataset.inquiryId!==currentInquiry?.id)return toast("请先重新背调，建立本公司的公开事实编辑区");
-        const {appendPublicFactRow}=await import("./assets/business-public-research.mjs");appendPublicFactRow(rows);
+        const {appendPublicFactRow}=await import("./assets/business-public-research.mjs?v=20261022-2");appendPublicFactRow(rows);
       });
       $("#save-public-business-research").addEventListener("click", async()=>{
         const id=currentInquiry?.id,fresh=currentInquiry?.publicWebsiteResearch,button=$("#save-public-business-research");
         if(!id||!fresh||fresh.inquiryId!==id)return toast("请先重新背调，取得本次官网公开证据");
-        const {BUSINESS_INTAKE,collectPublicFactRows,mergePublicFacts,reviewPublicFacts}=await import("./assets/business-public-research.mjs");
+        const {BUSINESS_INTAKE,collectPublicFactRows,mergePublicFacts,reviewPublicFacts}=await import("./assets/business-public-research.mjs?v=20261022-2");
         const company=$("#detail-research-company").value.trim(),country=$("#detail-smart-country").value.trim();
         if(!company||!country)return toast("请先核对公司名称与国家/地区");
         const rows=$("#business-public-evidence-rows");if(rows.dataset.inquiryId!==id)return toast("请先重新背调，不可沿用另一家公司的未保存内容");

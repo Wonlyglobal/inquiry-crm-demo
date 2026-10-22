@@ -5,7 +5,7 @@ Deno.serve(async(req)=>{
  const origin=req.headers.get('origin')||'';
  const headers:Record<string,string>={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin'};
  if(origins.has(origin))headers['Access-Control-Allow-Origin']=origin;
- headers['Access-Control-Allow-Headers']='authorization,apikey,content-type';
+ headers['Access-Control-Allow-Headers']='authorization,apikey,content-type,x-client-info';
  headers['Access-Control-Allow-Methods']='GET,POST,OPTIONS';
  const respond=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers});
  if(origin&&!origins.has(origin))return respond({error:'origin_denied'},403);

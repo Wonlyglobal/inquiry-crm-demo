@@ -1,5 +1,5 @@
 // A report key is a selector, never authority or model memory. The RPC still authenticates every read.
-export const PRIVATE_REPORT_KEY=/^(?:weekly|daily|evidence)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?$/;
+export const PRIVATE_REPORT_KEY=/^(?:weekly|daily|evidence|tiktok|instagram)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?$/;
 export function privateReportQuestion(question='',key=''){
  if(typeof question!=='string'||typeof key!=='string'||!PRIVATE_REPORT_KEY.test(key))return question;
  const q=question.trim().replace(/[。？！?!，,\s]+$/g,'');

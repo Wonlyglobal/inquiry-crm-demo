@@ -1,4 +1,10 @@
 export const BUSINESS_INTAKE='https://plhverjihjilnuhlhlxi.supabase.co/functions/v1/business-company-intake';
+export async function publicResearchSaveError(result){
+ let code=result?.data?.error;
+ if(!code&&result?.error?.context?.clone)try{code=(await result.error.context.clone().json())?.error}catch{}
+ const messages={private_content_not_allowed:'公开事实包含联系方式、报价或其他受限内容，请删除非必要受限内容后重新审核',business_owner_required:'当前账号没有Business公开入库权限',authentication_required:'登录已失效，请重新登录',conflict_refresh_required:'版本冲突，请先回读最新版本再审核',readback_unconfirmed:'保存可能已提交，但回读未确认；请先刷新核对，不要重复提交',invalid_text:'公司、国家或事实内容为空或超长',invalid_public_url:'证据网址必须是无查询参数的公开HTTPS网址',public_review_required:'必须先核对公司身份与公开范围',save_rejected:'数据库拒绝保存，请保留当前事实并联系管理员核对',business_service_unavailable:'Business服务暂不可用，请先回读核对'};
+ return messages[code]?`${messages[code]}（${code}）`:'入库结果未确认，请先刷新公司库核对；不要重复提交';
+}
 export function researchCompanyDomain(value){
  try{const u=new URL(/^https?:\/\//i.test(value)?value:'https://'+value),h=u.hostname.toLowerCase().replace(/^www\./,'');
   if(u.protocol!=='https:'||/(^|\.)(web3forms\.com|gmail\.com|googlemail\.com|outlook\.com|hotmail\.com|live\.com|yahoo\.com|icloud\.com|qq\.com|163\.com|126\.com|proton\.me|protonmail\.com|mail\.ru|yandex\.ru|yandex\.com|rambler\.ru|wonlyglobal\.com)$/.test(h))return '';

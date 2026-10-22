@@ -8394,7 +8394,7 @@
       $("#save-public-business-research").addEventListener("click", async()=>{
         const id=currentInquiry?.id,fresh=currentInquiry?.publicWebsiteResearch,button=$("#save-public-business-research");
         if(!id||!fresh||fresh.inquiryId!==id)return toast("请先重新背调，取得本次官网公开证据");
-        const {BUSINESS_INTAKE,collectPublicFactRows,mergePublicFacts,reviewPublicFacts}=await import("./assets/business-public-research.mjs?v=20261022-2");
+        const {BUSINESS_INTAKE,collectPublicFactRows,mergePublicFacts,reviewPublicFacts,publicResearchSaveError}=await import("./assets/business-public-research.mjs?v=20261022-3");
         const company=$("#detail-research-company").value.trim(),country=$("#detail-smart-country").value.trim();
         if(!company||!country)return toast("请先核对公司名称与国家/地区");
         const rows=$("#business-public-evidence-rows");if(rows.dataset.inquiryId!==id)return toast("请先重新背调，不可沿用另一家公司的未保存内容");
@@ -8409,11 +8409,12 @@
           if(!response.ok)throw Error("当前版本读取失败");
           const previous=(await response.json()).companies?.[0];
           if(previous&&previous.payload.company!==company)throw Error("同域名已有不同公司名，须核实主体，不能自动合并");
-          const {data,error}=await supabase.functions.invoke("business-company-intake",{body:{domain,company,country,facts:mergePublicFacts(previous?.payload?.facts||[],incoming),identity_confirmed:true,publication_reviewed:true,expected_version:previous?.version||0,request_id:crypto.randomUUID()}});
-          if(error||!data?.readback_verified)throw Error(data?.error||"未确认保存，请刷新核对后再试");
+          const result=await supabase.functions.invoke("business-company-intake",{method:"POST",body:{domain,company,country,facts:mergePublicFacts(previous?.payload?.facts||[],incoming),identity_confirmed:true,publication_reviewed:true,expected_version:previous?.version||0,request_id:crypto.randomUUID()}});
+          const {data,error}=result;
+          if(error||!data?.readback_verified)throw Error(await publicResearchSaveError(result));
           if(currentInquiry?.id===id)$("#detail-research-status").textContent="Business 入库已回读核验："+domain+"，版本 "+data.version+"（"+data.status+"）。";
           toast("Business 公司库已保存并回读，版本 "+data.version);
-        }catch(e){toast("Business 入库未确认："+e.message)}finally{button.disabled=false}
+        }catch(e){const message="Business 入库未确认："+e.message;if(currentInquiry?.id===id)$("#detail-research-status").textContent=message;toast(message)}finally{button.disabled=false}
       });
       function calculateResearchScore() {
         const has = (selector) => $(selector).value.trim().length > 0;
@@ -8878,6 +8879,7 @@
         const button = $("#save-detail-research");
         button.disabled = true;
         const before = currentInquiry.companies || null;
+        const {researchAddressPatch}=await import("./assets/research-address-patch.mjs?v=20261022-1");
         const companyUpdate = {
           name,
           domain: $("#detail-research-domain").value.trim().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "") || null,
@@ -8904,12 +8906,13 @@
           news_signals: $("#detail-research-news").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
           seo_focus_categories: $("#detail-research-seo-focus").value.split(/\n+/).map((name) => name.trim()).filter(Boolean).map((name) => ({ name })),
           project_category_signals: $("#detail-research-project-categories").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
-          map_address: $("#detail-research-map-address").value.trim() || null,
-          google_maps_url: safeExternalUrl($("#detail-research-map-url").value.trim()) || null,
-          openstreetmap_url: safeExternalUrl($("#detail-research-osm-url").value.trim()) || null,
-          map_provider: $("#detail-map-candidate").dataset.provider || null,
-          map_place_id: $("#detail-map-candidate").dataset.placeId || null,
-          map_verified_at: $("#detail-research-map-address").value.trim() ? new Date().toISOString() : null,
+          ...researchAddressPatch(before, {
+            map_address: $("#detail-research-map-address").value,
+            google_maps_url: safeExternalUrl($("#detail-research-map-url").value.trim()),
+            openstreetmap_url: safeExternalUrl($("#detail-research-osm-url").value.trim()),
+            map_provider: $("#detail-map-candidate").dataset.provider,
+            map_place_id: $("#detail-map-candidate").dataset.placeId,
+          }),
           company_photo_sources: photoUrls.map((url) => ({ url, verified: $("#detail-photo-verified").checked, verified_by: $("#detail-photo-verified").checked ? profile.id : null, verified_by_name: $("#detail-photo-verified").checked ? (profile.full_name || "") : null, verified_at: $("#detail-photo-verified").checked ? new Date().toISOString() : null })),
           researched_at: new Date().toISOString(),
           source_updated_at: currentInquiry.businessResearch?.addedDate || currentInquiry.businessResearch?.dataUpdatedAt || null,

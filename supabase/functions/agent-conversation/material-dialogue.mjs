@@ -12,7 +12,7 @@ export function resolveMaterialTurn(question,history=[]){
  if(/^(下一页|下页|继续看下一页|物料下一页)[。？?！!]*$/.test(q))return {question:`物料：${prior.query} 第${Math.min(10000,prior.page+1)}页`};
  if(/^第\s*\d+\s*页[。？?]*$/.test(q))return {question:`物料：${prior.query} ${q}`};
  if(/^(继续|展开|详细一点|详细说明)[。？?！!]*$/.test(q))return {question:`物料：${prior.query} 第${prior.page}页`,detail:true};
- if(/产品手册|宣传册|产品目录|资料库|物料：|查找|寻找|安装视频/.test(q)&&! /^(那|它|这个|该型号)/.test(q))return {question:q};
+ if(/产品手册|宣传册|产品目录|资料库|物料[:：]|查找|寻找|安装视频|(?:木门|安全门|防盗门|智能锁|门锁|医用门|防火门|防火窗).{0,8}(?:画册|样本)/.test(q)&&! /^(那|它|这个|该型号)/.test(q))return {question:q};
  const followup=/^(那|它|这个|该型号|还有)/.test(q)||q.length<=60&&(properties.length>0||ids.length>0&&(/呢|怎么样|如何/.test(q)||bareModel(q)));
  if(!followup)return {question:q};
  const target=ids.length?ids:oldIds;

@@ -1,5 +1,23 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
 import {crmDataIntent,crmLiveAnswer} from '../assets/agent-crm-live.mjs';
+import {knowledgeRoute} from '../supabase/functions/agent-conversation/knowledge-routing.mjs';
+import {resolveMaterialTurn} from '../supabase/functions/agent-conversation/material-dialogue.mjs';
+import {normalizeProductInput} from '../supabase/functions/agent-conversation/product-input.mjs';
+test('explicit wooden-door catalogue request remains an internal standalone document lookup',()=>{
+ for(const q of ['木门画册','查当前版木门画册的产品特点与适用场景，逐项给资料名称、版本、页码；只整理有原文依据的内容，不作性能或采购承诺。','物料：木门画册 当前版本 页码']){
+  assert.equal(knowledgeRoute(q).materials,true,q);
+  assert.deepEqual(resolveMaterialTurn(q,['王力产品系列目录，请列出资料来源、版本与页码']),{question:normalizeProductInput(q)},q);
+ }
+});
+test('product source requests reach authorized materials instead of local channel statistics',()=>{
+ for(const q of ['王力产品系列目录，请列出当前资料来源、版本与页码；不要做采购承诺。','列出当前产品手册来源和页码','我们产品有哪些来源资料','X60 Pro 参数当前来源有哪些']){
+  assert.equal(crmDataIntent(q),null,q);
+  assert.equal(crmLiveAnswer(q,{compute:()=>assert.fail('must not compute CRM statistics'),ready:true}),null,q);
+  assert.equal(knowledgeRoute(q).materials,true,q);
+ }
+ for(const q of ['本月询盘来源分布','统计各来源询盘数量','本月客户来源有哪些','各渠道询盘分布'])assert.ok(crmDataIntent(q),q);
+ assert.equal(crmDataIntent('列出当前资料来源'),null);
+});
 test('CRM number/list questions go to live CRM data; advice questions stay with the model',()=>{
  for(const q of ['销售额最高的是谁?','本月谁的成交额最高？','这个月新增了多少询盘','有哪些超时未跟进的询盘','当前商机漏斗情况','各渠道询盘分布','业绩排名','上周成交了几单'])assert.ok(crmDataIntent(q),q);
  for(const q of ['为什么这个月销售额下降了','怎么提升转化率','沙特渠道要不要加钱','介绍一下你自己','X60 Pro 的参数','打开零售画册'])assert.equal(crmDataIntent(q),null,q);

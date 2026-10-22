@@ -6,6 +6,10 @@ import {seriesCatalogueAnswer} from '../supabase/functions/agent-conversation/kn
 test('categories never masquerade as officially established product series',()=>{const answer=seriesCatalogueAnswer({series_catalogue:{series:[],categories:[{label:'fire_door',files:2}]}});assert.match(answer,/没有提取到明确/);assert.match(answer,/防火门：2份/);assert.match(answer,/不是正式系列/)});
 
 test('series summary lists only returned source/version/pages and marks missing citations',()=>{
- const a=seriesCatalogueAnswer({series_catalogue:{series:[],categories:[]},assets:[{name:'Synthetic catalogue',versionLabel:'V7',isCurrentVersion:true,document:{pages:[{page:4,location:'第4页'}]}}]});assert.match(a,/Synthetic catalogue｜V7｜当前版本｜第4页/);assert.match(a,/不证明系列归属/);
+ const a=seriesCatalogueAnswer({series_catalogue:{series:[],categories:[]},assets:[{name:'Synthetic catalogue.pdf',versionLabel:'V7',isCurrentVersion:true,document:{pages:[{page:4,location:'第4页'}]}}]});assert.match(a,/Synthetic catalogue\.pdf｜系统登记：V7｜系统标为当前｜第4页/);assert.match(a,/不证明系列归属/);
  assert.match(seriesCatalogueAnswer({series_catalogue:{}}),/不能补造出处/);
+});
+
+test('directory citations omit logos and unrelated files without promoting registration into verified edition',()=>{
+ const assets=[{name:'安全门logo.png',versionLabel:'V9'},{name:'旅行.docx'},{name:'Synthetic lock manual.pdf',versionLabel:'V1',isCurrentVersion:true,document:{pages:[{page:3}]}}];const a=seriesCatalogueAnswer({series_catalogue:{},assets});assert.doesNotMatch(a,/logo|旅行/);assert.match(a,/Synthetic lock manual/);assert.match(a,/系统登记：V1/);assert.match(a,/未独立核验画册原文版次/);
 });

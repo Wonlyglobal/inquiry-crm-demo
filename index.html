@@ -2243,8 +2243,14 @@
               <button id="paste-topease-report" class="ghost" type="button">粘贴特易报告</button>
             </div>
           </div>
-          <p class="hint">超级智能体会在打开询盘时自动检索、交叉验证、填入并保存；没有可靠证据的项目会明确标注“未检索到可信信息”。</p>
+          <p class="hint">先核验当前公开来源。动态官网可能只返回页面标题，此时需人工补充事实与来源；未经审核不会公开存入 Business。</p>
           <p id="detail-research-status" class="hint">背调状态：尚未执行</p>
+          <section class="quality-panel" id="business-public-evidence-editor">
+            <h4>Business 公开入库事实</h4>
+            <p class="hint">先重新背调，再逐条填写已阅读官网的公开信息及证据网址。此处不会自动复制CRM原文或联系人。只填公司名不符合入库条件。</p>
+            <div id="business-public-evidence-rows"></div>
+            <button id="add-business-public-fact" class="ghost" type="button">添加公开事实</button>
+          </section>
           <div id="research-monitor-panel" class="quality-panel">
             <div class="quality-panel-head"><div><b>背调新鲜度与冲突监控</b><div class="hint" style="margin-top:5px">新询盘入库后自动排队检查；只提醒人工复核，不会自动覆盖已确认事实。</div></div><div style="display:flex;align-items:center;gap:8px"><span id="research-monitor-badge" class="tag">待检查</span><button id="refresh-research-monitor" class="table-action" type="button">重新检查</button></div></div>
             <div id="research-monitor-checks" class="quality-checks"></div>
@@ -8364,6 +8370,10 @@
           if(currentInquiry?.id!==id)return;
           const fresh=currentInquiry.publicWebsiteResearch;
           if(!fresh){$("#detail-research-status").textContent="官网访问未完成，保留历史证据；尚未发布或入库。请核对域名或补充可公开来源。";return;}
+          const {websiteFacts,appendPublicFactRow}=await import("./assets/business-public-research.mjs");
+          const editor=$("#business-public-evidence-rows");editor.replaceChildren();editor.dataset.inquiryId=id;
+          const extractedFacts=websiteFacts(fresh.data,fresh.accessedAt);
+          for(const fact of extractedFacts.length?extractedFacts:[{}])appendPublicFactRow(editor,fact);
           const pages=fresh.data.website_evidence||[];
           const isWhatsAppIdentityCheck=String(currentInquiry.source||"").toLowerCase()==="whatsapp"&&/check one person|核实.*人|确认.*员工|核验.*身份/i.test(String(currentInquiry.original_message||""));
           $("#detail-research-deep-status").value=isWhatsAppIdentityCheck?"company_match_required":"research_required";
@@ -8375,16 +8385,24 @@
           await maybeGeneratePostCreateOutreach();
         }finally{autonomousResearchInquiryId=null;button.disabled=false;}
       });
+      $("#add-business-public-fact").addEventListener("click",async()=>{
+        const rows=$("#business-public-evidence-rows");
+        if(rows.dataset.inquiryId!==currentInquiry?.id)return toast("请先重新背调，建立本公司的公开事实编辑区");
+        const {appendPublicFactRow}=await import("./assets/business-public-research.mjs");appendPublicFactRow(rows);
+      });
       $("#save-public-business-research").addEventListener("click", async()=>{
         const id=currentInquiry?.id,fresh=currentInquiry?.publicWebsiteResearch,button=$("#save-public-business-research");
         if(!id||!fresh||fresh.inquiryId!==id)return toast("请先重新背调，取得本次官网公开证据");
-        const {BUSINESS_INTAKE,websiteFacts,mergePublicFacts}=await import("./assets/business-public-research.mjs");
+        const {BUSINESS_INTAKE,collectPublicFactRows,mergePublicFacts,reviewPublicFacts}=await import("./assets/business-public-research.mjs");
         const company=$("#detail-research-company").value.trim(),country=$("#detail-smart-country").value.trim();
         if(!company||!country)return toast("请先核对公司名称与国家/地区");
-        const domain=new URL(fresh.data.website).hostname.replace(/^www\./,""),incoming=websiteFacts(fresh.data,fresh.accessedAt);
+        const rows=$("#business-public-evidence-rows");if(rows.dataset.inquiryId!==id)return toast("请先重新背调，不可沿用另一家公司的未保存内容");
+        const domain=new URL(fresh.data.website).hostname.replace(/^www\./,"");let incoming;
+        try{incoming=collectPublicFactRows(rows,fresh.accessedAt)}catch(e){return toast(e.message)}
         if(!incoming.length)return toast("没有可入库公开证据");
-        if(!confirm("公开保存公司："+company+"（"+domain+"）\n请阅读以下来源并确认公司身份一致，内容可公开且无私有信息：\n\n"+incoming.map((f,i)=>(i+1)+". "+f.value+"\n"+f.source_url).join("\n\n")+"\n\n确认后存入 Business，不会发送邮件或改变CRM阶段。"))return;
         button.disabled=true;
+        if(!await reviewPublicFacts(company,domain,incoming)){button.disabled=false;return;}
+        if(currentInquiry?.id!==id){button.disabled=false;return toast("当前询盘已切换，未保存");}
         try{
           const response=await fetch(BUSINESS_INTAKE+"?domain="+encodeURIComponent(domain),{cache:"no-store"});
           if(!response.ok)throw Error("当前版本读取失败");

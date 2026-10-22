@@ -1,49 +1,49 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-21T01:04:13Z",
-  "coverage": "2026-10-21实际检查六个既有公开来源；dormakaba索引新增10月20日股东大会条目，但详情页读取失败，不把目录标题作为全文核验。未新增已核验事件，保留历史动态及原发布日期；部分可读、缓存或获取失败均不表示没有变化。",
+  "checked_at": "2026-10-22T01:06:47Z",
+  "coverage": "2026-10-22实际检查六个既有公开来源；dormakaba 10月20日股东大会公告本轮恢复读取并核验全文，为公司治理消息，不是产品发布或目标市场变化证据。保留历史动态和原发布日期；部分可读、缓存或失败不表示没有变化。",
   "sources": [
     {
       "name": "WONLY 官方网站",
       "url": "https://www.wonlyglobal.com/",
       "status": "partial",
       "note": "页面仅取得标题，无可读正文；今日新闻与产品变化未核验，不能据此确认无变化。",
-      "last_checked_at": "2026-10-21T01:04:13Z"
+      "last_checked_at": "2026-10-22T01:06:47Z"
     },
     {
       "name": "Hörmann 门业官网",
       "url": "https://www.hoermann.com/en/",
       "status": "partial",
       "note": "公司介绍及门、门框、驱动品类可读；近期新闻与产品变更未完成核验。",
-      "last_checked_at": "2026-10-21T01:04:13Z"
+      "last_checked_at": "2026-10-22T01:06:47Z"
     },
     {
       "name": "ASSA ABLOY 官方新闻",
       "url": "https://www.assaabloy.com/group/en/news-media/press-releases",
       "status": "partial",
       "note": "新闻页仅取得标题及导航，未取得具体新公告正文；不以搜索摘要或目录代替全文核验。",
-      "last_checked_at": "2026-10-21T01:04:13Z"
+      "last_checked_at": "2026-10-22T01:06:47Z"
     },
     {
       "name": "dormakaba 官方新闻",
       "url": "https://www.dormakabagroup.com/en/newsroom",
       "status": "partial",
-      "note": "官方新闻索引可读，最新可见2026-10-20股东大会条目；详情页读取失败，本轮未核验其具体决议，不能以标题代替全文。其余历史事件未重验。",
-      "last_checked_at": "2026-10-21T01:04:13Z"
+      "note": "新闻索引及10月20日股东大会公告全文可读；公告称通过董事会提案，股息计划10月26日起支付。为公司治理消息，不是新品、订单、量产或股息已支付证明；其他历史事件未重验。",
+      "last_checked_at": "2026-10-22T01:06:47Z"
     },
     {
       "name": "Al Kuhaimi Metal Industries 官网",
       "url": "https://alkuhaimimetal.com/",
       "status": "partial",
       "note": "产品/解决方案目录可读，新闻日期和证书适用范围未核验；动态计数占位值不作为经营事实。",
-      "last_checked_at": "2026-10-21T01:04:13Z"
+      "last_checked_at": "2026-10-22T01:06:47Z"
     },
     {
       "name": "Puertas Asturmex 官网",
       "url": "https://puertasasturmex.com/",
       "status": "partial",
       "note": "产品、认证及Revit入口目录可读；证书适用型号与新闻实际日期本轮未核验，不据此认定新品或没有变化。",
-      "last_checked_at": "2026-10-21T01:04:13Z"
+      "last_checked_at": "2026-10-22T01:06:47Z"
     }
   ],
   "findings": [

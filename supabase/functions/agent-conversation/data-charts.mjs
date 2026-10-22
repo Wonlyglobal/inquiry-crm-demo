@@ -9,6 +9,22 @@ const countryNames=new Map(COUNTRY_CODES.map(code=>[code,displayCountry.of(code)
 const DATAQ=/多少|几|分布|占比|渠道|来源|国家|市场|阶段|漏斗|数据|统计|排名|趋势|对比|情况|表现|转化/;
 const day=s=>String(s||'').slice(0,10);
 
+// Deliberately narrow: other dimensions, periods and compound requests keep their own routes.
+export function crmCountryQuestion(question){
+ const q=String(question||'').normalize('NFKC').toLowerCase();
+ if(!/(询盘|线索)/.test(q)||!/(国家|地区)/.test(q))return false;
+ return !q.replace(/分析|查看|查询|请|给我|近|最近|过去|30|三十|天|询盘|线索|的|按|国家|地区|分布|统计|数量|说明|解释|展示|口径|和|与|及|缺口|数据|情况|为什么|未知|其他|全部|都是|未识别/g,'').replace(/[\s，。！？、：；,.!?;:]/g,'');
+}
+export function crmCountryReply(crm){
+ const action=crmStatsChart('询盘国家分布',crm);if(!action)return null;
+ const c=action.chart,rows=c.bars.map(x=>`${x.label}：${x.value} 条。`);
+ const answer=[`本次权限内近 30 天新增询盘共 ${crm.lead_count} 条，统计周期 ${day(crm.period?.start)} 至 ${day(crm.period?.end)}。`,
+ rows.length?`达到展示阈值的国家分组：\n${rows.join('\n')}`:c.empty,
+ c.note,'当前汇总不能说明小样本国家的具体数量、是否缺填或表单配置原因，也不能据此判断重点市场表现。建议在原有权限内核对国家字段填写与命名，再按相同周期和口径复查；不从联系信息猜测国家。',
+ '来源：CRM 询盘表（你的权限内可见记录）；只展示至少 5 条的分组。'].join('\n\n');
+ return {answer,actions:[action]};
+}
+
 export function crmStatsChart(question,crm){
  const q=String(question||'');
  if(!crm||crm.status!=='available'||!DATAQ.test(q))return null;

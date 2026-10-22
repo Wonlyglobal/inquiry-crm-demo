@@ -73,19 +73,19 @@ export function dataChart(spec,doc=document){
  const mk=(t,cls,txt)=>{const n=doc.createElement(t);if(cls)n.className=cls;if(txt!=null)n.textContent=txt;return n};
  if(!doc.getElementById('gt-chart-css')){const st=doc.createElement('style');st.id='gt-chart-css';st.textContent=CHART_CSS;(doc.head||doc.documentElement).append(st)}
  const box=mk('div','gt-chart');const bars=Array.isArray(spec?.bars)?spec.bars.filter(x=>Number.isFinite(Number(x?.value))):[];
- if(!bars.length){box.append(mk('div','gt-note',spec?.empty||'这组数据现在没有可画的数值。'));return box}
  if(spec.title)box.append(mk('div','gt-title',String(spec.title)));
  if(spec.stat)box.append(mk('div','gt-stat',String(spec.stat)));
  if(Array.isArray(spec.legend)&&spec.legend.length){const lg=mk('div','gt-legend');for(const [color,label] of spec.legend){const it=mk('span');const i=mk('i');i.style.background=color;it.append(i,String(label));lg.append(it)}box.append(lg)}
+ if(!bars.length)box.append(mk('div','gt-note',spec?.empty||'这组数据现在没有可画的数值。'));
  const wrap=mk('div','gt-bars'),max=Math.max(...bars.map(x=>Math.abs(Number(x.value))))||1;
  for(const x of bars){const url=safeHttps(x.url);const row=mk(url?'a':'div','gt-bar');if(url){row.href=url;row.target='_blank';row.rel='noopener noreferrer';row.title='打开来源：'+(x.source||url)}
   if(x.alt)row.dataset.promo='1';const t=mk('div','gt-bt'),f=mk('div','gt-bf');f.style.width=(Number(x.value)?Math.max(2,Math.round(Math.abs(Number(x.value))/max*100)):0)+'%';t.append(f);
   row.append(mk('span','gt-bl',String(x.label)),mk('span','gt-bv',x.text!=null?String(x.text):nf(x.value)+(spec.unit?' '+spec.unit:'')),t);wrap.append(row)}
- box.append(wrap);
+ if(bars.length)box.append(wrap);
  const sources=(Array.isArray(spec.sources)?spec.sources:[]).filter(x=>x?.label);
- box.append(mk('div','gt-note','来源：'));const ul=mk('ul');
+ const ul=mk('ul');
  for(const src of sources.length?sources:[{label:'未注明来源'}]){const li=mk('li');const url=safeHttps(src.url);const l=mk(url?'a':'span','',String(src.label));if(url){l.href=url;l.target='_blank';l.rel='noopener noreferrer'}li.append(l);if(src.detail)li.append(' — '+String(src.detail));ul.append(li)}
- box.append(ul);if(spec.note)box.append(mk('div','gt-note',String(spec.note)));
+ if(bars.length||sources.length){box.append(mk('div','gt-note','来源：'));box.append(ul)}if(spec.note)box.append(mk('div','gt-note',String(spec.note)));
  return box;
 }
 // Competitor official prices -> generic chart.
@@ -148,7 +148,7 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
    return}
   if(w.kind==='chart'){
    if(w.source==='crm'){const spec=w.chart||crmChart?.(w.question||'');body.append(spec?dataChart(spec,doc):mk('div','gt-note','CRM 数据还在加载，稍后点开再看。'));return}
-   body.append(w.chart&&!w.chart.currency&&w.chart.bars&&w.chart.bars[0]&&'value' in w.chart.bars[0]?dataChart(w.chart,doc):priceChart(w.chart,doc));return}
+   body.append(w.chart&&!w.chart.currency&&Array.isArray(w.chart.bars)&&(w.source==='crm_stats'||w.source==='intel'||w.chart.bars[0]&&'value' in w.chart.bars[0])?dataChart(w.chart,doc):priceChart(w.chart,doc));return}
   if(w.kind==='material'){const row=materialRow?.(w.asset||{id:w.id,name:w.name});if(row)body.append(row);else body.append(mk('div','',w.name));return}
   if(w.kind==='link'){const a=mk('a','',w.label);a.href=w.url;a.target='_blank';a.rel='noopener noreferrer';body.append(a);return}
  }

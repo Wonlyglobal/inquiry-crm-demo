@@ -53,3 +53,10 @@ test('channel funnel discloses per-channel stages only at five or more, never as
  assert.equal(wa.valid,null);assert.equal(wa.won,null);assert.equal(wa.quote_rate,null);assert.equal(wa.contacted,5);
  assert.match(s.limits,/channel_funnel/);
 });
+
+test('country normalization covers ISO regions and exact CRM bilingual aliases without weakening suppression',()=>{
+ for(const [raw,code] of [['阿联酋 / United Arab Emirates','AE'],['阿聯酋 / UAE','AE'],['Belarus / 白俄罗斯','BY'],['BY','BY'],['Japan / 日本','JP'],['意大利 / Italy','IT'],['United  Arab Emirates','AE']])assert.equal(normalizeCountry(raw),code,raw);
+ for(const raw of ['阿联酋 / Belarus','日本项目采购意向','XX','UAE office building',''])assert.equal(normalizeCountry(raw),'other_or_unknown',raw);
+ const rows=[...Array.from({length:4},()=>({target_country:''})),{target_country:'阿联酋 / United Arab Emirates'},{target_country:'Belarus / 白俄罗斯'}];const s=summarizeCrm(rows,{});assert.equal(s.lead_count,6);assert.deepEqual(s.countries,[]);assert.equal(s.countries_status,'insufficient_groups');assert.doesNotMatch(JSON.stringify(s),/白俄罗斯|阿联酋|Belarus|United Arab Emirates/);
+ const grouped=summarizeCrm(Array.from({length:5},()=>({target_country:'Belarus / 白俄罗斯'})),{});assert.deepEqual(grouped.countries,[{label:'BY',count:5}]);
+});

@@ -103,7 +103,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
    try{const d=await graph(`${p.id}/insights`,{metric:INSIGHTS.join(',')},token);for(const k of INSIGHTS)p.metrics[k]=pick(d,k)}
    catch(e){
     if(signal.aborted||DENIED.includes(e.message)){for(const k of INSIGHTS){p.metrics[k]=null;errors[k]=signal.aborted?'timeout':e.message}}
-    else await Promise.all(INSIGHTS.map(async k=>{try{p.metrics[k]=pick(await graph(`${p.id}/insights`,{metric:k},token),k)}catch(x){p.metrics[k]=null;errors[k]=DENIED.includes(x.message)?x.message:'metric_unavailable'}}));
+    else for(const k of INSIGHTS){try{p.metrics[k]=pick(await graph(`${p.id}/insights`,{metric:k},token),k)}catch(x){p.metrics[k]=null;errors[k]=DENIED.includes(x.message)?x.message:'metric_unavailable'}}
    }
    for(const k of INSIGHTS)if(p.metrics[k]===null&&!errors[k])errors[k]='not_returned';
    p.metric_errors=errors;

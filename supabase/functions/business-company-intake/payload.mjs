@@ -26,5 +26,6 @@ export function normalizeSubmission(input){
   return {field:f.field,value,source_url:publicUrl(f.source_url),accessed_at:date(f.accessed_at),event_date:f.event_date?date(f.event_date):null,verification:f.verification};
  }).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
  if(!facts.some(f=>{const h=new URL(f.source_url).hostname.replace(/^www\./,'');return h===domain}))throw Error('official_domain_source_required');
+ if(!facts.some(f=>f.value.length>=12&&f.value.toLowerCase()!==company.toLowerCase()))throw Error('substantive_public_fact_required');
  return {domain,payload:{company,country,domain,website:'https://'+domain,facts},expected_version:input.expected_version,request_id:input.request_id};
 }

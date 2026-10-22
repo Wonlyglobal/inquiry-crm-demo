@@ -1,9 +1,9 @@
-import {normalizeProductInput,modelCodes,bareModel} from './product-input.mjs';
+import {normalizeProductInput,modelCodes,bareModel,materialFields,materialVersion} from './product-input.mjs';
 import {productLedger,productLedgerText} from './product-coverage.mjs';
 import {profileEvidence} from './knowledge-profile.mjs';
 import {materialQuery,coverageSummary} from './document-knowledge.mjs';
 const modelIds=modelCodes;
-const fields=q=>['功能','配置','供电','电池','维护','防火','隔音','尺寸','规格','材质','型号','认证','安装','质保','保养','参数'].filter(x=>String(q).includes(x));
+const fields=materialFields;
 export function resolveMaterialTurn(question,history=[]){
  const q=normalizeProductInput(question).trim(),previous=normalizeProductInput(history.at(-1)||'');
  if(!previous&&/^(那它|它|这个型号|该型号)/.test(q)&&fields(q).length)return {question:'物料：'+q,clarification:'请告诉我具体产品型号，或选择上一个型号后继续查询。新需求不会沿用上一段对话的型号。'};
@@ -17,7 +17,11 @@ export function resolveMaterialTurn(question,history=[]){
  if(!followup)return {question:q};
  const target=ids.length?ids:oldIds;
  if(target.length!==1)return {question:'物料：'+q,clarification:'请告诉我具体产品型号，或直接输入“物料：关键词”。当前上下文无法唯一确定你指的是哪款产品。'};
- return {question:`物料：${target[0]} ${properties.length?properties.join(' '):ids.length?fields(previous).join(' '):q.replace(/^(那|它|这个|该型号|还有)+/,'').trim()}`};
+ const version=materialVersion(q)||materialVersion(previous);
+ const onlyModel=ids.length===1&&q.replace(/[呢。?!？!]+$/,'').trim().toUpperCase()===ids[0];
+ // Keep the user's conditions/negation; field labels alone would erase 'outdoor' or numeric limits.
+ const request=onlyModel?fields(previous).join(' '):q.replace(/^(那|它|这个|该型号|还有)+/,'').replace(/^的/,'').replace(/[呢。？?！!]+$/,'').trim();
+ return {question:`物料：${ids.length&&!onlyModel?'':target[0]+' '}${request}${version&&!request.includes(version)?' '+version:''}`.trim()};
 }
 export function evidenceDifferences(assets){
  const groups=new Map();

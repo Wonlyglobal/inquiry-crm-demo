@@ -34,3 +34,8 @@ test('every CRM data answer names its source and carries a chart window first',a
  assert.equal(expandTimeline([{windows:[stored]}])[0].windows.length,1);
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/function aiChart\(question\)/);assert.match(html,/CRM 实时数据（询盘与成交记录）/);
 });
+
+test('product sources, certification risks and rankings never masquerade as CRM counts',()=>{
+ for(const q of ['请介绍我们的产品系列目录，列出资料来源、版本和页码。','列出S922的认证风险','X60 Pro的来源有哪些','产品参数排名','来源呢','Instagram逐帖数据来源有哪些'])assert.equal(crmDataIntent(q),null,q);
+ assert.ok(crmDataIntent('X60 Pro的询盘来源有哪些'));
+});

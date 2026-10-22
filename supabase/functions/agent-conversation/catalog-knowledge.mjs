@@ -1,4 +1,4 @@
-import {normalizeProductInput,bareModel} from './product-input.mjs';
+import {normalizeProductInput,bareModel,materialVersion} from './product-input.mjs';
 import {selectionIntent,selectionAnswer} from './product-selection.mjs';
 import {inventoryIntent,inventoryAnswer} from './product-inventory.mjs';
 // Deterministic answers from the private WONLY overseas catalogue knowledge (wonly-catalog-v1).
@@ -44,6 +44,8 @@ export function findModels(question,catalog){
 // Cheap pre-check before the private file is downloaded.
 export function catalogPrecheck(question){
  const q=normalizeModelQuestion(question).slice(0,500);
+ // The fixed August index cannot answer a request constrained to another edition.
+ if(materialVersion(q))return false;
  if(bareModel(q))return true;
  if(inventoryIntent(q)||selectionIntent(q))return true;
  if(FILE_REQUEST.test(q))return false;

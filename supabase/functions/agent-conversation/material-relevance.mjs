@@ -1,11 +1,14 @@
+import {materialVersion} from './product-input.mjs';
 // Precision gate for explicit multi-constraint requests. Missing metadata is not a match.
 export function materialConstraints(question){
  const q=String(question);
- return {fireDoor:/防火门|fire[- ]?rated door|fire door/i.test(q),english:/英文|英语|english/i.test(q),manual:/产品手册|产品目录|宣传册|product (?:manual|catalog)|brochure/i.test(q)};
+ return {version:materialVersion(q),fireDoor:/防火门|fire[- ]?rated door|fire door/i.test(q),english:/英文|英语|english/i.test(q),manual:/产品手册|产品目录|宣传册|product (?:manual|catalog)|brochure/i.test(q)};
 }
 export function relevantMaterial(asset,constraints){
  const identity=[asset.name,asset.relativePath,...(asset.document?.pages||[]).flatMap(p=>p.chunks||[])].join(' ');
  const language=String(asset.language||''),profile=asset.document?.knowledge_profile;
+ // Version labels/file names are navigation constraints, never infer an edition from body mentions.
+ if(constraints.version){const requested=constraints.version.replace(/\s/g,'').toUpperCase();const versions=[asset.versionLabel,asset.name,asset.relativePath].map(materialVersion).filter(Boolean).map(v=>v.replace(/\s/g,'').toUpperCase());if(!versions.includes(requested)||versions.some(v=>v!==requested))return false;}
  if(constraints.fireDoor&&!profile?.categories?.some(x=>x.value==='fire_door')&&!/防火门|fire[- ]?(?:rated )?doors?/i.test(identity))return false;
  if(constraints.english&&!profile?.languages?.includes('en')&&!/^(?:en|en[-_][a-z]+|english|英文|英语)$/i.test(language.trim())&&!/英文|英语|english|(?:^|[\s_\-.\/])EN(?:[\s_\-.\/]|$)/i.test([asset.name,asset.relativePath].join(' ')))return false;
  if(constraints.manual&&!profile?.document_types?.some(x=>x.value==='product_manual')&&!/手册|目录|宣传册|样册|图册|catalog(?:ue)?|brochure|product manual/i.test([asset.name,asset.relativePath].join(' ')))return false;

@@ -1,7 +1,13 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {crmStatsChart,intelChart} from '../supabase/functions/agent-conversation/data-charts.mjs';
+import {crmStatsChart,intelChart,crmCountryQuestion,crmCountryReply} from '../supabase/functions/agent-conversation/data-charts.mjs';
 import {windowsFrom,storable,dataChart} from '../assets/agent-timeline.mjs';
 const crm={status:'available',lead_count:40,period:{start:'2026-09-01T00:00:00Z',end:'2026-10-01T00:00:00Z'},channels:[{label:'website',count:20},{label:'email',count:12},{label:'other_or_unknown',count:8}],countries:[{label:'MX',count:15},{label:'SA',count:9}],stages:[{label:'quoted',count:7}]};
+test('focused country replies use current aggregates, while other questions keep their routes',()=>{
+ for(const q of ['分析近30天询盘的国家分布，说明统计口径和缺口。','为什么询盘国家全部都是未知？','查看询盘按国家统计'])assert.equal(crmCountryQuestion(q),true,q);
+ for(const q of ['分析上月询盘国家分布','分析近30天询盘国家分布和SEO表现','分析询盘国家分布，再介绍X60 Pro','近7天询盘国家分布','智能锁适用哪些国家'])assert.equal(crmCountryQuestion(q),false,q);
+ const current=crmCountryReply({...crm,lead_count:6,countries:[]});assert.match(current.answer,/共 6 条/);assert.match(current.answer,/不代表国家全部未知/);assert.doesNotMatch(current.answer,/other_or_unknown|全部国家字段未识别|IP地理|1个工作日/);assert.deepEqual(current.actions[0].chart.bars,[]);
+ const visible=crmCountryReply(crm);assert.match(visible.answer,/墨西哥：15 条/);assert.match(visible.answer,/不一定覆盖全部/);assert.equal(crmCountryReply({status:'unavailable'}),null);
+});
 test('CRM stats chart: picks the dimension asked, names the source, only allowed aggregates',()=>{
  const a=crmStatsChart('最近各渠道询盘多少',crm);assert.equal(a.type,'data_chart');assert.deepEqual(a.chart.bars.map(b=>b.label),['官网','邮件','其他/未知']);
  assert.match(a.chart.sources[0].label,/CRM 询盘表/);assert.match(a.chart.sources[0].detail,/2026-09-01 至 2026-10-01/);

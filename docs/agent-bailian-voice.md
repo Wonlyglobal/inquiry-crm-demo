@@ -33,3 +33,9 @@ CRM由用户JWT客户端执行RLS读取最少字段，不用服务角色读取�
 - https://help.aliyun.com/zh/model-studio/qwen-asr-api-reference
 - https://help.aliyun.com/zh/model-studio/non-realtime-tts-user-guide
 - https://help.aliyun.com/zh/model-studio/qwen-tts-voice-list
+
+## 2026-10-22 国家归类与空图说明
+
+国家/地区仍只取原身份RLS可见询盘的target_country，不从公司、联系人、正文或网络猜测，不改业务记录。归类使用本机公共领域tzdb所列249个ISO二位代码及Intl精确多语言名，补齐阿联酋/UAE等CRM别名；双语各部分须全部可识别且指向同一国家，冲突仍归未填/未识别。标准表版本来源记录在country-codes.mjs，不声称自动维护最新地区标准。背调国家路由范围保持原样。
+
+总样本和每个国家分组均保留原5条门槛；空countries代表没有可披露分组，不代表没有询盘或国家全部未知。国家图表在空分组时仍显示期间、来源、口径和小样本说明；有未知组时标为“国家未填或未识别”，不以一条满宽柱暗示是一个真实市场。各分组不必加总等于全部样本。空数值图走通用图表而非价格图，不增加任何小样本或客户字段外发。

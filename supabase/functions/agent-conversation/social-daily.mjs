@@ -15,8 +15,11 @@ export async function socialDailyDocuments(source,previous=[],now=Date.now()){
   const chunks=[];let body='逐帖指标为本次获取的累计值，指标时间沿用来源日期。未列出的指标一律未知，不填0；公开视频不含正文、评论身份或画面理解。\n';let saved=0;
   for(const row of rows){if(body.length+row.length+2>2850){chunks.push(body.trim());body=''}if(chunks.length>=6)break;body+=row+'\n\n';saved++}
   if(body.trim())chunks.push(body.trim());metadata.saved_posts=saved;metadata.omitted_posts=rows.length-saved;if(metadata.omitted_posts){metadata.post_coverage_complete=false;metadata.reason='private_document_limit'}
+  metadata.historical_saved_posts=success?0:old.saved_posts||old.historical_saved_posts||0;
+  const historical=!success?(prior?.document?.sections||[]).filter(s=>/^(?:已发布逐帖明细|历史逐帖明细)/.test(s.title)).slice(0,6).map((s,i)=>({title:`历史逐帖明细 ${i+1}（非本次更新）`,body:s.body.replace('逐帖指标为本次获取的累计值','逐帖指标为上次成功获取的累计值，非本次更新')})):[];
+  const detailSections=historical.length?historical:chunks.map((body,i)=>({title:`已发布逐帖明细 ${i+1}/${chunks.length}`,body}));
   const priorSection={title:'同口径历史与验证指标',body:`上次已同步知识编号：${prior?.id||'无'}；上次来源成功时间：${old.source_last_success_sync||'未知'}。本次${success?'取得部分或全部来源数据，仍按覆盖及缺口判断':'读取失败，未将缺失当作零，保留上次来源成功时间'}。不将不同窗口累计相减作增长；验证指标为窗口完整性、每项已知帖数及下次同口径回读。`};
-  docs.push({schema:'grace-private-intelligence-v1',kind:platform,key:platform+'-'+date,title:`${platform} ${date} 私有逐帖指标`,generated_at:generated,period:{from:date,to:date},human_verified:false,source_sha256:await hash(p),sections:[{title:'来源日期与覆盖',body:JSON.stringify(metadata)},...chunks.map((body,i)=>({title:`已发布逐帖明细 ${i+1}/${chunks.length}`,body})),priorSection].slice(0,8),evidence:[]});
+  docs.push({schema:'grace-private-intelligence-v1',kind:platform,key:platform+'-'+date,title:`${platform} ${date} 私有逐帖指标`,generated_at:generated,period:{from:date,to:date},human_verified:false,source_sha256:await hash(p),sections:[{title:'来源日期与覆盖',body:JSON.stringify(metadata)},...detailSections,priorSection].slice(0,8),evidence:[]});
  }
  return docs;
 }

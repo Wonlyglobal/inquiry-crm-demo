@@ -8346,6 +8346,8 @@
         if (!currentInquiry || autonomousResearchInquiryId) return;
         const id=currentInquiry.id, button=$("#run-business-research");
         if (!$("#detail-research-domain").value.trim()) { $("#detail-research-status").textContent="缺少已核对官网，尚未执行独立核验；请补充官网或公开来源，不代表公司不存在。"; return; }
+        const {researchCompanyDomain}=await import("./assets/business-public-research.mjs");
+        if(!researchCompanyDomain($("#detail-research-domain").value.trim()))return toast("邮箱平台或表单服务商不能当作客户官网，请核对邮件正文中的真实公司网站");
         autonomousResearchInquiryId=id; button.disabled=true;
         try {
           delete currentInquiry.publicWebsiteResearch;

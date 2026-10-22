@@ -4,7 +4,7 @@ const HOSTS={tiktok:['tiktok.com','www.tiktok.com'],instagram:['instagram.com','
 const METRICS=['views','likes','comments','shares','saves','reach','impressions','clicks','watch_minutes'];
 const n=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0?v:null;
 export const stamp=(v,now=Date.now())=>typeof v==='string'&&/^20\d{2}-\d{2}-\d{2}(?:T[\d:.+Z-]+)?$/.test(v)&&Number.isFinite(Date.parse(v))&&Date.parse(v)<=now?v:null;
-const reason=v=>['not_configured','not_authorized','reauthorization_required','permission_required','timeout','platform_request_failed','response_too_large','wonly_page_authorization_required','account_binding_mismatch','invalid_response'].includes(v)?v:'source_unavailable';
+const reason=v=>['not_configured','not_authorized','reauthorization_required','permission_required','timeout','platform_request_failed','response_too_large','wonly_page_authorization_required','account_binding_mismatch','invalid_response','permission_or_quota_required','not_returned','metric_unavailable','time_budget','page_cap','cursor_missing'].includes(v)?v:'source_unavailable';
 export function sourceMetricsIntent(q=''){
  return /(?:竞品.*(?:SEO|SEMrush|关键词|自然搜索)|(?:SEO|SEMrush).*竞品|(?:社媒|TikTok|Instagram|Facebook|YouTube|帖子).*(?:逐帖|逐条|每帖|单帖|指标|播放量|互动|点赞|观看))/i.test(q)&&!/发布|删帖|私信|投放/.test(q);
 }
@@ -12,7 +12,7 @@ function publicUrl(value,platform){try{const u=new URL(value);if(u.protocol!=='h
 function post(p,platform,kind,fetched,now){
  const url=publicUrl(p?.url,platform);if(!url)return null;
  const m=p?.metrics||{};
- return {platform,url,published_at:stamp(p.published_at,now),metric_status:kind,metrics_synced_at:kind==='platform_api'?fetched:null,metrics:Object.fromEntries(METRICS.map(k=>[k,n(m[k==='saves'&&m.saves===undefined?'saved':k])]))};
+ return {platform,url,published_at:stamp(p.published_at,now),metric_status:kind,metrics_synced_at:kind==='platform_api'?fetched:null,metrics:Object.fromEntries(METRICS.map(k=>[k,n(m[k==='saves'&&m.saves===undefined?'saved':k])])),metric_errors:Object.fromEntries(Object.entries(p.metric_errors||{}).filter(([k])=>METRICS.includes(k)||k==='saved'||k==='insights').map(([k,v])=>[k,reason(v)]))};
 }
 export function socialMetrics(summary,library,now=Date.now()){
  const platforms=PLATFORMS.map(platform=>{
@@ -21,8 +21,8 @@ export function socialMetrics(summary,library,now=Date.now()){
   const input=valid?raw.posts.slice(0,100):[];
   const projected=input.map(p=>post(p,platform,'platform_api',fetched,now)).filter(Boolean);
   const seen=new Set();const posts=projected.filter(p=>!seen.has(p.url)&&seen.add(p.url));
-  const complete=valid&&raw.status==='available'&&raw.has_more===false&&raw.window?.complete!==false&&raw.posts.length<=100&&posts.length===input.length;
-  return {platform,status:!valid?'unavailable':complete?'available':'partial',reason:valid?(complete?null:'incomplete_source_window'):reason(raw?.reason),source:valid?{facebook:'Facebook Graph API',instagram:'Instagram Graph API',tiktok:'TikTok Display API',youtube:'YouTube API'}[platform]:null,fetched_at:valid?fetched:null,period:valid?'platform_cumulative_at_fetch':null,complete:!!complete,posts};
+  const complete=valid&&raw.status==='available'&&(raw.details_complete===true||raw.details_complete===undefined&&raw.has_more===false)&&raw.window?.complete!==false&&raw.posts.length<=100&&posts.length===input.length;
+  return {platform,status:!valid?'unavailable':complete?'available':'partial',reason:valid?(complete?null:'incomplete_source_window'):reason(raw?.reason),source:valid?{facebook:'Facebook Graph API',instagram:'Instagram Graph API',tiktok:'TikTok Display API',youtube:'YouTube API'}[platform]:null,fetched_at:valid?fetched:null,period:valid?'platform_cumulative_at_fetch':null,complete:!!complete,window:valid?{start:stamp(raw.window?.start,now),end:stamp(raw.window?.end,now),complete:raw.window?.complete===true,stop_reason:raw.window?.stop_reason?reason(raw.window.stop_reason):null}:null,details_total:valid?n(raw.details_total):null,metric_gaps:valid?posts.flatMap(p=>Object.entries(p.metrics).filter(([,v])=>v===null).map(([k])=>k)).reduce((a,k)=>(a[k]=(a[k]||0)+1,a),{}):{},posts};
  });
  const rawStored=Array.isArray(library?.posts)?library.posts:[];
  const stored=rawStored.filter(p=>PLATFORMS.includes(p?.platform?.toLowerCase())).slice(0,100).map(p=>post(p,p.platform.toLowerCase(),'recorded_not_verified',null,now)).filter(Boolean);

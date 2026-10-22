@@ -22,8 +22,8 @@ export function windowSummary(rows,metricKeys,{start,end,pagesRead,complete,stop
   note:complete?'已按分页读完窗口内全部返回帖子；指标为抓取时累计值，不是窗口内新增。':'窗口未读完（见stop_reason），合计只覆盖已读取帖子，不能当作28天全量。'};
 }
 
-export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=new Date(),clock=()=>Date.now()}){
- const signal=AbortSignal.timeout(6000);
+export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=new Date(),clock=()=>Date.now(),metricsOnly=false}){
+ const signal=AbortSignal.timeout(metricsOnly?8000:6000);
  const started=clock();const budgetLeft=()=>clock()-started<PAGINATION_BUDGET_MS;
  const start=new Date(now.getTime()-WINDOW_DAYS*86400000);
  async function read(url,token,body){
@@ -53,8 +53,10 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
  const matched=(platform,id)=>accounts.some(a=>a.platform?.toLowerCase()===platform&&String(a.external_id)===String(id));
  const handleMatches=(platform,handle)=>typeof handle==='string'&&/^[a-zA-Z0-9._]+$/.test(handle)&&accounts.some(a=>a.platform?.toLowerCase()===platform&&typeof a.handle==='string'&&a.handle.replace(/^@/,'').toLowerCase()===handle.toLowerCase());
  const common=source=>({source,fetched_at:now.toISOString(),metric_period:'platform cumulative values at fetch; not period growth',limits:`分页读取最近${WINDOW_DAYS}天已发布内容（有页数与时间上限，未读完会在window.complete标明）；posts只列最近若干条明细。不是全平台历史全量，不含私信、用户身份、广告、归因或视频画面理解。未返回指标为未知，不能按零计算。`});
+ const inWindow=p=>{const t=Date.parse(p.published_at);return Number.isFinite(t)&&t>=start.getTime()&&t<=now.getTime()};
+ async function boundedMap(rows,fn){let next=0;await Promise.all(Array.from({length:Math.min(4,rows.length)},async()=>{while(next<rows.length){const row=rows[next++];await fn(row)}}))}
  const [facebook,instagram,tiktok]=await Promise.all([
- run('facebook',async()=>{
+ metricsOnly?Promise.resolve({status:'not_requested'}):run('facebook',async()=>{
   let token=get('FB_PAGE_TOKEN');if(!token)return failure('not_configured');
   let me=await graph('me',{fields:'id'},token);
   if(!me.id)return failure('account_binding_mismatch');
@@ -85,29 +87,33 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
   const token=get('IG_ACCESS_TOKEN'),id=get('IG_BUSINESS_ID');if(!token||!id)return failure('not_configured');
   if(!/^\d+$/.test(id)||!matched('instagram',id))return failure('account_binding_mismatch');
   const [feed,profile]=await Promise.all([
-   graphPages(`${id}/media`,{fields:'id,caption,permalink,timestamp,like_count,comments_count'},token,'instagram',p=>p.timestamp),
+   graphPages(`${id}/media`,{fields:metricsOnly?'id,permalink,timestamp,like_count,comments_count':'id,caption,permalink,timestamp,like_count,comments_count'},token,'instagram',p=>p.timestamp),
    optional(()=>graph(id,{fields:'followers_count,media_count'},token))]);
   if(!feed)return failure('invalid_response');
   const INSIGHTS=['views','reach','saved','shares'];
   const rows=feed.rows.map(p=>({id:typeof p.id==='string'&&/^\d+$/.test(p.id)?p.id:null,url:publicPostUrl(p.permalink),content:safeText(p.caption),published_at:p.timestamp,metrics:{likes:numeric(p.like_count),comments:numeric(p.comments_count)}}));
-  const detail=rows.slice(0,LIMITS.instagram.detail);
+  const selected=metricsOnly?rows.filter(inWindow):rows;
+  const detail=selected.slice(0,metricsOnly?100:LIMITS.instagram.detail);
   const pick=(d,name)=>{const row=d.data?.find(x=>x.name===name);return numeric(row?.total_value?.value??row?.values?.[0]?.value)};
-  await Promise.all(detail.map(async p=>{
+  await boundedMap(detail,async p=>{
    const errors={};
+   if(signal.aborted){for(const k of INSIGHTS){p.metrics[k]=null;errors[k]='timeout'}p.metric_errors=errors;return}
    if(!p.id){for(const k of INSIGHTS){p.metrics[k]=null;errors[k]='post_id_missing'}p.metric_errors=errors;return}
    // One combined request per post; only an unsupported-metric error falls back to per-metric reads.
    try{const d=await graph(`${p.id}/insights`,{metric:INSIGHTS.join(',')},token);for(const k of INSIGHTS)p.metrics[k]=pick(d,k)}
    catch(e){
-    if(DENIED.includes(e.message)){for(const k of INSIGHTS){p.metrics[k]=null;errors[k]=e.message}}
+    if(signal.aborted||DENIED.includes(e.message)){for(const k of INSIGHTS){p.metrics[k]=null;errors[k]=signal.aborted?'timeout':e.message}}
     else await Promise.all(INSIGHTS.map(async k=>{try{p.metrics[k]=pick(await graph(`${p.id}/insights`,{metric:k},token),k)}catch(x){p.metrics[k]=null;errors[k]=DENIED.includes(x.message)?x.message:'metric_unavailable'}}));
    }
+   for(const k of INSIGHTS)if(p.metrics[k]===null&&!errors[k])errors[k]='not_returned';
    p.metric_errors=errors;
-  }));
+  });
   const complete=!feed.stop;
   return {...common('Instagram Graph API'),status:'available',has_more:feed.hasMore,
    account:profile.error?{status:'unavailable',reason:profile.error}:{status:'available',followers:numeric(profile.followers_count),lifetime_media:numeric(profile.media_count)},
    window:windowSummary(rows,['likes','comments','views','reach','saved','shares'],{start,end:now,pagesRead:feed.pages,complete,stopReason:feed.stop,rankBy:['views','reach','likes']}),
-   posts:detail.map(({id,...p})=>p),insights_status:detail.some(p=>INSIGHTS.some(k=>p.metrics[k]!==null))?'available':'unavailable',missing:['insights_beyond_detail_posts','watch_time','audience_regions','attributed_conversions']};
+   details_returned:detail.length,details_total:selected.length,details_complete:complete&&selected.length===detail.length,
+   posts:detail.map(({id,content,...p})=>metricsOnly?p:{...p,content}),insights_status:detail.some(p=>INSIGHTS.some(k=>p.metrics[k]!==null))?'available':'unavailable',missing:['insights_beyond_detail_posts','watch_time','audience_regions','attributed_conversions']};
  }),
  run('tiktok',async()=>{
   let record=await tiktokToken();if(!record?.access_token)return failure('not_authorized');
@@ -116,7 +122,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
   // user.info.stats is part of the existing grant; failure only drops the account block.
   let me;try{me=await tikRead('https://open.tiktokapis.com/v2/user/info/?fields=open_id,follower_count,likes_count,video_count')}catch(e){if(e.message!=='permission_required')throw e;me=await tikRead('https://open.tiktokapis.com/v2/user/info/?fields=open_id')}
   const id=me.data?.user?.open_id;if(!id)return failure('account_binding_mismatch');
-  const listUrl='https://open.tiktokapis.com/v2/video/list/?fields=id,title,share_url,create_time,view_count,like_count,comment_count,share_count';
+  const listUrl='https://open.tiktokapis.com/v2/video/list/?fields=id,'+(metricsOnly?'':'title,')+'share_url,create_time,view_count,like_count,comment_count,share_count';
   let videos=[],pages=0,stop=null,hasMore=false,cursor=null;
   while(true){
    let d;try{d=await tikRead(listUrl,{max_count:LIMITS.tiktok.pageSize,...cursor!==null?{cursor}:{}})}catch(e){if(pages===0)throw e;stop=errorCode(e);break}
@@ -131,11 +137,14 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
   const ownVideo=p=>{try{const u=new URL(p.share_url);const m=u.pathname.match(/^\/@([^/]+)\/(?:video|photo)\/\d+/);return u.protocol==='https:'&&['www.tiktok.com','tiktok.com'].includes(u.hostname)&&m&&handleMatches('tiktok',m[1])}catch{return false}};
   if(!matched('tiktok',id)){const verified=videos.length>0&&videos.every(ownVideo);if(!verified)return failure('account_binding_mismatch');}
   const rows=videos.map(p=>({url:publicPostUrl(p.share_url),content:safeText(p.title),published_at:typeof p.create_time==='number'&&p.create_time>0&&p.create_time<1e11?new Date(p.create_time*1000).toISOString():null,metrics:{views:numeric(p.view_count),likes:numeric(p.like_count),comments:numeric(p.comment_count),shares:numeric(p.share_count)}}));
+  const selected=metricsOnly?rows.filter(inWindow):rows;
+  const detail=selected.slice(0,metricsOnly?100:LIMITS.tiktok.detail);
   const u=me.data.user;
   return {...common('TikTok Display API'),status:'available',has_more:hasMore,
    account:[u.follower_count,u.likes_count,u.video_count].some(v=>numeric(v)!==null)?{status:'available',followers:numeric(u.follower_count),lifetime_likes:numeric(u.likes_count),lifetime_videos:numeric(u.video_count)}:{status:'unavailable',reason:'stats_not_returned'},
    window:windowSummary(rows,['views','likes','comments','shares'],{start,end:now,pagesRead:pages,complete:!stop,stopReason:stop,rankBy:['views','likes']}),
-   posts:rows.slice(0,LIMITS.tiktok.detail),missing:['watch_time','retention','audience_regions','attributed_conversions']};
+   details_returned:detail.length,details_total:selected.length,details_complete:!stop&&detail.length===selected.length,
+   posts:detail.map(({content,...p})=>metricsOnly?p:{...p,content}),missing:['watch_time','retention','audience_regions','attributed_conversions']};
  })]);
  return {checked_at:now.toISOString(),window_days:WINDOW_DAYS,facebook,instagram,tiktok};
 }

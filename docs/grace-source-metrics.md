@@ -17,3 +17,13 @@ SEO新增可选competitor_metrics接收契约，只接受现行摘要竞品白�
 用户恢复社媒项目浏览器授权后，CLI仍属另一账号并返回403；使用正常控制台源码ZIP备份与Code编辑器发布，不提取浏览器令牌或扩大权限。现行live-platforms.mjs含9月28日已部署而仓库遗漏的28天分页实现，先原样补入仓库，避免以后CLI部署倒退；只新增YouTube公开逐帖读取到既有youtube.mjs，并在原index.ts并发调用。固定既有WONLY频道，沿用YOUTUBE_API_KEY，3个有界官方只读请求，最多50条公开上传，验证频道/公开视频，null与0分开，不含标题/正文/评论身份。已有OAuth Analytics保持原样，不自动申请权限或采集广告。
 
 技术依据：[YouTube videos.list](https://developers.google.com/youtube/data/reference/rest/v3/videos/list)、[playlistItems.list](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/list)。失败保留原因，无成功时间；下一页、缺视频或不公开均标不完整。回滚只恢复原index.ts/youtube.mjs，不改既有分页、数据库、Secrets或RLS。
+
+## TikTok/Instagram每日私有快照（2026-10-22）
+
+新增`?metrics=1`固定只读源端模式：仅TikTok/Instagram，最近28天，最多各100条；去除标题/正文与窗口外记录，Instagram单帖Insights最多4并发，分页/时间/限额/指标失败保留。`window.complete`与`details_complete`分别表示窗口分页/返回明细，不因仍有28天之外的历史页误称窗口缺失。TikTok 20、Instagram12是旧明细截断值，不是窗口完整记录数。完整性只证明本次API返回的已授权窗口，不保证平台全历史或不支持指标。
+
+设置中的“同步社媒逐帖并回读”使用当前原owner JWT调用既有原子私有接口，按`tiktok-YYYY-MM-DD`、`instagram-YYYY-MM-DD`分平台留档。仅扩充两个私有文档枚举，不改表/RLS/GRANT/身份；生成来源日期/窗口/未知计数/失败状态和最近成功日期，写入后核对两份回执及每份完整文档。失败不推进来源成功时间，不自动重复写入；所有内部值不进入公开Git、外部模型或公开物料。原日报/证据不被替换。每份最多8章/每章3000字，若达到私有包容量明确saved/omitted，不静默丢行。
+
+沿用现有grace-brian-jay北京时间每日09:00自动任务，任务通过现有授权浏览器点击固定同步按钮并真实查询两个平台，保存编号/哈希与缺口；无需人工挑选文件。本机离线或CRM登录失效会延迟/失败，不能宣称是服务器常驻采集；失败保留上次知识和来源成功时间。仅正常无变化时安静，连续失败/需要操作才提醒当前用户。现有Brian/Jay和其他来源范围保持。
+
+回滚恢复两函数原枚举定义、CRM与社媒两个函数/前端；保留新平台历史记录、旧版本及审计，不删除证据。迁移原子核验现行函数体哈希，发现漂移停止。

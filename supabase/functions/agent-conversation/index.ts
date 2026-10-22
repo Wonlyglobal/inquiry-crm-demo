@@ -1,3 +1,4 @@
+import {syncDailySocial} from './social-daily.mjs';
 import {sourceMetricsIntent,socialMetrics,sourceMetricsAnswer} from './source-metrics.mjs';
 import {privateIntelligenceIntent,readPrivateIntelligence} from './private-intelligence.mjs';
 import {privateReportQuestion} from './private-report-context.mjs';
@@ -50,7 +51,7 @@ import {POLICY,PERSONAS,eligible,validateDialogue,requestBody,outputText} from '
 import {CHAT_URL,TTS_URL,MODELS,providerJson,speechBody,speechAudio,transcriptionBody,transcriptText} from './bailian.mjs';
 import {loadCrmStats} from './crm-stats.mjs';
 import {answerIssues,correctionMessage,safeMarketingFallback} from './answer-quality.mjs';
-import {loadSocial,loadSocialPosts,loadSocialLibrary,requestedPostPage} from './social.mjs';
+import {loadSocial,loadSocialPosts,loadSocialLibrary,requestedPostPage,loadSocialMetrics} from './social.mjs';
 import {loadSeo} from './seo.mjs';
 import {loadResearch} from './research.mjs';
 import socialBusinessContext from './social-business-context.json' with {type:'json'};
@@ -168,6 +169,13 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    if(auditError)return json({error:'声纹操作审计失败'},503);
    return json({message:enrollmentReply(result),status:result.status,code:result.code??null,samples:result.samples??null,required:result.required??null});
   }
+  if(input.action==='social-metrics-sync'){
+   const audit=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+   const {count,error:limitError}=await audit.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','agent_social_metrics_sync').gte('created_at',new Date(Date.now()-3600000).toISOString());
+   if(limitError)return json({error:'无法核验社媒读取限额'},503);if((count||0)>=4)return json({error:'社媒同步较频繁，请稍后回读现有知识'},429);
+   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_social_metrics_sync',after_data:{platforms:['tiktok','instagram']},reason:'本人授权的有界社媒私有快照同步；实际写入及回读使用原用户JWT受控RPC'});if(auditError)return json({error:'社媒读取审计失败'},503);
+   try{return json(await syncDailySocial({client,authorization}))}catch{return json({error:'社媒同步或回读未完成；未验证前不能视为成功。请先回读已保存知识，不要重复写入。'},503)}
+  }
   // Private import/readback uses the caller's JWT and transaction-audited RPCs, never model memory.
   if(input.action==='private-intelligence-import'){
    const {data,error}=await client.rpc('sync_agent_private_intelligence',{p_documents:input.documents});
@@ -252,8 +260,8 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    }
    if(introIntent(input.question)){const answer=introReply(input.persona);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'self_introduction',persona:input.persona,provider:'internal'},reason:'固定自我介绍，不发送对话正文或业务资料'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'self-introduction',context:{route:'conversation'},ticket:await ticket({user:user.id,persona:input.persona,text:introSpoken(input.persona),tone:input.voiceEmotion||'happy',expires:Date.now()+300000},key)});}
    if(!guest&&sourceMetricsIntent(input.question)){
-    const [seo,social,library]=await Promise.all([loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')}),loadSocial(authorization),loadSocialLibrary(authorization)]);
-    const snapshot=socialMetrics(social,library);
+    const [seo,social,library,metrics]=await Promise.all([loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')}),loadSocial(authorization),loadSocialLibrary(authorization),loadSocialMetrics(authorization)]);
+    const snapshot=socialMetrics({...social,status:metrics.status,generated_at:metrics.generated_at,live_platforms:{...social.live_platforms,...metrics.live_platforms}},library);
     const coverage={seo_status:seo.status,seo_generated_at:seo.generated_at||null,competitor_records:seo.competitor_metrics?.length||0,social_status:snapshot.status,platforms:snapshot.platforms.map(p=>({platform:p.platform,status:p.status,records:p.posts.length,fetched_at:p.fetched_at})),stored_records:snapshot.stored.eligible_records};
     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'source_metrics',...coverage},reason:'只读获准竞品SEO及WONLY四平台逐帖指标；不读取正文、私信或LinkedIn，不调用外部模型'});if(error)return json({error:'来源读取审计失败'},503);
     return json({answer:sourceMetricsAnswer(seo,snapshot),provider:'internal',model:'source-metrics',context:{route:'source_metrics',coverage},ticket:await ticket({user:user.id,persona:input.persona,text:'我已核对竞品和逐帖指标，可用数据、来源日期与缺口都在窗口里。',expires:Date.now()+300000},key)});

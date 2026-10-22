@@ -2229,7 +2229,8 @@
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
             <h4 style="margin:0">客户背调</h4>
             <div class="form-actions" style="margin:0">
-              <button id="run-business-research" class="ghost hidden" type="button" aria-hidden="true">自动背调</button>
+              <button id="run-business-research" class="ghost" type="button">重新背调（官网优先）</button>
+              <button id="save-public-business-research" class="ghost" type="button">审核并存入 Business 公司库</button>
               <button id="upload-topease-report" class="ghost" type="button">导入特易报告</button>
               <button id="paste-topease-report" class="ghost" type="button">粘贴特易报告</button>
             </div>
@@ -8194,11 +8195,14 @@
         });
       }
       async function loadCompanyImages() {
+        const researchInquiryId = currentInquiry?.id;
         const website = $("#detail-research-domain").value.trim();
         if (!website || !currentInquiry || currentInquiry.webformProviderIdentityBlocked || isWebsiteFormServiceCompany($("#detail-research-company").value) || isWebsiteFormServiceDomain(website)) { renderCompanyImages([]); return; }
         try {
           const { data, error } = await supabase.functions.invoke("company-website-images", { body: { inquiry_id: currentInquiry.id, website, company_name: $("#detail-research-company").value.trim() } });
           if (error) throw error;
+          if (currentInquiry?.id !== researchInquiryId) return;
+          currentInquiry.publicWebsiteResearch = { data, inquiryId: researchInquiryId, accessedAt: new Date().toISOString().slice(0,10) };
           const candidates = data?.candidates || [];
           renderCompanyImages(candidates);
           $("#detail-research-photo-sources").value = candidates.map((item) => safeExternalUrl(item.url)).filter(Boolean).join("\n");
@@ -8324,7 +8328,7 @@
         const inquiryId=postCreateAutomationInquiryId;
         postCreateAutomationInquiryId=null;
         const quality=assessResearchQuality(),recipient=resolveInquiryRecipient();
-        if(!quality.generated){
+        if(!quality.generated||!quality.ready){
           setDetailTab("research");
           $("#detail-research-status").textContent="背调状态：已自动执行；证据不足，开发信草稿未生成";
           return toast("背调已完成；证据不足，开发信草稿未生成");
@@ -8339,131 +8343,48 @@
         await generateOutreach();
       }
       $("#run-business-research").addEventListener("click", async () => {
-        if (!currentInquiry) return;
-        if (currentInquiry.webformProviderIdentityBlocked || isWebsiteFormServiceCompany($("#detail-research-company").value) || isWebsiteFormServiceDomain($("#detail-research-domain").value)) return toast("Web3Forms 只是官网表单服务商，不能作为询盘公司背调；请先核实邮件正文中的真实公司");
-        if (autonomousResearchInquiryId === currentInquiry.id) return;
-        const button = $("#run-business-research");
-        const intakeEmail = currentInquiry.email_intake?.sender_email || "";
-        const publicEmailDomains = new Set(["gmail.com","googlemail.com","outlook.com","hotmail.com","live.com","yahoo.com","icloud.com","qq.com","163.com","126.com","proton.me","protonmail.com"]);
-        const normalizeDomain = (value) => String(value || "").trim().toLowerCase()
-          .replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].split("@").pop();
-        const normalizeCompanyName = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b(ltda|eireli|sa|s\/a|inc|llc|limited|industria|comercio)\b/g,"").replace(/[^a-z0-9]/g,"");
-        const normalizeCountry = (value) => ({brasil:"brazil",br:"brazil",巴西:"brazil",argentina:"argentina",阿根廷:"argentina",china:"china",中国:"china"}[String(value||"").trim().toLowerCase()]||String(value||"").trim().toLowerCase());
-        const websiteLead = currentInquiry.source === "website" || isWebsiteFormServiceDomain(currentInquiry.email_intake?.parsed_data?.transport_sender);
-        const candidateDomain = normalizeDomain($("#detail-research-domain").value || (websiteLead ? "" : inferExternalResearchDomain(intakeEmail)));
-        let domain = publicEmailDomains.has(candidateDomain) ? "" : candidateDomain;
-        const companyName = $("#detail-research-company").value.trim() || currentInquiry.companies?.name || "";
-        const companyCountry = $("#detail-smart-country").value.trim() || currentInquiry.target_country || "";
-        const identityCheckInquiry = String(currentInquiry.source || "").toLowerCase() === "whatsapp" && /check one person|核实.*人|确认.*员工|核验.*身份/i.test(String(currentInquiry.original_message || ""));
-        if (!domain && (!companyName || companyName === "待核实邮件客户")) {
-          $("#detail-research-status").textContent = "背调状态：待补充客户公司名称或官网；内部发件邮箱和公共邮箱不能作为客户公司身份依据";
-          return;
-        }
-        autonomousResearchInquiryId = currentInquiry.id;
-        button.disabled = true;
-        button.textContent = "背调中…";
-        $("#detail-research-status").textContent = "背调状态：正在查询 WONLY Business…";
+        if (!currentInquiry || autonomousResearchInquiryId) return;
+        const id=currentInquiry.id, button=$("#run-business-research");
+        if (!$("#detail-research-domain").value.trim()) { $("#detail-research-status").textContent="缺少已核对官网，尚未执行独立核验；请补充官网或公开来源，不代表公司不存在。"; return; }
+        autonomousResearchInquiryId=id; button.disabled=true;
         try {
-          const base = "https://business.foreverdoodle.com/api/";
-          let index = { companies: [] }, hit = null, record, matchMethod = "官网域名精确匹配";
-          if (!identityCheckInquiry) {
-            const indexResponse = await fetch(base + "index.json", { cache: "no-store" });
-            if (!indexResponse.ok) throw new Error(`背调索引读取失败（${indexResponse.status}）`);
-            index = await indexResponse.json();
-            const indexedCompanies = index.companies || index || [];
-            if (domain) hit = indexedCompanies.find((item) => normalizeDomain(item.domain) === domain);
-            if (!hit && companyName) {
-              const nameMatches = indexedCompanies.filter((item) => normalizeCompanyName(item.company || item.normName) === normalizeCompanyName(companyName));
-              const countryMatches = nameMatches.filter((item) => !companyCountry || normalizeCountry(item.countryName || item.country) === normalizeCountry(companyCountry));
-              const candidates = countryMatches.length ? countryMatches : nameMatches;
-              if (candidates.length === 1) { hit = candidates[0]; domain = normalizeDomain(hit.domain); matchMethod = "公司名称 + 国家唯一匹配"; }
-            }
-          }
-          if (hit) {
-            const detailResponse = await fetch(base + hit.file, { cache: "no-store" });
-            if (!detailResponse.ok) throw new Error(`公司背调读取失败（${detailResponse.status}）`);
-            record = await detailResponse.json();
-            record.researchStatus = "ready";
-            record.dataUpdatedAt = record.addedDate || index.generatedAt || "";
-          } else if (!record) {
-            $("#detail-research-company").value ||= companyName;
-            $("#detail-research-domain").value = domain;
-            updateDomainLink();
-            $("#detail-research-status").textContent = "背调状态：WONLY Business 暂无唯一匹配，正在补充地址与图片；官网和公开证据待核验…";
-            await completeOnlineResearchAndSave();
-            const fallbackQuality = assessResearchQuality();
-            $("#detail-research-status").textContent = fallbackQuality.ready
-              ? "背调状态：公开信息检索完成，证据已达到销售准备门槛"
-              : "背调状态：公开信息检索完成；公司身份或证据仍待补充";
-            await maybeGeneratePostCreateOutreach();
-            return;
-          }
-          currentInquiry.businessResearch = record;
+          delete currentInquiry.publicWebsiteResearch;
+          $("#detail-research-status").textContent="正在独立核验当前官网，历史库不替代本次研究…";
+          await loadCompanyImages();
+          if(currentInquiry?.id!==id)return;
+          const fresh=currentInquiry.publicWebsiteResearch;
+          if(!fresh){$("#detail-research-status").textContent="官网访问未完成，保留历史证据；尚未发布或入库。请核对域名或补充可公开来源。";return;}
+          const pages=fresh.data.website_evidence||[];
+          const isWhatsAppIdentityCheck=String(currentInquiry.source||"").toLowerCase()==="whatsapp"&&/check one person|核实.*人|确认.*员工|核验.*身份/i.test(String(currentInquiry.original_message||""));
+          $("#detail-research-deep-status").value=isWhatsAppIdentityCheck?"company_match_required":"research_required";
+          if(isWhatsAppIdentityCheck){$("#detail-research-why-now").value="身份核实请求不是采购需求，尚无已核实的近期采购信号。";$("#detail-research-risks-counter").value="来讯者身份、公司归属及授权待核实；未核验前不披露员工信息。";}
+          $("#detail-research-summary").value=["1. 独立检索当前官网 "+pages.length+" 页；页面内容仅为公司自述。","2. 公开业务线索："+(fresh.data.website_profile?.description||fresh.data.website_profile?.title||"页面缺少业务描述，需补充公司介绍/产品页。"),"3. 尚需核验：法定主体、联系人任职、采购能力、项目与近期动态；未执行独立登记或海关核验。","4. 下一步：逐条审核官网来源，确认公司名、国家、域名一致后存入 Business；私人询盘与联系方式不公开。"].join("\n");
+          $("#detail-research-next-action").value="核对公司身份与官网是否一致；从已确认官方入口核实联系人职责，再询问规格、认证和采购节点。";
+          $("#detail-research-status").textContent="官网检索完成（"+pages.length+"页），独立证据待补充；未存入 Business。";
           assessResearchQuality();
-          $("#detail-research-company").value = record.company || hit?.company || "";
-          $("#detail-research-domain").value = domain;
-          updateDomainLink();
-          if (record.countryName) $("#detail-smart-country").value = record.countryName;
-          $("#detail-research-type").value = record.categoryName || "";
-          $("#detail-research-business").value = [record.productFocus, record.brandsCarried, record.scale].filter(Boolean).join("\n");
-          const summary = [
-            `匹配：${record.company || hit?.company}（${matchMethod}，可信度 ${record.confidence || "待确认"}）`,
-            record.importSignal && `采购信号：${record.importSignal}`,
-            record.projects && record.projects !== "None named" && `项目线索：${record.projects}`,
-            record.fitReason && `契合判断：${record.fitReason}`,
-            record.angle && `建议切入：${record.angle}`,
-            record.risk && `风险/反证：${record.risk}`,
-          ].filter(Boolean).join("\n");
-          $("#detail-research-summary").value = summary;
-          $("#detail-research-risk").value = /fraud|严重|高风险/i.test(record.risk || "") ? "high" : /risk|风险|跨度/i.test(record.risk || "") ? "medium" : "normal";
-          $("#detail-research-reason").value = "";
-          const sourceDate = record.addedDate || record.dataUpdatedAt || "";
-          const sourceUrl = record.sourceUrl || record.website || "";
-          const inquiryDate = currentInquiry.email_intake?.received_at || currentInquiry.created_at || "";
-        const inquiryDemand = currentInquiry.demand_summary || currentInquiry.original_message?.slice(0, 800) || currentInquiry.title;
-        const isWhatsAppIdentityCheck = String(currentInquiry.source || "").toLowerCase() === "whatsapp" && /check one person|核实.*人|确认.*员工|核验.*身份/i.test(String(currentInquiry.original_message || ""));
-          const inquiryEmail = currentInquiry.email_intake?.sender_email || "";
-          const factSuffix = `｜来源：${sourceUrl || "未提供"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`;
-          const facts = [record.company && `公司名称：${record.company}${factSuffix}`, record.countryName && `所在地：${record.countryName}${record.city ? ` · ${record.city}` : ""}${factSuffix}`, record.categoryName && `公司类型：${record.categoryName}${factSuffix}`, record.productFocus && `主营产品：${record.productFocus}${factSuffix}`, record.scale && `公司规模：${record.scale}${factSuffix}`].filter(Boolean);
-          const signals = [!isWhatsAppIdentityCheck && `客户主动询盘：${inquiryDemand}｜判断：存在明确主动采购意向，具体项目与决策权限待核实｜来源：客户原始邮件｜日期：${inquiryDate ? fmtDate(inquiryDate) : "未知"}｜可信度：高`, !isWhatsAppIdentityCheck && record.importSignal && `采购/进口信号：${record.importSignal}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`, !isWhatsAppIdentityCheck && record.projects && record.projects !== "None named" && `项目线索：${record.projects}｜来源：${sourceUrl || "待补充"}｜日期：${sourceDate || "未知"}｜可信度：${record.confidence || "待判断"}`].filter(Boolean);
-          const contacts = [inquiryEmail && `${currentInquiry.contact_name || currentInquiry.email_intake?.sender_name || "客户联系人"}｜${currentInquiry.contact_job_title || "职称待核实"}｜${inquiryEmail}｜客户原始邮件发件人已核验｜客户原始邮件`, record.decisionContact && `决策联系人：${record.decisionContact}｜已公开信息｜${record.contactSource || sourceUrl || "来源待补充"}`, record.email && `邮箱：${record.email}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`, record.phone && `电话：${record.phone}｜待核验｜${record.contactSource || sourceUrl || "来源待补充"}`].filter(Boolean);
-          $("#detail-research-deep-status").value = isWhatsAppIdentityCheck ? "company_match_required" : sourceUrl && record.confidence !== "low" ? "ready" : "research_required";
-          $("#detail-research-match-method").value = matchMethod;
-          $("#detail-research-match-confidence").value = isWhatsAppIdentityCheck ? "low" : ["high", "medium", "low"].includes(record.confidence) ? record.confidence : "medium";
-          $("#detail-research-source-updated").value = sourceDate;
-          $("#detail-research-why-now").value = isWhatsAppIdentityCheck ? "暂无经核实的近期采购、项目或扩张信号。WhatsApp 仅请求核实 WONLY 员工身份，不是采购需求。" : `客户已主动发送询盘，内容涉及：${inquiryDemand}。这是当前最强的一方采购信号，应在首次联系中尽快核实项目业主、技术规格、数量、预算、采购节点和决策链。${record.importSignal ? ` 外部采购信号：${record.importSignal}` : ""}`;
-          $("#detail-research-confirmed-facts").value = facts.join("\n");
-          $("#detail-research-demand-signals").value = signals.join("\n");
-          $("#detail-research-likely-needs").value = isWhatsAppIdentityCheck ? "对方可能希望核实 WONLY 员工身份；仅按本次消息推断，需先核验来讯者身份及其获得该信息的授权。暂无可确认的产品或项目需求。" : record.fitReason || "暂无足够证据形成明确需求判断";
-          $("#detail-research-risks-counter").value = isWhatsAppIdentityCheck ? "来讯号码与官网公开电话不同，来讯者姓名、公司隶属、核验对象及授权均未核实；不得据此披露员工个人或任职信息。本次消息未提产品、项目、规格、数量或采购计划。" : record.risk || "未发现明确风险；仍需核验公司身份、项目真实性、付款条件和最终用途";
-          $("#detail-research-contacts").value = contacts.join("\n");
-          $("#detail-research-questions").value = isWhatsAppIdentityCheck ? ["请提供您的姓名、职位及所属公司官网邮箱。", "您希望核实的 WONLY 联系人是谁，您与其是什么业务关系？", "请说明核验目的，以及您是否获得该联系人同意或授权。", "在完成内部核验前，不向外部确认或披露员工个人信息。"].join("\n") : ["项目最终用途和业主是谁？", "所需产品规格、尺寸、材质、表面处理和认证标准是什么？", "采购数量、预算、交付地点和期望交期是什么？", "谁负责技术确认、商务审批和最终采购决定？", "是否已有图纸、技术规范或现有供应商？"].join("\n");
-          $("#detail-research-materials").value = ["匹配项目的产品选型表与技术参数", "相关认证和测试报告", "相似国家或项目案例", "样品与 Golden Sample 流程", "报价所需信息清单和质量检验方案"].join("\n");
-          $("#detail-research-next-action").value = isWhatsAppIdentityCheck ? "先核实来讯者姓名、公司归属、请求目的及授权；由内部员工本人确认后再决定是否回应，未核验前不披露员工信息。" : record.angle || "先发送需求确认问题，核实项目和决策链后再准备正式报价";
-          $("#detail-research-sources").value = [...new Set([record.sourceUrl, record.contactSource, record.website].filter(Boolean))].join("\n");
-          $("#detail-research-status").textContent = `背调状态：可用 · 数据更新 ${record.dataUpdatedAt || "未知"}`;
-          const evidence = $("#detail-research-evidence");
-          evidence.replaceChildren();
-          evidence.append("来源：");
-          if (record.sourceUrl) {
-            const link = document.createElement("a");
-            link.href = record.sourceUrl; link.target = "_blank"; link.rel = "noopener"; link.textContent = record.sourceUrl;
-            evidence.appendChild(link);
-          } else evidence.append("WONLY Business 数据记录");
-          evidence.classList.remove("hidden");
-          calculateResearchScore();
-          await completeOnlineResearchAndSave();
           await maybeGeneratePostCreateOutreach();
-          toast("超级智能体已完成背调并自动保存");
-        } catch (error) {
-          if(postCreateAutomationInquiryId===currentInquiry?.id)postCreateAutomationInquiryId=null;
-          $("#detail-research-status").textContent = "背调状态：执行失败";
-          toast("背调失败：" + (error.message || error));
-        } finally {
-          autonomousResearchInquiryId = null;
-          button.disabled = false;
-          button.textContent = "一键前置背调";
-        }
+        }finally{autonomousResearchInquiryId=null;button.disabled=false;}
+      });
+      $("#save-public-business-research").addEventListener("click", async()=>{
+        const id=currentInquiry?.id,fresh=currentInquiry?.publicWebsiteResearch,button=$("#save-public-business-research");
+        if(!id||!fresh||fresh.inquiryId!==id)return toast("请先重新背调，取得本次官网公开证据");
+        const {BUSINESS_INTAKE,websiteFacts,mergePublicFacts}=await import("./assets/business-public-research.mjs");
+        const company=$("#detail-research-company").value.trim(),country=$("#detail-smart-country").value.trim();
+        if(!company||!country)return toast("请先核对公司名称与国家/地区");
+        const domain=new URL(fresh.data.website).hostname.replace(/^www\./,""),incoming=websiteFacts(fresh.data,fresh.accessedAt);
+        if(!incoming.length)return toast("没有可入库公开证据");
+        if(!confirm("公开保存公司："+company+"（"+domain+"）\n请阅读以下来源并确认公司身份一致，内容可公开且无私有信息：\n\n"+incoming.map((f,i)=>(i+1)+". "+f.value+"\n"+f.source_url).join("\n\n")+"\n\n确认后存入 Business，不会发送邮件或改变CRM阶段。"))return;
+        button.disabled=true;
+        try{
+          const response=await fetch(BUSINESS_INTAKE+"?domain="+encodeURIComponent(domain),{cache:"no-store"});
+          if(!response.ok)throw Error("当前版本读取失败");
+          const previous=(await response.json()).companies?.[0];
+          if(previous&&previous.payload.company!==company)throw Error("同域名已有不同公司名，须核实主体，不能自动合并");
+          const {data,error}=await supabase.functions.invoke("business-company-intake",{body:{domain,company,country,facts:mergePublicFacts(previous?.payload?.facts||[],incoming),identity_confirmed:true,publication_reviewed:true,expected_version:previous?.version||0,request_id:crypto.randomUUID()}});
+          if(error||!data?.readback_verified)throw Error(data?.error||"未确认保存，请刷新核对后再试");
+          if(currentInquiry?.id===id)$("#detail-research-status").textContent="Business 入库已回读核验："+domain+"，版本 "+data.version+"（"+data.status+"）。";
+          toast("Business 公司库已保存并回读，版本 "+data.version);
+        }catch(e){toast("Business 入库未确认："+e.message)}finally{button.disabled=false}
       });
       function calculateResearchScore() {
         const has = (selector) => $(selector).value.trim().length > 0;

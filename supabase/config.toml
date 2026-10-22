@@ -446,6 +446,10 @@ verify_jwt = false
 # JWT and exact existing owner are checked in the first frame, before any provider connection.
 verify_jwt = false
 
+[functions.business-company-intake]
+# GET exposes only reviewed public company facts. POST validates exact active owner.
+verify_jwt = false
+
 [functions.mail-sync-worker]
 # The handler validates a dedicated random Vault-backed token before mailbox access.
 verify_jwt = false

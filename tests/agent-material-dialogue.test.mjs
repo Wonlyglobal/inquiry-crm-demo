@@ -14,3 +14,11 @@ test('concise answers keep video timestamps',()=>{const a={id:'v',name:'Syntheti
 test('unrecognized followup does not silently reuse the previous property',()=>{assert.match(resolveMaterialTurn('那它适合户外吗',['物料：TEST-X1 防火']).question,/户外/);assert.doesNotMatch(resolveMaterialTurn('那它适合户外吗',['物料：TEST-X1 防火']).question,/防火/)});
 
 test('standalone product manual request resets unrelated series context',()=>{assert.deepEqual(resolveMaterialTurn('防火门英文产品手册',['我们有哪些产品系列']),{question:'防火门英文产品手册'})});
+
+test('source/page and version followups preserve model, edition, full conditions and negation',()=>{
+ const a=resolveMaterialTurn('来源和页码呢',['物料：TEST-X1 参数 v7']);assert.match(a.question,/TEST-X1/);assert.match(a.question,/来源和页码/);assert.match(a.question,/v7/);
+ const b=resolveMaterialTurn('那它不适合户外零下20度吗',[a.question]);assert.match(b.question,/不适合户外零下20度/);assert.match(b.question,/v7/);
+ assert.match(resolveMaterialTurn('那它v8的安装条件呢',[a.question]).question,/v8/);assert.doesNotMatch(resolveMaterialTurn('那它v8的安装条件呢',[a.question]).question,/v7/);
+ assert.equal(knowledgeRoute('TX60 Pro dimensions and warranty').materials,true);
+ assert.equal(knowledgeRoute('请列出型号目录').materials,true);
+});

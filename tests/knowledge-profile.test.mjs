@@ -4,3 +4,8 @@ test('page-evidenced profile can match generic filenames without unrelated-categ
 
 import {seriesCatalogueAnswer} from '../supabase/functions/agent-conversation/knowledge-profile.mjs';
 test('categories never masquerade as officially established product series',()=>{const answer=seriesCatalogueAnswer({series_catalogue:{series:[],categories:[{label:'fire_door',files:2}]}});assert.match(answer,/没有提取到明确/);assert.match(answer,/防火门：2份/);assert.match(answer,/不是正式系列/)});
+
+test('series summary lists only returned source/version/pages and marks missing citations',()=>{
+ const a=seriesCatalogueAnswer({series_catalogue:{series:[],categories:[]},assets:[{name:'Synthetic catalogue',versionLabel:'V7',isCurrentVersion:true,document:{pages:[{page:4,location:'第4页'}]}}]});assert.match(a,/Synthetic catalogue｜V7｜当前版本｜第4页/);assert.match(a,/不证明系列归属/);
+ assert.match(seriesCatalogueAnswer({series_catalogue:{}}),/不能补造出处/);
+});

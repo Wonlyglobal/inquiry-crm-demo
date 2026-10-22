@@ -69,3 +69,7 @@ test('input method width, case and model separators preserve exact variants',()=
  for(const q of ['x60pro','Ｘ６０ Ｐｒｏ','X-60 Pro','x 60 pro','X六零 Pro'])assert.deepEqual(findModels(q,fixture),['X60 Pro'],q);
  assert.deepEqual(findModels('X600 Pro',fixture),[]);
 });
+
+test('an explicit edition never falls back to the fixed August catalogue index',()=>{
+ for(const q of ['TX60 Pro v7参数','第七版画册 TX60 Pro 的尺寸','打开2026年8月版画册'])assert.equal(catalogPrecheck(q),false,q);
+});

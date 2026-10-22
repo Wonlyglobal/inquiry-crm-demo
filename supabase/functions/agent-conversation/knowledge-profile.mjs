@@ -12,5 +12,6 @@ export function seriesCatalogueAnswer(data){
  const c=data.series_catalogue;if(!c)return '尚未取得产品系列目录，请稍后重试。';
  const names={fire_door:'防火门',medical_door:'医用门',security_door:'防盗门',smart_lock:'智能锁'};
  const series=(c.series||[]).slice(0,50),categories=(c.categories||[]).filter(x=>names[x.label]);
- return '已按当前有权查看的现行文档整理产品系列线索，以下尚未经过产品负责人核验。\n\n'+(series.length?'文档明确标注的系列：\n'+series.map(x=>`• ${String(x.label).slice(0,80)}：${Number(x.files)||0}份资料`).join('\n'):'目前没有提取到明确标注的系列名称，不能把产品门类当作公司正式系列。')+'\n\n正文识别到的产品门类（不是正式系列清单）：\n'+(categories.map(x=>`• ${names[x.label]}：${Number(x.files)||0}份资料`).join('\n')||'暂无可核对门类')+'\n\n可继续输入系列名称或型号查找原文、参数和出处。覆盖仅限已建立档案的现行文档，未解析资料和视频不计入，不代表公司完整产品线。';
+ const sources=(data.assets||[]).slice(0,5).map(a=>`${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion===true?'当前版本':a.isCurrentVersion===false?'历史版本':'版本有效性未核验'}｜${(a.document?.pages||[]).map(p=>p.location||'第'+p.page+'页').join('、')||'本次未返回可引用页码'}`);
+ return '已按当前有权查看的现行文档整理产品系列线索，以下尚未经过产品负责人核验。\n\n'+(series.length?'文档明确标注的系列：\n'+series.map(x=>`• ${String(x.label).slice(0,80)}：${Number(x.files)||0}份资料`).join('\n'):'目前没有提取到明确标注的系列名称，不能把产品门类当作公司正式系列。')+'\n\n正文识别到的产品门类（不是正式系列清单）：\n'+(categories.map(x=>`• ${names[x.label]}：${Number(x.files)||0}份资料`).join('\n')||'暂无可核对门类')+'\n\n本次返回的资料出处（最多5份；仅查阅线索，不证明系列归属）：\n'+(sources.join('\n')||'本次未返回可定位的文件、版本与页码，不能补造出处。')+'\n\n可继续输入系列名称或型号查找原文、参数和出处。覆盖仅限已建立档案的现行文档，未解析资料和视频不计入，不代表公司完整产品线。';
 }

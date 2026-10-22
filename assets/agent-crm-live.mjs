@@ -16,6 +16,9 @@ const VIEWS=[
 
 export function crmDataIntent(question){
  const q=String(question||'').trim();
+ // Ambiguous words such as 来源/风险/排名 do not establish CRM intent.
+ // Product evidence and source questions must reach the authenticated material gateway.
+ if(!/CRM|询盘|商机|客户|成交|销售额|成交额|业绩|经营|渠道|数据看板|首次响应|响应率/i.test(q))return null;
  // A dated private report must not be replaced with today's browser aggregates.
  if(/周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据/.test(q))return null;
  if(!q||q.length>120||!DATA.test(q)||!LOOKUP.test(q)||ADVICE.test(q))return null;

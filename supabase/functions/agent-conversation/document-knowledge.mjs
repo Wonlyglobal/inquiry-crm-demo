@@ -1,3 +1,4 @@
+import {seriesIntent} from './product-input.mjs';
 import {productEvidence,productEvidenceText} from './product-evidence.mjs';
 import {normalizeProfile,profileEvidence} from './knowledge-profile.mjs';
 import {materialConstraints} from './material-relevance.mjs';
@@ -5,6 +6,8 @@ import {materialConstraints} from './material-relevance.mjs';
 const boundedInt=(n,max=1000000)=>Number.isSafeInteger(Number(n))&&Number(n)>=0?Math.min(Number(n),max):0;
 export function materialQuery(question){
  const original=String(question).slice(0,500),page=Number(original.match(/第\s*(\d+)\s*页/)?.[1]||1);
+ // A directory request asks for authorized catalogue metadata; instructions about citations are not search terms.
+ if(seriesIntent(original))return {query:'',terms:[],page,constraints:materialConstraints(original)};
  if(/^(?:查看|查询|帮我看)?(?:最新物料|最新资料|所有资料|全部资料|公司动态|知识覆盖|产品知识覆盖|解析进度|学了多少|了解多少)[。？?！!]*$/.test(original))return {query:'',terms:[],page};
  const query=original.replace(/^.*?[：:]/,'').replace(/第\s*\d+\s*页/g,'').replace(/最新|最近|当前/g,' ').replace(/帮我|请|找到|查找|找一下|查一下|资料库|物料系统|产品知识|资料|物料|文件|给我|我要|想要|找|王力|我们|我司|介绍一下|介绍|了解|告诉我|是多少|是什么|怎么样|有哪些|如何|多少|的|？|\?/g,' ').trim().slice(0,120);
  const ids=query.match(/[a-z0-9][a-z0-9_-]{1,39}/gi)||[];

@@ -11,3 +11,9 @@ SEO新增可选competitor_metrics接收契约，只接受现行摘要竞品白�
 验收覆盖真实源查询、失败/部分和零/缺失单测、源日期与指标投影、内部同步编号及回读。部署与实际覆盖以项目WORKLOG和私有验收记录为准。回滚本次CRM函数提交；私有报告保留历史版本和审计，不删除旧证据。
 
 候选验证：948项离线回归、浏览器模块语法、diff检查通过。发布前下载v92与主分支逐文件核对；真实平台与私有回读验收在发布后执行，不以本条测试代替生产结果。
+
+## 社媒源端增补
+
+用户恢复社媒项目浏览器授权后，CLI仍属另一账号并返回403；使用正常控制台源码ZIP备份与Code编辑器发布，不提取浏览器令牌或扩大权限。现行live-platforms.mjs含9月28日已部署而仓库遗漏的28天分页实现，先原样补入仓库，避免以后CLI部署倒退；只新增YouTube公开逐帖读取到既有youtube.mjs，并在原index.ts并发调用。固定既有WONLY频道，沿用YOUTUBE_API_KEY，3个有界官方只读请求，最多50条公开上传，验证频道/公开视频，null与0分开，不含标题/正文/评论身份。已有OAuth Analytics保持原样，不自动申请权限或采集广告。
+
+技术依据：[YouTube videos.list](https://developers.google.com/youtube/data/reference/rest/v3/videos/list)、[playlistItems.list](https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/list)。失败保留原因，无成功时间；下一页、缺视频或不公开均标不完整。回滚只恢复原index.ts/youtube.mjs，不改既有分页、数据库、Secrets或RLS。

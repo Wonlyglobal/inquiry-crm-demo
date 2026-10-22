@@ -4964,6 +4964,35 @@
         const company=fields.company||fields.company_name||"";
         return [["联系人",fields.name||fields.contact_name],["公司",isWebsiteFormServiceCompany(company)?"":company],["国家/地区",fields.country],["职位",fields.job_title],["邮箱",fields.email],["电话",fields.phone],["产品",fields.interests||fields.product],["数量",fields.volume||fields.quantity],["客户需求",fields.message]].filter(([,value])=>value);
       }
+      function emailJourneyView(body){
+        const text=String(body||"").replace(/\r\n?/g,"\n");
+        const marker=/(?:^|\n)[ \t]*(?:journey_events|user_journey|journey_path)[ \t]*:[ \t]*/i.exec(text);
+        if(!marker)return {events:[],readableBody:text,hasJourney:false,error:false};
+        const start=marker.index+marker[0].length;
+        let depth=0,quoted=false,escaped=false,end=-1;
+        for(let i=start;i<text.length;i++){
+          const char=text[i];
+          if(quoted){if(escaped)escaped=false;else if(char==='\\')escaped=true;else if(char==='"')quoted=false;continue}
+          if(char==='"'){quoted=true;continue}
+          if(char==='[')depth++;
+          if(char===']'&&--depth===0){end=i+1;break}
+        }
+        let events=[],error=false;
+        try{const parsed=JSON.parse(text.slice(start,end<0?text.length:end));if(!Array.isArray(parsed))throw new Error();events=parsed.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)).slice(0,100)}catch{error=true}
+        const readableBody=(text.slice(0,marker.index)+(end<0?'':text.slice(end))).split('\n').filter(line=>!/^\s*(?:journey_session|session_ref|journey_events|user_journey|journey_path)\s*:/i.test(line)).join('\n').trim();
+        return {events,readableBody,hasJourney:true,error};
+      }
+      function renderEmailReadableBody(body){
+        const view=emailJourneyView(body);
+        const labels={cta_click:'点击页面按钮',form_open:'打开询价表单',form_start:'开始填写表单',form_submit:'提交表单',generate_lead:'记录表单提交成功',form_error:'填写表单时遇到错误',form_abandon:'离开未完成的表单',contact_click:'点击联系入口'};
+        const steps=view.events.map(item=>{
+          const timestamp=Date.parse(item.event_at||item.timestamp||'');
+          const time=Number.isFinite(timestamp)?new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date(timestamp)):'时间未记录';
+          const page=[item.page_title,item.page_path].filter(x=>typeof x==='string'&&x.trim()).join(' · ');
+          return `<li style="margin:12px 0;overflow-wrap:anywhere"><b>${esc(labels[item.event_name||item.event]||'其他已记录动作')}</b><div class="hint">${esc(time)}（北京时间）</div>${page?`<div>${esc(page)}</div>`:''}${item.cta_name?`<div>按钮：${esc(String(item.cta_name))}</div>`:''}${item.product_context?`<div>相关产品：${esc(String(item.product_context))}</div>`:''}</li>`;
+        }).join('');
+        return `${view.hasJourney?`<section class="ai-triage-card"><h4>客户访问步骤</h4><p class="hint">按邮件记录顺序整理，时间统一为北京时间。</p>${steps?`<ol style="padding-left:24px">${steps}</ol>`:`<p class="hint">${view.error?'访问记录格式异常，请展开完整原文核对。':'邮件未提供可读取的访问步骤。'}</p>`}</section>`:''}<h4>邮件正文</h4><pre class="email-detail-body" style="font-family:inherit" dir="auto">${esc(view.readableBody||'请展开完整原文查看邮件内容。')}</pre>${view.hasJourney?`<details style="margin-top:16px"><summary style="cursor:pointer">查看完整邮件原文（含技术记录）</summary><pre class="email-detail-body" dir="auto">${esc(body||'')}</pre></details>`:''}`;
+      }
       function emailLocalEvidenceCard(email){
         const fields=emailLocalFields(email.body_text);
         return `<section class="ai-triage-card"><div class="ai-triage-head"><div><h4>原文信息整理</h4><small>按邮件明确字段在本地整理，未调用外部 AI；请核对原文，不代表有效性已确认。</small></div></div>${fields.length?`<div class="ai-triage-grid">${fields.map(([label,value])=>`<div><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("")}</div>`:'<p class="hint">未找到明确的表单字段，请阅读下方原文并人工分拣。</p>'}<p class="hint">外部 AI 分析尚未开放；${email.inquiry_id?"此邮件已关联询盘，可点击下方“打开关联询盘”继续核实。":"可在下方人工转为询盘或标记邮件。"}</p></section>`;
@@ -4996,7 +5025,7 @@
           : email.inquiry_id
             ? '<button id="email-detail-open-inquiry" class="primary" type="button">打开关联询盘</button>'
             : '<button id="email-detail-trash" class="ghost" type="button">移入垃圾箱</button><button id="email-detail-warmup" class="ghost" type="button">标记养号邮件</button><button id="email-detail-convert" class="primary" type="button">转为询盘商机</button>';
-        openDashboardModal("邮件详情 · "+(email.subject||"无主题"),`<div class="email-detail-meta"><div><span>发件人</span><b>${esc([email.sender_name,email.sender_email].filter(Boolean).join(" · ")||"—")}</b></div><div><span>收件人</span><b>${esc(email.recipient_email||"—")}</b></div><div><span>收件时间</span><b>${esc(fmtDate(email.received_at||email.created_at))}</b></div><div><span>当前判断</span><b>${esc(triageName+" · "+processingName)}</b></div></div>${email.trashed_at?"":emailLocalEvidenceCard(email)+(suggestion?aiTriageCard(suggestion):"")}<p class="hint">请核对原文中的公司、联系人和需求，再由人工决定业务处理。</p><pre class="email-detail-body" dir="auto">${esc(email.body_text||"（邮件没有可读取的纯文本正文）")}</pre><div class="email-detail-actions">${actions}</div>`);
+        openDashboardModal("邮件详情 · "+(email.subject||"无主题"),`<div class="email-detail-meta"><div><span>发件人</span><b>${esc([email.sender_name,email.sender_email].filter(Boolean).join(" · ")||"—")}</b></div><div><span>收件人</span><b>${esc(email.recipient_email||"—")}</b></div><div><span>收件时间</span><b>${esc(fmtDate(email.received_at||email.created_at))}</b></div><div><span>当前判断</span><b>${esc(triageName+" · "+processingName)}</b></div></div>${email.trashed_at?"":emailLocalEvidenceCard(email)+(suggestion?aiTriageCard(suggestion):"")}<p class="hint">请核对原文中的公司、联系人和需求，再由人工决定业务处理。</p>${renderEmailReadableBody(email.body_text)}<div class="email-detail-actions">${actions}</div>`);
         const close=()=>$("#dashboard-modal").classList.add("hidden");
         $("#email-ai-analyze")?.addEventListener("click",async event=>{const button=event.currentTarget,original=button.textContent;button.disabled=true;button.textContent="AI 分析中…";const result=await supabase.functions.invoke("email-intake-ai",{body:{email_intake_id:email.id}});let message=result.data?.error||result.error?.message;if(result.error?.context)try{message=(await result.error.context.clone().json())?.error||message}catch{}button.disabled=false;button.textContent=original;if(message)return toast("AI 分拣分析失败："+message);toast(result.data?.cached?"已读取现有 AI 分拣建议":"AI 分拣建议已生成");await openEmailIntakeDetail(email.id)});
         $$('[data-ai-triage-review]').forEach(button=>button.addEventListener("click",()=>reviewEmailTriageSuggestion(suggestion,button.dataset.aiTriageReview)));

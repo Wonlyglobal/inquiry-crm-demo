@@ -1,3 +1,4 @@
+import {sourceMetricsIntent,socialMetrics,sourceMetricsAnswer} from './source-metrics.mjs';
 import {privateIntelligenceIntent,readPrivateIntelligence} from './private-intelligence.mjs';
 import {privateReportQuestion} from './private-report-context.mjs';
 import {questionPlan,runQuestionPlan} from './question-plan.mjs';
@@ -250,6 +251,13 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
     return json({answer:v9Turn.clarification||fullMaterialAnswer(materials),provider:'internal',model:'private-smart-lock-v9',context:{route:'materials',materials_status:materials.status,source:'smart-lock-v9',material_question:question.slice(0,500),evidence_check:evidenceCheck(materials)},ticket:await ticket({user:user.id,persona:input.persona,text:materials.status==='available'&&materials.assets.length?'我查了你指定的智能锁画册第九版，带页码的资料已放在窗口里，机器提取还需要核对。':'这次没有取得该型号的第九版证据，不能拿旧版资料代替。',expires:Date.now()+300000},key)});
    }
    if(introIntent(input.question)){const answer=introReply(input.persona);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'self_introduction',persona:input.persona,provider:'internal'},reason:'固定自我介绍，不发送对话正文或业务资料'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'self-introduction',context:{route:'conversation'},ticket:await ticket({user:user.id,persona:input.persona,text:introSpoken(input.persona),tone:input.voiceEmotion||'happy',expires:Date.now()+300000},key)});}
+   if(!guest&&sourceMetricsIntent(input.question)){
+    const [seo,social,library]=await Promise.all([loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')}),loadSocial(authorization),loadSocialLibrary(authorization)]);
+    const snapshot=socialMetrics(social,library);
+    const coverage={seo_status:seo.status,seo_generated_at:seo.generated_at||null,competitor_records:seo.competitor_metrics?.length||0,social_status:snapshot.status,platforms:snapshot.platforms.map(p=>({platform:p.platform,status:p.status,records:p.posts.length,fetched_at:p.fetched_at})),stored_records:snapshot.stored.eligible_records};
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'source_metrics',...coverage},reason:'只读获准竞品SEO及WONLY四平台逐帖指标；不读取正文、私信或LinkedIn，不调用外部模型'});if(error)return json({error:'来源读取审计失败'},503);
+    return json({answer:sourceMetricsAnswer(seo,snapshot),provider:'internal',model:'source-metrics',context:{route:'source_metrics',coverage},ticket:await ticket({user:user.id,persona:input.persona,text:'我已核对竞品和逐帖指标，可用数据、来源日期与缺口都在窗口里。',expires:Date.now()+300000},key)});
+   }
    if(!guest&&sourceStatusIntent(input.question)){
     const [seo,social]=await Promise.all([loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')}),loadSocial(authorization)]);
     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'source_status',seo_status:seo.status,social_status:social.status},reason:'只读来源状态与日期，不调用模型或发送内部正文'});if(error)return json({error:'调用审计失败'},503);

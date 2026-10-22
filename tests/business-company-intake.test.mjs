@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {normalizeSubmission,publicUrl} from '../supabase/functions/business-company-intake/payload.mjs';
-import {websiteFacts,mergePublicFacts} from '../assets/business-public-research.mjs';
+import {websiteFacts,mergePublicFacts,researchCompanyDomain} from '../assets/business-public-research.mjs';
 const sample=()=>({domain:'example.com',company:'Example Ltd',country:'Test',identity_confirmed:true,publication_reviewed:true,expected_version:0,request_id:'12345678-1234-4123-8123-123456789012',facts:[{field:'products',value:'Door hardware',source_url:'https://example.com/products',accessed_at:'2026-10-21',verification:'official_self_report'}]});
 test('reviewed public facts are normalized and preserve missing event date',()=>{const x=normalizeSubmission(sample());assert.equal(x.payload.facts[0].event_date,null);assert.equal(x.expected_version,0)});
 test('no arbitrary CRM/contact fields or unreviewed publication',()=>{for(const extra of [{email:'a@example.com'},{original_message:'private'},{publication_reviewed:false},{expected_version:null}])assert.throws(()=>normalizeSubmission({...sample(),...extra}));});
@@ -13,4 +13,8 @@ test('browser projection only uses current website evidence, not private CRM fie
 test('refresh deduplicates same evidence without deleting historical facts',()=>{
  const old=sample().facts[0],fresh={...old,accessed_at:'2026-10-22'},changed={...fresh,value:'Updated product line'};
  assert.deepEqual(mergePublicFacts([old],[fresh]),[old]);assert.deepEqual(mergePublicFacts([old],[changed]),[old,changed]);assert.deepEqual(mergePublicFacts([old],[]),[old]);
+});
+test('mailbox and transport domains are not buyer company websites',()=>{
+ for(const domain of ['mail.ru','www.mail.ru','gmail.com','outlook.com','app.web3forms.com','yandex.ru']){assert.equal(researchCompanyDomain(domain),'');assert.throws(()=>normalizeSubmission({...sample(),domain}));}
+ assert.equal(researchCompanyDomain('https://www.example.com/about'),'example.com');
 });

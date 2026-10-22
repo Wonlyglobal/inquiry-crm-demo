@@ -10,7 +10,7 @@ export function normalizeSubmission(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!TOP.has(k)))throw Error('unsupported_fields');
  if(input.identity_confirmed!==true||input.publication_reviewed!==true)throw Error('public_review_required');
  const domain=text(input.domain,253).toLowerCase().replace(/^www\./,'');
- if(new URL(publicUrl('https://'+domain)).hostname!==domain||/(^|\.)(web3forms\.com|gmail\.com|outlook\.com|wonlyglobal\.com)$/.test(domain))throw Error('invalid_company_domain');
+ if(new URL(publicUrl('https://'+domain)).hostname!==domain||/(^|\.)(web3forms\.com|gmail\.com|googlemail\.com|outlook\.com|hotmail\.com|live\.com|yahoo\.com|icloud\.com|qq\.com|163\.com|126\.com|proton\.me|protonmail\.com|mail\.ru|yandex\.ru|yandex\.com|rambler\.ru|wonlyglobal\.com)$/.test(domain))throw Error('invalid_company_domain');
  const company=text(input.company,180),country=text(input.country,100);
  if(/@|\+\d|[\r\n]/.test(company+country))throw Error('private_identity_not_allowed');
  if(/web3forms/i.test(company))throw Error('provider_is_not_company');

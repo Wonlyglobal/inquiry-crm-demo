@@ -2,11 +2,11 @@
 import {formatPrivateSection} from './private-report-format.mjs';
 export const PRIVATE_SCHEMA='grace-private-intelligence-v1';
 export function privateIntelligenceIntent(q=''){
- return /周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据|(?:已同步|已保存|私有).*?(?:TikTok|Instagram|社媒).*?(?:指标|帖子|逐帖)/i.test(q);
+ return /周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据|(?:已同步|已保存|私有).*?(?:TikTok|Instagram|Facebook|YouTube|社媒).*?(?:指标|帖子|逐帖)/i.test(q);
 }
 export function privateIntelligenceQuery(q='',now=Date.now()){
- const id=q.match(/\b(?:weekly|daily|evidence|tiktok|instagram)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?\b/)?.[0]||null;
- const kind=id?id.split('-')[0]:/tiktok/i.test(q)?'tiktok':/instagram/i.test(q)?'instagram':/周报/.test(q)?'weekly':/日报/.test(q)?'daily':/证据/.test(q)?'evidence':null;
+ const id=q.match(/\b(?:weekly|daily|evidence|tiktok|instagram|facebook|youtube)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?\b/)?.[0]||null;
+ const kind=id?id.split('-')[0]:/tiktok/i.test(q)?'tiktok':/instagram/i.test(q)?'instagram':/facebook/i.test(q)?'facebook':/youtube/i.test(q)?'youtube':/周报/.test(q)?'weekly':/日报/.test(q)?'daily':/证据/.test(q)?'evidence':null;
  const dates=q.match(/20\d{2}-\d{2}-\d{2}/g)||[];
  let from=dates[0]||null,to=dates[1]||null;
  if(!from&&/上周|本周|这周/.test(q)){
@@ -25,7 +25,7 @@ export function privateIntelligenceAnswer(result,question=''){
  const out=['以下来自公司私有知识库；报告与证据未发送给外部模型。'];
  for(const row of rows){const d=row.document;
   out.push(`\n${d.title}`,`报告期间：${d.period.from}—${d.period.to}；来源生成：${d.generated_at}`,'状态：自动汇总，未经人工事实核验；导入时间不等于源数据更新时间。');
-  const follow=question.split('，').at(-1)||'',focused=/查看私有知识 (?:weekly|daily|evidence|tiktok|instagram)-/.test(question);
+  const follow=question.split('，').at(-1)||'',focused=/查看私有知识 (?:weekly|daily|evidence|tiktok|instagram|facebook|youtube)-/.test(question);
   const filter=focused&&/风险|下一步|优先|建议动作/.test(follow)?/风险|动作|口径|限制|边界/:focused&&/数据日期/.test(follow)?/日期|口径|限制|边界/:null;
   const selected=filter?d.sections.filter(s=>filter.test(s.title)):d.sections;
   for(const s of selected.length?selected:d.sections)out.push(`\n${s.title}\n${formatPrivateSection(s.body)}`);

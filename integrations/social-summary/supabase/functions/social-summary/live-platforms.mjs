@@ -56,7 +56,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
  const inWindow=p=>{const t=Date.parse(p.published_at);return Number.isFinite(t)&&t>=start.getTime()&&t<=now.getTime()};
  async function boundedMap(rows,fn){let next=0;await Promise.all(Array.from({length:Math.min(4,rows.length)},async()=>{while(next<rows.length){const row=rows[next++];await fn(row)}}))}
  const [facebook,instagram,tiktok]=await Promise.all([
- metricsOnly?Promise.resolve({status:'not_requested'}):run('facebook',async()=>{
+ run('facebook',async()=>{
   let token=get('FB_PAGE_TOKEN');if(!token)return failure('not_configured');
   let me=await graph('me',{fields:'id'},token);
   if(!me.id)return failure('account_binding_mismatch');
@@ -67,21 +67,34 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
    token=matches[0].access_token;me={id:matches[0].id};
   }}
   const [feed,profile]=await Promise.all([
-   graphPages(`${me.id}/published_posts`,{fields:'id,message,permalink_url,created_time,shares,likes.limit(0).summary(true),comments.limit(0).summary(true)',since:String(Math.floor(start.getTime()/1000))},token,'facebook',p=>p.created_time),
+   graphPages(`${me.id}/published_posts`,{fields:'id,'+(metricsOnly?'':'message,')+'permalink_url,created_time,shares,likes.limit(0).summary(true),comments.limit(0).summary(true)',since:String(Math.floor(start.getTime()/1000))},token,'facebook',p=>p.created_time),
    optional(()=>graph(me.id,{fields:'followers_count,fan_count'},token))]);
   if(!feed)return failure('invalid_response');
   const rows=feed.rows.map(p=>({id:typeof p.id==='string'&&/^[\d_]+$/.test(p.id)?p.id:null,url:publicPostUrl(p.permalink_url),content:safeText(p.message),published_at:p.created_time,metrics:{likes:numeric(p.likes?.summary?.total_count),comments:numeric(p.comments?.summary?.total_count),shares:numeric(p.shares?.count)}}));
-  const detail=rows.slice(0,LIMITS.facebook.detail);
+  const selected=metricsOnly?rows.filter(inWindow):rows;
+  const detail=selected.slice(0,metricsOnly?100:LIMITS.facebook.detail);
   // Post insights need read_insights; missing permission leaves views/viewers/clicks unknown. Current metric names (2026): post_media_view, post_total_media_view_unique.
   const insightKeys={post_media_view:'views',post_total_media_view_unique:'viewers',post_clicks:'clicks'};
   const insightErrors=new Set();
-  await Promise.all(detail.map(async p=>{if(!p.id){p.metric_errors={insights:'post_id_missing'};return}try{const d=await graph(`${p.id}/insights`,{metric:Object.keys(insightKeys).join(',')},token);for(const [name,key] of Object.entries(insightKeys)){const row=d.data?.find(x=>x.name===name);p.metrics[key]=numeric(row?.values?.[0]?.value??row?.total_value?.value)}}catch(e){const code=DENIED.includes(e.message)?e.message:'metric_unavailable';insightErrors.add(code);for(const key of Object.values(insightKeys))p.metrics[key]=null;p.metric_errors={insights:code}}}));
+  await boundedMap(detail,async p=>{
+   const errors={};
+   const pick=(d,name)=>{const row=d.data?.find(x=>x.name===name);return numeric(row?.values?.[0]?.value??row?.total_value?.value)};
+   if(!p.id){for(const key of Object.values(insightKeys)){p.metrics[key]=null;errors[key]='post_id_missing'}p.metric_errors=errors;return}
+   try{const d=await graph(`${p.id}/insights`,{metric:Object.keys(insightKeys).join(',')},token);for(const [name,key] of Object.entries(insightKeys))p.metrics[key]=pick(d,name)}
+   catch(e){
+    if(DENIED.includes(e.message)||signal.aborted){const code=signal.aborted?'timeout':e.message;insightErrors.add(code);for(const key of Object.values(insightKeys)){p.metrics[key]=null;errors[key]=code}}
+    else for(const [name,key] of Object.entries(insightKeys)){try{p.metrics[key]=pick(await graph(`${p.id}/insights`,{metric:name},token),name)}catch(x){const code=DENIED.includes(x.message)?x.message:'metric_unavailable';insightErrors.add(code);p.metrics[key]=null;errors[key]=code}}
+   }
+   for(const key of Object.values(insightKeys))if(p.metrics[key]===null&&!errors[key])errors[key]='not_returned';
+   p.metric_errors=errors;
+  });
   const complete=!feed.stop;
   return {...common('Facebook Graph API'),status:'available',has_more:feed.hasMore,
    account:profile.error?{status:'unavailable',reason:profile.error}:{status:'available',followers:numeric(profile.followers_count),page_likes:numeric(profile.fan_count)},
    window:windowSummary(rows,['likes','comments','shares','views'],{start,end:now,pagesRead:feed.pages,complete,stopReason:feed.stop,rankBy:['views','likes']}),
-   insights_status:detail.some(p=>p.metrics.views!==null||p.metrics.viewers!==null)?'available':insightErrors.size?[...insightErrors][0]:'unavailable',
-   posts:detail.map(({id,...p})=>p),missing:['retention','watch_time','attributed_conversions','insights_beyond_detail_posts']};
+   details_returned:detail.length,details_total:selected.length,details_complete:complete&&selected.length===detail.length,
+   insights_status:detail.some(p=>numeric(p.metrics.views)!==null||numeric(p.metrics.viewers)!==null)?'available':insightErrors.size?[...insightErrors][0]:'unavailable',
+   posts:detail.map(({id,content,...p})=>metricsOnly?p:{...p,content}),missing:['retention','watch_time','attributed_conversions','insights_beyond_detail_posts']};
  }),
  run('instagram',async()=>{
   const token=get('IG_ACCESS_TOKEN'),id=get('IG_BUSINESS_ID');if(!token||!id)return failure('not_configured');

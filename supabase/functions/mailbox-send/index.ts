@@ -68,8 +68,9 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     const intake = Array.isArray(inquiry.email_intake) ? inquiry.email_intake[0] : inquiry.email_intake;
     const recipient = clean((intake as { sender_email?: string } | null)?.sender_email, 320).toLowerCase();
     if (!recipient) return new Response(JSON.stringify({ error: "询盘没有可用的客户邮箱" }), { status: 400, headers: cors });
-    const { data: draft, error: draftError } = await admin.from("outreach_drafts").select("id,inquiry_id,status,created_by").eq("id", draftId).eq("inquiry_id", inquiryId).single();
+    const { data: draft, error: draftError } = await admin.from("outreach_drafts").select("id,inquiry_id,status,created_by,body").eq("id", draftId).eq("inquiry_id", inquiryId).single();
     if (draftError || !draft) throw draftError || new Error("开发信草稿不存在");
+    if (String(draft.body||'').includes('【Grace 产品证据草稿｜仅内部审核，不可直接发送】') || messageBody.includes('【Grace 产品证据草稿｜仅内部审核，不可直接发送】')) return new Response(JSON.stringify({ error: "内部产品证据草稿不可直接发送；请先审核并另存不含内部证据的客户正文" }), { status: 409, headers: cors });
     if (draft.created_by !== user.id && !["owner", "sales_manager"].includes(caller.role)) return new Response(JSON.stringify({ error: "只能发送本人创建的邮件草稿" }), { status: 403, headers: cors });
     if (draft.status === "sent") return new Response(JSON.stringify({ error: "该开发信已经发送，请勿重复发送" }), { status: 409, headers: cors });
     const { data: latestThreadMessage, error: threadError } = await admin.from("email_messages").select("direction,sender_email").eq("inquiry_id", inquiryId).order("created_at", { ascending: false }).limit(1).maybeSingle();

@@ -2337,6 +2337,8 @@
             <div class="heading-actions"><button id="reply-inquiry" class="ghost" type="button">回复询盘</button><button id="update-outreach" class="ghost" type="button" disabled>更新开发信</button><button id="generate-outreach" class="primary" type="button">一键生成开发信</button></div>
           </div>
           <p id="outreach-status" class="hint" style="margin-top:16px">草稿尚未生成</p>
+          <section class="quality-panel" style="margin-top:16px"><b>Grace 产品证据开发信</b><p class="hint">内部检索当前产品资料，不调用外部模型。保存英文待审核正文和资料出处；证据草稿禁止直接发送。不替代客户背调或产品专家核验。</p><div class="detail-grid"><div class="field"><label>王力产品门类</label><select id="grace-outreach-category" class="input"><option value="wooden_door">木门</option><option value="smart_lock">智能锁</option><option value="security_door">防盗门</option><option value="medical_door">医用门</option><option value="fire_door">防火门</option></select></div><div class="field"><label>已核实客户/市场切入点（英文，15–400字）</label><textarea id="grace-outreach-angle" class="input" rows="3" maxlength="400" placeholder="依据本询盘和有日期的背调/市场来源填写；不猜采购预算或项目"></textarea></div></div><label><input id="grace-outreach-confirm" type="checkbox"> 我已核对上述切入点与本询盘背调/市场来源；产品摘录仍需人工审核</label><div class="form-actions"><button id="grace-outreach-generate" class="primary" type="button">读取 Grace 产品证据并保存草稿</button></div><p id="grace-outreach-result" class="hint" role="status"></p></section>
+          <details id="grace-outreach-private-panel" class="quality-panel hidden"><summary>本次产品原文（仅当前获授权会话，不写入共享草稿）</summary><pre id="grace-outreach-private-evidence" style="white-space:pre-wrap;color:#17231f;background:#fff;padding:16px"></pre></details>
           <div id="outreach-history-panel" class="quality-panel hidden" style="margin-top:16px"><div class="quality-panel-head"><div><b>开发信生成历史</b><div class="hint" style="margin-top:6px">默认展示最新版本；点击历史版本可查看并继续编辑。</div></div><span id="outreach-history-count" class="tag">0 个版本</span></div><div id="outreach-history-list" class="heading-actions" style="margin-top:12px;justify-content:flex-start;overflow-x:auto"></div></div>
           <div id="outreach-evidence-panel" class="quality-panel">
             <div class="quality-panel-head"><b>本次写信依据</b><span id="outreach-eligibility" class="tag">尚未检查</span></div>
@@ -6499,6 +6501,7 @@
           return;
         }
         currentInquiry = inquiry;
+        $("#grace-outreach-confirm").checked=false;$("#grace-outreach-angle").value='';$("#grace-outreach-result").textContent='';$("#grace-outreach-private-evidence").textContent='';$("#grace-outreach-private-panel").classList.add('hidden');
         currentQualificationAiSuggestion = null;
         const marketAssignedScope=profile.role==="marketing"&&Boolean(inquiry.owner_id);
         const marketHiddenDetailTabs=profile.role==="marketing"
@@ -8799,6 +8802,13 @@
         }
       }
       $("#generate-outreach").addEventListener("click",generateOutreach);
+      $("#grace-outreach-generate").addEventListener("click",async()=>{
+        if(!currentInquiry)return;const result=$("#grace-outreach-result"),button=$("#grace-outreach-generate"),id=currentInquiry.id;
+        if(!$("#grace-outreach-confirm").checked)return toast("请先人工核对客户切入点与来源");
+        const quality=assessResearchQuality();if(!quality.identityReady||!quality.facts.length||!quality.signals.length||!quality.sources.length)return toast("请先完成公司身份核验，补充有来源日期的事实与需求信号");
+        const recipient=resolveInquiryRecipient()||$("#outreach-recipient").value.trim();button.disabled=true;result.textContent="正在内部读取产品证据、保存并回读…";
+        try{const response=await supabase.functions.invoke('agent-conversation',{body:{action:'outreach-product-draft',inquiry_id:id,category:$("#grace-outreach-category").value,recipient,angle:$("#grace-outreach-angle").value.trim(),signer:preferredEnglishName()}});if(response.error||response.data?.error)throw Error(await edgeFunctionErrorMessage(response));if(currentInquiry?.id!==id)return;const data=response.data;if(!data?.readback_verified||!data.draft?.id)throw Error('未取得草稿回读确认');currentInquiry.outreachDraftHistory=[data.draft,...(currentInquiry.outreachDraftHistory||[]).filter(x=>x.id!==data.draft.id)];loadOutreachHistoryVersion(data.draft);$("#grace-outreach-private-evidence").textContent=(data.evidence||[]).map(e=>`${e.name}｜${e.version}｜第${e.page}页\n${e.quote}\n未人工核验；不作为对外承诺。`).join('\n\n');$("#grace-outreach-private-panel").classList.remove('hidden');$("#send-outreach").disabled=true;$("#send-outreach").classList.add('hidden');result.textContent=`已保存并回读 · ${data.evidence_count}条当前版页码证据 · 待人工审核 · 未调用外部模型、未发送邮件`;}catch(e){result.textContent=e.message||'产品证据草稿未完成';toast(result.textContent)}finally{button.disabled=false}
+      });
       $("#update-outreach").addEventListener("click",()=>{if(!$("#update-outreach").disabled)$("#generate-outreach").click()});
       $("#regenerate-outreach").addEventListener("click",async()=>{const button=$("#regenerate-outreach");if(button.disabled)return;button.disabled=true;button.textContent="正在重新生成…";try{await generateOutreach()}finally{button.disabled=false;button.textContent="按补充信息重新生成"}});
       document.querySelectorAll("[data-outreach-language]").forEach(button=>button.addEventListener("click",async()=>{$("#outreach-target-language").value=button.dataset.outreachLanguage;document.querySelectorAll("[data-outreach-language]").forEach(item=>item.classList.toggle("active",item===button));button.disabled=true;const original=button.textContent;button.textContent="生成中…";try{await generateOutreach()}finally{button.disabled=false;button.textContent=original}}));
@@ -8809,6 +8819,7 @@
       });
       async function saveOutreachDraft() {
         if (!currentInquiry) throw new Error("请先打开询盘");
+        if(String($("#outreach-body").value||'').includes('【Grace 产品证据草稿｜仅内部审核，不可直接发送】'))throw new Error('该内部证据版本已保存；请通过Grace入口另建版本，审核后另存客户正文');
         const researchQuality = assessResearchQuality();
         if (outreachComposeMode!=="reply"&&!researchQuality.generated) throw new Error("请先生成客户背调");
         const recipient = $("#outreach-recipient").value.trim();

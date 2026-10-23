@@ -407,6 +407,10 @@ verify_jwt = false
 [functions.sales-email-body-analysis]
 verify_jwt = false
 
+[functions.sales-mail-types]
+# Caller is verified by auth.getUser + RLS and scope RPC before any model call.
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

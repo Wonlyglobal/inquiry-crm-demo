@@ -2575,6 +2575,7 @@
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261023-social-analysis';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import {mailboxRankingRows,renderMailboxRankings} from './assets/sales-mailbox-rankings.mjs?v=20261023-1';
+import {MAIL_TYPES,renderMailTypeRankings,renderMailTypeWorkspace} from './assets/sales-mail-types.mjs?v=20261023-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20261015-stable-call1";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
@@ -4083,9 +4084,10 @@
         if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||month>chinaDate().slice(0,7))return toast("请选择有效的当前或历史月份");
         const requestId=++dashboardEmailObservationRequest,state=dashboardState.emailObservationSummary;
         dashboardState.emailObservationSummary={...state,month,loading:true,error:null};renderDashboardEmailObservationPanel(dashboardState.profiles);
-        let {data,error}=await supabase.rpc("get_sales_email_activity_metrics",{target_period_start:`${month}-01`});
+        const [activityResult,typeResult]=await Promise.all([supabase.rpc("get_sales_email_activity_metrics",{target_period_start:`${month}-01`}),supabase.rpc("get_sales_mail_type_summary",{target_month:`${month}-01`})]);
+        const {data,error}=activityResult;
         if(requestId!==dashboardEmailObservationRequest)return;
-        dashboardState.emailObservationSummary={month,people:data?.people||[],daily:data?.daily||[],error:error||null,loading:false};
+        dashboardState.emailObservationSummary={month,people:data?.people||[],daily:data?.daily||[],mailTypes:{...typeResult.data,error:typeResult.error||null},error:error||null,loading:false};
         renderDashboardEmailObservationPanel(dashboardState.profiles);
       }
       function renderDashboardEmailObservationPanel(profiles=dashboardState.profiles||[]){
@@ -4156,7 +4158,19 @@
         const replyBody=replyEligible.length?replyEligible.map((row,index)=>{if(previous===null||row.value!==previous)rank=index+1;previous=row.value;return `<tr><td><span class="rank-pill ${rank<=3?"top":""}">${rank}</span></td><td>${esc(row.name)}</td><td>${row.value.toFixed(1)}%</td><td>${row.replied_7d}/${row.mature_7d_sent} 封 · 团队 ${teamRate}</td></tr>`}).join(""):`<tr><td colspan="4">当前没有成熟样本达到 5 封，暂不排名</td></tr>`;
         const replyInsufficient=rows.filter(row=>row.mature_7d_sent<5);
         const insufficientNote=replyInsufficient.length?`<div class="dashboard-scope-note" style="padding:10px 14px">样本不足（未进入排名）：${replyInsufficient.map(row=>`${esc(row.name)} ${row.mature_7d_sent}/5 封`).join("；")}</div>`:"";
-        root.innerHTML=renderMailboxRankings(mailboxRows,month)+sendBoard+`<section class="leaderboard"><div class="leaderboard-head"><b>7 天开发信回复率榜</b><span class="dashboard-scope-note">${esc(month)} · 仅统计发送满 7 天的邮件；至少 5 封成熟样本才参与排名</span></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>7 天回复率</th><th>成熟样本 / 团队参考</th></tr></thead><tbody>${replyBody}</tbody></table></div>${insufficientNote}</section>`;
+        root.innerHTML=renderMailTypeRankings(people,summary.mailTypes,month,dashboardState.mailTypeCategory||'new_inquiry',dashboardState.mailTypeBasis||'confirmed')+renderMailboxRankings(mailboxRows,month)+sendBoard+`<section class="leaderboard"><div class="leaderboard-head"><b>7 天开发信回复率榜</b><span class="dashboard-scope-note">${esc(month)} · 仅统计发送满 7 天的邮件；至少 5 封成熟样本才参与排名</span></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>7 天回复率</th><th>成熟样本 / 团队参考</th></tr></thead><tbody>${replyBody}</tbody></table></div>${insufficientNote}</section>`;
+        root.querySelector('[data-mail-type-category]').onchange=event=>{dashboardState.mailTypeCategory=event.target.value;renderDashboardEmailActivityLeaderboards(profiles)};
+        root.querySelector('[data-mail-type-basis]').onchange=event=>{dashboardState.mailTypeBasis=event.target.value;renderDashboardEmailActivityLeaderboards(profiles)};
+        root.querySelectorAll('[data-mail-type-sales]').forEach(button=>button.onclick=()=>{const person=people.find(p=>p.id===button.dataset.mailTypeSales);if(person)openSalesMailTypes(person,month)});
+      }
+      function openSalesMailTypes(person,month){
+        const period=month+'-01';let offset=0,busy=false,request=0;
+        openDashboardModal(`邮件分类与复核 · ${person.full_name}`,`<p class="hint">只处理${esc(month)}已同步且本人权限可见的邮件。AI只看固定通用短语，高敏内容跳过；结果不代表真实询盘有效性。原邮件可在“我的邮箱”或已授权询盘中核对。</p><div class="form-actions"><button class="primary" id="mail-type-run">AI分类待处理邮件（最多40封）</button><button class="ghost" id="mail-type-refresh">刷新</button><button class="ghost" id="mail-type-prev">上一页</button><button class="ghost" id="mail-type-next">下一页</button></div><p id="mail-type-progress" class="hint"></p><div id="mail-type-list"></div>`);
+        const list=$('#mail-type-list'),progress=$('#mail-type-progress'),run=$('#mail-type-run'),prev=$('#mail-type-prev'),next=$('#mail-type-next');
+        async function refresh(){const version=++request;list.textContent='正在读取分类…';const {data,error}=await supabase.rpc('get_sales_mail_type_workspace',{target_sales:person.id,target_month:period,target_offset:offset});if(!list.isConnected||version!==request)return;if(error){list.textContent='分类记录读取失败，请刷新重试。';return}const items=data||[];prev.disabled=offset===0;next.disabled=items.length<50;list.innerHTML=renderMailTypeWorkspace(items);list.querySelectorAll('[data-mail-type-review]').forEach(button=>button.onclick=async()=>{if(busy)return;const item=items.find(x=>x.id===button.dataset.mailTypeReview),category=list.querySelector(`[data-mail-type-choice="${item.id}"]`).value,reason=list.querySelector(`[data-mail-type-reason="${item.id}"]`).value.trim();if(!Object.hasOwn(MAIL_TYPES,category)||reason.length<5)return toast('请填写至少5个字的复核依据');button.disabled=true;const {error}=await supabase.rpc('review_sales_mail_type',{target_message:item.id,target_hash:item.source_hash,target_category:category,target_reason:reason});if(error){button.disabled=false;return toast('保存未成功，原文可能变化或权限已失效，请刷新后重试')}toast('已记录人工分类，历史建议保留');await refresh();await loadDashboardEmailObservationSummary(month)});}
+        $('#mail-type-refresh').onclick=refresh;prev.onclick=()=>{if(!busy){offset=Math.max(0,offset-50);refresh()}};next.onclick=()=>{if(!busy){offset+=50;refresh()}};
+        run.onclick=async()=>{if(busy||!confirm('按已批准范围向阿里云百炼北京发送最多40封邮件中的固定通用业务短语？身份、自由正文、金额、附件和线程不发送，高敏内容跳过。'))return;busy=true;run.disabled=true;let processed=0,skipped=0,failed=0,more=false;try{for(let batch=0;batch<20&&list.isConnected;batch++){const {data,error}=await supabase.functions.invoke('sales-mail-types',{body:{salesperson_id:person.id,period_start:period}});if(error||data?.error)throw new Error(data?.error||'分类服务暂不可用，请稍后重试');processed+=Number(data.processed||0);skipped+=Number(data.skipped||0);failed+=Number(data.failed||0);progress.textContent=`AI建议 ${processed} 封 · 跳过 ${skipped} 封 · 失败 ${failed} 封（仍待人工判断）`;more=!!data.has_more;if(!more||!data.examined)break}progress.textContent+=more?'；另有待处理，可再次点击继续。':'；本批处理结束。'}catch(error){progress.textContent=`分类未完成：${error.message}；已保存结果保留，不作为0。`}finally{busy=false;run.disabled=false;if(list.isConnected)await refresh();await loadDashboardEmailObservationSummary(month)}};
+        refresh();
       }
       let sales360QuarterSelection = "";
       function sales360QuarterKey(date) {

@@ -26,6 +26,6 @@ test('table includes all metrics, preserves no-sample states, and escapes names'
  assert.doesNotMatch(html,/<img|NaN|Infinity/);assert.match(html,/&lt;img/);
 });
 test('ranking integration reuses role-filtered people and existing aggregate RPC without adding data access',()=>{
- const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/mailboxRankingRows\(people,summary,month,chinaDate\(\)\)/);assert.match(html,/root.innerHTML=renderMailboxRankings\(mailboxRows,month\)\+sendBoard/);
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/mailboxRankingRows\(people,summary,month,chinaDate\(\)\)/);assert.match(html,/\+renderMailboxRankings\(mailboxRows,month\)\+sendBoard/);
  const module=readFileSync(new URL('../assets/sales-mailbox-rankings.mjs',import.meta.url),'utf8');assert.doesNotMatch(module,/fetch\(|\.rpc\(|localStorage|email_messages|sender_email|body_text/);
 });

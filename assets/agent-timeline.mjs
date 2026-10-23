@@ -72,7 +72,7 @@ const nf=n=>Number(n).toLocaleString('en-US');
 export function dataChart(spec,doc=document){
  const mk=(t,cls,txt)=>{const n=doc.createElement(t);if(cls)n.className=cls;if(txt!=null)n.textContent=txt;return n};
  if(!doc.getElementById('gt-chart-css')){const st=doc.createElement('style');st.id='gt-chart-css';st.textContent=CHART_CSS;(doc.head||doc.documentElement).append(st)}
- const box=mk('div','gt-chart');const bars=Array.isArray(spec?.bars)?spec.bars.filter(x=>Number.isFinite(Number(x?.value))):[];
+ const box=mk('div','gt-chart');const bars=Array.isArray(spec?.bars)?spec.bars.filter(x=>typeof x?.value==='number'&&Number.isFinite(x.value)):[];
  if(spec.title)box.append(mk('div','gt-title',String(spec.title)));
  if(spec.stat)box.append(mk('div','gt-stat',String(spec.stat)));
  if(Array.isArray(spec.legend)&&spec.legend.length){const lg=mk('div','gt-legend');for(const [color,label] of spec.legend){const it=mk('span');const i=mk('i');i.style.background=color;it.append(i,String(label));lg.append(it)}box.append(lg)}
@@ -116,7 +116,7 @@ export function windowsFrom(result){
  return w.slice(0,8);
 }
 // What is stored: no signed links, card bodies or material objects.
-export function storable(w){const {card,asset,chart,...rest}=w;if(rest.kind==='chart'&&['intel','crm_stats'].includes(rest.source))return null;return rest.kind==='link'?null:rest}
+export function storable(w){const {card,asset,chart,...rest}=w;if(rest.kind==='chart'&&['intel','crm_stats','seo_stats'].includes(rest.source))return null;return rest.kind==='link'?null:rest}
 
 export function createTimeline(root,{call,getPersona,materialRow,materialFile=null,crmChart=null,onOpenRequest=null,getResponseCard=null,origin=location.origin,doc=document,win=window}){
  if(!doc.getElementById('gt-style')){const st=doc.createElement('style');st.id='gt-style';st.textContent=CSS;doc.head.append(st)}
@@ -148,7 +148,7 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
    return}
   if(w.kind==='chart'){
    if(w.source==='crm'){const spec=w.chart||crmChart?.(w.question||'');body.append(spec?dataChart(spec,doc):mk('div','gt-note','CRM 数据还在加载，稍后点开再看。'));return}
-   body.append(w.chart&&!w.chart.currency&&Array.isArray(w.chart.bars)&&(w.source==='crm_stats'||w.source==='intel'||w.chart.bars[0]&&'value' in w.chart.bars[0])?dataChart(w.chart,doc):priceChart(w.chart,doc));return}
+   body.append(w.chart&&!w.chart.currency&&Array.isArray(w.chart.bars)&&(w.source==='crm_stats'||w.source==='intel'||w.source==='seo_stats'||w.chart.bars[0]&&'value' in w.chart.bars[0])?dataChart(w.chart,doc):priceChart(w.chart,doc));return}
   if(w.kind==='material'){const row=materialRow?.(w.asset||{id:w.id,name:w.name});if(row)body.append(row);else body.append(mk('div','',w.name));return}
   if(w.kind==='link'){const a=mk('a','',w.label);a.href=w.url;a.target='_blank';a.rel='noopener noreferrer';body.append(a);return}
  }

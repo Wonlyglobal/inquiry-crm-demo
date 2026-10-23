@@ -34,3 +34,8 @@ test('country chart distinguishes unknown fields, new ISO countries and suppress
  const small=crmStatsChart('询盘国家分布',{...crm,lead_count:6,countries:[],countries_status:'insufficient_groups'});assert.deepEqual(small.chart.bars,[]);assert.match(small.chart.empty,/展示阈值/);assert.match(small.chart.note,/不一定覆盖全部/);assert.match(small.chart.sources[0].label,/CRM/);
  const all=[],mk=tag=>({tag,children:[],style:{},dataset:{},append(...c){this.children.push(...c)}}),doc={head:mk('head'),createElement:tag=>{const n=mk(tag);all.push(n);return n},getElementById:()=>null};dataChart(small.chart,doc);assert.ok(all.some(n=>n.textContent===small.chart.title));assert.ok(all.some(n=>n.textContent===small.chart.empty));assert.ok(all.some(n=>n.textContent==='CRM 询盘表（你的权限内可见记录）'));assert.equal(all.filter(n=>n.className==='gt-bar').length,0);
 });
+
+test('missing, string and nonfinite chart values are not rendered as zero bars',()=>{
+ const all=[],mk=tag=>({tag,children:[],style:{},dataset:{},append(...c){this.children.push(...c)}}),doc={head:mk('head'),createElement:tag=>{const n=mk(tag);all.push(n);return n},getElementById:()=>null};
+ dataChart({bars:[{label:'missing',value:null},{label:'numeric string',value:'3'},{label:'nan',value:NaN},{label:'true zero',value:0}]},doc);assert.equal(all.filter(x=>x.className==='gt-bar').length,1);assert.equal(all.find(x=>x.className==='gt-bl').textContent,'true zero');
+});

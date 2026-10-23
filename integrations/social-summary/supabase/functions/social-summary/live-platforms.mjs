@@ -22,7 +22,7 @@ export function windowSummary(rows,metricKeys,{start,end,pagesRead,complete,stop
   note:complete?'已按分页读完窗口内全部返回帖子；指标为抓取时累计值，不是窗口内新增。':'窗口未读完（见stop_reason），合计只覆盖已读取帖子，不能当作28天全量。'};
 }
 
-export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=new Date(),clock=()=>Date.now(),metricsOnly=false}){
+export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=new Date(),clock=()=>Date.now(),metricsOnly=false,contentOnly=false}){
  const signal=AbortSignal.timeout(metricsOnly?8000:6000);
  const started=clock();const budgetLeft=()=>clock()-started<PAGINATION_BUDGET_MS;
  const start=new Date(now.getTime()-WINDOW_DAYS*86400000);
@@ -58,8 +58,8 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
  const [facebook,instagram,tiktok]=await Promise.all([
  run('facebook',async()=>{
   let token=get('FB_PAGE_TOKEN');if(!token)return failure('not_configured');
-  const scopeCheck=metricsOnly?await optional(async()=>{const d=await graph('me/permissions',{},token);const rows=Array.isArray(d.data)?d.data:[];return {inspectable:rows.length>0,read_insights:rows.length?rows.some(x=>x.permission==='read_insights'&&x.status==='granted'):null,pages_read_engagement:rows.length?rows.some(x=>x.permission==='pages_read_engagement'&&x.status==='granted'):null}}):null;
-  const tokenAppCheck=metricsOnly?await optional(async()=>{const d=await graph('debug_token',{input_token:token},token);return {app_id:typeof d.data?.app_id==='string'&&/^\d+$/.test(d.data.app_id)?d.data.app_id:null,type:['USER','PAGE','SYSTEM_USER'].includes(d.data?.type)?d.data.type:null,valid:typeof d.data?.is_valid==='boolean'?d.data.is_valid:null}}):null;
+  const scopeCheck=metricsOnly&&!contentOnly?await optional(async()=>{const d=await graph('me/permissions',{},token);const rows=Array.isArray(d.data)?d.data:[];return {inspectable:rows.length>0,read_insights:rows.length?rows.some(x=>x.permission==='read_insights'&&x.status==='granted'):null,pages_read_engagement:rows.length?rows.some(x=>x.permission==='pages_read_engagement'&&x.status==='granted'):null}}):null;
+  const tokenAppCheck=metricsOnly&&!contentOnly?await optional(async()=>{const d=await graph('debug_token',{input_token:token},token);return {app_id:typeof d.data?.app_id==='string'&&/^\d+$/.test(d.data.app_id)?d.data.app_id:null,type:['USER','PAGE','SYSTEM_USER'].includes(d.data?.type)?d.data.type:null,valid:typeof d.data?.is_valid==='boolean'?d.data.is_valid:null}}):null;
   let firstInsightCheck=null;
   let me=await graph('me',{fields:'id'},token);
   if(!me.id)return failure('account_binding_mismatch');
@@ -70,7 +70,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
    token=matches[0].access_token;me={id:matches[0].id};
   }}
   const [feed,profile]=await Promise.all([
-   graphPages(`${me.id}/published_posts`,{fields:'id,'+(metricsOnly?'':'message,')+'permalink_url,created_time,shares,likes.limit(0).summary(true),comments.limit(0).summary(true)',since:String(Math.floor(start.getTime()/1000))},token,'facebook',p=>p.created_time),
+   graphPages(`${me.id}/published_posts`,{fields:'id,'+(metricsOnly&&!contentOnly?'':'message,')+'permalink_url,created_time,shares,likes.limit(0).summary(true),comments.limit(0).summary(true)',since:String(Math.floor(start.getTime()/1000))},token,'facebook',p=>p.created_time),
    optional(()=>graph(me.id,{fields:'followers_count,fan_count'},token))]);
   if(!feed)return failure('invalid_response');
   const rows=feed.rows.map(p=>({id:typeof p.id==='string'&&/^[\d_]+$/.test(p.id)?p.id:null,url:publicPostUrl(p.permalink_url),content:safeText(p.message),published_at:p.created_time,metrics:{likes:numeric(p.likes?.summary?.total_count),comments:numeric(p.comments?.summary?.total_count),shares:numeric(p.shares?.count)}}));
@@ -79,7 +79,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
   // Post insights need read_insights; missing permission leaves views/viewers/clicks unknown. Current metric names (2026): post_media_view, post_total_media_view_unique.
   const insightKeys={post_media_view:'views',post_total_media_view_unique:'viewers',post_clicks:'clicks'};
   const insightErrors=new Set();
-  await boundedMap(detail,async p=>{
+  await boundedMap(contentOnly?[]:detail,async p=>{
    const errors={};
    const pick=(d,name)=>{const row=d.data?.find(x=>x.name===name);return numeric(row?.values?.[0]?.value??row?.total_value?.value)};
    if(scopeCheck?.inspectable&&scopeCheck.read_insights===false){insightErrors.add('permission_required');for(const key of Object.values(insightKeys)){p.metrics[key]=null;errors[key]='permission_required'}p.metric_errors=errors;return}
@@ -93,19 +93,19 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
    p.metric_errors=errors;
   });
   const complete=!feed.stop;
-  if(metricsOnly)console.info('FB_METRICS_CHECK',JSON.stringify({binding_verified:true,permission_check:scopeCheck,token_app:tokenAppCheck,post_lifetime:firstInsightCheck,known:Object.fromEntries(Object.values(insightKeys).map(k=>[k,detail.filter(p=>numeric(p.metrics[k])!==null).length])),posts_checked:detail.length,likes_threshold_100:numeric(profile.fan_count)===null?null:profile.fan_count>=100}));
+  if(metricsOnly&&!contentOnly)console.info('FB_METRICS_CHECK',JSON.stringify({binding_verified:true,permission_check:scopeCheck,token_app:tokenAppCheck,post_lifetime:firstInsightCheck,known:Object.fromEntries(Object.values(insightKeys).map(k=>[k,detail.filter(p=>numeric(p.metrics[k])!==null).length])),posts_checked:detail.length,likes_threshold_100:numeric(profile.fan_count)===null?null:profile.fan_count>=100}));
   return {...common('Facebook Graph API'),status:'available',has_more:feed.hasMore,
    account:profile.error?{status:'unavailable',reason:profile.error}:{status:'available',followers:numeric(profile.followers_count),page_likes:numeric(profile.fan_count)},
    window:windowSummary(rows,['likes','comments','shares','views'],{start,end:now,pagesRead:feed.pages,complete,stopReason:feed.stop,rankBy:['views','likes']}),
    details_returned:detail.length,details_total:selected.length,details_complete:complete&&selected.length===detail.length,
    insights_status:detail.some(p=>numeric(p.metrics.views)!==null||numeric(p.metrics.viewers)!==null)?'available':insightErrors.size?[...insightErrors][0]:'unavailable',
-   posts:detail.map(({id,content,...p})=>metricsOnly?p:{...p,content}),missing:['retention','watch_time','attributed_conversions','insights_beyond_detail_posts']};
+   posts:detail.map(({id,content,...p})=>metricsOnly&&!contentOnly?p:{...p,content,content_truncated:typeof content==='string'&&content.length>=600}),missing:['retention','watch_time','attributed_conversions','insights_beyond_detail_posts']};
  }),
  run('instagram',async()=>{
   const token=get('IG_ACCESS_TOKEN'),id=get('IG_BUSINESS_ID');if(!token||!id)return failure('not_configured');
   if(!/^\d+$/.test(id)||!matched('instagram',id))return failure('account_binding_mismatch');
   const [feed,profile]=await Promise.all([
-   graphPages(`${id}/media`,{fields:metricsOnly?'id,permalink,timestamp,like_count,comments_count':'id,caption,permalink,timestamp,like_count,comments_count'},token,'instagram',p=>p.timestamp),
+   graphPages(`${id}/media`,{fields:metricsOnly&&!contentOnly?'id,permalink,timestamp,like_count,comments_count':'id,caption,permalink,timestamp,like_count,comments_count'},token,'instagram',p=>p.timestamp),
    optional(()=>graph(id,{fields:'followers_count,media_count'},token))]);
   if(!feed)return failure('invalid_response');
   const INSIGHTS=['views','reach','saved','shares'];
@@ -113,7 +113,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
   const selected=metricsOnly?rows.filter(inWindow):rows;
   const detail=selected.slice(0,metricsOnly?100:LIMITS.instagram.detail);
   const pick=(d,name)=>{const row=d.data?.find(x=>x.name===name);return numeric(row?.total_value?.value??row?.values?.[0]?.value)};
-  await boundedMap(detail,async p=>{
+  await boundedMap(contentOnly?[]:detail,async p=>{
    const errors={};
    if(signal.aborted){for(const k of INSIGHTS){p.metrics[k]=null;errors[k]='timeout'}p.metric_errors=errors;return}
    if(!p.id){for(const k of INSIGHTS){p.metrics[k]=null;errors[k]='post_id_missing'}p.metric_errors=errors;return}
@@ -131,7 +131,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
    account:profile.error?{status:'unavailable',reason:profile.error}:{status:'available',followers:numeric(profile.followers_count),lifetime_media:numeric(profile.media_count)},
    window:windowSummary(rows,['likes','comments','views','reach','saved','shares'],{start,end:now,pagesRead:feed.pages,complete,stopReason:feed.stop,rankBy:['views','reach','likes']}),
    details_returned:detail.length,details_total:selected.length,details_complete:complete&&selected.length===detail.length,
-   posts:detail.map(({id,content,...p})=>metricsOnly?p:{...p,content}),insights_status:detail.some(p=>INSIGHTS.some(k=>p.metrics[k]!==null))?'available':'unavailable',missing:['insights_beyond_detail_posts','watch_time','audience_regions','attributed_conversions']};
+   posts:detail.map(({id,content,...p})=>metricsOnly&&!contentOnly?p:{...p,content,content_truncated:typeof content==='string'&&content.length>=600}),insights_status:detail.some(p=>INSIGHTS.some(k=>p.metrics[k]!==null))?'available':'unavailable',missing:['insights_beyond_detail_posts','watch_time','audience_regions','attributed_conversions']};
  }),
  run('tiktok',async()=>{
   let record=await tiktokToken();if(!record?.access_token)return failure('not_authorized');
@@ -140,7 +140,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
   // user.info.stats is part of the existing grant; failure only drops the account block.
   let me;try{me=await tikRead('https://open.tiktokapis.com/v2/user/info/?fields=open_id,follower_count,likes_count,video_count')}catch(e){if(e.message!=='permission_required')throw e;me=await tikRead('https://open.tiktokapis.com/v2/user/info/?fields=open_id')}
   const id=me.data?.user?.open_id;if(!id)return failure('account_binding_mismatch');
-  const listUrl='https://open.tiktokapis.com/v2/video/list/?fields=id,'+(metricsOnly?'':'title,')+'share_url,create_time,view_count,like_count,comment_count,share_count';
+  const listUrl='https://open.tiktokapis.com/v2/video/list/?fields=id,'+(metricsOnly&&!contentOnly?'':'title,')+'share_url,create_time,view_count,like_count,comment_count,share_count';
   let videos=[],pages=0,stop=null,hasMore=false,cursor=null;
   while(true){
    let d;try{d=await tikRead(listUrl,{max_count:LIMITS.tiktok.pageSize,...cursor!==null?{cursor}:{}})}catch(e){if(pages===0)throw e;stop=errorCode(e);break}
@@ -162,7 +162,7 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
    account:[u.follower_count,u.likes_count,u.video_count].some(v=>numeric(v)!==null)?{status:'available',followers:numeric(u.follower_count),lifetime_likes:numeric(u.likes_count),lifetime_videos:numeric(u.video_count)}:{status:'unavailable',reason:'stats_not_returned'},
    window:windowSummary(rows,['views','likes','comments','shares'],{start,end:now,pagesRead:pages,complete:!stop,stopReason:stop,rankBy:['views','likes']}),
    details_returned:detail.length,details_total:selected.length,details_complete:!stop&&detail.length===selected.length,
-   posts:detail.map(({content,...p})=>metricsOnly?p:{...p,content}),missing:['watch_time','retention','audience_regions','attributed_conversions']};
+   posts:detail.map(({content,...p})=>metricsOnly&&!contentOnly?p:{...p,content,content_truncated:typeof content==='string'&&content.length>=600}),missing:['watch_time','retention','audience_regions','attributed_conversions']};
  })]);
  return {checked_at:now.toISOString(),window_days:WINDOW_DAYS,facebook,instagram,tiktok};
 }

@@ -1,5 +1,5 @@
-import {privateReportQuestion,PRIVATE_REPORT_KEY} from './agent-private-report-context.mjs?v=20261023-social-analysis';
-import {mountPrivateIntelligence,privateReportButtons} from './agent-private-intelligence.mjs?v=20261023-social-analysis';
+import {privateReportQuestion,PRIVATE_REPORT_KEY} from './agent-private-report-context.mjs?v=20261023-social-content';
+import {mountPrivateIntelligence,privateReportButtons} from './agent-private-intelligence.mjs?v=20261023-social-content';
 import {createConnectionCheck} from './agent-connection.mjs?v=20261019-connect1';
 import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=20261019-private1';
 import {createPhoneSession} from './agent-phone.mjs?v=20261015-stable-call1';

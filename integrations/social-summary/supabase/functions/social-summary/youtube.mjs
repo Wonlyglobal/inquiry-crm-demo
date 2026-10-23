@@ -28,7 +28,7 @@ export async function youtubeAnalytics(get,fetcher=fetch,now=new Date()){
 // Public statistics for the same fixed WONLY channel. Reuses the existing source-side API key.
 // No OAuth expansion, post bodies, comment identities, new channel IDs, writes or model calls.
 export async function youtubePosts(get,fetcher=fetch,now=new Date(),options={}){
- if(options.metricsOnly)return youtubeWindowPosts(get,fetcher,now,options.clock);
+ if(options.metricsOnly)return youtubeWindowPosts(get,fetcher,now,options.clock,options.contentOnly===true);
  const apiKey=get('YOUTUBE_API_KEY');if(!apiKey)return {status:'unavailable',reason:'not_configured'};
  const signal=AbortSignal.timeout(6000);
  const numeric=v=>typeof v==='string'&&/^\d+$/.test(v)&&Number.isSafeInteger(Number(v))?Number(v):typeof v==='number'&&Number.isSafeInteger(v)&&v>=0?v:null;
@@ -58,7 +58,7 @@ export async function youtubePosts(get,fetcher=fetch,now=new Date(),options={}){
 }
 
 // Metrics-only daily projection: fixed channel, at most two upload pages / 100 videos, no titles or bodies.
-async function youtubeWindowPosts(get,fetcher,now,clock=()=>Date.now()){
+async function youtubeWindowPosts(get,fetcher,now,clock=()=>Date.now(),contentOnly=false){
  const apiKey=get('YOUTUBE_API_KEY');if(!apiKey)return {status:'unavailable',reason:'not_configured'};
  const signal=AbortSignal.timeout(8000),started=clock(),start=new Date(now.getTime()-28*86400000),allowed=/^[\w-]{11}$/;
  const numeric=v=>typeof v==='string'&&/^\d+$/.test(v)&&Number.isSafeInteger(Number(v))?Number(v):typeof v==='number'&&Number.isSafeInteger(v)&&v>=0?v:null;
@@ -85,14 +85,14 @@ async function youtubeWindowPosts(get,fetcher,now,clock=()=>Date.now()){
   }while(hasMore);
   const all=[];
   for(let i=0;i<ids.length;i+=50){
-   let d;try{d=await read('videos',{id:ids.slice(i,i+50).join(','),part:'statistics,snippet,status',fields:'items(id,snippet(channelId,publishedAt),status/privacyStatus,statistics(viewCount,likeCount,commentCount))'})}catch(e){if(!all.length)throw e;stop=error(e);break}
+   let d;try{d=await read('videos',{id:ids.slice(i,i+50).join(','),part:'statistics,snippet,status',fields:`items(id,snippet(channelId,publishedAt${contentOnly?',title,description':''}),status/privacyStatus,statistics(viewCount,likeCount,commentCount))`})}catch(e){if(!all.length)throw e;stop=error(e);break}
    if(!Array.isArray(d.items)||d.items.length>Math.min(50,ids.length-i)||d.items.some(v=>!ids.slice(i,i+50).includes(v.id)||v.snippet?.channelId!==CHANNEL)||new Set(d.items.map(v=>v.id)).size!==d.items.length)throw Error('account_binding_mismatch');
    all.push(...d.items);
   }
   const publicRows=all.filter(v=>v.status?.privacyStatus==='public'&&Number.isFinite(Date.parse(v.snippet?.publishedAt))&&Date.parse(v.snippet.publishedAt)<=now.getTime());
   if(publicRows.length!==ids.length&&!stop)stop='unavailable_video';
   const selected=publicRows.filter(v=>Date.parse(v.snippet.publishedAt)>=start.getTime());
-  const posts=selected.map(v=>({url:`https://www.youtube.com/watch?v=${v.id}`,published_at:v.snippet.publishedAt,metrics:{views:numeric(v.statistics?.viewCount),likes:numeric(v.statistics?.likeCount),comments:numeric(v.statistics?.commentCount)}}));
+  const posts=selected.map(v=>({url:`https://www.youtube.com/watch?v=${v.id}`,published_at:v.snippet.publishedAt,...(contentOnly?{content:[v.snippet.title,v.snippet.description].filter(x=>typeof x==='string').join('\n').slice(0,1200),content_truncated:[v.snippet.title,v.snippet.description].filter(x=>typeof x==='string').join('\n').length>1200}:{}),metrics:{views:numeric(v.statistics?.viewCount),likes:numeric(v.statistics?.likeCount),comments:numeric(v.statistics?.commentCount)}}));
   return {status:stop?'partial':'available',source:'YouTube Data API v3',fetched_at:now.toISOString(),has_more:hasMore,details_returned:posts.length,details_total:posts.length,details_complete:!stop,
    window:{days:28,start:start.toISOString(),end:now.toISOString(),posts_in_window:posts.length,posts_scanned:ids.length,undated_posts:all.filter(v=>!Number.isFinite(Date.parse(v.snippet?.publishedAt))).length,pages_read:pages,complete:!stop,stop_reason:stop},
    metric_period:'platform cumulative values at fetch; not period growth',posts,missing:['shares','saves','reach','impressions','clicks','watch_minutes'],limits:'固定WONLY频道，最近28天公开上传的本次累计指标；最多2页/100项，页数、时间或不可用视频缺口保留。无标题正文、用户身份或私有Analytics；未知不填0，不是平台全历史或区间增长。'};

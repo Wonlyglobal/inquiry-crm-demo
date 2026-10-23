@@ -55,3 +55,15 @@ test('content aspects stay one authenticated task while unrelated product questi
  for(const q of ['结合Facebook帖子内容和逐帖指标分析，给出具体改进建议','分析Facebook帖子内容，并给出具体改进建议']){const parts=questionPlan(q).parts;assert.ok(!parts.length||socialAnalysisCoversParts(q,parts));assert.equal(privateIntelligenceIntent(q),true)}
  assert.equal(privateReportQuestion('介绍S922内容','facebook-2026-10-23'),'介绍S922内容');
 });
+
+import {textReview} from '../supabase/functions/agent-conversation/social-content.mjs';
+test('topic evidence prioritizes primary copy and whole words, never boilerplate tags or substring collisions',()=>{
+ assert.equal(textReview('A style choice for your entrance. #security #latest #test').topic,'外观与设计');
+ assert.equal(textReview('How is this steel cut? #security').topic,'工艺与制造');
+ assert.equal(textReview('Hear the difference. #design').topic,'声音与使用体验');
+ assert.equal(textReview('Latest style options').topic,'外观与设计');
+ assert.equal(textReview('Battery depleted? #security').topic,'供电与应急');
+ assert.equal(textReview('Every market has requirements. #security').topic,'市场与合规说明');
+ const q=textReview('Seven ways to unlock an S123 Pro. Take a look at these steps.');assert.match(q.openingDraft,/S123 Pro/);assert.equal(q.cta,true);
+ assert.equal(textReview('New choices #security').topic,'主题待人工归类');
+});

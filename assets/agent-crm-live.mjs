@@ -21,18 +21,20 @@ export function crmDataIntent(question){
  if(!/CRM|询盘|商机|客户|成交|销售额|成交额|业绩|经营|渠道|数据看板|首次响应|响应率/i.test(q))return null;
  // A dated private report must not be replaced with today's browser aggregates.
  if(/周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据/.test(q))return null;
+ if(/[；;\n]|(?:并且|同时|另外|以及|然后|还要)(?:请|介绍|说明|告诉|查询|检查|列出|解释|给出|比较|分析|如何|怎么|帮我)/.test(q))return null;
  if(!q||q.length>120||!DATA.test(q)||!LOOKUP.test(q)||ADVICE.test(q))return null;
  const hit=VIEWS.find(([re])=>re.test(q));
  return {view:hit?.[1]||'dashboard',label:hit?.[2]||'经营看板'};
 }
 
 // Builds the answer object the conversation shows; `compute` is the CRM's own local statistics.
-export function crmLiveAnswer(question,{compute,ready,chart=null,metric=null}){
+export function crmLiveAnswer(question,{compute,ready,chart=null,metric=null,snapshot=null,stale=false}){
  const intent=crmDataIntent(question);if(!intent)return null;
+ if(stale)return {answer:'CRM 本次刷新失败，不能把上次成功快照当作当前统计。本次不返回数字或图表，请刷新成功后重试。',windows:[],labels:['CRM 数据待更新']};
  if(!ready)return {answer:'CRM 实时数据还在加载，稍等几秒再问我一次。',windows:[],labels:['CRM 实时数据']};
- const text=String(compute(question)||'').trim();if(!text)return null;
+ const current=snapshot?.(question);const text=String(compute(question,current)||'').trim();if(!text)return null;
  // Every data answer says where it came from and comes with a chart (owner, 2026-10-01).
- let spec=null;try{spec=chart?.(question)||null}catch{spec=null}
+ let spec=null;try{spec=chart?.(question,current)||null}catch{spec=null}
  const windows=[...(spec?[{type:'data_chart',source:'crm',metric:String(metric?.(question)||''),question:String(question).slice(0,200),label:spec.title||'数据图表',chart:spec}]:[]),{type:'crm_view',view:intent.view,label:intent.label}];
  return {answer:text+'\n\n来源：CRM 实时数据（询盘与成交记录），在你的浏览器里按你的权限计算，没有发送给外部模型。'+(spec?'图表已在窗口里打开。':''),windows,labels:['CRM 实时数据']};
 }

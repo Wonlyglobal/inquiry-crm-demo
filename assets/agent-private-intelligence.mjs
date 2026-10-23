@@ -1,10 +1,12 @@
 // Explicit file selection; same authenticated internal endpoint. No browser persistence or AI calls.
 export function validPrivateReceipt(r){return !!r&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.id||'')&&/^[0-9a-f]{64}$/.test(r.digest||'')&&/^(weekly|daily|evidence|tiktok|instagram|facebook|youtube)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?$/.test(r.key||'')}
 export function privateReceiptLabel(key){const m=String(key).match(/^(weekly|daily|evidence|tiktok|instagram|facebook|youtube)-(20\d{2}-\d{2}-\d{2})(?:-(20\d{2}-\d{2}-\d{2}))?$/);return m?`${{weekly:'周报',daily:'日报',evidence:'证据',tiktok:'TikTok逐帖',instagram:'Instagram逐帖',facebook:'Facebook逐帖',youtube:'YouTube逐帖'}[m[1]]} · ${m[2]}${m[3]?'—'+m[3]:''}`:'未知报告'}
-export function privateReportButtons(receipts,onAsk){
+export function privateReportButtons(receipts,onAsk,videoIndex=null){
  if(receipts?.length!==1||!validPrivateReceipt(receipts[0]))return null;
  const bar=document.createElement('div');bar.className='private-report-actions';bar.setAttribute('aria-label','继续查看这份报告');
  const options=/^(tiktok|instagram|facebook|youtube)-/.test(receipts[0].key)?[['内容与改进','内容与改进'],['分析表现','分析帖子表现'],['指标概览','指标概览'],['展开逐帖','展开逐帖明细'],['来源与缺口','来源与缺口']]:[['查看风险','风险呢'],['查看下一步','下一步呢'],['查看来源与缺口','来源有哪些']];
+ if(typeof location!=='undefined'&&new URL(location.href).searchParams.get('video-preview')==='1'&&/^(tiktok|instagram|facebook|youtube)-/.test(receipts[0].key))options.unshift(['视频证据','视频证据']);
+ const lastPage=Math.max(0,...(videoIndex?.pages||[]).map(p=>Number(p.page)||0));if(videoIndex?.pages?.some(p=>p.has_more)&&lastPage<20)options.push(['后续视频物料','视频证据，物料第'+(lastPage+1)+'页']);
  for(const [label,q] of options){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>onAsk(`查看私有知识 ${receipts[0].key}，${q}`);bar.append(b)}return bar;
 }
 export function mountPrivateIntelligence(host,{invoke,isAllowed}){

@@ -218,7 +218,7 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    if(error)return json({error:'私有知识回读未完成'},400);return json(data);
   }
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
-  const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey),Date.now(),{authorization});return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
+  const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey),Date.now(),{authorization,materialConfig});return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts,video_index:result.video_index},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
   if(input.action==='chat'&&input.voice!==true&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
    validateDialogue(input);return await privateReply();
   }

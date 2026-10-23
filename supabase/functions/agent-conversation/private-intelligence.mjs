@@ -1,3 +1,4 @@
+import {existingVideoIntent,loadExistingVideoIndex,existingVideoAnalysis} from './social-video-existing.mjs';
 // Private company reports: deterministic retrieval only. Never add these documents to model memory.
 import {loadSocialContent,socialContentIntent,privateSocialContentAnalysis} from './social-content.mjs';
 import {formatPrivateSection} from './private-report-format.mjs';
@@ -9,7 +10,7 @@ export function privateIntelligenceIntent(q=''){
  // Explicit saved-source questions stay in the private snapshot even when they name
  // individual counters instead of saying "指标", or put the platform first.
  const savedSocial=/(?:已同步|已保存|私有)/.test(text)&&/(?:TikTok|Instagram|Facebook|YouTube|社媒)/i.test(text)&&/(?:指标|帖子|逐帖|观看|播放|点击|点赞|评论|分享|收藏|触达|曝光|来源日期|缺口)/.test(text);
- return socialAnalysisIntent(text)||savedSocial||/周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据/i.test(text);
+ return existingVideoIntent(text)||socialAnalysisIntent(text)||savedSocial||/周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据/i.test(text);
 }
 export function privateIntelligenceQuery(q='',now=Date.now()){
  q=typeof q==='string'?q.normalize('NFKC'):'';
@@ -27,12 +28,12 @@ export function privateIntelligenceQuery(q='',now=Date.now()){
  if(from&&!to&&kind==='weekly'){const d=new Date(from+'T00:00:00Z');if(Number.isFinite(d.getTime())){d.setUTCDate(d.getUTCDate()+6);to=d.toISOString().slice(0,10)}}
  return {p_kind:kind,p_from:from,p_to:to,p_key:id,p_limit:kind?1:5};
 }
-export function privateIntelligenceAnswer(result,question='',now=Date.now(),content=null){
+export function privateIntelligenceAnswer(result,question='',now=Date.now(),content=null,video=null){
  const rows=Array.isArray(result?.documents)?result.documents:[];
  if(!rows.length)return '私有知识库没有查到对应日期的已同步报告或证据。这不表示该期间没有业务或市场变化；请先导入对应报告。';
  const out=['以下来自公司私有知识库；报告与证据未发送给外部模型。'];
  for(const row of rows){const d=row.document;
-  const social=socialContentIntent(question)?privateSocialContentAnalysis(d,content,now):socialAnalysisIntent(question)?privateSocialAnalysis(d,now):privateSocialDisplay(d,question);
+  const social=existingVideoIntent(question)?existingVideoAnalysis(d,video,question,now):socialContentIntent(question)?privateSocialContentAnalysis(d,content,now):socialAnalysisIntent(question)?privateSocialAnalysis(d,now):privateSocialDisplay(d,question);
   if(social!==null){out.push('\n'+social,`\n知识编号：${row.id}；版本校验：${row.digest}`);continue}
   out.push(`\n${d.title}`,`报告期间：${d.period.from}—${d.period.to}；来源生成：${d.generated_at}`,'状态：自动汇总，未经人工事实核验；导入时间不等于源数据更新时间。');
   const follow=question.split('，').at(-1)||'',focused=/查看私有知识 (?:weekly|daily|evidence|tiktok|instagram|facebook|youtube)-/.test(question);
@@ -47,15 +48,16 @@ export function privateIntelligenceAnswer(result,question='',now=Date.now(),cont
  return out.join('\n');
 }
 export async function readPrivateIntelligence(client,q,now=Date.now(),options={}){
- if(socialAnalysisIntent(q)&&unsupportedSocialAnalysisPeriod(q))return {answer:'当前按已同步快照的实际来源日期和帖子窗口分析，不能用单份累计值冒充指定周期表现或增长。本次未计算该周期排名、环比或同比。请先指定某日已同步快照，或取得同平台、同发布年龄和同定义的可比较历史数据，再分析变化。',receipts:[]};
- const query=privateIntelligenceQuery(q,now),platforms=socialAnalysisIntent(q)&&!query.p_key?socialAnalysisPlatforms(q):[];
+ if((socialAnalysisIntent(q)||existingVideoIntent(q))&&unsupportedSocialAnalysisPeriod(q))return {answer:'当前按已同步快照的实际来源日期和帖子窗口分析，不能用单份累计值冒充指定周期表现或增长。本次未计算该周期排名、环比或同比。请先指定某日已同步快照，或取得同平台、同发布年龄和同定义的可比较历史数据，再分析变化。',receipts:[]};
+ const query=privateIntelligenceQuery(q,now),platforms=(socialAnalysisIntent(q)||existingVideoIntent(q))&&!query.p_key?socialAnalysisPlatforms(q):[];
  const documents=[],missing=[];
  for(const selector of platforms.length>1?platforms.map(p=>({...query,p_kind:p,p_limit:1})):[query]){
   const {data,error}=await client.rpc('read_agent_private_intelligence',selector);
   if(error)throw Error('私有知识读取未完成，请稍后重试');
   documents.push(...(data?.documents||[]));if(!data?.documents?.length&&platforms.length>1)missing.push(selector.p_kind);
  }
- const content=socialContentIntent(q)&&documents.length?await loadSocialContent(options.authorization,options.fetcher||fetch,now):null;
+ const video=existingVideoIntent(q)&&documents.length?await loadExistingVideoIndex(options.materialConfig,q,options.fetcher||fetch,now):null;
+ const content=!existingVideoIntent(q)&&socialContentIntent(q)&&documents.length?await loadSocialContent(options.authorization,options.fetcher||fetch,now):null;
  const note=platforms.length>1?'\n\n各平台分别读取各自已同步快照，不做跨平台排行榜。'+(missing.length?'未找到对应日期快照：'+missing.join('、')+'；不当作0或没有发布。':''):'';
- return {answer:privateIntelligenceAnswer({documents},q,now,content)+note,receipts:documents.map(r=>({id:r.id,digest:r.digest,key:r.document.key,imported_at:r.imported_at}))};
+ return {answer:privateIntelligenceAnswer({documents},q,now,content,video)+note,video_index:video?{status:video.status,read_at:video.read_at,pages:video.pages,projection_digest:video.digest,videos:video.videos.length,usable:video.videos.filter(v=>v.current&&v.segments.length).length}:null,receipts:documents.map(r=>({id:r.id,digest:r.digest,key:r.document.key,imported_at:r.imported_at}))};
 }

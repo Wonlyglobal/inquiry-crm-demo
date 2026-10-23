@@ -2581,8 +2581,8 @@
         document.querySelector('#boot').textContent='Grace 正在准备…';
       }
       import {createRealtimeClient} from './assets/agent-realtime-client.mjs?v=20261019-connect3';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20261023-social-content';
-      import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261023-social-content';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20261023-existing-video-preview';
+      import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261023-existing-video-preview';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import {mailboxRankingRows,renderMailboxRankings} from './assets/sales-mailbox-rankings.mjs?v=20261023-1';
 import {MAIL_TYPES,renderMailTypeRankings,renderMailTypeWorkspace} from './assets/sales-mail-types.mjs?v=20261023-2';
@@ -5442,7 +5442,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           invoke:async(body,signal)=>{
             const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('请重新登录');if(signal?.aborted)throw Error('对话已停止');
             const headers={Authorization:'Bearer '+session.access_token};if(!(body instanceof FormData))headers['Content-Type']='application/json';
-            const response=await fetch('https://plhverjihjilnuhlhlxi.supabase.co/functions/v1/agent-conversation',{method:'POST',headers,body:body instanceof FormData?body:JSON.stringify(body),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(70000)]):AbortSignal.timeout(15000)});
+            const response=await fetch('https://plhverjihjilnuhlhlxi.supabase.co/functions/v1/'+(new URL(location.href).searchParams.get('video-preview')==='1'&&body?.action==='chat'&&body?.voice!==true&&/视频|画面|口播|字幕|前三秒/.test(body?.question||'')?'agent-video-preview':'agent-conversation'),{method:'POST',headers,body:body instanceof FormData?body:JSON.stringify(body),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(70000)]):AbortSignal.timeout(15000)});
             if(!response.ok){let payload;try{payload=await response.json()}catch{}throw Object.assign(new Error(payload?.error||'服务连接失败，请稍后重试'),{status:response.status})}
             return response.headers.get('content-type')?.includes('audio/')?response.blob():response.json();
           }

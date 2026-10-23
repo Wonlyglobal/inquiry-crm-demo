@@ -58,6 +58,8 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
  const [facebook,instagram,tiktok]=await Promise.all([
  run('facebook',async()=>{
   let token=get('FB_PAGE_TOKEN');if(!token)return failure('not_configured');
+  const scopeCheck=metricsOnly?await optional(async()=>{const d=await graph('me/permissions',{},token);const rows=Array.isArray(d.data)?d.data:[];return {inspectable:rows.length>0,read_insights:rows.length?rows.some(x=>x.permission==='read_insights'&&x.status==='granted'):null,pages_read_engagement:rows.length?rows.some(x=>x.permission==='pages_read_engagement'&&x.status==='granted'):null}}):null;
+  let firstInsightCheck=null;
   let me=await graph('me',{fields:'id'},token);
   if(!me.id)return failure('account_binding_mismatch');
   if(!matched('facebook',me.id)){const page=await graph('me',{fields:'id,link,name'},token);let handle='';try{const u=new URL(page.link);if(u.protocol==='https:'&&['facebook.com','www.facebook.com'].includes(u.hostname))handle=u.pathname.replace(/^\/|\/$/g,'')}catch{}if(page.id!==me.id||!handleMatches('facebook',handle)){
@@ -80,15 +82,16 @@ export async function livePlatforms({get,accounts,tiktokToken,fetcher=fetch,now=
    const errors={};
    const pick=(d,name)=>{const row=d.data?.find(x=>x.name===name);return numeric(row?.values?.[0]?.value??row?.total_value?.value)};
    if(!p.id){for(const key of Object.values(insightKeys)){p.metrics[key]=null;errors[key]='post_id_missing'}p.metric_errors=errors;return}
-   try{const d=await graph(`${p.id}/insights`,{metric:Object.keys(insightKeys).join(',')},token);for(const [name,key] of Object.entries(insightKeys))p.metrics[key]=pick(d,name)}
+   try{const d=await graph(`${p.id}/insights`,{metric:Object.keys(insightKeys).join(','),period:'lifetime'},token);if(firstInsightCheck===null)firstInsightCheck={returned:Array.isArray(d.data)?d.data.filter(x=>Object.hasOwn(insightKeys,x.name)).map(x=>({name:x.name,period:x.period||null,values:Array.isArray(x.values)?x.values.length:0})):[],empty:Array.isArray(d.data)&&d.data.length===0};for(const [name,key] of Object.entries(insightKeys))p.metrics[key]=pick(d,name);for(const [name,key] of Object.entries(insightKeys))if(p.metrics[key]===null){try{p.metrics[key]=pick(await graph(`${p.id}/insights`,{metric:name,period:'lifetime'},token),name)}catch(x){const code=DENIED.includes(x.message)?x.message:'metric_unavailable';insightErrors.add(code);errors[key]=code}}}
    catch(e){
     if(DENIED.includes(e.message)||signal.aborted){const code=signal.aborted?'timeout':e.message;insightErrors.add(code);for(const key of Object.values(insightKeys)){p.metrics[key]=null;errors[key]=code}}
-    else for(const [name,key] of Object.entries(insightKeys)){try{p.metrics[key]=pick(await graph(`${p.id}/insights`,{metric:name},token),name)}catch(x){const code=DENIED.includes(x.message)?x.message:'metric_unavailable';insightErrors.add(code);p.metrics[key]=null;errors[key]=code}}
+    else for(const [name,key] of Object.entries(insightKeys)){try{p.metrics[key]=pick(await graph(`${p.id}/insights`,{metric:name,period:'lifetime'},token),name)}catch(x){const code=DENIED.includes(x.message)?x.message:'metric_unavailable';insightErrors.add(code);p.metrics[key]=null;errors[key]=code}}
    }
    for(const key of Object.values(insightKeys))if(p.metrics[key]===null&&!errors[key])errors[key]='not_returned';
    p.metric_errors=errors;
   });
   const complete=!feed.stop;
+  if(metricsOnly)console.info('FB_METRICS_CHECK',JSON.stringify({binding_verified:true,permission_check:scopeCheck,post_lifetime:firstInsightCheck,known:Object.fromEntries(Object.values(insightKeys).map(k=>[k,detail.filter(p=>numeric(p.metrics[k])!==null).length])),posts_checked:detail.length,likes_threshold_100:numeric(profile.fan_count)===null?null:profile.fan_count>=100}));
   return {...common('Facebook Graph API'),status:'available',has_more:feed.hasMore,
    account:profile.error?{status:'unavailable',reason:profile.error}:{status:'available',followers:numeric(profile.followers_count),page_likes:numeric(profile.fan_count)},
    window:windowSummary(rows,['likes','comments','shares','views'],{start,end:now,pagesRead:feed.pages,complete,stopReason:feed.stop,rankBy:['views','likes']}),

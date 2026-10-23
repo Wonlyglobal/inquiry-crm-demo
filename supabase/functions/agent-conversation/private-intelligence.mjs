@@ -1,5 +1,6 @@
 // Private company reports: deterministic retrieval only. Never add these documents to model memory.
 import {formatPrivateSection} from './private-report-format.mjs';
+import {privateSocialDisplay} from './private-social-display.mjs';
 export const PRIVATE_SCHEMA='grace-private-intelligence-v1';
 export function privateIntelligenceIntent(q=''){
  const text=typeof q==='string'?q.normalize('NFKC'):'';
@@ -29,6 +30,8 @@ export function privateIntelligenceAnswer(result,question=''){
  if(!rows.length)return '私有知识库没有查到对应日期的已同步报告或证据。这不表示该期间没有业务或市场变化；请先导入对应报告。';
  const out=['以下来自公司私有知识库；报告与证据未发送给外部模型。'];
  for(const row of rows){const d=row.document;
+  const social=privateSocialDisplay(d,question);
+  if(social!==null){out.push('\n'+social,`\n知识编号：${row.id}；版本校验：${row.digest}`);continue}
   out.push(`\n${d.title}`,`报告期间：${d.period.from}—${d.period.to}；来源生成：${d.generated_at}`,'状态：自动汇总，未经人工事实核验；导入时间不等于源数据更新时间。');
   const follow=question.split('，').at(-1)||'',focused=/查看私有知识 (?:weekly|daily|evidence|tiktok|instagram|facebook|youtube)-/.test(question);
   const filter=focused&&/风险|下一步|优先|建议动作/.test(follow)?/风险|动作|口径|限制|边界/:focused&&/数据日期/.test(follow)?/日期|口径|限制|边界/:null;

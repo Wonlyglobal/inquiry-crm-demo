@@ -3,6 +3,7 @@ import {refreshTikTok} from './tiktok-token.mjs';
 import {livePlatforms} from './live-platforms.mjs';
 import {youtubeAnalytics,youtubePosts} from './youtube.mjs';
 import {connectionReadiness} from './connections.mjs';
+import {socialContentProjection} from './content.mjs';
 import {postPage} from './post-details.mjs';
 import {summarize,permittedCaller} from './summary.mjs';
 const CRM='https://plhverjihjilnuhlhlxi.supabase.co';
@@ -20,19 +21,22 @@ Deno.serve(async req=>{
   if(profileError||!permittedCaller(user,profile))return json({error:'forbidden'},403);
   const params=new URL(req.url).searchParams;
   if(params.has('metrics')&&(params.get('metrics')!=='1'||[...params.keys()].some(k=>k!=='metrics')))return json({error:'invalid_query'},400);
+  if(params.has('content')&&(params.get('content')!=='1'||[...params.keys()].some(k=>k!=='content')))return json({error:'invalid_query'},400);
   const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}});
   const {data:brands,error:brandError}=await db.from('brands').select('id,name').limit(100);
   if(brandError)return json({error:'source_unavailable'},503);
   const ids=(brands||[]).filter(x=>/^wonly(?:\s+global)?$|^王力$/i.test(x.name?.trim()||'')).map(x=>x.id);
   if(!ids.length)return json({error:'brand_scope_unverified'},503);
-  const [a,c]=await Promise.all([db.from('accounts').select('id,platform,external_id,handle,display_name,followers,last_synced_at').in('brand_id',ids).limit(101),params.has('metrics')?Promise.resolve({data:[],error:null}):db.from('competitors').select('id,name,platform,followers,posts_count,last_synced_at').limit(101)]);
+  const [a,c]=await Promise.all([db.from('accounts').select('id,platform,external_id,handle,display_name,followers,last_synced_at').in('brand_id',ids).limit(101),(params.has('metrics')||params.has('content'))?Promise.resolve({data:[],error:null}):db.from('competitors').select('id,name,platform,followers,posts_count,last_synced_at').limit(101)]);
   if(a.error||c.error||(a.data?.length||0)>100||(c.data?.length||0)>100)return json({error:'source_incomplete'},503);
-  if(params.has('metrics')){
+  if(params.has('metrics')||params.has('content')){
+   const contentOnly=params.has('content');
    const sourceNow=new Date();
-   const [live,youtube]=await Promise.all([livePlatforms({get:k=>Deno.env.get(k),accounts:a.data||[],now:sourceNow,metricsOnly:true,tiktokToken:async(force=false)=>{
+   const [live,youtube]=await Promise.all([livePlatforms({get:k=>Deno.env.get(k),accounts:a.data||[],now:sourceNow,metricsOnly:true,contentOnly,tiktokToken:async(force=false)=>{
     const {data,error}=await db.from('tiktok_tokens').select('access_token,refresh_token,open_id,scope,expires_at').eq('id',1).maybeSingle();if(error||!data)return null;if(!force)return data;
     return refreshTikTok(k=>Deno.env.get(k),data,async next=>{const result=await db.from('tiktok_tokens').update(next).eq('id',1).eq('access_token',data.access_token).select('id');return !result.error&&result.data?.length===1;});
-   }}),youtubePosts(k=>Deno.env.get(k),fetch,sourceNow,{metricsOnly:true})]);
+   }}),youtubePosts(k=>Deno.env.get(k),fetch,sourceNow,{metricsOnly:true,contentOnly})]);
+   if(contentOnly)return json(socialContentProjection({...live,youtube},sourceNow));
    return json({schema_version:'wonly-social-metrics-v1',site:'socialwonly.foreverdoodle.com',status:'available',generated_at:new Date().toISOString(),live_platforms:{tiktok:live.tiktok,instagram:live.instagram,facebook:live.facebook,youtube}});
   }
   if(params.has('posts_page')){

@@ -3,10 +3,10 @@ import {readPrivateSocialSnapshot,privateSocialTime,SOCIAL_METRIC_LABELS} from '
 export const SOCIAL_ANALYSIS_PLATFORMS=['tiktok','instagram','facebook','youtube'];
 export function socialAnalysisIntent(question=''){
  const q=String(question||'').normalize('NFKC');
- return /TikTok|Instagram|Facebook|YouTube|社媒/i.test(q)&&/分析|表现好|优秀|最好|排名|问题|改进|建议|优化|复盘|对比|比较|增长/.test(q)&&(/帖子|逐帖|指标|观看|播放|互动|点击|表现|社媒/.test(q)||/查看私有知识 (?:tiktok|instagram|facebook|youtube)-/.test(q));
+ return /TikTok|Instagram|Facebook|YouTube|社媒/i.test(q)&&/分析|内容与改进|表现好|优秀|最好|排名|问题|改进|建议|优化|复盘|对比|比较|增长/.test(q)&&(/帖子|逐帖|指标|观看|播放|互动|点击|表现|内容|选题|开头|表达|文案|社媒/.test(q)||/查看私有知识 (?:tiktok|instagram|facebook|youtube)-/.test(q));
 }
 export function socialAnalysisCoversParts(question,parts=[]){
- return socialAnalysisIntent(question)&&parts.length>1&&parts.length<=3&&parts.every(p=>socialAnalysisIntent(p)||/^(?:请)?(?:给出|说明|指出|列出|分析)(?:具体)?(?:改进建议|(?:存在的)?问题(?:和(?:具体)?改进建议)?|表现好的帖子|优秀帖子|后续验证指标)[。？?]?$/.test(p));
+ return socialAnalysisIntent(question)&&parts.length>1&&parts.length<=3&&parts.every(p=>socialAnalysisIntent(p)||/^(?:请)?(?:给出|说明|指出|列出|分析)(?:具体)?(?:内容分析|选题(?:、开头和表达)?(?:建议|改进)?|开头建议|表达建议|改进建议|(?:存在的)?问题(?:和(?:具体)?改进建议)?|表现好的帖子|优秀帖子|后续验证指标)[。？?]?$/.test(p));
 }
 export function unsupportedSocialAnalysisPeriod(question=''){
  const q=String(question||'').normalize('NFKC'),dates=q.match(/20\d{2}-\d{2}-\d{2}/g)||[];

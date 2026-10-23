@@ -4,7 +4,7 @@ export function privateReceiptLabel(key){const m=String(key).match(/^(weekly|dai
 export function privateReportButtons(receipts,onAsk){
  if(receipts?.length!==1||!validPrivateReceipt(receipts[0]))return null;
  const bar=document.createElement('div');bar.className='private-report-actions';bar.setAttribute('aria-label','继续查看这份报告');
- const options=/^(tiktok|instagram|facebook|youtube)-/.test(receipts[0].key)?[['分析表现','分析帖子表现'],['指标概览','指标概览'],['展开逐帖','展开逐帖明细'],['来源与缺口','来源与缺口']]:[['查看风险','风险呢'],['查看下一步','下一步呢'],['查看来源与缺口','来源有哪些']];
+ const options=/^(tiktok|instagram|facebook|youtube)-/.test(receipts[0].key)?[['内容与改进','内容与改进'],['分析表现','分析帖子表现'],['指标概览','指标概览'],['展开逐帖','展开逐帖明细'],['来源与缺口','来源与缺口']]:[['查看风险','风险呢'],['查看下一步','下一步呢'],['查看来源与缺口','来源有哪些']];
  for(const [label,q] of options){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>onAsk(`查看私有知识 ${receipts[0].key}，${q}`);bar.append(b)}return bar;
 }
 export function mountPrivateIntelligence(host,{invoke,isAllowed}){

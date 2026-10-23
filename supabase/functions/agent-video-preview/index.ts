@@ -15,7 +15,7 @@ Deno.serve(async req=>{
   const authorization=req.headers.get('authorization')||'',client=createClient(Deno.env.get('SUPABASE_URL')||'',envKey(),{global:{headers:{Authorization:authorization}},auth:{persistSession:false}});
   const {data:{user},error}=await client.auth.getUser();if(error||!user)return json({error:'请重新登录'},401);
   const {data:profile}=await client.from('profiles').select('active,role').eq('id',user.id).single();if(!eligible(user,profile))return json({error:'当前账号未获授权'},403);
-  const bytes=await boundedBytes(new Response(req.body),32768),input=JSON.parse(new TextDecoder().decode(bytes));validateDialogue(input);
+  const bytes=await boundedBytes(new Response(req.body),65536),input=JSON.parse(new TextDecoder().decode(bytes));validateDialogue(input);
   const q=privateReportQuestion(input.question,input.privateReportKey);if(input.action!=='chat'||input.voice===true||!existingVideoIntent(q))return json({error:'此预览仅接受内部视频文字复盘'},400);
   const materialConfig={actor:user.id,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET')};
   const result=await readPrivateIntelligence(client,q,Date.now(),{materialConfig});return json({answer:result.answer,provider:'internal',model:'existing-video-index-preview',context:{route:'private_intelligence',receipts:result.receipts,video_index:result.video_index}});

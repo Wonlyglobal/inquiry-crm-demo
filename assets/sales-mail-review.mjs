@@ -1,4 +1,4 @@
-import {mailTypeEsc,renderMailTypeWorkspace} from './sales-mail-types.mjs?v=20261023-2';
+import {mailTypeEsc,renderMailTypeWorkspace} from './sales-mail-types.mjs?v=20261023-3';
 export const REVIEW_FILTERS=Object.freeze({review:'全部待复核',skipped:'安全跳过',uncertain:'AI待人工确认',human:'已人工复核'});
 export function reviewReason(item){
  if(item.method==='human')return '已人工复核；如需纠正请保留新的真实依据。';

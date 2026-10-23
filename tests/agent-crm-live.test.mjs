@@ -12,7 +12,7 @@ test('live answer is computed locally, says so, and opens the matching CRM page 
  assert.match(crmLiveAnswer('销售额最高的是谁',{compute:()=>'x',ready:false}).answer,/还在加载/);
  assert.equal(crmLiveAnswer('怎么提升销售额',{compute:()=>'x',ready:true}),null);
  const conv=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');assert.match(conv,/crmAnswer\?\.\(question\)/);assert.match(conv,/action:'local-ticket'/);
- const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/crmAnswer:question=>crmLiveAnswer\(question,\{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad\}\),crmChart:aiChart/);
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/crmAnswer:question=>crmLiveAnswer\(question,\{compute:aiAnswer,chart:aiChart,metric:aiChartMetric,ready:dashboardHasSuccessfulLoad,snapshot:aiDataContext,stale:agentDataRefreshFailed\}\),crmChart:aiChart/);
 });
 import {spokenNames,speechBody} from '../supabase/functions/agent-conversation/bailian.mjs';
 test('TTS says Chloe the way she says it; on-screen text unchanged',()=>{
@@ -32,7 +32,7 @@ test('every CRM data answer names its source and carries a chart window first',a
  assert.equal(timelineWindow({kind:'chart',source:'crm',metric:'x',question:'a'}),null);
  assert.equal(timelineWindow({kind:'chart',source:'crm',metric:'sales',question:'联系 a@b.com'}),null);
  assert.equal(expandTimeline([{windows:[stored]}])[0].windows.length,1);
- const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/function aiChart\(question\)/);assert.match(html,/CRM 实时数据（询盘与成交记录）/);
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/function aiChart\(question,c=aiDataContext\(question\)\)/);assert.match(html,/CRM 实时数据（询盘与成交记录）/);
 });
 
 test('product sources, certification risks and rankings never masquerade as CRM counts',()=>{

@@ -21,13 +21,13 @@ export function classificationProjection(message) {
  // Do not scan quoted previous conversations or signatures for classification evidence.
  const current=body.split(/\n\s*(?:>+|On .{1,100}wrote:|-{2,}\s*(?:Original Message|Forwarded Message)|(?:Best regards|Kind regards|Sincerely)[,\s]*\n)/i)[0].slice(0,6000);
  const evidence=[];
- for(const pattern of PHRASES){pattern.lastIndex=0;for(const match of current.matchAll(pattern)){if(!evidence.includes(match[0]))evidence.push(match[0]);if(evidence.length>=32)break}if(evidence.length>=32)break}
+ for(const pattern of PHRASES){pattern.lastIndex=0;for(const match of current.matchAll(pattern)){if(match[0].trim().length<3)continue;if(!evidence.includes(match[0]))evidence.push(match[0]);if(evidence.length>=32)break}if(evidence.length>=32)break}
  if(!evidence.length)return {skip:'insufficient_safe_evidence'};
  return {payload:{direction:message.direction,signals:evidence},evidence};
 }
 export function validateClassification(output,projection) {
  if(!output||!CATEGORIES.includes(output.category)||typeof output.confidence!=='number'||!Number.isFinite(output.confidence)||output.confidence<0||output.confidence>1)return null;
- if(typeof output.evidence!=='string'||!projection.evidence?.includes(output.evidence))return null;
+ if(typeof output.evidence!=='string'||output.evidence.trim().length<3||!projection.evidence?.includes(output.evidence))return null;
  // Direction restricts category meaning, but is not enough to prove a business type.
  if(output.category==='new_inquiry'&&projection.payload.direction!=='inbound'||output.category==='outreach'&&projection.payload.direction!=='outbound')return null;
  return {category:output.confidence>=0.7?output.category:'uncertain',confidence:output.confidence,evidence:output.evidence};

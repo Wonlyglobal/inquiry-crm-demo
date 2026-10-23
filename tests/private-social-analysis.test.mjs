@@ -56,7 +56,8 @@ test('single-report analysis retains its selector and digest, never reads a diff
  assert.equal(calls.length,1);assert.equal(calls[0].args.p_key,d.key);assert.equal(r.receipts[0].digest,'saved-sha');assert.match(r.answer,/知识编号：saved-id；版本校验：saved-sha/);assert.match(r.answer,/具体改进建议/);
 });
 test('single analysis aspects stay together but unrelated compound tasks and unsupported periods cannot silently change scope',async()=>{
- for(const q of ['分析今天Facebook帖子表现，并给出具体改进建议','分析Facebook帖子表现，并指出存在的问题，同时给出改进建议','分析Facebook帖子表现，并指出存在的问题和具体改进建议'])assert.equal(socialAnalysisCoversParts(q,questionPlan(q).parts),true);
+ for(const q of ['分析今天Facebook帖子表现，并给出具体改进建议','分析Facebook帖子表现，并指出存在的问题，同时给出改进建议','分析Facebook帖子表现，并说明存在的问题和具体改进建议'])assert.equal(socialAnalysisCoversParts(q,questionPlan(q).parts),true);
+ const one='分析Facebook帖子表现，并指出存在的问题和具体改进建议';assert.equal(questionPlan(one).parts.length,0);assert.equal(privateIntelligenceIntent(one),true);
  for(const q of ['分析Facebook帖子表现，并介绍CRM','分析Facebook帖子表现，并查询S922安装资料','分析Facebook帖子表现；介绍CRM；说明邮箱连接；分析YouTube帖子'])assert.equal(socialAnalysisCoversParts(q,questionPlan(q).parts),false);
  for(const q of ['分析近7天Facebook帖子表现','分析上周YouTube帖子','对比Facebook帖子观看量和昨天相比的增长','分析2026-10-01到2026-10-23社媒表现']){
   const r=await readPrivateIntelligence({rpc:async()=>{throw Error('must not substitute a different period')}},q,now);assert.match(r.answer,/不能用单份累计值冒充/);assert.equal(r.receipts.length,0);

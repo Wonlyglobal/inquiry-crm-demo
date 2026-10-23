@@ -1,7 +1,7 @@
 // Read the existing signed material index. No SSH, media download, external model or new source operation.
 import {signMaterialRequest} from './material-request-proof.mjs';
 import {boundedBytes} from './bailian.mjs';
-import {readPrivateSocialSnapshot,privateSocialTime} from './private-social-display.mjs';
+import {readPrivateSocialSnapshot,privateSocialTime,SOCIAL_METRIC_LABELS} from './private-social-display.mjs';
 const UUID=/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 const platforms=['facebook','instagram','tiktok','youtube'];
 const text=v=>typeof v==='string'?v.replace(/Bearer\s+\S+|sk-[\w.-]{12,}|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|\+?\d[\d ()-]{10,}\d/g,'[已隐藏标识]').replace(/[\u0000-\u001f\u007f<>`\[\]{}*_#]/g,' ').slice(0,500):'';
@@ -52,6 +52,9 @@ export function existingVideoAnalysis(d,index,q='',now=Date.now()){
  const snap=readPrivateSocialSnapshot(d);if(!snap)return '视频复盘未通过原指标快照结构校验，没有推断视频内容。';
  const {posts,metadata:m,platform,historical}=snap,source=Date.parse(m.source_date),out=[`${platform} · 内部视频片段与逐帖指标复盘`,`指标来源：${privateSocialTime(m.source_date)}；物料接口读取：${privateSocialTime(index?.read_at)}`,'本次仅读取公司既有采样索引，没有下载视频或调用外部模型。原帖与物料尚无可核验发布绑定，不自动按文件名或相似标题配对。'];
  if(historical||!Number.isFinite(source)||source>now||now-source>48*3600000){out.push('指标来源失败、过期或日期异常，暂缓当前表现建议；旧快照不冒充今日。');return out.join('\n')}
+ out.push(`帖子发布窗口：${privateSocialTime(m.window?.start)} 至 ${privateSocialTime(m.window?.end)}；分页${m.window?.complete===true?'已读完':m.window?.complete===false?'未读完':'未确认'}；明细${m.post_coverage_complete===true?'完整':m.post_coverage_complete===false?'不完整':'完整性未确认'}。`, `知识包未保存条数：${Number.isSafeInteger(m.omitted_posts)?m.omitted_posts:'未知'}；来源最近成功：${privateSocialTime(m.source_last_success_sync)}（未被本次物料读取推进）。`);
+ for(const [k,label] of Object.entries(SOCIAL_METRIC_LABELS)){if(k==='viewers'&&d.kind!=='facebook')continue;const known=posts.filter(p=>Object.hasOwn(p.metrics,k)).length;out.push(`${label}指标覆盖：${known}/${posts.length}；${posts.length-known}条未知`)}
+ const metricErrors=[...new Set(posts.flatMap(p=>p.errors||[]))];if(metricErrors.length)out.push('指标缺口原因：'+metricErrors.join('；'));
  out.push(`已保存指标帖：${posts.length}条；按已知累计观看量列最多3条优先复盘线索，发布时间不同，不是同龄效率或内容质量排名。`);
  for(const [i,p] of [...posts].sort((a,b)=>(b.metrics.views??-1)-(a.metrics.views??-1)).slice(0,3).entries())out.push(`原帖${i+1}：${p.url}\n发布：${privateSocialTime(p.published)}；观看：${p.metrics.views??'未知'}；点赞：${p.metrics.likes??'未知'}；评论：${p.metrics.comments??'未知'}；点击：${p.metrics.clicks??'未知'}`);
  if(index?.status!=='available'){out.push('\n视频索引本次读取失败或未配置；画面、口播、字幕证据未取得，不把文案当转写，不更新来源成功时间。');return out.join('\n')}

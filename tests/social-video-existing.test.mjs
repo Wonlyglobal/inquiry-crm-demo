@@ -27,7 +27,7 @@ test('malformed, expired, oversized and failed pages do not become fresh or full
 });
 test('actual observation and timestamp-specific suggestions remain separate from post pairing and missing retention',async()=>{
  const d=doc(),before=JSON.stringify(d),r=await loadExistingVideoIndex(await config(),'',async(u,o)=>Response.json(envelope(JSON.parse(o.body).page)),now),answer=existingVideoAnalysis(d,r,'',now);
- for(const pattern of [/观看：12/,/2\.00秒 采样推测/,/0\.00秒—4\.00秒 转写待听校/,/不等于已确认字幕/,/没有连续0—3秒覆盖证明/,/画面改法/,/口播改法/,/字幕改法/,/尚不能认定它们对应上述任何原帖/,/解析完成时间\/源文件哈希：接口未提供/,/不是源视频文件哈希/,/24小时\/72小时/,/没有自动保存新知识/])assert.match(answer,pattern);
+ for(const pattern of [/观看：12/,/观看量指标覆盖：1\/1/,/帖子发布窗口：未知 至 未知/,/来源最近成功：未知/,/2\.00秒 采样推测/,/0\.00秒—4\.00秒 转写待听校/,/不等于已确认字幕/,/没有连续0—3秒覆盖证明/,/画面改法/,/口播改法/,/字幕改法/,/尚不能认定它们对应上述任何原帖/,/解析完成时间\/源文件哈希：接口未提供/,/不是源视频文件哈希/,/24小时\/72小时/,/没有自动保存新知识/])assert.match(answer,pattern);
  assert.equal(JSON.stringify(d),before);assert.doesNotMatch(answer,/已配对|内容导致|已提高转化|已经同步视频/);
  r.videos[0].segments=[];assert.match(existingVideoAnalysis(d,r,'',now),/没有可分析/);
 });

@@ -35,7 +35,7 @@ test('failed content or metrics and no match are honest; text instructions have 
  const m=JSON.parse(d.sections[0].body);m.source_date='2026-10-01';d.sections[0].body=JSON.stringify(m);assert.match(privateSocialContentAnalysis(d,c,now),/暂缓当前内容表现结论/);
 });
 test('content questions and short followups stay inside private route, fetch only on explicit content analysis, preserve receipts',async()=>{
- for(const q of ['结合Facebook帖子内容和指标分析选题、开头和表达','查看私有知识 facebook-2026-10-23，内容与改进']){assert.equal(socialContentIntent(q),true);assert.equal(privateIntelligenceIntent(q),true)}
+ for(const q of ['结合今天Ｉｎｓｔａｇｒａｍ帖子内容和逐帖指标分析选题、开头和表达','结合Facebook帖子内容和指标分析选题、开头和表达','查看私有知识 facebook-2026-10-23，内容与改进']){assert.equal(socialContentIntent(q),true);assert.equal(privateIntelligenceIntent(q),true)}
  for(const q of ['内容与改进','选题怎么改','开头怎么改','表达怎么改'])assert.equal(privateReportQuestion(q,'facebook-2026-10-23'),`查看私有知识 facebook-2026-10-23，${q}`);
  let fetched=0;const client={rpc:async()=>({data:{documents:[{id:'saved',digest:'hash',document:document()}]}})},options={authorization:'fixture',fetcher:async()=>{fetched++;return Response.json(envelope())}};
  const r=await readPrivateIntelligence(client,'结合今天Facebook帖子内容和逐帖指标分析选题、开头和表达',now,options);assert.equal(fetched,1);assert.match(r.answer,/配对覆盖：4\/4/);assert.equal(r.receipts[0].id,'saved');assert.match(r.answer,/知识编号：saved；版本校验：hash/);

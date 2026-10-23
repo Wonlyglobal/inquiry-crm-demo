@@ -21,7 +21,7 @@ export async function loadSocialContent(authorization,fetcher=fetch,now=Date.now
   });for(const p of platforms){p.digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(p.posts))))].map(b=>b.toString(16).padStart(2,'0')).join('')}return {status:'available',platforms};
  }catch{return {status:'unavailable'}}
 }
-export function socialContentIntent(q=''){return /TikTok|Instagram|Facebook|YouTube|社媒|查看私有知识 (?:tiktok|instagram|facebook|youtube)-/i.test(q)&&/内容|选题|开头|表达|文案|标题|改写/.test(q)&&/分析|改进|建议|优化|复盘|怎么|改写|内容与改进/.test(q)}
+export function socialContentIntent(q=''){q=String(q||'').normalize('NFKC');return /TikTok|Instagram|Facebook|YouTube|社媒|查看私有知识 (?:tiktok|instagram|facebook|youtube)-/i.test(q)&&/内容|选题|开头|表达|文案|标题|改写/.test(q)&&/分析|改进|建议|优化|复盘|怎么|改写|内容与改进/.test(q)}
 const topics=[
  ['供电与应急',/\b(?:battery|batteries|power|emergency)\b|电池|供电|没电|应急/i,'What can you do when the battery runs out?','电池没电时，先检查什么、怎么处理？','围绕原文提及的电量或供电问题说明检查与处理步骤；备用方案仅按原文陈述，不补写功能、接口或续航承诺。'],
  ['安装操作',/\b(?:install|installation|wiring|setup)\b|安装|装配|接线|调试/i,'Installation demo: start with the operating steps.','安装演示先看操作步骤，再核对适用条件。','把一个有原文依据的安装步骤拆成“前提—操作—检查结果”，其他步骤另做一帖。'],

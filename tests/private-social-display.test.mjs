@@ -41,6 +41,6 @@ test('short social followups retain only a valid social key and options send exp
  assert.equal(privateReportQuestion('点击呢','weekly-2026-10-12-2026-10-18'),'点击呢');
  const prior=globalThis.document;const asked=[];
  try{globalThis.document={createElement:tag=>({tag,children:[],setAttribute(){},append(...c){this.children.push(...c)}})};
-  const bar=privateReportButtons([{id:'11111111-1111-4111-8111-111111111111',key,digest:'a'.repeat(64)}],q=>asked.push(q));assert.deepEqual(bar.children.map(c=>c.textContent),['内容与改进','分析表现','指标概览','展开逐帖','来源与缺口']);bar.children[3].onclick();assert.deepEqual(asked,[`查看私有知识 ${key}，展开逐帖明细`]);
+  const bar=privateReportButtons([{id:'11111111-1111-4111-8111-111111111111',key,digest:'a'.repeat(64)}],q=>asked.push(q));assert.deepEqual(bar.children.map(c=>c.textContent),['视频前三秒','内容与改进','分析表现','指标概览','展开逐帖','来源与缺口']);bar.children[4].onclick();assert.deepEqual(asked,[`查看私有知识 ${key}，展开逐帖明细`]);
  }finally{globalThis.document=prior}
 });

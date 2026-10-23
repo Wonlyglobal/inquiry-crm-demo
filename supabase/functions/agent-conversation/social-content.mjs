@@ -23,6 +23,7 @@ export async function loadSocialContent(authorization,fetcher=fetch,now=Date.now
 }
 export function socialContentIntent(q=''){return /TikTok|Instagram|Facebook|YouTube|社媒|查看私有知识 (?:tiktok|instagram|facebook|youtube)-/i.test(q)&&/内容|选题|开头|表达|文案|标题|改写/.test(q)&&/分析|改进|建议|优化|复盘|怎么|改写|内容与改进/.test(q)}
 const topics=[
+ ['供电与应急',/\b(?:battery|batteries|power|emergency)\b|电池|供电|没电|应急/i,'What can you do when the battery runs out?','电池没电时，先检查什么、怎么处理？','围绕原文提及的电量或供电问题说明检查与处理步骤；备用方案仅按原文陈述，不补写功能、接口或续航承诺。'],
  ['安装操作',/\b(?:install|installation|wiring|setup)\b|安装|装配|接线|调试/i,'Installation demo: start with the operating steps.','安装演示先看操作步骤，再核对适用条件。','把一个有原文依据的安装步骤拆成“前提—操作—检查结果”，其他步骤另做一帖。'],
  ['开锁与使用',/\b(?:unlock|unlocking|fingerprint|passcode)\b|face recognition|开锁|解锁|指纹|人脸|密码/i,'Which unlocking method would you choose?','你会选择哪种解锁方式？','先聚焦原文提及的一种操作或一个选择问题，再说明适用场景；不同方式可拆成系列，勿补写未证实能力。'],
  ['工艺与制造',/\b(?:cut|cutting|manufactur[a-z]*|weld[a-z]*|production|workshop|craftsmanship)\b|切割|制造|焊接|生产工艺|车间/i,'How is this made? Follow one step of the process.','这一步是怎么做出来的？先看工艺过程。','围绕原文提及的一道工序说明“做什么—怎么做—检查什么”，不要把工艺介绍误写成安全测试。'],
@@ -79,7 +80,7 @@ export function privateSocialContentAnalysis(d,content,now=Date.now()){
  out.push('\n逐帖证据与具体修改草案（最多4条；包含累计观看候选及有可改文案线索的帖子）');
  for(const [i,x] of selected.entries()){
   const {metric:r,content:c,review:v}=x;out.push(`${i+1}. ${r.url}`,`发布：${privateSocialTime(r.published)}；累计观看：${r.metrics.views??'未知'}；点赞：${r.metrics.likes??'未知'}；评论：${r.metrics.comments??'未知'}`,
-   `选题线索：${v.topic}；文案开头原文：${quote(v.opening)}`,`文本覆盖：${c.text_kind}${c.text_truncated?'；已截断，结尾及未读部分不能判断':'；本次返回文本未标截断（不证明视频内容完整）'}`,
+   `选题线索：${v.topic}；文案开头原文：${quote(v.opening)}`,`文本覆盖：${({title:'标题',caption:'发布文案',title_description:'标题与说明'})[c.text_kind]||'文本类型未确认'}${c.text_truncated?'；已截断，结尾及未读部分不能判断':'；本次返回文本未标截断（不证明视频内容完整）'}`,
    `值得保留：${v.topic==='主题待人工归类'?'保留原帖可核对的具体信息；主题需人工确认。':`围绕“${v.topic}”的明确内容线索，可作为后续同类实验的起点。`}观看量不证明这段表达造成效果。`,
    `问题/待核对：${v.issues.join('；')||'未命中预设文本问题，不表示内容已优秀或无需改进。'}`,
    `选题建议：${v.topicAdvice}`,`文案开头草案：${quote(v.openingDraft)}（建议稿，需与真实产品/演示相符后采用）`,

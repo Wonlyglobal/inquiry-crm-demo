@@ -62,6 +62,7 @@ test('topic evidence prioritizes primary copy and whole words, never boilerplate
  assert.equal(textReview('How is this steel cut? #security').topic,'工艺与制造');
  assert.equal(textReview('Hear the difference. #design').topic,'声音与使用体验');
  assert.equal(textReview('Latest style options').topic,'外观与设计');
+ assert.equal(textReview('Battery depleted? #security').topic,'供电与应急');
  assert.equal(textReview('Every market has requirements. #security').topic,'市场与合规说明');
  const q=textReview('Seven ways to unlock an S123 Pro. Take a look at these steps.');assert.match(q.openingDraft,/S123 Pro/);assert.equal(q.cta,true);
  assert.equal(textReview('New choices #security').topic,'主题待人工归类');

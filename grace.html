@@ -2577,7 +2577,8 @@
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261023-social-content';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import {mailboxRankingRows,renderMailboxRankings} from './assets/sales-mailbox-rankings.mjs?v=20261023-1';
-import {MAIL_TYPES,renderMailTypeRankings,renderMailTypeWorkspace} from './assets/sales-mail-types.mjs?v=20261023-1';
+import {MAIL_TYPES,renderMailTypeRankings,renderMailTypeWorkspace} from './assets/sales-mail-types.mjs?v=20261023-2';
+import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReviewRequests} from './assets/sales-mail-review.mjs?v=20261023-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20261015-stable-call1";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
@@ -4164,6 +4165,46 @@ import {MAIL_TYPES,renderMailTypeRankings,renderMailTypeWorkspace} from './asset
         root.querySelector('[data-mail-type-category]').onchange=event=>{dashboardState.mailTypeCategory=event.target.value;renderDashboardEmailActivityLeaderboards(profiles)};
         root.querySelector('[data-mail-type-basis]').onchange=event=>{dashboardState.mailTypeBasis=event.target.value;renderDashboardEmailActivityLeaderboards(profiles)};
         root.querySelectorAll('[data-mail-type-sales]').forEach(button=>button.onclick=()=>{const person=people.find(p=>p.id===button.dataset.mailTypeSales);if(person)openSalesMailTypes(person,month)});
+        root.querySelector('[data-mail-review-open]').onclick=()=>openSalesMailReviewQueue(people,month);
+      }
+      function openSalesMailReviewQueue(people,initialMonth){
+        if(!people.length)return toast('没有当前权限内的业务员');
+        let offset=0,busy=false,items=[];const requests=createReviewRequests(),opened=new Set(),drafts=new Map();
+        openDashboardModal('邮件人工复核清单',renderReviewControls(people,people[0].id,initialMonth));
+        const list=$('#mail-review-list'),status=$('#mail-review-status'),sales=$('#mail-review-sales'),month=$('#mail-review-month'),filter=$('#mail-review-filter'),prev=$('#mail-review-prev'),next=$('#mail-review-next');
+        const active=()=>list.isConnected;
+        function remember(){for(const item of items){const choice=list.querySelector(`[data-mail-type-choice="${item.id}"]`),reason=list.querySelector(`[data-mail-type-reason="${item.id}"]`);if(choice&&reason)drafts.set(item.id+item.source_hash,{category:choice.value,reason:reason.value});}}
+        function lock(value){busy=value;for(const control of [sales,month,filter,$('#mail-review-refresh'),prev,next])control.disabled=value;if(!value){prev.disabled=offset===0;next.disabled=offset+items.length>=Number(list.dataset.total||0);}}
+        async function refresh(){
+          if(busy)return;remember();const token=requests.begin(),selectedMonth=month.value;items=[];list.textContent='正在读取复核清单…';status.textContent='';prev.disabled=true;next.disabled=true;
+          if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(selectedMonth)||selectedMonth>chinaDate().slice(0,7)){list.textContent='请选择不晚于当前月份的有效月份。';return;}
+          const {data,error}=await supabase.rpc('get_sales_mail_type_review_queue',{target_sales:sales.value,target_month:selectedMonth+'-01',target_filter:filter.value,target_offset:offset});
+          if(!active()||!requests.current(token))return;
+          if(error||!Array.isArray(data?.items)){list.textContent='清单读取失败或权限已变化，请刷新重试；不显示为0。';return;}
+          if(offset>0&&data.items.length===0){offset=Math.max(0,offset-50);return refresh();}
+          items=data.items;list.dataset.total=data.total;list.innerHTML=renderReviewItems(items);prev.disabled=offset===0;next.disabled=offset+items.length>=data.total;status.textContent=`当前权限内 ${data.total} 封 · 本页 ${items.length?offset+1:0}—${offset+items.length} · 时间为北京时间`;
+          for(const item of items){const draft=drafts.get(item.id+item.source_hash);if(draft){list.querySelector(`[data-mail-type-choice="${item.id}"]`).value=draft.category;list.querySelector(`[data-mail-type-reason="${item.id}"]`).value=draft.reason;}}
+          list.querySelectorAll('[data-review-original]').forEach(button=>button.onclick=async()=>{
+            if(busy)return;const item=items.find(m=>m.id===button.dataset.reviewOriginal),body=list.querySelector(`[data-review-body="${item.id}"]`);button.disabled=true;
+            const {data:original,error}=await supabase.rpc('get_sales_mail_type_original',{target_message:item.id,target_hash:item.source_hash});
+            if(!active()||!requests.current(token)||!body.isConnected)return;
+            button.disabled=false;if(error||original?.id!==item.id||original?.source_hash!==item.source_hash){body.hidden=false;body.textContent='原邮件读取失败、原文已更新或权限已失效，请刷新清单。';return;}
+            body.hidden=false;body.innerHTML=renderReviewOriginal(original);opened.add(item.id+item.source_hash);
+          });
+          list.querySelectorAll('[data-mail-type-review]').forEach(button=>button.onclick=async()=>{
+            if(busy)return;const item=items.find(m=>m.id===button.dataset.mailTypeReview),category=list.querySelector(`[data-mail-type-choice="${item.id}"]`).value,reason=list.querySelector(`[data-mail-type-reason="${item.id}"]`).value.trim();
+            if(!opened.has(item.id+item.source_hash))return toast('请先点击查看原邮件，核对完整正文后再复核');
+            if(!Object.hasOwn(MAIL_TYPES,category)||reason.length<5)return toast('请填写至少5个字的复核依据，不要复制敏感值');
+            remember();const selectedMonth=month.value;lock(true);button.disabled=true;
+            const {error}=await supabase.rpc('review_sales_mail_type',{target_message:item.id,target_hash:item.source_hash,target_category:category,target_reason:reason});
+            if(!active()||!requests.current(token))return;
+            lock(false);if(error){button.disabled=false;return toast('保存未成功，原文可能变化或权限已失效，请刷新后重试');}
+            drafts.delete(item.id+item.source_hash);items=[];toast('人工确认或纠正已保存并留审计；可切换已人工复核回读');await refresh();await loadDashboardEmailObservationSummary(selectedMonth);
+          });
+        }
+        for(const control of [sales,month,filter])control.onchange=()=>{if(!busy){remember();offset=0;refresh();}};
+        $('#mail-review-refresh').onclick=()=>{if(!busy)refresh();};prev.onclick=()=>{if(!busy){remember();offset=Math.max(0,offset-50);refresh();}};next.onclick=()=>{if(!busy){remember();offset+=50;refresh();}};
+        refresh();
       }
       function openSalesMailTypes(person,month){
         const period=month+'-01';let offset=0,busy=false,request=0;

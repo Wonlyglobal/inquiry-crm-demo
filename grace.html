@@ -451,6 +451,8 @@
       .leaderboard { min-width:0; background:#fff; border:1px solid var(--line); border-radius:17px; overflow:hidden; }
       .leaderboard-head,.panel-title { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); }
       .leaderboard-table-scroll { min-height:0; overflow:auto; scrollbar-gutter:stable; }
+      #dashboard-email-leaderboards { grid-column:1/-1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; min-width:0; }
+      @media(max-width:760px){#dashboard-email-leaderboards{grid-template-columns:minmax(0,1fr)}}
       .featured-sales-ranking .leaderboard-table-scroll { flex:1; }
       .leaderboard table { min-width:620px; }
       .leaderboard table th,.leaderboard table td { padding:11px 14px; font-size:12px; white-space:nowrap; }

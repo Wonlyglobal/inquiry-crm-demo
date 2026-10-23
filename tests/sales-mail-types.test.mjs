@@ -56,4 +56,6 @@ test('server keeps JWT/RLS, fixed model policy, bounded batch, evidence freshnes
  assert.match(sql,/pg_advisory_xact_lock/);assert.match(sql,/interval '10 minutes'/);assert.match(sql,/sales_mail_type_recorded/);assert.match(sql,/sales_mail_type_reviewed/);
  assert.doesNotMatch(sql,/update public\.(?:inquiries|email_messages|profiles)|delete from|insert into public\.follow_ups/i);
  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(html,/get_sales_mail_type_summary/);assert.match(html,/renderMailTypeRankings\(people,summary.mailTypes/);assert.match(html,/原文可能变化或权限已失效/);
+ assert.match(html,/#dashboard-email-leaderboards \{ grid-column:1\/-1; display:grid;/);
+ assert.match(html,/@media\(max-width:760px\)\{#dashboard-email-leaderboards\{grid-template-columns:minmax\(0,1fr\)\}\}/);
 });

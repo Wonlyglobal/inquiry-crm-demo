@@ -1,6 +1,6 @@
 // Explicit file selection; same authenticated internal endpoint. No browser persistence or AI calls.
-export function validPrivateReceipt(r){return !!r&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.id||'')&&/^[0-9a-f]{64}$/.test(r.digest||'')&&/^(weekly|daily|evidence|tiktok|instagram)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?$/.test(r.key||'')}
-export function privateReceiptLabel(key){const m=String(key).match(/^(weekly|daily|evidence|tiktok|instagram)-(20\d{2}-\d{2}-\d{2})(?:-(20\d{2}-\d{2}-\d{2}))?$/);return m?`${{weekly:'周报',daily:'日报',evidence:'证据',tiktok:'TikTok逐帖',instagram:'Instagram逐帖'}[m[1]]} · ${m[2]}${m[3]?'—'+m[3]:''}`:'未知报告'}
+export function validPrivateReceipt(r){return !!r&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.id||'')&&/^[0-9a-f]{64}$/.test(r.digest||'')&&/^(weekly|daily|evidence|tiktok|instagram|facebook|youtube)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?$/.test(r.key||'')}
+export function privateReceiptLabel(key){const m=String(key).match(/^(weekly|daily|evidence|tiktok|instagram|facebook|youtube)-(20\d{2}-\d{2}-\d{2})(?:-(20\d{2}-\d{2}-\d{2}))?$/);return m?`${{weekly:'周报',daily:'日报',evidence:'证据',tiktok:'TikTok逐帖',instagram:'Instagram逐帖',facebook:'Facebook逐帖',youtube:'YouTube逐帖'}[m[1]]} · ${m[2]}${m[3]?'—'+m[3]:''}`:'未知报告'}
 export function privateReportButtons(receipts,onAsk){
  if(receipts?.length!==1||!validPrivateReceipt(receipts[0]))return null;
  const bar=document.createElement('div');bar.className='private-report-actions';bar.setAttribute('aria-label','继续查看这份报告');
@@ -29,10 +29,10 @@ export function mountPrivateIntelligence(host,{invoke,isAllowed}){
   allowed();receipts.replaceChildren(...cards);
  }
  syncSocial.onclick=async()=>{
-  if(!isAllowed())return;busy(true);receipts.replaceChildren();status.textContent='正在获取TikTok、Instagram逐帖指标，写入后回读…';
+  if(!isAllowed())return;busy(true);receipts.replaceChildren();status.textContent='正在获取TikTok、Instagram、Facebook、YouTube逐帖指标，写入后回读…';
   try{const result=await invoke({action:'social-metrics-sync'});allowed();if(result.verified!==true)throw Error('服务端未完成内容回读');await verify(result.receipts);
    const coverage=result.coverage||[];const limited=coverage.some(x=>x.status!=='available'||!x.post_coverage_complete||Object.keys(x.metric_gaps||{}).length);
-   status.textContent=`已同步并回读验证 ${result.receipts.length} 份社媒快照${limited?'（含部分范围或指标缺口）':''}。可问“查看今天已同步的TikTok指标”或“查看今天已同步的Instagram指标”。`;
+   status.textContent=`已同步并回读验证 ${result.receipts.length} 份社媒快照${limited?'（含部分范围或指标缺口）':''}。可问“查看今天已同步的TikTok指标”、“查看今天已同步的Instagram指标”、“查看今天已同步的Facebook指标”或“查看今天已同步的YouTube指标”。`;
   }catch(e){status.textContent='社媒同步/回读未完成。保留原知识与来源成功时间；先点回读已同步知识核对，勿重复写入。'}finally{busy(false)}
  };
  refresh.onclick=async()=>{

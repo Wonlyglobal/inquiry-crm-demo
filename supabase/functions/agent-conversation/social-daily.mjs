@@ -7,7 +7,7 @@ export function socialDailyMetadata(row){try{return JSON.parse(row?.document?.se
 export async function socialDailyDocuments(source,previous=[],now=Date.now()){
  const snapshot=socialMetrics(source,null,now),date=new Date(now+8*3600000).toISOString().slice(0,10),generated=new Date(now).toISOString();
  const docs=[];
- for(const platform of ['tiktok','instagram']){
+ for(const platform of ['tiktok','instagram','facebook','youtube']){
   const p=snapshot.platforms.find(p=>p.platform===platform),prior=previous.find(r=>r.document.kind===platform),old=socialDailyMetadata(prior);
   const success=p.status!=='unavailable'&&!!p.fetched_at;
   const metadata={platform,status:p.status,observed_at:generated,source_last_success_sync:success?p.fetched_at:stamp(old.source_last_success_sync,now),last_successful_knowledge_id:success?null:['available','partial'].includes(old.status)?prior?.id||null:old.last_successful_knowledge_id||null,source_date:p.fetched_at,window:p.window,post_count:p.posts.length,post_coverage_complete:p.complete,metric_gaps:p.metric_gaps,reason:p.reason,comparison:'仅与同窗口、同定义快照比较；累计值不是区间增量。失败不推进来源成功时间；空结果不证明平台没有发布。'};
@@ -25,7 +25,7 @@ export async function socialDailyDocuments(source,previous=[],now=Date.now()){
 }
 export async function syncDailySocial({client,authorization,fetcher=fetch,now}){
  const previous=[];
- for(const kind of ['tiktok','instagram']){const {data,error}=await client.rpc('read_agent_private_intelligence',{p_kind:kind,p_from:null,p_to:null,p_key:null,p_limit:1});if(error)throw Error('私有社媒读取未完成，未开始同步');previous.push(...(data?.documents||[]))}
+ for(const kind of ['tiktok','instagram','facebook','youtube']){const {data,error}=await client.rpc('read_agent_private_intelligence',{p_kind:kind,p_from:null,p_to:null,p_key:null,p_limit:1});if(error)throw Error('私有社媒读取未完成，未开始同步');previous.push(...(data?.documents||[]))}
  const source=await loadSocialMetrics(authorization,fetcher);
  const documents=await socialDailyDocuments(source,previous,now??Date.now());
  const {data,error}=await client.rpc('sync_agent_private_intelligence',{p_documents:documents});if(error)throw Error('社媒私有同步未完成，本次事务未提交');

@@ -175,7 +175,7 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    const audit=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
    const {count,error:limitError}=await audit.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','agent_social_metrics_sync').gte('created_at',new Date(Date.now()-3600000).toISOString());
    if(limitError)return json({error:'无法核验社媒读取限额'},503);if((count||0)>=4)return json({error:'社媒同步较频繁，请稍后回读现有知识'},429);
-   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_social_metrics_sync',after_data:{platforms:['tiktok','instagram']},reason:'本人授权的有界社媒私有快照同步；实际写入及回读使用原用户JWT受控RPC'});if(auditError)return json({error:'社媒读取审计失败'},503);
+   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_social_metrics_sync',after_data:{platforms:['tiktok','instagram','facebook','youtube']},reason:'本人授权的有界社媒私有快照同步；实际写入及回读使用原用户JWT受控RPC'});if(auditError)return json({error:'社媒读取审计失败'},503);
    try{return json(await syncDailySocial({client,authorization}))}catch{return json({error:'社媒同步或回读未完成；未验证前不能视为成功。请先回读已保存知识，不要重复写入。'},503)}
   }
   // Private import/readback uses the caller's JWT and transaction-audited RPCs, never model memory.

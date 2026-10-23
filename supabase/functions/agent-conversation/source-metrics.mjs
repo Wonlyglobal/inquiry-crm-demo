@@ -4,7 +4,7 @@ const HOSTS={tiktok:['tiktok.com','www.tiktok.com'],instagram:['instagram.com','
 const METRICS=['views','likes','comments','shares','saves','reach','impressions','clicks','watch_minutes'];
 const n=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0?v:null;
 export const stamp=(v,now=Date.now())=>typeof v==='string'&&/^20\d{2}-\d{2}-\d{2}(?:T[\d:.+Z-]+)?$/.test(v)&&Number.isFinite(Date.parse(v))&&Date.parse(v)<=now?v:null;
-const reason=v=>['not_configured','not_authorized','reauthorization_required','permission_required','timeout','platform_request_failed','response_too_large','wonly_page_authorization_required','account_binding_mismatch','invalid_response','permission_or_quota_required','not_returned','metric_unavailable','time_budget','page_cap','cursor_missing'].includes(v)?v:'source_unavailable';
+const reason=v=>['not_configured','not_authorized','reauthorization_required','permission_required','timeout','platform_request_failed','response_too_large','wonly_page_authorization_required','account_binding_mismatch','invalid_response','permission_or_quota_required','not_returned','metric_unavailable','time_budget','page_cap','cursor_missing','unavailable_video','post_id_missing','incomplete_source_window'].includes(v)?v:'source_unavailable';
 export function sourceMetricsIntent(q=''){
  return /(?:竞品.*(?:SEO|SEMrush|关键词|自然搜索)|(?:SEO|SEMrush).*竞品|(?:社媒|TikTok|Instagram|Facebook|YouTube|帖子).*(?:逐帖|逐条|每帖|单帖|指标|播放量|互动|点赞|观看))/i.test(q)&&!/发布|删帖|私信|投放/.test(q);
 }
@@ -12,7 +12,7 @@ function publicUrl(value,platform){try{const u=new URL(value);if(u.protocol!=='h
 function post(p,platform,kind,fetched,now){
  const url=publicUrl(p?.url,platform);if(!url)return null;
  const m=p?.metrics||{};
- return {platform,url,published_at:stamp(p.published_at,now),metric_status:kind,metrics_synced_at:kind==='platform_api'?fetched:null,metrics:Object.fromEntries(METRICS.map(k=>[k,n(m[k==='saves'&&m.saves===undefined?'saved':k])])),metric_errors:Object.fromEntries(Object.entries(p.metric_errors||{}).filter(([k])=>METRICS.includes(k)||k==='saved'||k==='insights').map(([k,v])=>[k,reason(v)]))};
+ return {platform,url,published_at:stamp(p.published_at,now),metric_status:kind,metrics_synced_at:kind==='platform_api'?fetched:null,metrics:Object.fromEntries((platform==='facebook'?[...METRICS,'viewers']:METRICS).map(k=>[k,n(m[k==='saves'&&m.saves===undefined?'saved':k])])),metric_errors:Object.fromEntries(Object.entries(p.metric_errors||{}).filter(([k])=>METRICS.includes(k)||k==='viewers'||k==='saved'||k==='insights').map(([k,v])=>[k,reason(v)]))};
 }
 export function socialMetrics(summary,library,now=Date.now()){
  const platforms=PLATFORMS.map(platform=>{
@@ -35,7 +35,7 @@ export function sourceMetricsAnswer(seo,social){
  if(!rows.length)lines.push('竞品 SEO 指标未接通：没有可核验的获准 API 或导出快照；不把过期标记当成流量、关键词或外链数据。');
  for(const r of rows)lines.push(`${r.domain}｜${r.database}/${r.device}｜${r.period.start}—${r.period.end}｜来源日期 ${r.captured_at}｜估算数据；自然流量 ${show(r.organic_traffic)}；关键词数 ${show(r.organic_keywords)}；外链 ${show(r.backlinks)}；引用域 ${show(r.referring_domains)}。`,...r.keywords.map(k=>`关键词 ${k.query}｜排名 ${show(k.position)}｜上期 ${show(k.previous_position)}`),...r.top_pages.map(p=>`落地页 ${p.url}｜流量估算 ${show(p.traffic)}`),'缺口：关键词差距和未返回项目均未知；只有同数据库、设备、周期和指标定义的历史快照可比较。');
  lines.push(`社媒摘要生成：${show(social.generated_at)}。`);
- const labels={views:'观看/播放',likes:'点赞',comments:'评论',shares:'分享',saves:'收藏',reach:'触达',impressions:'曝光',clicks:'点击',watch_minutes:'观看分钟'};
+ const labels={views:'观看/播放',likes:'点赞',comments:'评论',shares:'分享',saves:'收藏',reach:'触达',impressions:'曝光',clicks:'点击',watch_minutes:'观看分钟',viewers:'独立观看者'};
  function render(p){lines.push(`${p.url}｜发布 ${show(p.published_at)}｜指标时间 ${show(p.metrics_synced_at)}`,Object.entries(p.metrics).map(([k,v])=>`${labels[k]} ${show(v)}`).join('；'));}
  for(const p of social.platforms){lines.push(`\n${p.platform} 官方逐帖：${p.status}；本次获取 ${show(p.fetched_at)}；已返回 ${p.posts.length} 条；${p.complete?'本次源分页已结束（不证明平台全历史完整）':'范围不完整或未取得'}；失败原因 ${show(p.reason)}。`);for(const row of p.posts)render(row);}
  lines.push(`\n入库登记逐帖（未核验，不能称最新平台值）：本次读取 ${show(social.stored.records_read)} / 源端记录 ${show(social.stored.source_total)}；四平台有公开链接 ${social.stored.eligible_records} 条；${social.stored.complete?'入库分页已读完':'读取不完整'}。`);

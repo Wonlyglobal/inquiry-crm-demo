@@ -1,6 +1,7 @@
 // Presentation only: read the immutable private snapshot, never fetch or rewrite it.
 const PLATFORMS={facebook:'Facebook',instagram:'Instagram',tiktok:'TikTok',youtube:'YouTube'};
 const METRICS={views:'观看量',viewers:'独立观看者',clicks:'点击数',likes:'点赞数',comments:'评论数',shares:'分享数',saves:'收藏数',reach:'触达人数',impressions:'曝光次数',watch_minutes:'观看分钟'};
+export const SOCIAL_METRIC_LABELS=Object.freeze({...METRICS});
 const REASONS={permission_required:'缺少读取权限',reauthorization_required:'授权需更新',not_returned:'平台未返回',metric_unavailable:'该指标暂不可用',timeout:'读取超时',platform_request_failed:'平台读取失败',not_configured:'来源未配置',not_authorized:'尚未授权',wonly_page_authorization_required:'WONLY主页授权待核对',account_binding_mismatch:'账号绑定待核对',incomplete_source_window:'本次窗口读取不完整',private_document_limit:'知识包容量限制',page_cap:'达到分页上限',time_budget:'达到读取时间上限',cursor_missing:'分页标记缺失',source_unavailable:'来源不可用'};
 const count=v=>Number.isSafeInteger(v)&&v>=0?v:null;
 const show=v=>v===null||v===undefined?'未提供':String(v);
@@ -26,7 +27,7 @@ function parsePosts(sections){
  }
  return rows;
 }
-export function privateSocialDisplay(d,question=''){
+export function readPrivateSocialSnapshot(d){
  if(!Object.hasOwn(PLATFORMS,d?.kind))return null;
  let m;try{m=JSON.parse(d.sections.find(s=>s.title==='来源日期与覆盖')?.body||'null')}catch{return null}
  if(!m||m.platform!==d.kind)return null;
@@ -36,6 +37,12 @@ export function privateSocialDisplay(d,question=''){
  const saved=count(historical?m.historical_saved_posts:m.saved_posts);
  // An unfamiliar stored layout falls back to the original report, never a lossy preview.
  if(saved!==null&&saved!==rows.length)return null;
+ return {metadata:m,posts:rows,historical,platform:PLATFORMS[d.kind]};
+}
+export function privateSocialDisplay(d,question=''){
+ const snapshot=readPrivateSocialSnapshot(d);if(!snapshot)return null;
+ const {metadata:m,posts:rows,historical}=snapshot,window=m.window;
+ const details=d.sections.filter(s=>/^(?:已发布逐帖明细|历史逐帖明细)/.test(s.title));
  const title=PLATFORMS[d.kind],out=[`${title} · ${d.period.from} 已同步逐帖指标`,'自动汇总，未经人工事实核验；同步成功不代表所有指标均有数据。'];
  out.push(`\n来源数据时间：${privateSocialTime(m.source_date)}`,`知识包生成：${privateSocialTime(d.generated_at)}（生成时间不代表来源更新）`);
  if(historical){out.push(`本次读取未成功：${reason(m.reason)}；未将未返回的数据记为0。`,`来源最近成功时间：${privateSocialTime(m.source_last_success_sync)}`)}

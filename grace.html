@@ -2574,6 +2574,7 @@
       import { mountConversation } from './assets/agent-conversation.mjs?v=20261023-social-readable';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261023-social-readable';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
+      import {mailboxRankingRows,renderMailboxRankings} from './assets/sales-mailbox-rankings.mjs?v=20261023-1';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20261015-stable-call1";
       const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
@@ -4139,6 +4140,7 @@
         if(selectedSales)people=people.filter(person=>person.id===selectedSales);
         const activity=new Map((summary.people||[]).map(row=>[row.sales_id,row]));
         const rows=people.map(person=>({id:person.id,name:person.full_name||"未命名业务员",development_sent:Number(activity.get(person.id)?.development_sent||0),mature_7d_sent:Number(activity.get(person.id)?.mature_7d_sent||0),replied_7d:Number(activity.get(person.id)?.replied_7d||0)}));
+        const mailboxRows=mailboxRankingRows(people,summary,month,chinaDate());
         const average=values=>values.length?values.reduce((total,value)=>total+value,0)/values.length:0;
         const ranked=(title,metricRows,renderValue,renderExtra,emptyText)=>{
           let previous=null,rank=0;
@@ -4154,7 +4156,7 @@
         const replyBody=replyEligible.length?replyEligible.map((row,index)=>{if(previous===null||row.value!==previous)rank=index+1;previous=row.value;return `<tr><td><span class="rank-pill ${rank<=3?"top":""}">${rank}</span></td><td>${esc(row.name)}</td><td>${row.value.toFixed(1)}%</td><td>${row.replied_7d}/${row.mature_7d_sent} 封 · 团队 ${teamRate}</td></tr>`}).join(""):`<tr><td colspan="4">当前没有成熟样本达到 5 封，暂不排名</td></tr>`;
         const replyInsufficient=rows.filter(row=>row.mature_7d_sent<5);
         const insufficientNote=replyInsufficient.length?`<div class="dashboard-scope-note" style="padding:10px 14px">样本不足（未进入排名）：${replyInsufficient.map(row=>`${esc(row.name)} ${row.mature_7d_sent}/5 封`).join("；")}</div>`:"";
-        root.innerHTML=sendBoard+`<section class="leaderboard"><div class="leaderboard-head"><b>7 天开发信回复率榜</b><span class="dashboard-scope-note">${esc(month)} · 仅统计发送满 7 天的邮件；至少 5 封成熟样本才参与排名</span></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>7 天回复率</th><th>成熟样本 / 团队参考</th></tr></thead><tbody>${replyBody}</tbody></table></div>${insufficientNote}</section>`;
+        root.innerHTML=renderMailboxRankings(mailboxRows,month)+sendBoard+`<section class="leaderboard"><div class="leaderboard-head"><b>7 天开发信回复率榜</b><span class="dashboard-scope-note">${esc(month)} · 仅统计发送满 7 天的邮件；至少 5 封成熟样本才参与排名</span></div><div class="leaderboard-table-scroll"><table><thead><tr><th>名次</th><th>成员</th><th>7 天回复率</th><th>成熟样本 / 团队参考</th></tr></thead><tbody>${replyBody}</tbody></table></div>${insufficientNote}</section>`;
       }
       let sales360QuarterSelection = "";
       function sales360QuarterKey(date) {

@@ -29,7 +29,7 @@ test('agent world renders precomputed particle holograms with a 2D fallback',()=
  assert.match(world,/if\(!v\)\{drawOrb\(c,id\);return\}/);
  assert.match(world,/querySelectorAll\('canvas\[data-role\]'\)/);
  assert.match(holo,/getContext\('webgl2'/);
- assert.match(html,/assets\/agent-world\.mjs\?v=20261015-stable-call1/);
+ assert.match(html,/assets\/agent-world\.mjs\?v=20261023-editorial1/);
 });
 test('private room shows a live board from page data and Grace opens into voice only after a real click',()=>{
  assert.match(world,/id="room-live"/);
@@ -57,4 +57,15 @@ test('one-screen room also covers mid-width windows and short scaled laptop scre
  assert.match(css,/@media \(min-width:821px\) and \(max-width:1100px\) and \(min-height:420px\)\{[^}]*grid-template-columns:minmax\(240px,300px\) minmax\(0,1fr\)/);
  assert.match(css,/@media \(min-width:821px\) and \(min-height:420px\) and \(max-height:680px\)\{/);
  assert.match(css,/\.room-left #room-timeline\{min-height:min\(140px,45%\)\}/);
+});
+
+test('agent collection uses the editorial visual hierarchy across every persona',()=>{
+ for(const label of ['WONLY · INTELLIGENCE COLLECTION 01','你的经营智能体团队','MARKET / GROWTH','STRATEGY / CONTROL','SALES / PIPELINE'])assert.match(world,new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+ for(const capability of ['渠道归因','经营总览','销售管道'])assert.match(world,new RegExp(capability));
+ assert.match(world,/room-orb'\)\.dataset\.agent=next\.toUpperCase/);
+ assert.match(css,/Editorial agent collection refresh/);
+ assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+ assert.match(css,/@media\(max-width:520px\)/);
+ assert.match(html,/agent-world\.css\?v=20261023-editorial1/);
+ assert.match(html,/agent-world\.mjs\?v=20261023-editorial1/);
 });

@@ -32,6 +32,12 @@ test('model output requires known category, exact allowed evidence, numeric conf
  for(const bad of [{...valid,confidence:'0.8'},{...valid,confidence:NaN},{...valid,confidence:2},{...valid,category:'score'},{...valid,evidence:'made up'},{...valid,category:'outreach'}])assert.equal(validateClassification(bad,p),null);
  assert.equal(CATEGORIES.length,9);assert.equal(POLICY,'bailian-redacted-mail-types-v1');
 });
+test('safe evidence must meet the unchanged three-character persistence minimum',()=>{
+ assert.equal(classificationProjection({direction:'inbound',body_text:'门锁 五金 售后'}).skip,'insufficient_safe_evidence');
+ const p=classificationProjection({direction:'inbound',body_text:'请报价 门锁 智能锁'});
+ assert.deepEqual(p.evidence,['请报价','智能锁']);
+ assert.equal(validateClassification({category:'uncertain',confidence:0.5,evidence:'门锁'},{payload:{direction:'inbound'},evidence:['门锁']}),null);
+});
 const people=[{id:'a',full_name:'<img onerror=evil>'},{id:'b',full_name:'B'},{id:'c',full_name:'C'}];
 const summary={month:'2026-10',people:people.map(p=>({sales_id:p.id,total:5,pending:1,skipped:1,failed:1,confirmed:{new_inquiry:1},suggested:{promotion:1}}))};
 test('classification counts reconcile disjoint states, never combine AI and human counts',()=>{

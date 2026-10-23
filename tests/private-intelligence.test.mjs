@@ -43,6 +43,22 @@ test('private report questions resolve Shanghai previous week without sending an
  assert.equal(privateIntelligenceQuery('查看2026-10-12日报',now).p_to,'2026-10-12');
  assert.equal(privateIntelligenceQuery('查看私有知识 daily-2026-10-12，风险呢',now).p_to,'2026-10-12');
 });
+test('saved social counter wording reads the dated private snapshot instead of a fresh all-platform summary',async()=>{
+ const now=Date.parse('2026-10-23T02:00:00Z');
+ for(const [question,kind] of [
+  ['查看今天已同步的Facebook观看量、独立观看者和点击，说明来源日期和缺口','facebook'],
+  ['Facebook今天已保存的点击数和观看人数','facebook'],
+  ['查看今天已同步的Ｆａｃｅｂｏｏｋ观看量','facebook'],
+  ['查看今天已同步的TikTok播放量','tiktok'],
+  ['Instagram今天已同步的触达和收藏','instagram'],
+  ['YouTube今天已保存的观看量和评论','youtube']
+ ]){
+  assert.equal(privateIntelligenceIntent(question),true);
+  const calls=[];await readPrivateIntelligence({rpc:async(name,args)=>{calls.push({name,args});return {data:{documents:[]}}}},question,now);
+  assert.deepEqual(calls,[{name:'read_agent_private_intelligence',args:{p_kind:kind,p_from:'2026-10-23',p_to:'2026-10-23',p_key:null,p_limit:1}}]);
+ }
+ for(const q of ['查看Facebook最新观看量','今天Instagram有多少点击','如何同步YouTube数据','S922点击说明'])assert.equal(privateIntelligenceIntent(q),false);
+});
 test('readback retains source dates, evidence IDs, gaps and raw uncertainty as text',async()=>{
  const row={id:'id-1',digest:'sha-1',imported_at:'2026-10-19T01:00:00Z',document:{key:'weekly-2026-10-12-2026-10-18',title:'周报',generated_at:'2026-10-19T00:00:00Z',period:{from:'2026-10-12',to:'2026-10-18'},sections:[{title:'统计口径',body:'样本不足，风险可能重叠'}],evidence:[{id:'source-1',title:'来源',fact:'获取失败',url:'https://example.com/',observed_at:'2026-10-18T01:00:00Z',published_at:null,gap:'未知'}]}};
  const calls=[];const r=await readPrivateIntelligence({rpc:async(name,args)=>{calls.push([name,args]);return {data:{documents:[row]}}}},'上周周报和来源证据',Date.parse('2026-10-19T01:00:00Z'));

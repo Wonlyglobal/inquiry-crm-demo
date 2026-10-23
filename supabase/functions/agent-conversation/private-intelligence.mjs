@@ -2,9 +2,14 @@
 import {formatPrivateSection} from './private-report-format.mjs';
 export const PRIVATE_SCHEMA='grace-private-intelligence-v1';
 export function privateIntelligenceIntent(q=''){
- return /周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据|(?:已同步|已保存|私有).*?(?:TikTok|Instagram|Facebook|YouTube|社媒).*?(?:指标|帖子|逐帖)/i.test(q);
+ const text=typeof q==='string'?q.normalize('NFKC'):'';
+ // Explicit saved-source questions stay in the private snapshot even when they name
+ // individual counters instead of saying "指标", or put the platform first.
+ const savedSocial=/(?:已同步|已保存|私有)/.test(text)&&/(?:TikTok|Instagram|Facebook|YouTube|社媒)/i.test(text)&&/(?:指标|帖子|逐帖|观看|播放|点击|点赞|评论|分享|收藏|触达|曝光|来源日期|缺口)/.test(text);
+ return savedSocial||/周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据/i.test(text);
 }
 export function privateIntelligenceQuery(q='',now=Date.now()){
+ q=typeof q==='string'?q.normalize('NFKC'):'';
  const id=q.match(/\b(?:weekly|daily|evidence|tiktok|instagram|facebook|youtube)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?\b/)?.[0]||null;
  const kind=id?id.split('-')[0]:/tiktok/i.test(q)?'tiktok':/instagram/i.test(q)?'instagram':/facebook/i.test(q)?'facebook':/youtube/i.test(q)?'youtube':/周报/.test(q)?'weekly':/日报/.test(q)?'daily':/证据/.test(q)?'evidence':null;
  const dates=q.match(/20\d{2}-\d{2}-\d{2}/g)||[];

@@ -14,7 +14,8 @@ test('dashboard exposes per-salesperson email observation without exposing messa
   assert.match(summaryLoader,/rpc\("get_sales_email_activity_metrics"/);
   assert.doesNotMatch(summaryLoader,/\.from\("sales_email_analysis_(?:results|jobs)"\)/);
   assert.doesNotMatch(summaryLoader,/\.select\([^)]*(?:analysis|evidence|body_text|subject|sender_email|recipient_emails)/i);
-  for(const label of ['CRM 开发信','客户来信','7 天开发信回复率','业务员 24 小时内回复','待业务员回复','AI 待人工复核','每日邮件活动']) assert.ok(html.includes(label),`missing ${label}`);
+  const actual=fs.readFileSync(new URL('../assets/mail-activity-dashboard.mjs',import.meta.url),'utf8');
+  for(const label of ['实际收件','实际发件','已确认分类','待确认','询盘关联']) assert.ok(actual.includes(label),`missing ${label}`);
   assert.match(html,/data-email-observation-sales/);
   assert.match(html,/openSalesEmailAnalysis\(\{sales_id:person\.id,sales_name:person\.full_name,period_start:/);
 });
@@ -53,7 +54,7 @@ test('large teams use a seller selector and paginate at 20 sellers per page',()=
   assert.match(html,/people\.map\(person=>`<option value="\$\{esc\(person\.id\)\}"\>/);
   assert.match(html,/if\(selectedObservationSales\)people=people\.filter\(person=>person\.id===selectedObservationSales\)/);
   assert.match(html,/salesFilter\.onchange=\(\)=>\{dashboardState\.emailObservationPage=1;renderDashboardEmailObservationPanel\(profiles\)\}/);
-  assert.match(html,/const pageSize=20,pageCount=Math\.max\(1,Math\.ceil\(rows\.length\/pageSize\)\)/);
+  assert.match(html,/pageSize=20,pageCount=Math\.max\(1,Math\.ceil\(rows\.length\/pageSize\)\)/);
   assert.match(html,/data-email-observation-page="prev"/);
   assert.match(html,/data-email-observation-page="next"/);
 });

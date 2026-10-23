@@ -1,49 +1,49 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-22T01:06:47Z",
-  "coverage": "2026-10-22实际检查六个既有公开来源；dormakaba 10月20日股东大会公告本轮恢复读取并核验全文，为公司治理消息，不是产品发布或目标市场变化证据。保留历史动态和原发布日期；部分可读、缓存或失败不表示没有变化。",
+  "checked_at": "2026-10-23T01:11:00Z",
+  "coverage": "2026-10-23实际检查六个既有公开来源及四个补充目录；ASSA ABLOY新闻索引恢复可读，并核验10月16日PKI出售协议全文（尚待交割）；dormakaba 10月20日股东大会旧公告复核。未新增有证据关联的重大市场变化；历史文章不作今日事件，部分可读、缓存或失败不表示没有变化。",
   "sources": [
     {
       "name": "WONLY 官方网站",
       "url": "https://www.wonlyglobal.com/",
       "status": "partial",
       "note": "页面仅取得标题，无可读正文；今日新闻与产品变化未核验，不能据此确认无变化。",
-      "last_checked_at": "2026-10-22T01:06:47Z"
+      "last_checked_at": "2026-10-23T01:11:00Z"
     },
     {
       "name": "Hörmann 门业官网",
       "url": "https://www.hoermann.com/en/",
       "status": "partial",
       "note": "公司介绍及门、门框、驱动品类可读；近期新闻与产品变更未完成核验。",
-      "last_checked_at": "2026-10-22T01:06:47Z"
+      "last_checked_at": "2026-10-23T01:11:00Z"
     },
     {
       "name": "ASSA ABLOY 官方新闻",
       "url": "https://www.assaabloy.com/group/en/news-media/press-releases",
       "status": "partial",
-      "note": "新闻页仅取得标题及导航，未取得具体新公告正文；不以搜索摘要或目录代替全文核验。",
-      "last_checked_at": "2026-10-22T01:06:47Z"
+      "note": "新闻索引恢复可读；另核验10月16日HID PKI业务出售协议全文，仍有交割条件，预计2026年第四季度完成，不是已经交割。数字信任业务不等同于智能门锁，未取得具体目标市场影响证据；其他索引条目未逐篇核验。",
+      "last_checked_at": "2026-10-23T01:11:00Z"
     },
     {
       "name": "dormakaba 官方新闻",
       "url": "https://www.dormakabagroup.com/en/newsroom",
       "status": "partial",
-      "note": "新闻索引及10月20日股东大会公告全文可读；公告称通过董事会提案，股息计划10月26日起支付。为公司治理消息，不是新品、订单、量产或股息已支付证明；其他历史事件未重验。",
-      "last_checked_at": "2026-10-22T01:06:47Z"
+      "note": "新闻索引及10月20日股东大会公告全文复核可读；公告称通过董事会提案，股息计划10月26日起支付。旧治理消息不是新品、订单、量产或股息已支付证明。",
+      "last_checked_at": "2026-10-23T01:11:00Z"
     },
     {
       "name": "Al Kuhaimi Metal Industries 官网",
       "url": "https://alkuhaimimetal.com/",
       "status": "partial",
       "note": "产品/解决方案目录可读，新闻日期和证书适用范围未核验；动态计数占位值不作为经营事实。",
-      "last_checked_at": "2026-10-22T01:06:47Z"
+      "last_checked_at": "2026-10-23T01:11:00Z"
     },
     {
       "name": "Puertas Asturmex 官网",
       "url": "https://puertasasturmex.com/",
       "status": "partial",
       "note": "产品、认证及Revit入口目录可读；证书适用型号与新闻实际日期本轮未核验，不据此认定新品或没有变化。",
-      "last_checked_at": "2026-10-22T01:06:47Z"
+      "last_checked_at": "2026-10-23T01:11:00Z"
     }
   ],
   "findings": [

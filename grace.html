@@ -6658,7 +6658,9 @@
         $("#outreach-recipient").value = intake?.sender_email || latestDraft?.recipient_email || "";
         const latestDraftMode=/^re\s*:/i.test(latestDraft?.selected_subject||latestDraft?.subject_a||"")?"reply":"outreach";
         const legacyDraftError = latestDraft ? validateCustomerFacingDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body || "", preferredEnglishName(),latestDraftMode) : "";
-        if (latestDraft && !legacyDraftError) {
+        if (latestDraft && isInternalProductReviewDraft(latestDraft)) {
+          loadOutreachHistoryVersion(latestDraft);
+        } else if (latestDraft && !legacyDraftError) {
           outreachComposeMode=/^re\s*:/i.test(latestDraft.selected_subject||latestDraft.subject_a||"")?"reply":"outreach";
           $("#outreach-draft-title").textContent=outreachComposeMode==="reply"?"询盘回复草稿":"开发邮件草稿";
           $("#outreach-subject-a").value = latestDraft.subject_a || ""; $("#outreach-subject-b").value = latestDraft.subject_b || "";
@@ -6686,7 +6688,7 @@
         const replyRecipient = resolveInquiryRecipient();
         $("#reply-inquiry").disabled = !replyRecipient;
         $("#reply-inquiry").title = replyRecipient ? "" : "该询盘没有可用的客户邮箱";
-        if (latestDraft?.status !== "sent") {
+        if (latestDraft?.status !== "sent" && !isInternalProductReviewDraft(latestDraft)) {
           $("#send-outreach").disabled = false;
           $("#send-outreach").classList.remove("hidden");
           $("#send-outreach").textContent = "用我的邮箱发送";
@@ -8634,8 +8636,9 @@
       async function saveOutreachAnswerDefaults(defaults){
         if(!currentAuthUser)return;const data={...(currentAuthUser.user_metadata||{}),outreach_answer_defaults:defaults};const{error}=await supabase.auth.updateUser({data});if(error)throw error;currentAuthUser.user_metadata=data;
       }
+      function isInternalProductReviewDraft(draft){return String(draft?.body||"").includes("【Grace 产品证据草稿｜仅内部审核，不可直接发送】")}
       function loadOutreachHistoryVersion(draft){
-        if(!draft)return;currentInquiry.outreachDraftId=draft.id;currentInquiry.latestOutreachDraft=draft;outreachComposeMode=/^re\s*:/i.test(draft.selected_subject||draft.subject_a||"")?"reply":"outreach";$("#outreach-draft-title").textContent=outreachComposeMode==="reply"?"询盘回复草稿":"开发邮件草稿";$("#outreach-recipient").value=draft.recipient_email||resolveInquiryRecipient();$("#outreach-subject-a").value=draft.subject_a||"";$("#outreach-subject-b").value=draft.subject_b||"";$("#outreach-selected-subject").value=draft.selected_subject===draft.subject_b?"b":"a";$("#outreach-body").value=draft.body||"";$("#outreach-tone").value=draft.tone||"consultative";$("#outreach-objective").value=draft.objective||"qualify";const names={en:"英文",es:"西班牙文",pt:"葡萄牙文",fr:"法文",ar:"阿拉伯文",ru:"俄文"},language=names[draft.language]||"英文";$("#outreach-target-language").value=language;$("#outreach-body-label").textContent=`${language}正文`;$("#outreach-status").textContent=draft.status==="sent"?`已发送 · ${fmtDate(draft.sent_at)}`:`历史版本 · ${fmtDate(draft.created_at)}`;$("#send-outreach").disabled=draft.status==="sent";$("#save-outreach").disabled=draft.status==="sent";$("#send-outreach").classList.toggle("hidden",draft.status==="sent");$("#outreach-draft").classList.remove("hidden");renderOutreachHistory(currentInquiry.outreachDraftHistory||[]);evaluateOutreachDraft(draft.selected_subject||draft.subject_a||"",draft.body||"",$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim());
+        if(!draft)return;currentInquiry.outreachDraftId=draft.id;currentInquiry.latestOutreachDraft=draft;outreachComposeMode=/^re\s*:/i.test(draft.selected_subject||draft.subject_a||"")?"reply":"outreach";$("#outreach-draft-title").textContent=outreachComposeMode==="reply"?"询盘回复草稿":"开发邮件草稿";$("#outreach-recipient").value=draft.recipient_email||resolveInquiryRecipient();$("#outreach-subject-a").value=draft.subject_a||"";$("#outreach-subject-b").value=draft.subject_b||"";$("#outreach-selected-subject").value=draft.selected_subject===draft.subject_b?"b":"a";$("#outreach-body").value=draft.body||"";$("#outreach-tone").value=draft.tone||"consultative";$("#outreach-objective").value=draft.objective||"qualify";const names={en:"英文",es:"西班牙文",pt:"葡萄牙文",fr:"法文",ar:"阿拉伯文",ru:"俄文"},language=names[draft.language]||"英文";$("#outreach-target-language").value=language;$("#outreach-body-label").textContent=`${language}正文`;$("#outreach-status").textContent=draft.status==="sent"?`已发送 · ${fmtDate(draft.sent_at)}`:`历史版本 · ${fmtDate(draft.created_at)}`;$("#send-outreach").disabled=draft.status==="sent";$("#save-outreach").disabled=draft.status==="sent";$("#send-outreach").classList.toggle("hidden",draft.status==="sent");$("#outreach-draft").classList.remove("hidden");if(isInternalProductReviewDraft(draft)){$("#send-outreach").disabled=true;$("#send-outreach").classList.add("hidden");$("#outreach-status").textContent=`内部产品证据草稿 · ${fmtDate(draft.created_at)} · 仅审核，不可直接发送`;}renderOutreachHistory(currentInquiry.outreachDraftHistory||[]);evaluateOutreachDraft(draft.selected_subject||draft.subject_a||"",draft.body||"",$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim());
       }
       function renderOutreachHistory(drafts=[]){
         const panel=$("#outreach-history-panel"),list=$("#outreach-history-list");if(!panel||!list)return;panel.classList.toggle("hidden",!drafts.length);$("#outreach-history-count").textContent=`${drafts.length} 个版本`;list.replaceChildren();drafts.forEach((draft,index)=>{const button=document.createElement("button");button.type="button";button.className=draft.id===currentInquiry?.outreachDraftId?"primary":"ghost";button.textContent=`${index===0?"最新 · ":""}${fmtDate(draft.created_at)} · ${{sent:"已发送",failed:"失败",draft:"草稿"}[draft.status]||draft.status}`;button.addEventListener("click",()=>loadOutreachHistoryVersion(draft));list.append(button)});

@@ -5,7 +5,7 @@ export function privateReportButtons(receipts,onAsk,videoIndex=null){
  if(receipts?.length!==1||!validPrivateReceipt(receipts[0]))return null;
  const bar=document.createElement('div');bar.className='private-report-actions';bar.setAttribute('aria-label','继续查看这份报告');
  const options=/^(tiktok|instagram|facebook|youtube)-/.test(receipts[0].key)?[['内容与改进','内容与改进'],['分析表现','分析帖子表现'],['指标概览','指标概览'],['展开逐帖','展开逐帖明细'],['来源与缺口','来源与缺口']]:[['查看风险','风险呢'],['查看下一步','下一步呢'],['查看来源与缺口','来源有哪些']];
- if(typeof location!=='undefined'&&new URL(location.href).searchParams.get('video-preview')==='1'&&/^(tiktok|instagram|facebook|youtube)-/.test(receipts[0].key))options.unshift(['视频证据','视频证据']);
+ if(/^(tiktok|instagram|facebook|youtube)-/.test(receipts[0].key))options.unshift(['视频证据','视频证据']);
  const lastPage=Math.max(0,...(videoIndex?.pages||[]).map(p=>Number(p.page)||0));if(videoIndex?.pages?.some(p=>p.has_more)&&lastPage<20)options.push(['后续视频物料','视频证据，物料第'+(lastPage+1)+'页']);
  for(const [label,q] of options){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>onAsk(`查看私有知识 ${receipts[0].key}，${q}`);bar.append(b)}return bar;
 }

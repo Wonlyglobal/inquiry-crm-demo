@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {preparePublicOutreachEvidence,addPublicOutreachEvidence,generatePublicOutreach} from '../assets/outreach-public-compose-ui.mjs';
+import {composeRequest} from '../assets/outreach-compose-policy.mjs';
 function harness(){
  const nodes=new Map(),created=[];const node=()=>({children:[],dataset:{},style:{},checked:false,value:'',textContent:'',disabled:false,open:false,classList:{remove(){},add(){},contains(){return false}},scrollIntoView(){this.scrolled=true},focus(){this.focused=true},addEventListener(){},append(...items){this.children.push(...items)},replaceChildren(){this.children=[]}});
  const find=key=>{if(!nodes.has(key))nodes.set(key,node());return nodes.get(key)};
@@ -16,7 +17,7 @@ test('public candidate preparation never calls provider and starts unselected',(
  assert.equal(h.find('#outreach-public-confirm').checked,false);
 });
 test('generation refuses unconfirmed input and never projects local recipient or signature',async()=>{
- const h=harness();preparePublicOutreachEvidence(h.ctx);await generatePublicOutreach(h.ctx);assert.equal(h.calls.length,0);
+ const h=harness();preparePublicOutreachEvidence(h.ctx);h.created.find(n=>n.dataset.publicEvidenceIndex==='0').checked=true;await generatePublicOutreach(h.ctx);assert.equal(h.calls.length,0);
  h.created.find(n=>n.dataset.publicEvidenceIndex==='0').checked=true;h.find('#outreach-public-confirm').checked=true;
  for(const kind of ['market_facts','product_facts']){
   h.find('#outreach-public-kind').value=kind;h.find('#outreach-public-statement').value='Synthetic reviewed '+kind;h.find('#outreach-public-source').value='https://example.com/'+kind;h.find('#outreach-public-date').value='2026-10-24';addPublicOutreachEvidence(h.ctx);
@@ -38,13 +39,14 @@ test('incomplete research and missing recipient do not prevent editable model-ge
  assert.equal(h.find('#outreach-subject-b').value,'Explore a potential fit');assert.match(h.find('#outreach-body').value,/selection requirements/);
  assert.equal(h.find('#send-outreach').disabled,true);
 });
-test('first click can confirm scope and generate without requiring another click',async()=>{
+test('empty evidence first click generates immediately without a redundant confirmation',async()=>{
  const h=harness();let confirmation='';h.ctx.confirm=async text=>{confirmation=text;return true};
+ const invoke=h.ctx.invoke;h.ctx.invoke=async(name,options)=>{composeRequest(JSON.parse(JSON.stringify(options.body)));return invoke(name,options)};
  await generatePublicOutreach(h.ctx);
- assert.match(confirmation,/尚未勾选公开依据/);assert.equal(h.calls[0].name,'outreach-compose');
+ assert.equal(confirmation,'');assert.equal(h.calls[0].name,'outreach-compose');assert.equal(h.calls[0].payload.confirmed_public,true);
  assert.equal(h.calls[0].payload.company_facts.length,0,'unselected candidates are not silently approved');
  assert.equal(h.calls[1].saved,true);
 });
 test('cancelled first-click scope confirmation performs no model call or save',async()=>{
- const h=harness();h.ctx.confirm=async()=>false;await generatePublicOutreach(h.ctx);assert.equal(h.calls.length,0);
+ const h=harness();preparePublicOutreachEvidence(h.ctx);h.created.find(n=>n.dataset.publicEvidenceIndex==='0').checked=true;h.ctx.confirm=async()=>false;await generatePublicOutreach(h.ctx);assert.equal(h.calls.length,0);
 });

@@ -16,7 +16,7 @@ export function publicEvidenceItem(item){
 }
 export function composeRequest(input){
  if(!input||Object.keys(input).some(k=>!['inquiry_id','objective','tone','company_facts','market_facts','product_facts','confirmed_public'].includes(k))||!UUID.test(input.inquiry_id||'')||!['meeting','qualify','quote'].includes(input.objective)||!['consultative','direct','project'].includes(input.tone)||input.confirmed_public!==true)throw Error('请核实并确认本次最小公开资料范围');
- const result={inquiry_id:input.inquiry_id,objective:input.objective,tone:input.tone};
+ const result={inquiry_id:input.inquiry_id,objective:input.objective,tone:input.tone,confirmed_public:true};
  for(const key of ['company_facts','market_facts','product_facts']){
   if(!Array.isArray(input[key])||input[key].length>4)throw Error('每类最多选择4条公开摘要');
   result[key]=input[key].map(publicEvidenceItem);

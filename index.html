@@ -8841,14 +8841,14 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#outreach-recipient").value=recipient;$("#outreach-subject-a").value=replySubject;$("#outreach-subject-b").value=replySubject;$("#outreach-selected-subject").value="a";$("#outreach-body").value=`Dear ${currentInquiry.contact_name||"Customer"},\n\nThank you for your inquiry.\n\n\n\n${unifiedEnglishSignature()}`;$("#outreach-draft-title").textContent="询盘回复草稿";$("#outreach-status").textContent="正在回复客户原询盘 · 请补充正文后发送";$("#outreach-draft").classList.remove("hidden");$("#outreach-body").focus();evaluateOutreachDraft(replySubject,$("#outreach-body").value);$("#outreach-body").scrollIntoView({behavior:"smooth",block:"center"});
       });
       function publicOutreachContext(){return {getInquiry:()=>currentInquiry,find:$,toast,confirm:appConfirm,research:assessResearchQuality,lines:researchLines,parse:parseResearchEvidenceLine,recipient:resolveInquiryRecipient,contactName:()=>$("#detail-smart-name").value||currentInquiry?.contact_name,signature:unifiedEnglishSignature,save:saveOutreachDraft,setMode:mode=>{outreachComposeMode=mode},quality:(subject,body)=>evaluateOutreachDraft(subject,body,$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim()),invoke:(name,options)=>supabase.functions.invoke(name,options),edgeError:edgeFunctionErrorMessage};}
-      $("#outreach-public-prepare").addEventListener('click',async()=>{const {preparePublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-5');preparePublicOutreachEvidence(publicOutreachContext())});
-      $("#outreach-public-add").addEventListener('click',async()=>{const {addPublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-5');addPublicOutreachEvidence(publicOutreachContext())});
+      $("#outreach-public-prepare").addEventListener('click',async()=>{const {preparePublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-6');preparePublicOutreachEvidence(publicOutreachContext())});
+      $("#outreach-public-add").addEventListener('click',async()=>{const {addPublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-6');addPublicOutreachEvidence(publicOutreachContext())});
       async function generateOutreach() {
         const button=$("#generate-outreach");if(button.dataset.requestActive==='true')return;
         button.dataset.requestActive='true';button.disabled=true;
         try{
         finalizedOutreachCopy=null;
-        const {generatePublicOutreach}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-5');
+        const {generatePublicOutreach}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-6');
         await generatePublicOutreach(publicOutreachContext());
         updateOutreachLanguageSelection();
         }catch(e){toast('生成未完成：'+e.message)}finally{delete button.dataset.requestActive;button.disabled=false;}

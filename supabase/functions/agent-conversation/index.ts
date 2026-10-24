@@ -127,12 +127,20 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    const audit=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
    const {count,error:limitError}=await audit.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','grace_outreach_product_draft').gte('created_at',new Date(Date.now()-60000).toISOString());
    if(limitError)return json({error:'产品草稿限额核验失败'},503);if((count||0)>=5)return json({error:'产品草稿请求较多，请一分钟后再试'},429);
-   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'inquiry',entity_id:inquiry.id,action:'grace_outreach_product_draft',after_data:{category:request.category,operation:'requested',external_model_called:false},reason:'用户主动生成内部产品证据草稿；沿用本人询盘RLS及物料授权，不自动发送'});
+   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'inquiry',entity_id:inquiry.id,action:'grace_outreach_product_draft',after_data:{category:request.category,categories:request.categories,operation:'requested',external_model_called:false},reason:'用户主动生成内部产品证据草稿；沿用本人询盘RLS及物料授权，不自动发送'});
    if(auditError)return json({error:'产品草稿审计失败'},503);
-   const materials=gateMaterialEvidence(await loadFullMaterials({...materialConfig,question:'物料：'+PRODUCT_CATEGORIES[request.category].query}));
-   const evidence=outreachProductEvidence(materials,request.category);
-   if(!evidence.length)return json({error:'未取得当前版带页码的对应产品资料。未生成或保存空草稿；请先在Grace核对画册。',status:'evidence_gap'},409);
+   const evidence:any[]=[],missing:string[]=[];
+   // Bound concurrent reads; no customer angle/scenario/requirements in material queries.
+   for(let offset=0;offset<request.categories.length;offset+=3){
+    const batch=await Promise.all(request.categories.slice(offset,offset+3).map(async(category:string)=>{
+     const materials=gateMaterialEvidence(await loadFullMaterials({...materialConfig,question:'物料：'+PRODUCT_CATEGORIES[category].query}));
+     return {category,items:outreachProductEvidence(materials,category,request.model)};
+    }));
+    for(const part of batch){if(!part.items.length)missing.push(PRODUCT_CATEGORIES[part.category].label);else evidence.push(...part.items);}
+   }
+   if(missing.length)return json({error:'以下所选门类缺少当前版对应'+(request.model?'型号':'')+'页码证据：'+missing.join('、')+'。未保存草稿；请补资料或缩小选择范围。',status:'evidence_gap',missing_categories:missing},409);
    const result=buildProductReviewDraft(request,evidence);
+   result.body+='\n\n本次选型输入（内部审核，客户需求尚须核实，不作为产品承诺）\n门类：'+request.categories.map((k:string)=>PRODUCT_CATEGORIES[k].label).join(' / ')+'\n型号：'+(request.model||'未指定')+'\n场景：'+(request.application||'未提供')+'\n需求说明：'+(request.requirements||'未提供');
    const payload={inquiry_id:inquiry.id,created_by:user.id,recipient_email:request.recipient,subject_a:result.subject,subject_b:result.subject,selected_subject:result.subject,body:result.body,language:'en',tone:'consultative',objective:'qualify',status:'draft'};
    const {data:saved,error:saveError}=await client.from('outreach_drafts').insert(payload).select('id').single();
    if(saveError||!saved)return json({error:'产品证据草稿保存失败；未调用外部模型或发送邮件'},503);

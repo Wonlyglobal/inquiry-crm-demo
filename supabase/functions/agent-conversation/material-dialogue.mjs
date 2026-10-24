@@ -1,3 +1,4 @@
+import {visualQuestion,slideVisualText} from './slide-visual.mjs';
 import {normalizeProductInput,modelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts} from './product-input.mjs';
 import {productLedger,productLedgerText} from './product-coverage.mjs';
 import {profileEvidence} from './knowledge-profile.mjs';
@@ -24,11 +25,13 @@ export function resolveMaterialTurn(question,history=[]){
  }
  const target=ids.length?ids:oldIds;
  if(target.length!==1)return {question:'物料：'+q,clarification:'请告诉我具体产品型号，或直接输入“物料：关键词”。当前上下文无法唯一确定你指的是哪款产品。'};
+ const priorAt=prior.query.toUpperCase().indexOf(target[0]);
+ const fileAnchor=!ids.length&&priorAt>0&&/[._]|20\d{6}/.test(prior.query.slice(0,priorAt))?prior.query.slice(0,priorAt):'';
  const version=materialVersion(q)||materialVersion(previous);
  const onlyModel=ids.length===1&&q.replace(/[呢。?!？!]+$/,'').trim().toUpperCase()===ids[0];
  // Keep the user's conditions/negation; field labels alone would erase 'outdoor' or numeric limits.
  const request=onlyModel?fields(previous).join(' '):q.replace(/^(那|它|这个|该型号|还有)+/,'').replace(/^的/,'').replace(/[呢。？?！!]+$/,'').trim();
- return {question:`物料：${ids.length&&!onlyModel?'':target[0]+' '}${request}${version&&!request.includes(version)?' '+version:''}`.trim()};
+ return {question:`物料：${fileAnchor}${ids.length&&!onlyModel?'':target[0]+' '}${request}${version&&!request.includes(version)?' '+version:''}`.trim()};
 }
 export function evidenceDifferences(assets){
  const groups=new Map();
@@ -48,6 +51,7 @@ export function conciseMaterialAnswer(data,question){
  if(/知识覆盖|解析进度|学了多少|了解多少/.test(question))return coverageSummary(data.document_coverage)+'内部资料仅在公司系统内处理。你可以按型号查询参数、安装要求或资料出处。';
  if(!data.assets.length&&data.relevance_filtered)return '本次检索没有找到同时满足你所提条件的资料。未将其他门类、未标注英文或非手册文件充当结果。'+(data.has_more?'本页候选未匹配，仍有后续候选，可说“下一页”继续核对。':'这不代表公司一定没有该资料；可能缺少语言标注或尚未入库。');
  if(!data.assets.length)return '在本次有权检索的资料中没有找到匹配内容，不能据此判断该产品不存在。请提供完整型号，或减少关键词后重试。\n'+coverageSummary(data.document_coverage);
+ if(visualQuestion(question))return data.assets.slice(0,3).map(a=>`${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n更新时间：${a.updatedAt||'未标注'}；本次读取：${data.read_at||'未标注'}\n`+(a.document?.visual_understanding?slideVisualText(a.document.visual_understanding):'尚未取得本文件的图片/图表阅读证据，不能据此猜测图示含义或产品参数。')).join('\n\n');
  const wanted=fields(question),blocks=[],namedTargets=namedMaterialProducts(question);
  for(const a of data.assets.slice(0,3)){
   const refs=[],covered=new Set(),requested=wanted.filter(x=>!['来源','页码','版本'].includes(x));

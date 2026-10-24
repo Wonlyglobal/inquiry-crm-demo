@@ -1,4 +1,5 @@
 import {composeRequest,publicEvidenceItem} from './outreach-compose-policy.mjs?v=20261024-3';
+import {revealOutreachPreview} from './outreach-preview.mjs?v=20261024-1';
 let state={inquiryId:null,items:[]};
 function render(ctx){
  const {find:$}=ctx,container=$('#outreach-public-evidence-list');container.replaceChildren();
@@ -54,6 +55,7 @@ export async function generatePublicOutreach(ctx){
   $('#outreach-subject-a').value=result.subject;$('#outreach-subject-b').value=result.subject_b||result.subject;$('#outreach-selected-subject').value='a';$('#outreach-body').value=body;$('#outreach-recipient').value=recipient;$('#outreach-target-language').value='英文';$('#outreach-body-label').textContent='英文正文';
   inquiry.outreachDraftId=null;inquiry.latestOutreachDraft=null;ctx.setMode('outreach');
   $('#outreach-draft').classList.remove('hidden');$('#outreach-draft-title').textContent='研究型开发信草稿';
+  revealOutreachPreview($);
   if(!recipient){ctx.quality(result.subject,body);$('#outreach-status').textContent='正文已生成，可编辑；尚无收件人，未保存或发送。';$('#send-outreach').disabled=true;return}
   await ctx.save();if(ctx.getInquiry()?.id!==id)return;
   ctx.quality(result.subject,body);$('#save-outreach').disabled=false;$('#send-outreach').disabled=false;$('#send-outreach').classList.remove('hidden');

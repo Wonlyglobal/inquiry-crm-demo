@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {preparePublicOutreachEvidence,addPublicOutreachEvidence,generatePublicOutreach} from '../assets/outreach-public-compose-ui.mjs';
 function harness(){
- const nodes=new Map(),created=[];const node=()=>({children:[],dataset:{},style:{},checked:false,value:'',textContent:'',disabled:false,open:false,classList:{remove(){},add(){}},addEventListener(){},append(...items){this.children.push(...items)},replaceChildren(){this.children=[]}});
+ const nodes=new Map(),created=[];const node=()=>({children:[],dataset:{},style:{},checked:false,value:'',textContent:'',disabled:false,open:false,classList:{remove(){},add(){},contains(){return false}},scrollIntoView(){this.scrolled=true},focus(){this.focused=true},addEventListener(){},append(...items){this.children.push(...items)},replaceChildren(){this.children=[]}});
  const find=key=>{if(!nodes.has(key))nodes.set(key,node());return nodes.get(key)};
  globalThis.document={createElement(){const n=node();created.push(n);return n},querySelectorAll(){return created.filter(n=>n.dataset.publicEvidenceIndex!==undefined&&n.checked)}};
  find('#outreach-objective').value='meeting';find('#outreach-tone').value='consultative';
@@ -28,6 +28,7 @@ test('generation refuses unconfirmed input and never projects local recipient or
  assert.equal(h.calls[0].name,'outreach-compose');assert.equal(h.calls[0].payload.company_facts.length,1);
  assert.equal(JSON.stringify(h.calls[0].payload).includes('private-recipient'),false);assert.equal(JSON.stringify(h.calls[0].payload).includes('Private Person'),false);assert.equal(JSON.stringify(h.calls[0].payload).includes('Private Signer'),false);
  assert.match(h.find('#outreach-body').value,/Dear Private,/);assert.match(h.find('#outreach-body').value,/Private Signer/);assert.equal(h.calls[1].saved,true);
+ assert.equal(h.find('#outreach-body').scrolled,true);assert.equal(h.find('#outreach-body').focused,true);
 });
 test('incomplete research and missing recipient do not prevent editable model-generated copy',async()=>{
  const h=harness();h.ctx.research=()=>({generated:false,facts:[],signals:[]});h.ctx.recipient=()=>'';

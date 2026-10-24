@@ -1,0 +1,19 @@
+/* Only the active outreach section owns this fixed action. Reuse the original
+   button so loading, permissions and click handlers cannot drift between copies. */
+[data-detail-section="outreach"] #generate-outreach {
+  position: fixed;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: calc(104px + env(safe-area-inset-bottom));
+  z-index: 45;
+  min-height: 48px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 8px 24px rgba(24,52,43,.24);
+}
+#outreach-draft { scroll-margin-top: 100px; }
+#outreach-body { scroll-margin-top: 100px; }
+@media (max-width: 640px) {
+  [data-detail-section="outreach"] #generate-outreach {
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(100px + env(safe-area-inset-bottom));
+  }
+}

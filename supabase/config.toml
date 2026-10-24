@@ -457,3 +457,7 @@ verify_jwt = false
 [functions.mail-sync-worker]
 # The handler validates a dedicated random Vault-backed token before mailbox access.
 verify_jwt = false
+
+[functions.outreach-translate]
+# Handler authenticates active actor, checks own immutable snapshot through RLS.
+verify_jwt = false

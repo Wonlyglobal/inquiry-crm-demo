@@ -5,13 +5,22 @@ const input={action:'outreach-product-draft',inquiry_id:'00000000-0000-4000-8000
 const asset={id:'fixture',name:'木门画册.pdf',versionLabel:'V1',isCurrentVersion:true,document:{status:'ready',sha256:'a'.repeat(64),pages_total:1,pages:[{page:1,chunks:['PRIVATE SYNTHETIC DOCUMENT TEXT'],facts:[]}]}};
 test('draft requests are bounded and cannot add arbitrary API destinations or product types',()=>{
  assert.equal(outreachProductRequest(input).category,'wooden_door');
- for(const change of [{category:'constructor'},{category:'__proto__'},{inquiry_id:'-'.repeat(36)},{recipient:'invalid'},{angle:'too short'},{angle:'valid words\nnew line'},{url:'https://example.com'}])assert.throws(()=>outreachProductRequest({...input,...change}));
+ for(const change of [{category:'constructor'},{category:'__proto__'},{inquiry_id:'-'.repeat(36)},{recipient:'invalid'},{angle:'x'.repeat(4001)},{angle:'invalid\x00control'},{url:'https://example.com'}])assert.throws(()=>outreachProductRequest({...input,...change}));
 });
 test('only current matching located evidence survives; stale, unparsed and unrelated files are gaps',()=>{
  const data={status:'available',assets:[asset]};const e=outreachProductEvidence(gateMaterialEvidence(data),'wooden_door');assert.equal(e.length,1);assert.equal(e[0].human_verified,false);
  for(const change of [{isCurrentVersion:false},{name:'木门logo.png'},{name:'智能锁.pdf'},{versionLabel:''},{document:{status:'queued'}}])assert.equal(outreachProductEvidence(gateMaterialEvidence({status:'available',assets:[{...asset,...change}]}),'wooden_door').length,0);
  assert.equal(outreachProductEvidence({status:'unavailable'},'wooden_door').length,0);
  assert.throws(()=>buildProductReviewDraft(input,[]));
+});
+test('customer angle is optional and accepts short, Chinese, multiline and longer notes without fake translation',()=>{
+ const evidence=outreachProductEvidence(gateMaterialEvidence({status:'available',assets:[asset]}),'wooden_door');
+ for(const angle of ['', '门类确认', 'Hi', '中文需求\n补充说明', '中'.repeat(600)]){
+  const req=outreachProductRequest({...input,angle});assert.equal(req.angle,angle);
+  const draft=buildProductReviewDraft(req,evidence);assert.equal(draft.send_allowed,false);
+  if(!angle||/中文|门类|中/.test(angle)){assert.match(draft.letter,/discuss your product requirements/);assert.doesNotMatch(draft.letter,/中文|门类|中/);}
+  if(angle)assert.ok(draft.body.includes(angle));
+ }
 });
 test('shared draft contains references only, never internal filenames/excerpts or inferred specifications',()=>{
  const e=outreachProductEvidence(gateMaterialEvidence({status:'available',assets:[asset]}),'wooden_door');const r=buildProductReviewDraft(input,e,'2026-10-22T00:00:00Z');

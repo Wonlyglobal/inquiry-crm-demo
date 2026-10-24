@@ -62,6 +62,8 @@ export function conciseMaterialAnswer(data,question){
   }
   blocks.push(`${blocks.length+1}. ${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n更新时间：${a.updatedAt||'未标注'}；本次读取：${data.read_at||'未标注'}\n`+(refs.length?refs.slice(0,3).join('\n'):requested.length?'本次返回证据未明确覆盖所问参数，不能据此补充数值或条件。':a.excerpt?'现有索引摘录：'+a.excerpt.slice(0,420):'暂无可用于回答的正文证据。')+(a.document?.status==='partial'?'\n此资料仅部分解析，仍有缺口。':''));
  }
- const differences=evidenceDifferences(data.assets),ledger=wanted.some(x=>!['来源','页码','版本'].includes(x))?'':productLedgerText(productLedger(data));
+ const differences=evidenceDifferences(data.assets),ledgerData=productLedger(data);
+ const specific=wanted.some(x=>!['来源','页码','版本'].includes(x));
+ const ledger=specific&&ledgerData?.products.length?'产品理解状态（内部机器提取，均未人工核验，不是完整产品理解）\n'+ledgerData.products.slice(0,5).map(p=>`${p.name}：${p.states.coverage}；${p.states.extraction}`).join('\n'):productLedgerText(ledgerData);
  return `已找到本页 ${data.assets.length} 项相关资料，先列出 ${blocks.length} 项证据。以下是原文摘录，不是已核验的产品结论。\n\n`+(ledger?ledger+'\n':'')+blocks.join('\n\n')+(differences?'\n\n'+differences:'')+'\n\n可继续问某型号的具体参数，或说“展开”查看本页详细证据。'+(data.has_more?'说“下一页”继续相同关键词。':'');
 }

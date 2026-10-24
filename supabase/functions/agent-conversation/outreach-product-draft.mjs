@@ -29,8 +29,12 @@ export function outreachProductEvidence(data,category,model='',catalogueOnly=fal
  const baseline=/^(?:metaldoor|金属门)1\.0$/.test(normalized(model));
  return (data.assets||[]).filter(a=>a.isCurrentVersion===true&&a.versionLabel&&/^[a-f0-9]{64}$/.test(a.document?.sha256||'')&&['ready','partial'].includes(a.document?.status)&&!/logo|标志|标识|展会|进度|计划|exhibition|schedule/i.test(a.name)&&(!catalogueOnly||/画册|catalog|brochure/i.test(a.name))).slice(0,12).flatMap(a=>(a.document.pages||[]).filter(p=>{
   if(!Number.isInteger(p.page)||!p.chunks?.some(s=>s.trim()))return false;
-  const page=p.chunks.join(' '),categoryMatch=c.terms.test(a.name)||c.terms.test(page)||(baseline&&['security_door','steel_door'].includes(category)&&/金属门|metal\s*doors?/i.test(page));
-  const modelMatch=!model||normalized(a.name+' '+page).includes(normalized(model))||(baseline&&/(?:^|[^\d])1\.0(?:[^\d]|$)/.test(page));
+  const page=p.chunks.join(' ');
+  // Company overview/contents and comparison-only mentions are not product evidence.
+  if(/关于王力|企业介绍|企业文化|公司荣誉|about\s*wonly/i.test(page))return false;
+  const productText=page.replace(/[^。.!?\n]*(?:无法比拟|incomparable|compared\s+(?:with|to))[^。.!?\n]*/gi,'').replace(/既有[^。.!?\n]*?(?:的|又有)[^。.!?\n]*/g,'');
+  const categoryMatch=c.terms.test(a.name)||c.terms.test(productText)||(baseline&&['security_door','steel_door'].includes(category)&&/金属门|metal\s*doors?/i.test(productText));
+  const modelMatch=!model||normalized(a.name+' '+productText).includes(normalized(model))||(baseline&&/(?:^|[^\d])1\.0(?:[^\d]|$)/.test(productText));
   return categoryMatch&&modelMatch;
  }).slice(0,3).map(p=>({category,asset_id:a.id,name:a.name,version:a.versionLabel,page:p.page,sha256:a.document.sha256,partial:a.document.status==='partial',quote:p.chunks.filter(s=>s.trim()).join('\n').slice(0,1800),human_verified:false,source_freshness_verified:false})));
 }

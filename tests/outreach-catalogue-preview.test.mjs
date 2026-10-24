@@ -27,6 +27,11 @@ test('all selected categories search product terms before catalogue filename fal
  }
  assert.deepEqual(productCatalogueQueries('unknown'),[]);
 });
+test('company overview and comparison-only category mentions do not establish product pages',()=>{
+ const fixture=(text)=>({status:'available',assets:[{...asset,name:'Synthetic medical catalogue.pdf',document:{...asset.document,pages:[{page:8,chunks:[text]}]}}]});
+ for(const text of ['Synthetic other product。这是普通木门、钢质门无法比拟的。','Synthetic other product，既有钢质门的结构特点。','ABOUT WONLY steel doors synthetic company overview'])assert.equal(outreachProductEvidence(fixture(text),'steel_door','',true).length,0);
+ assert.equal(outreachProductEvidence(fixture('Synthetic steel doors product model TEST-20'),'steel_door','',true).length,1);
+});
 test('both preview and drafting only use catalogues and report per-category bounded search results',()=>{
  const source=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');
  assert.ok(source.includes('outreachProductEvidence(materials,category,request.model,true)'));

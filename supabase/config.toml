@@ -461,3 +461,7 @@ verify_jwt = false
 [functions.outreach-translate]
 # Handler authenticates active actor, checks own immutable snapshot through RLS.
 verify_jwt = false
+
+[functions.outreach-compose]
+# Active actor, original inquiry RLS, explicit reviewed public projection and policy gate.
+verify_jwt = false

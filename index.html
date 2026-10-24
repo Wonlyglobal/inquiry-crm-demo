@@ -2201,10 +2201,10 @@
           <div class="detail-kpi"><span>下次跟进</span><b id="detail-kpi-next-followup">—</b></div>
         </div>
         <nav class="detail-tabs" aria-label="询盘详情分区">
+          <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab active" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
-          <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
           <button class="detail-tab" type="button" data-detail-tab="attribution">营销归因</button>
           <button class="detail-tab" type="button" data-detail-tab="journey">用户路径</button>
@@ -2348,6 +2348,7 @@
             <div class="heading-actions"><button id="reply-inquiry" class="ghost" type="button">回复询盘</button><button id="update-outreach" class="ghost" type="button" disabled>更新开发信</button><button id="generate-outreach" class="primary" type="button">一键生成开发信</button></div>
           </div>
           <p id="outreach-status" class="hint" style="margin-top:16px">草稿尚未生成</p>
+          <details id="outreach-public-panel" class="quality-panel" open><summary>研究型开发信：核对本次最小公开依据</summary><p class="hint">保留公司背调、相关市场信息和获准公开的产品匹配；默认先了解需求再约会议。仅勾选内容会交给百炼北京，不发送客户联系方式、原邮件、背调全文或内部画册。</p><div class="field"><label>邮件目标</label><select id="outreach-objective" class="input"><option value="meeting">先了解需求并预约会议（默认）</option><option value="qualify">仅确认需求</option><option value="quote">推动报价 / 回答具体问题</option></select></div><button id="outreach-public-prepare" class="ghost" type="button">从现有背调整理公开候选</button><div id="outreach-public-evidence-list">请整理并核对公开候选；公司和市场研究仍会用于开发信，不使用通用约会模板替代。</div><details><summary>补充已核实的公开依据</summary><select id="outreach-public-kind" class="input" aria-label="公开依据类型"><option value="market_facts">相关市场信息</option><option value="company_facts">公司公开事实</option><option value="product_facts">获准公开的王力产品主张</option></select><textarea id="outreach-public-statement" class="input" rows="2" aria-label="公开摘要" placeholder="只填已经核实、允许外发的简短事实"></textarea><input id="outreach-public-source" class="input" aria-label="公开来源网址" placeholder="https://公开来源（不能是内部系统链接）"><input id="outreach-public-date" class="input" aria-label="来源或核验日期" placeholder="来源发布日期或实际核验日期"><button id="outreach-public-add" type="button" class="ghost">加入待核对列表</button></details><label><input type="checkbox" id="outreach-public-confirm"> 我已核实勾选内容为公开、准确且允许本次发送百炼北京生成草稿；不含联系方式、原邮件、内部资料或高敏信息。</label></details>
           <section class="quality-panel" style="margin-top:16px"><b>Grace 产品证据开发信</b><p class="hint">内部检索当前产品资料，不调用外部模型。证据草稿禁止直接发送，不替代客户背调或产品专家核验。</p>
             <fieldset><legend>王力产品门类（可多选）</legend><p id="grace-outreach-selection-note" class="hint" role="status"></p><div id="grace-outreach-categories" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px"></div><div class="form-actions"><button id="grace-outreach-all" type="button" class="ghost">选择全门类</button><button id="grace-outreach-clear" type="button" class="ghost">清空 / 待确认</button></div><small>全门类仅指本工具列出的12类，不代表均有资料或已经确认适合客户；缺资料时不会保存完整草稿。</small></fieldset>
             <details id="grace-outreach-product-profile" class="quality-panel" hidden aria-label="官网背景简介，非画册证据"></details>
@@ -2364,22 +2365,21 @@
             <h4><span id="outreach-draft-title">邮件草稿</span> <span class="tag">待人工审核</span></h4>
             <div class="detail-grid">
               <div class="field"><label>收件人</label><input id="outreach-recipient" class="input" readonly /></div>
-              <div class="field"><label>邮件目标</label><select id="outreach-objective" class="input"><option value="qualify">确认需求</option><option value="quote">推动报价</option><option value="meeting">预约会议</option></select></div>
               <div class="field"><label>表达风格</label><select id="outreach-tone" class="input"><option value="consultative">专业顾问式</option><option value="direct">简洁直接</option><option value="project">项目推进式</option></select></div>
               <div class="field"><label>主题 A</label><input id="outreach-subject-a" class="input" /></div>
               <div class="field"><label>主题 B</label><input id="outreach-subject-b" class="input" /></div>
               <div class="field"><label>发送主题</label><select id="outreach-selected-subject" class="input"><option value="a">主题 A</option><option value="b">主题 B</option></select></div>
             </div>
             <div class="quality-panel" style="margin:18px 0">
-              <div class="quality-panel-head"><div><b>补充客户关心信息后重新生成</b><div class="hint" style="margin-top:6px">勾选本次需要回答的内容；可保存为个人默认答案，后续客户直接复用。</div></div></div>
-              <div id="outreach-guidance-options" class="detail-grid" style="margin-top:14px"></div>
-              <div class="field"><label>其他说明或希望追问的问题</label><textarea id="outreach-extra-guidance" class="input" rows="3" placeholder="例如：先确认项目交期；不要直接报价；询问当地需要的认证标准"></textarea></div>
-              <div class="field"><label>一键多语言</label><div class="heading-actions" id="outreach-language-actions"><button class="ghost" type="button" data-outreach-language="英文">英语</button><button class="ghost" type="button" data-outreach-language="西班牙文">西班牙语</button><button class="ghost" type="button" data-outreach-language="葡萄牙文">葡萄牙语</button><button class="ghost" type="button" data-outreach-language="法文">法语</button><button class="ghost" type="button" data-outreach-language="阿拉伯文">阿拉伯语</button><button class="ghost" type="button" data-outreach-language="俄文">俄语</button></div><input id="outreach-target-language" type="hidden" value="英文" /></div>
-              <div class="form-actions" style="margin-top:16px"><button id="regenerate-outreach" class="primary" type="button">按补充信息重新生成</button></div>
+              <div class="quality-panel-head"><div><b>核对草稿与多语言</b><div class="hint" style="margin-top:6px">旧商业默认答案不自动外发；需要补充的内容可人工编辑，生成只采用上方确认的公开依据。</div></div></div>
+              <div id="outreach-guidance-options" class="detail-grid hidden" style="margin-top:14px"></div>
+              <div class="field hidden"><label>其他说明或希望追问的问题</label><textarea id="outreach-extra-guidance" class="input" rows="3"></textarea></div>
+              <fieldset class="field" id="outreach-language-actions"><legend>目标语言（可多选）</legend><div class="heading-actions"><label><input type="checkbox" data-outreach-language-code value="en"> 英语</label><label><input type="checkbox" data-outreach-language-code value="es"> 西班牙语</label><label><input type="checkbox" data-outreach-language-code value="pt"> 葡萄牙语</label><label><input type="checkbox" data-outreach-language-code value="fr"> 法语</label><label><input type="checkbox" data-outreach-language-code value="ar"> 阿拉伯语</label><label><input type="checkbox" data-outreach-language-code value="ru"> 俄语</label></div><div class="heading-actions"><button class="ghost" id="outreach-language-select-all" type="button">全选语言</button><button class="ghost" id="outreach-language-clear" type="button">清空语言</button><span class="hint" id="outreach-language-selection-status" role="status">请选择目标语言；定稿后只生成所选语言，自动跳过原文语言。</span></div></fieldset><input id="outreach-target-language" type="hidden" value="英文" />
+              <div class="form-actions" style="margin-top:16px"><button id="regenerate-outreach" class="primary" type="button">按所选公开依据重新生成</button></div>
             </div>
             <div id="outreach-change-summary" class="notice hidden" style="margin-bottom:16px" aria-live="polite"></div>
             <div class="form-actions" style="margin:0 0 16px;position:sticky;top:12px;z-index:3;background:rgba(255,255,255,.96);padding:12px;border:1px solid var(--line);border-radius:14px"><span class="hint" style="margin-right:auto">生成后请人工确认；发送会使用当前业务员邮箱并自动记录到 CRM。</span><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
-            <div class="form-actions"><button id="finalize-outreach" class="ghost" type="button">保存并确认定稿</button><button id="translate-all-outreach" class="ghost" type="button">定稿后一键生成多语言</button><span id="outreach-final-status" class="hint" role="status">修改后保存为新版本；确认定稿后可翻译，不自动发送。</span></div>
+            <div class="form-actions"><button id="finalize-outreach" class="ghost" type="button">保存并确认定稿</button><button id="translate-all-outreach" class="ghost" type="button" disabled>生成所选语言（0种）</button><span id="outreach-final-status" class="hint" role="status">修改后保存为新版本；确认定稿后可翻译，不自动发送。</span></div>
             <div class="field"><label id="outreach-body-label">英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea><div style="margin-top:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff"><span class="hint">邮件签名 Logo 预览</span><br><img src="https://letter.foreverdoodle.com/wonly-logo-gold.png" alt="WONLY" style="display:block;width:210px;max-width:100%;height:auto;margin-top:8px" /></div></div>
             <div id="outreach-quality-panel" class="quality-panel"><div class="quality-panel-head"><b>发送前质检</b><span id="outreach-quality-badge" class="tag">待质检</span></div><div id="outreach-quality-checks" class="quality-checks"></div></div>
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button></div>
@@ -5265,7 +5265,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       function detailTabsStorageKey(){return `wonly_detail_tabs_order_${profile?.id||"anonymous"}`}
       function applyDetailTabsOrder(order){
         const container=$(".detail-tabs"),tabs=new Map(detailTabsInitialOrder.map(key=>[key,container.querySelector(`[data-detail-tab="${key}"]`)]));
-        const priority=["research","outreach"];
+        const priority=["summary","research","outreach"];
         [...new Set([...priority,...(Array.isArray(order)?order:[]),...detailTabsInitialOrder])].filter(key=>tabs.has(key)).forEach(key=>container.append(tabs.get(key)));
       }
       function storedDetailTabsOrder(){
@@ -6736,6 +6736,10 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         currentInquiry.outreachDraftId = latestDraft?.id || null;
         renderOutreachHistory(currentInquiry.outreachDraftHistory);
         currentInquiry.latestOutreachDraft = latestDraft || null;
+        $("#outreach-public-evidence-list").replaceChildren();$("#outreach-public-confirm").checked=false;
+        ["#outreach-public-statement","#outreach-public-source","#outreach-public-date"].forEach(selector=>$(selector).value='');
+        document.querySelectorAll('[data-outreach-language-code]').forEach(box=>box.checked=false);updateOutreachLanguageSelection();
+        if(!latestDraft)$("#outreach-objective").value='meeting';
         $("#outreach-recipient").value = intake?.sender_email || latestDraft?.recipient_email || "";
         const latestDraftMode=/^re\s*:/i.test(latestDraft?.selected_subject||latestDraft?.subject_a||"")?"reply":"outreach";
         const legacyDraftError = latestDraft ? validateCustomerFacingDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body || "", preferredEnglishName(),latestDraftMode) : "";
@@ -8815,90 +8819,14 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         outreachComposeMode="reply";const originalSubject=String(currentInquiry.email_intake?.subject||currentInquiry.title||"Your inquiry").replace(/^(?:re\s*:\s*)+/i,"").trim(),replySubject=`Re: ${originalSubject}`;
         $("#outreach-recipient").value=recipient;$("#outreach-subject-a").value=replySubject;$("#outreach-subject-b").value=replySubject;$("#outreach-selected-subject").value="a";$("#outreach-body").value=`Dear ${currentInquiry.contact_name||"Customer"},\n\nThank you for your inquiry.\n\n\n\n${unifiedEnglishSignature()}`;$("#outreach-draft-title").textContent="询盘回复草稿";$("#outreach-status").textContent="正在回复客户原询盘 · 请补充正文后发送";$("#outreach-draft").classList.remove("hidden");$("#outreach-body").focus();evaluateOutreachDraft(replySubject,$("#outreach-body").value);$("#outreach-body").scrollIntoView({behavior:"smooth",block:"center"});
       });
+      function publicOutreachContext(){return {getInquiry:()=>currentInquiry,find:$,toast,research:assessResearchQuality,lines:researchLines,parse:parseResearchEvidenceLine,recipient:resolveInquiryRecipient,contactName:()=>$("#detail-smart-name").value||currentInquiry?.contact_name,signature:unifiedEnglishSignature,save:saveOutreachDraft,setMode:mode=>{outreachComposeMode=mode},quality:(subject,body)=>evaluateOutreachDraft(subject,body,$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim()),invoke:(name,options)=>supabase.functions.invoke(name,options),edgeError:edgeFunctionErrorMessage};}
+      $("#outreach-public-prepare").addEventListener('click',async()=>{const {preparePublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-1');preparePublicOutreachEvidence(publicOutreachContext())});
+      $("#outreach-public-add").addEventListener('click',async()=>{const {addPublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-1');addPublicOutreachEvidence(publicOutreachContext())});
       async function generateOutreach() {
         finalizedOutreachCopy=null;
-        if (!currentInquiry) return;
-        const previousSubject=$("#outreach-subject-a").value.trim(),previousBody=stripExistingSignature($("#outreach-body").value),previousLanguage=$("#outreach-target-language").value||"英文";
-        outreachComposeMode="outreach";$("#outreach-draft-title").textContent="开发邮件草稿";
-        const company = $("#detail-research-company").value.trim();
-        const researchQuality = assessResearchQuality();
-        if (!researchQuality.generated) { $("#outreach-status").textContent = "无法生成：尚未生成客户背调"; return toast("请先生成客户背调"); }
-        const button = $("#generate-outreach");
-        const recipient = resolveInquiryRecipient() || $("#outreach-recipient").value.trim();
-        if (!recipient) { $("#outreach-status").textContent = "无法生成：缺少客户邮箱"; return toast("缺少客户邮箱，无法通过联系人质量门槛"); }
-        const guidance=collectOutreachGuidance(),targetLanguage=$("#outreach-target-language").value||"英文";
-        button.disabled = true;
-        button.textContent = "调用开发信系统中…";
-        $("#outreach-status").textContent = `正在生成${targetLanguage}开发信并质检…`;
-        try {
-          if(guidance.saveDefaults)await saveOutreachAnswerDefaults(guidance.defaults);
-          const companyRecord = currentInquiry.companies || {};
-          const response = await fetch("https://letter.foreverdoodle.com/api/outreach", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              company: {
-                ...companyRecord,
-                companyName: company,
-                website: $("#detail-research-domain").value.trim(),
-                country: $("#detail-smart-country").value.trim(),
-                contactName: $("#detail-smart-name").value.trim(),
-                contactTitle: $("#detail-smart-title").value.trim(),
-                contactRole: $("#detail-smart-title").value.trim(),
-                email: recipient,
-                emailVerificationStatus: "valid",
-              },
-              companyText: [
-                `CUSTOMER INQUIRY (first-party evidence): ${currentInquiry.title || ""}`,
-                `PROJECT (only if provided): ${$("#detail-smart-project").value.trim() || "Not provided"}`,
-                `DEMAND (only if provided): ${$("#detail-smart-demand").value.trim() || "Not provided"}`,
-                `VERIFIED FACTS:\n- ${researchQuality.facts.join("\n- ")}`,
-                `VERIFIED DEMAND SIGNALS:\n- ${researchQuality.signals.join("\n- ")}`,
-                `SOURCE URLS:\n- ${researchQuality.sources.join("\n- ")}`,
-                `UNCERTAINTIES FOR INTERNAL USE ONLY (never reveal to customer):\n- ${researchLines("#detail-research-risks-counter").join("\n- ")}`,
-              ].join("\n"),
-              tone: $("#outreach-tone").value === "direct" ? "简洁直接" : $("#outreach-tone").value === "project" ? "项目推进式" : "专业顾问式",
-              targetLanguage,
-              length: "简短",
-              brandCompany: "WONLY GROUP",
-              guidanceAnswers: guidance.answers,
-              replyPoints: [
-                `邮件目标：${$("#outreach-objective").selectedOptions[0]?.textContent || "确认需求"}。`,
-                ...guidance.lines,
-                "只允许引用 VERIFIED FACTS、VERIFIED DEMAND SIGNALS 和客户原始询盘。",
-                `先用背调事实与询盘信号推断 ${company} 当下最可能的业务痛点，再用审慎措辞验证；不能机械插入公司介绍，也不能只复述数量、产品、报价或规格要求。`,
-                "不得暴露评分、风险、背调来源、内部判断或未经证实的项目；不得把客户官网当成 WONLY 资料链接。",
-                `${targetLanguage}表达自然、尊重、约55–95词、单一明确CTA；先回答为什么联系、为什么现在、WONLY为何相关，再提出一个低阻力下一步。`,
-              ].join(" "),
-            }),
-          });
-          const generated = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(generated.error || `开发信系统返回 ${response.status}`);
-          const bodyWithSignature = `${stripExistingSignature(generated.body || "")}\n\n${unifiedEnglishSignature()}`.trim(),subjectA=cleanFirstOutreachSubject(generated.subject),subjectB=cleanFirstOutreachSubject(generated.subjectB||generated.subject);
-          if(!subjectA)throw new Error("生成的邮件主题为空，请重试");
-          const quality = evaluateOutreachDraft(subjectA, bodyWithSignature, company, $("#detail-research-domain").value.trim());
-          if (!quality.passed) throw new Error(quality.blockers.map((item) => item.label).join("；"));
-          $("#outreach-subject-a").value = subjectA;
-          $("#outreach-subject-b").value = subjectB||subjectA;
-          $("#outreach-body").value = bodyWithSignature;
-          $("#outreach-body-label").textContent=`${targetLanguage}正文`;
-          $("#outreach-recipient").value = recipient;
-          currentInquiry.outreachDraftId=null;
-          const savedVersion=await saveOutreachDraft();
-          currentInquiry.outreachDraftHistory=[savedVersion,...(currentInquiry.outreachDraftHistory||[]).filter(item=>item.id!==savedVersion.id)];
-          renderOutreachHistory(currentInquiry.outreachDraftHistory);
-          $("#save-outreach").disabled=false;$("#send-outreach").disabled=false;$("#send-outreach").classList.remove("hidden");
-          $("#outreach-status").textContent = `已通过证据门槛与 ${quality.checks.length} 项质检 · ${quality.words} 词 · 待人工审核`;
-          $("#outreach-draft").classList.remove("hidden");
-          const summary=$("#outreach-change-summary"),changes=[];if(previousLanguage!==targetLanguage)changes.push(`语言：${previousLanguage} → ${targetLanguage}`);if(previousSubject&&previousSubject!==subjectA)changes.push("主题已重写");if(previousBody&&previousBody!==stripExistingSignature(bodyWithSignature))changes.push("正文已根据补充答案重新组织");if(guidance.lines.length)changes.push(`已采用 ${guidance.lines.length} 项补充信息`);summary.textContent=previousBody?(changes.length?`本次变化：${changes.join("；")}`:"本次生成内容与上一版基本一致"):`已生成${targetLanguage}开发信，可在下方直接审核修改`;summary.classList.remove("hidden");summary.scrollIntoView({behavior:"smooth",block:"center"});
-          toast("已使用邮件回复系统的个性化开发信逻辑生成并质检");
-        } catch (error) {
-          $("#outreach-status").textContent = "生成失败，未保存草稿";
-          toast("开发信生成失败：" + (error.message || error));
-        } finally {
-          button.disabled = false;
-          button.textContent = "一键生成开发信";
-        }
+        const {generatePublicOutreach}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-1');
+        await generatePublicOutreach(publicOutreachContext());
+        updateOutreachLanguageSelection();
       }
       $("#generate-outreach").addEventListener("click",generateOutreach);
       function clearCataloguePreview(){ $("#grace-outreach-catalogue-evidence").replaceChildren();$("#grace-outreach-catalogue-status").textContent="选择已变化，请重新读取对应画册；旧结果已清除。"; }
@@ -8955,6 +8883,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const {data,error}=await supabase.from('outreach_final_copies').select('*').eq('draft_id',draft.id).eq('finalized_by',profile.id).order('finalized_at',{ascending:false}).limit(1);
         if(currentInquiry?.outreachDraftId!==draft.id)return;
         finalizedOutreachCopy=!error&&finalCopyMatches(data?.[0])?data[0]:null;
+        updateOutreachLanguageSelection();
         $("#outreach-final-status").textContent=finalizedOutreachCopy?'已恢复定稿快照，可翻译；修改正文后须重新定稿。':'尚未定稿；修改后保存新版本，再确认定稿。';
       }
       $("#finalize-outreach").addEventListener('click',async()=>{
@@ -8973,8 +8902,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(translatingOutreach)return;
         const copy=finalizedOutreachCopy;
         if(!finalCopyMatches(copy))return toast('请先保存并确认当前正文定稿');
-        translatingOutreach=true;const results=[];
-        try{for(const language of languages.filter(x=>x!==copy.source_language)){
+        const targets=languages.filter(x=>x!==copy.source_language);if(!targets.length)return toast('请选择至少一种不同于原文的目标语言');
+        translatingOutreach=true;updateOutreachLanguageSelection();const results=[];
+        try{for(const language of targets){
           if(!finalCopyMatches(copy))throw Error('正文或询盘已切换，停止后续翻译；已保存译稿保留');
           $("#outreach-final-status").textContent=`正在翻译 ${language}，已完成 ${results.length} 个版本…`;
           const {data,error}=await supabase.functions.invoke('outreach-translate',{body:{final_copy_id:copy.id,target_language:language}});
@@ -8984,10 +8914,25 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           if(currentInquiry?.id===copy.inquiry_id){currentInquiry.outreachDraftHistory=[data.draft,...(currentInquiry.outreachDraftHistory||[]).filter(x=>x.id!==data.draft.id)];renderOutreachHistory(currentInquiry.outreachDraftHistory);}
         }
           if(currentInquiry?.id===copy.inquiry_id)$("#outreach-final-status").textContent=`已保存并回读 ${results.length} 个语言草稿。请从历史版本打开、修改及核对；未发送。`;
-        }catch(e){toast(e.message);if(currentInquiry?.id===copy.inquiry_id)$("#outreach-final-status").textContent=`本次已保存 ${results.length} 个译稿；${e.message}`;}finally{translatingOutreach=false}
+        }catch(e){toast(e.message);if(currentInquiry?.id===copy.inquiry_id)$("#outreach-final-status").textContent=`本次已保存 ${results.length} 个译稿；${e.message}`;}finally{translatingOutreach=false;updateOutreachLanguageSelection()}
       }
-      document.querySelectorAll('[data-outreach-language]').forEach(button=>button.addEventListener('click',()=>translateFinalOutreach([outreachLanguageCodes[button.dataset.outreachLanguage]])));
-      $("#translate-all-outreach").addEventListener('click',()=>translateFinalOutreach(Object.values(outreachLanguageCodes)));
+      function updateOutreachLanguageSelection(){
+        document.querySelectorAll('[data-outreach-language-code]').forEach(box=>box.disabled=translatingOutreach);
+        $("#outreach-language-select-all").disabled=translatingOutreach;$("#outreach-language-clear").disabled=translatingOutreach;
+        const source=outreachLanguageCodes[$("#outreach-target-language").value]||'en';
+        const count=[...document.querySelectorAll('[data-outreach-language-code]:checked')].filter(box=>box.value!==source).length;
+        $("#outreach-language-selection-status").textContent=`已选 ${count} 种目标语言（自动跳过原文语言）；确认定稿后生成，译文不自动发送。`;
+        $("#translate-all-outreach").textContent=translatingOutreach?'正在生成所选语言…':`生成所选语言（${count}种）`;
+        $("#translate-all-outreach").disabled=!count||translatingOutreach;
+      }
+      document.querySelectorAll('[data-outreach-language-code]').forEach(box=>box.addEventListener('change',updateOutreachLanguageSelection));
+      $("#outreach-language-select-all").addEventListener('click',()=>{document.querySelectorAll('[data-outreach-language-code]').forEach(box=>box.checked=true);updateOutreachLanguageSelection()});
+      $("#outreach-language-clear").addEventListener('click',()=>{document.querySelectorAll('[data-outreach-language-code]').forEach(box=>box.checked=false);updateOutreachLanguageSelection()});
+      $("#translate-all-outreach").addEventListener('click',async()=>{
+        const {selectedTranslationLanguages}=await import('./assets/outreach-languages.mjs?v=20261024-1');
+        const selected=selectedTranslationLanguages([...document.querySelectorAll('[data-outreach-language-code]:checked')].map(box=>box.value));
+        if(!selected.length)return toast('请先勾选目标语言');await translateFinalOutreach(selected);
+      });
       $("#copy-outreach").addEventListener("click", async () => {
         const text = `Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`;
         await navigator.clipboard.writeText(text);

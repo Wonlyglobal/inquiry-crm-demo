@@ -56,7 +56,7 @@ test('UI saves new versions and translation never calls legacy generator',()=>{
  assert.match(save,/from\("outreach_drafts"\)\.insert\(payload\)/);
  assert.doesNotMatch(save,/\.update\(/);
  assert.match(save,/readback\.data\?\.body!==body/);
- const start=html.indexOf("document.querySelectorAll('[data-outreach-language]')");
+ const start=html.indexOf("document.querySelectorAll('[data-outreach-language-code]').forEach(box=>box.addEventListener");
  const listener=html.slice(start,html.indexOf('      $("#copy-outreach")',start));
  assert.match(listener,/translateFinalOutreach/);assert.doesNotMatch(listener,/generateOutreach/);
 });

@@ -1,49 +1,49 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-23T01:11:00Z",
-  "coverage": "2026-10-23实际检查六个既有公开来源及四个补充目录；ASSA ABLOY新闻索引恢复可读，并核验10月16日PKI出售协议全文（尚待交割）；dormakaba 10月20日股东大会旧公告复核。未新增有证据关联的重大市场变化；历史文章不作今日事件，部分可读、缓存或失败不表示没有变化。",
+  "checked_at": "2026-10-24T01:12:57.838269+00:00",
+  "coverage": "2026-10-24实际检查六个既有公开来源及四个补充目录，并复核Chicago峰会旧公告和Oikos Dubai展厅目录。可读索引未见晚于10月20日条目；不是全站无变化证明。未新增有证据关联的重大市场变化，失败、缓存及缺失日期保留；旧文章和无日期目录不作为今日新事件。",
   "sources": [
     {
       "name": "WONLY 官方网站",
       "url": "https://www.wonlyglobal.com/",
       "status": "partial",
-      "note": "页面仅取得标题，无可读正文；今日新闻与产品变化未核验，不能据此确认无变化。",
-      "last_checked_at": "2026-10-23T01:11:00Z"
+      "note": "本轮仅取得网页标题，无可读正文；近期新闻与型号变化未核验，不能据此判定无变化。",
+      "last_checked_at": "2026-10-24T01:12:57.838269+00:00"
     },
     {
       "name": "Hörmann 门业官网",
       "url": "https://www.hoermann.com/en/",
       "status": "partial",
-      "note": "公司介绍及门、门框、驱动品类可读；近期新闻与产品变更未完成核验。",
-      "last_checked_at": "2026-10-23T01:11:00Z"
+      "note": "公司介绍及门、框、驱动品类可读；近期产品变更和完整新闻覆盖未核验。",
+      "last_checked_at": "2026-10-24T01:12:57.838269+00:00"
     },
     {
       "name": "ASSA ABLOY 官方新闻",
       "url": "https://www.assaabloy.com/group/en/news-media/press-releases",
       "status": "partial",
-      "note": "新闻索引恢复可读；另核验10月16日HID PKI业务出售协议全文，仍有交割条件，预计2026年第四季度完成，不是已经交割。数字信任业务不等同于智能门锁，未取得具体目标市场影响证据；其他索引条目未逐篇核验。",
-      "last_checked_at": "2026-10-23T01:11:00Z"
+      "note": "新闻索引可读，所列最新为10月20日提名委员会公告；该公告详情仅返回导航，正文未核验。未重核其他旧交易交割状态，不将索引当全文或已交割证据。",
+      "last_checked_at": "2026-10-24T01:12:57.838269+00:00"
     },
     {
       "name": "dormakaba 官方新闻",
       "url": "https://www.dormakabagroup.com/en/newsroom",
       "status": "partial",
-      "note": "新闻索引及10月20日股东大会公告全文复核可读；公告称通过董事会提案，股息计划10月26日起支付。旧治理消息不是新品、订单、量产或股息已支付证明。",
-      "last_checked_at": "2026-10-23T01:11:00Z"
+      "note": "新闻索引及10月19日Chicago峰会回顾正文可读。所列最新为10月20日；本轮未复核股东大会全文或未来股息支付，不将旧活动当新品或订单。",
+      "last_checked_at": "2026-10-24T01:12:57.838269+00:00"
     },
     {
       "name": "Al Kuhaimi Metal Industries 官网",
       "url": "https://alkuhaimimetal.com/",
       "status": "partial",
-      "note": "产品/解决方案目录可读，新闻日期和证书适用范围未核验；动态计数占位值不作为经营事实。",
-      "last_checked_at": "2026-10-23T01:11:00Z"
+      "note": "产品和解决方案目录可读；新闻日期、证书适用型号和计数未独立核验。",
+      "last_checked_at": "2026-10-24T01:12:57.838269+00:00"
     },
     {
       "name": "Puertas Asturmex 官网",
       "url": "https://puertasasturmex.com/",
       "status": "partial",
-      "note": "产品、认证及Revit入口目录可读；证书适用型号与新闻实际日期本轮未核验，不据此认定新品或没有变化。",
-      "last_checked_at": "2026-10-23T01:11:00Z"
+      "note": "产品、认证及Revit目录可读；未核验证书适用型号与新闻日期，不作近期新品结论。",
+      "last_checked_at": "2026-10-24T01:12:57.838269+00:00"
     }
   ],
   "findings": [

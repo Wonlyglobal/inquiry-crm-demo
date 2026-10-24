@@ -37,3 +37,8 @@ export const materialVersion=value=>String(value).match(/\bv[ \t]*\d{1,3}(?!\d)|
 export function namedMaterialProducts(value){
  return [...new Set((String(value).match(/\b(?:[A-Z][A-Za-z-]{1,30} +){1,5}(?:Door|Window|Lock|Panel|Frame|Series|Architrave)\b/g)||[]))].slice(0,3);
 }
+// An explicit document is a navigation scope, not evidence for any model's facts.
+export function explicitMaterialDocument(value){
+ const q=String(value||'');
+ return /^物料[:：]/.test(q)&&(/\b[^\s]+\.(?:pdf|pptx?|docx?|xlsx?)\b/i.test(q)||/\b[A-Za-z][A-Za-z0-9_-]*_20\d{6}[_-]\d{3,6}\b/.test(q));
+}

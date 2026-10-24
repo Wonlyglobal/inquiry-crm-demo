@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {normalizeSlideVisual,slideVisualText} from '../supabase/functions/agent-conversation/slide-visual.mjs';
 import {materialQuery,normalizeDocument,documentEvidence} from '../supabase/functions/agent-conversation/document-knowledge.mjs';
 import {resolveMaterialTurn,conciseMaterialAnswer} from '../supabase/functions/agent-conversation/material-dialogue.mjs';
-import {materialFields} from '../supabase/functions/agent-conversation/product-input.mjs';
+import {materialFields,explicitMaterialDocument} from '../supabase/functions/agent-conversation/product-input.mjs';
 const sha='a'.repeat(64),render='b'.repeat(64);
 // Entire fixture is synthetic. No company product or material content.
 const visual={schema:'internal-slide-visual-v1',source_sha256:sha,status:'partial',read_at:'2026-01-01T00:00:00Z',pages_total:2,pages_rendered:2,pages_observed:1,pages_ocr:2,native_charts:0,native_tables:1,pages:[{page:2,render_sha256:render,status:'read',description:'Test page shows a diagram; dimensions are unreadable.',ocr_chunks:['Test Door\nSynthetic label'],table_chunks:['A1=Test'],uncertainties:['Small labels remain unverified.']}]};
@@ -37,3 +37,5 @@ test('literal color and lock-option fields support followups',()=>{
 });
 
 test('named product field labels rank evidence without filtering quotes by field words',()=>{const q=materialQuery('物料：Synthetic_Long_Document_20260101 Test Door Lock Options');assert.ok(q.query.includes('Lock Options'));assert.ok(!q.terms.includes('Lock'));assert.ok(!q.terms.includes('Options'));assert.ok(q.terms.includes('Door'));});
+
+test('explicit document scope bypasses generic catalogue hints without claiming source facts',()=>{assert.equal(explicitMaterialDocument('物料：Synthetic_Long_Document_20260101_0001 TEST-X404 颜色'),true);assert.equal(explicitMaterialDocument('物料：Test_Manual.pptx TEST-X404'),true);assert.equal(explicitMaterialDocument('TEST-X404 颜色'),false);assert.equal(explicitMaterialDocument('物料：TEST-X404 颜色'),false);});

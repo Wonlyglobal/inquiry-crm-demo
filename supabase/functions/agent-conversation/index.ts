@@ -1,5 +1,5 @@
 import {seoStatQuestion,seoStatReply} from './seo-stat-report.mjs';
-import {seriesIntent,materialVersion,namedMaterialProducts} from './product-input.mjs';
+import {seriesIntent,materialVersion,namedMaterialProducts,explicitMaterialDocument} from './product-input.mjs';
 import {syncDailySocial} from './social-daily.mjs';
 import {sourceMetricsIntent,socialMetrics,sourceMetricsAnswer} from './source-metrics.mjs';
 import {privateIntelligenceIntent,readPrivateIntelligence} from './private-intelligence.mjs';
@@ -358,7 +358,7 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    if(!guest&&companyLookupIntent(input.question)){const found=await lookupCompanies(input.question,{admin});const answer=companyAnswer(found);if(answer){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'background_company_lookup',persona:input.persona,provider:'internal',matched_domains:found.matches.map(m=>m.domain).filter(Boolean).slice(0,3),match_count:found.matches.length,source:found.source},reason:'读取背调系统公司研究记录，本地展示，不发送外部模型、不展示联系人'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'background-company-records',context:{route:'background_company',as_of:found.as_of},ticket:await ticket({user:user.id,persona:input.persona,text:'我在背调系统找到了相关公司记录，详细内容在窗口里。',expires:Date.now()+300000},key)});}}
    // Owner 2026-10-03: spec questions without a model code answer from WONLY's catalogue or say "画册未写明" (never generic numbers).
    const contextTurn=resolveMaterialTurn(input.question,input.materialHistory||[]),catalogQuestion=(contextTurn.clarification?input.question:contextTurn.question).replace(/^物料：/,'');
-   const scopedNamedMaterial=/^物料[:：]/.test(contextTurn.question)&&namedMaterialProducts(contextTurn.question).length>0;
+   const scopedNamedMaterial=explicitMaterialDocument(contextTurn.question)||(/^物料[:：]/.test(contextTurn.question)&&namedMaterialProducts(contextTurn.question).length>0);
    const spec=guest||scopedNamedMaterial||materialVersion(catalogQuestion)||selectionIntent(catalogQuestion)?null:specIntent(catalogQuestion);
    if(spec){const catalog=await loadCatalog(admin);const answer=catalog&&!findModels(catalogQuestion,catalog).length?specAnswer(spec,catalog):null;if(answer){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'catalog_spec_lookup',persona:input.persona,provider:'internal',dimension:spec.dim,category:spec.cat},reason:'按参数查王力海外画册，系统内生成，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);
     return json({answer,provider:'internal',model:'catalog-spec',context:{route:'catalog'},ticket:await ticket({user:user.id,persona:input.persona,text:answer.startsWith('王力海外画册（2026 年 8 月版）里没有写明')?'画册里没有写明这一项，我不拿行业通用数字代替，需要产品部补检测数据。':'画册里的写法和页码放在窗口里了。',expires:Date.now()+300000},key)});}}

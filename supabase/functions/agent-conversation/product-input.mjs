@@ -42,3 +42,8 @@ export function explicitMaterialDocument(value){
  const q=String(value||'');
  return /^物料[:：]/.test(q)&&(/\b[^\s]+\.(?:pdf|pptx?|docx?|xlsx?)\b/i.test(q)||/\b[A-Za-z][A-Za-z0-9_-]*_20\d{6}[_-]\d{3,6}\b/.test(q));
 }
+export function materialModelCodes(value){
+ // A timestamped basename or file extension is a file locator, never a product code.
+ const q=String(value||'').replace(/\b[^\s]+\.(?:pdf|pptx?|docx?|xlsx?)\b/gi,' ').replace(/\b[A-Za-z][A-Za-z0-9_-]*_20\d{6}[_-]\d{3,6}\b/g,' ');
+ return modelCodes(q);
+}

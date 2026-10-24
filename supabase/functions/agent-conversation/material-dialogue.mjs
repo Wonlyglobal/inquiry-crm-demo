@@ -1,9 +1,9 @@
 import {visualQuestion,slideVisualText} from './slide-visual.mjs';
-import {normalizeProductInput,modelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts} from './product-input.mjs';
+import {normalizeProductInput,materialModelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts} from './product-input.mjs';
 import {productLedger,productLedgerText} from './product-coverage.mjs';
 import {profileEvidence} from './knowledge-profile.mjs';
 import {materialQuery,coverageSummary} from './document-knowledge.mjs';
-const modelIds=modelCodes;
+const modelIds=materialModelCodes;
 const fields=materialFields;
 export function resolveMaterialTurn(question,history=[]){
  const q=normalizeProductInput(question).trim(),previous=normalizeProductInput(history.at(-1)||'');
@@ -52,11 +52,12 @@ export function conciseMaterialAnswer(data,question){
  if(!data.assets.length&&data.relevance_filtered)return '本次检索没有找到同时满足你所提条件的资料。未将其他门类、未标注英文或非手册文件充当结果。'+(data.has_more?'本页候选未匹配，仍有后续候选，可说“下一页”继续核对。':'这不代表公司一定没有该资料；可能缺少语言标注或尚未入库。');
  if(!data.assets.length)return '在本次有权检索的资料中没有找到匹配内容，不能据此判断该产品不存在。请提供完整型号，或减少关键词后重试。\n'+coverageSummary(data.document_coverage);
  if(visualQuestion(question))return data.assets.slice(0,3).map(a=>`${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n更新时间：${a.updatedAt||'未标注'}；本次读取：${data.read_at||'未标注'}\n`+(a.document?.visual_understanding?slideVisualText(a.document.visual_understanding):'尚未取得本文件的图片/图表阅读证据，不能据此猜测图示含义或产品参数。')).join('\n\n');
- const wanted=fields(question),blocks=[],namedTargets=namedMaterialProducts(question);
+ const wanted=fields(question),blocks=[],namedTargets=namedMaterialProducts(question),codeTargets=materialModelCodes(question);
+ const targetMatches=f=>namedTargets.length===1?f.product.toLowerCase()===namedTargets[0].toLowerCase():codeTargets.length===1?f.product.toUpperCase()===codeTargets[0]:true;
  for(const a of data.assets.slice(0,3)){
   const refs=[],covered=new Set(),requested=wanted.filter(x=>!['来源','页码','版本'].includes(x));
   for(const f of a.document?.product_understanding?.findings||[]){
-   if((namedTargets.length!==1||f.product.toLowerCase()===namedTargets[0].toLowerCase())&&(!requested.length||requested.some(w=>f.field===w||fields(f.field).includes(w)))){refs.push(`[第${f.page}页｜${f.field}，机器解释未人工核验] ${f.value}\n原文依据：${f.quote}`);for(const w of requested)if(f.field===w||fields(f.field).includes(w))covered.add(w)};
+   if(targetMatches(f)&&(!requested.length||requested.some(w=>f.field===w||fields(f.field).includes(w)))){refs.push(`[第${f.page}页｜${f.field}，机器解释未人工核验] ${f.value}\n原文依据：${f.quote}`);for(const w of requested)if(f.field===w||fields(f.field).includes(w))covered.add(w)};
    if(refs.length>=3)break;
   }
   const profile=profileEvidence(a.document?.knowledge_profile);if(!refs.length&&!requested.length&&profile)refs.push(profile);if(a.video){for(const segment of (a.video.segments||[]).slice(0,2))refs.push(`[${Math.floor(segment.start/60)}:${String(Math.floor(segment.start%60)).padStart(2,'0')} ${segment.kind==='speech'?'语音转写':segment.kind==='screen_text'?'画面文字':'画面推测'}] ${segment.text.slice(0,420)}`);if(!refs.length)refs.push('视频尚无可引用片段；状态：'+({queued:'排队中',processing:'处理中',failed:'失败',partial:'部分解析',ready:'采样完成'}[a.video.status]||'未解析'))}for(const p of a.document?.pages||[]){

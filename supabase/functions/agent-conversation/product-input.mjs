@@ -28,12 +28,12 @@ export function modelCodes(value){
 export const bareModel=value=>/^\s*[A-Za-z]{1,3}\d{2,4}[A-Za-z]?(?:[ \t_-]*(?:pro|max|plus|ultra))?\s*[。？！!?]*$/i.test(normalizeProductInput(value));
 
 // Requested dimensions only; these labels never infer product facts or model aliases.
-const FIELD_PATTERNS=[['功能',/功能|features?|functions?/i],['配置',/配置|configuration/i],['供电',/供电|power supply/i],['电池',/电池|battery/i],['维护',/维护|maintenance/i],['防火',/防火|fire rating/i],['隔音',/隔音|sound insulation/i],['尺寸',/尺寸|dimensions?|size/i],['规格',/规格|specifications?/i],['材质',/材质|materials?/i],['型号',/型号|model/i],['认证',/认证|certification/i],['安装',/安装|installation/i],['质保',/质保|warranty/i],['保养',/保养/i],['参数',/参数|parameters?/i],['来源',/来源|出处|source|reference/i],['版本',/版本|version|edition/i],['页码',/页码|第几页|page/i],['适用条件',/适用|限制|户外|室外|场景|limitations?|outdoor|application/i],['开锁方式',/开锁|解锁|unlock/i]];
+const FIELD_PATTERNS=[['厚度',/厚度|thickness/i],['功能',/功能|features?|functions?/i],['配置',/配置|configuration/i],['供电',/供电|power supply/i],['电池',/电池|battery/i],['维护',/维护|maintenance/i],['防火',/防火|fire rating/i],['隔音',/隔音|sound insulation/i],['尺寸',/尺寸|dimensions?|size/i],['规格',/规格|specifications?/i],['材质',/材质|materials?/i],['型号',/型号|model/i],['认证',/认证|certification/i],['安装',/安装|installation/i],['质保',/质保|warranty/i],['保养',/保养/i],['参数',/参数|parameters?/i],['来源',/来源|出处|source|reference/i],['版本',/版本|version|edition/i],['页码',/页码|第几页|page/i],['适用条件',/适用|限制|户外|室外|场景|limitations?|outdoor|application/i],['开锁方式',/开锁|解锁|unlock/i]];
 export const materialFields=value=>FIELD_PATTERNS.filter(([,re])=>re.test(String(value))).map(([label])=>label);
 export const seriesIntent=value=>/产品系列|系列目录|产品线|产品目录|型号目录|型号清单|有哪些型号|product (?:range|series|catalog(?:ue)?)|model (?:list|catalog(?:ue)?)/i.test(String(value));
 export const materialVersion=value=>String(value).match(/\bv[ \t]*\d{1,3}(?!\d)|第[一二三四五六七八九十0-9]{1,3}版|20\d{2}年(?:\d{1,2}月)?版/ig)?.at(-1)||'';
 
 // Literal multiword product names supplied by the user, never inferred aliases or product facts.
 export function namedMaterialProducts(value){
- return [...new Set((String(value).match(/\b(?:[A-Z][A-Za-z-]{1,30} +){1,5}(?:Door|Window|Lock|Panel|Frame)\b/g)||[]))].slice(0,3);
+ return [...new Set((String(value).match(/\b(?:[A-Z][A-Za-z-]{1,30} +){1,5}(?:Door|Window|Lock|Panel|Frame|Series|Architrave)\b/g)||[]))].slice(0,3);
 }

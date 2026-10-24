@@ -4,6 +4,16 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {selectedTranslationLanguages,OUTREACH_TRANSLATION_LANGUAGES} from '../assets/outreach-languages.mjs';
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+test('localized customer drafts restore without an English-only signature gate',()=>{
+ const ctx={};vm.createContext(ctx);vm.runInContext(html.slice(html.indexOf('      function validateCustomerFacingDraft('),html.indexOf('      function evaluateOutreachDraft(')),ctx);
+ for(const [language,body] of [['es','Estimado Cliente,\n¿Podemos conversar durante 20 minutos?\nAtentamente,\nRepresentante\nWONLY\nwww.wonlyglobal.com'],['ru','Уважаемый клиент,\nМожно провести встречу на 20 минут?\nС уважением,\nПредставитель\nWONLY\nwww.wonlyglobal.com']]){
+  assert.equal(ctx.validateCustomerFacingDraft('Discussion requirements',body,'Signer','outreach',language),'');
+  assert.notEqual(ctx.validateCustomerFacingDraft('Discussion',body,'Signer','outreach','en'),'');
+  assert.notEqual(ctx.validateCustomerFacingDraft('Discussion',body.replace('WONLY','Other'),'Signer','outreach',language),'');
+  assert.notEqual(ctx.validateCustomerFacingDraft('Discussion',body+'\ninternal assessment','Signer','outreach',language),'');
+ }
+ assert.match(html,/latestDraftMode,latestDraft.language\|\|'en'/);
+});
 test('only selected supported languages are generated, deduplicated, source omitted',()=>{
  assert.deepEqual(selectedTranslationLanguages(['ru','es','ru'],'en'),['ru','es']);
  assert.deepEqual(selectedTranslationLanguages(['en'],'en'),[]);

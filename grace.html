@@ -6739,7 +6739,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(!latestDraft)$("#outreach-objective").value='meeting';
         $("#outreach-recipient").value = intake?.sender_email || latestDraft?.recipient_email || "";
         const latestDraftMode=/^re\s*:/i.test(latestDraft?.selected_subject||latestDraft?.subject_a||"")?"reply":"outreach";
-        const legacyDraftError = latestDraft ? validateCustomerFacingDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body || "", preferredEnglishName(),latestDraftMode) : "";
+        const legacyDraftError = latestDraft ? validateCustomerFacingDraft(latestDraft.selected_subject || latestDraft.subject_a || "", latestDraft.body || "", preferredEnglishName(),latestDraftMode,latestDraft.language||'en') : "";
         if (latestDraft && isInternalProductReviewDraft(latestDraft)) {
           loadOutreachHistoryVersion(latestDraft);
         } else if (latestDraft && !legacyDraftError) {
@@ -8763,8 +8763,10 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         return String(value || "").replace(/\n{1,3}(?:Best regards|Kind regards|Regards|Sincerely),?[\s\S]*$/i, "").trim();
       }
       function cleanFirstOutreachSubject(value){return String(value||"").replace(/^(?:(?:re|fwd?)\s*:\s*)+/i,"").trim()}
-      function validateCustomerFacingDraft(subject, body, signerName = preferredEnglishName(), mode = outreachComposeMode) {
-        if (/[\u3400-\u9fff]/.test(`${subject}\n${body}`)) return "英文开发信中包含中文或内部备注，请重新生成";
+      function validateCustomerFacingDraft(subject, body, signerName = preferredEnglishName(), mode = outreachComposeMode, language = 'en') {
+        if(!['en','es','pt','fr','ar','ru'].includes(language))return '不支持的草稿语言，请核对版本';
+        if (/[\u3400-\u9fff]/.test(`${subject}\n${body}`)) return "开发信中包含中文或内部备注，请重新生成";
+        if(String(body).includes('【Grace 产品证据草稿｜仅内部审核，不可直接发送】'))return '内部产品整理单不能作为客户开发信';
         if (/强制降级|高风险|低价值|成交概率|客户等级|内部判断|our recommended next step is to|\b(?:risk rating|value grade|lead score|internal assessment)\b/i.test(body)) {
           return "开发信中包含内部评分、风险或判断信息，请重新生成";
         }
@@ -8777,13 +8779,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const hypePatterns = [/\bbuy now\b/i,/\blimited time\b/i,/\blowest price\b/i,/\b100% guaranteed\b/i,/\bdon['’]t miss\b/i,/\bact now\b/i];
         const hypeHits = hypePatterns.filter((pattern) => pattern.test(`${normalizedSubject}\n${normalizedBody}`));
         if (hypeHits.length >= 2) return "开发信集中使用强促销、紧迫感或价格绝对化表达，请改为真实、中性的客户价值说明";
-        if (!body.includes(`Best regards,\n${signerName}\nWONLY International Sales Team`)) {
+        if (language==='en'&&!body.includes(`Best regards,\n${signerName}\nWONLY International Sales Team`)) {
           return "签名不是当前业务员的统一英文签名，请重新生成";
         }
+        if(language!=='en'&&(!/\bWONLY\b/.test(body)||!body.includes('www.wonlyglobal.com')))return '译稿缺少王力品牌签名或官网，请核对';
         return "";
       }
       function evaluateOutreachDraft(subject, body, companyName = "", customerDomain = "", mode = outreachComposeMode) {
-        const baseError = validateCustomerFacingDraft(subject, body,preferredEnglishName(),mode);
+        const language={英文:'en',西班牙文:'es',葡萄牙文:'pt',法文:'fr',阿拉伯文:'ar',俄文:'ru'}[$('#outreach-target-language').value]||'en';
+        const baseError = validateCustomerFacingDraft(subject, body,preferredEnglishName(),mode,language);
         const normalizedBody = String(body || "").trim();
         const contentBody = normalizedBody.split(/\nBest regards,/i)[0];
         const words = contentBody.split(/\s+/).filter(Boolean).length;
@@ -8799,7 +8803,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           { pass: mode==="reply"||personalization, label: mode==="reply"?"基于客户主动询盘直接回复":personalization?"包含基于询盘或公司的真实个性化开场":"缺少可验证的个性化依据", critical: true },
           { pass: questionCount >= 1 && questionCount <= 2, label: `包含 ${questionCount} 个明确问题/CTA（建议 1 个）`, critical: questionCount === 0 || questionCount > 3 },
           { pass: !ownSiteLinked, label: ownSiteLinked ? "错误引用了客户自己的官网作为我方资料" : "未把客户官网误写成我方资料链接", critical: true },
-          { pass: /Best regards,\n[^\n]+\nWONLY International Sales Team\nwww\.wonlyglobal\.com$/i.test(normalizedBody), label: "使用当前业务员英文名和统一 WONLY Logo 签名", critical: true },
+          { pass: language==='en'?/Best regards,\n[^\n]+\nWONLY International Sales Team\nwww\.wonlyglobal\.com$/i.test(normalizedBody):/\bWONLY\b/.test(normalizedBody)&&normalizedBody.endsWith('www.wonlyglobal.com'), label: language==='en'?"使用当前业务员英文名和统一 WONLY Logo 签名":"译稿保留王力品牌与官网；署名译法待人工核对", critical: true },
         ];
         const advisories = checks.filter((item) => item.critical && !item.pass);
         const blockers = [];

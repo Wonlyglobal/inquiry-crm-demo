@@ -18,10 +18,10 @@ export function outreachEvidenceRequest(input){
  return outreachProductRequest({...input,action:'outreach-product-draft',recipient:'internal@example.invalid',angle:'internal catalogue evidence preview',signer:'Internal'});
 }
 export function productCatalogueQueries(category){
- if(['security_door','steel_door','armored_door','cast_aluminum_door','copper_door'].includes(category))return ['海外零售画册','Retail Product Catalogue'];
- if(category==='wooden_door')return ['静音木门画册','Soundproof Wooden Doors'];
- if(category==='smart_lock')return ['智能锁画册','True Smart Locks'];
- return ['海外工程画册','Project Solutions'];
+ const c=PRODUCT_CATEGORIES[category];if(!c)return [];
+ // Search product text first; catalogue filenames alone often return only front pages.
+ const fallback=['security_door','steel_door','armored_door','cast_aluminum_door','copper_door'].includes(category)?'海外零售画册':category==='wooden_door'?'静音木门画册':category==='smart_lock'?'智能锁画册':'海外工程画册';
+ return [...new Set([c.query,c.label,fallback])];
 }
 export function outreachProductEvidence(data,category,model='',catalogueOnly=false){
  const c=Object.hasOwn(PRODUCT_CATEGORIES,category)?PRODUCT_CATEGORIES[category]:null;if(!c||data?.status!=='available')return [];

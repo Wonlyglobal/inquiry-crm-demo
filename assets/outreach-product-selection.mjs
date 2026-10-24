@@ -29,6 +29,11 @@ export function renderOutreachProductProfile(container,text=''){
 export function renderCatalogueEvidence(container,data){
  container.replaceChildren();
  const note=document.createElement('p');note.textContent='以下是本次授权查询返回的画册页文字，机器提取、未人工核验；不代表已读完整册或获得参数/认证批准。';container.append(note);
+ for(const result of data.category_results||[]){
+  const line=document.createElement('p');const label=OUTREACH_CATEGORIES.find(([key])=>key===result.category)?.[1]||result.label;
+  line.textContent=`${label}：${result.status==='matched'?`已匹配 ${result.matched_pages} 条当前索引页码`:result.status==='search_unavailable'?'检索未完成，请检查授权或连接':'本次尚未匹配到可定位页码，不代表没有当前版画册'}；已检索：${(result.searches||[]).map(s=>s.query).join(' → ')}。`;
+  container.append(line);
+ }
  for(const e of data.evidence||[]){const card=document.createElement('article'),title=document.createElement('h5'),quote=document.createElement('pre'),state=document.createElement('small');
   title.textContent=`${e.name}｜${e.version}｜第${e.page}页`;quote.textContent=e.quote;quote.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font:inherit';
   state.textContent=`${e.partial?'部分解析，存在缺口；':'已返回本页文本；'}机器提取未人工核验，索引版本未复验原文件实时版本。`;card.append(title,quote,state);

@@ -9,6 +9,7 @@ test('UI and backend categories match, all is explicitly bounded',()=>{
 });
 test('best inquiry category defaults without default wooden doors or automatic all',()=>{
  assert.equal(suggestedOutreachCategory('Metal Door 1.0 model recommendation'),'security_door');
+ assert.equal(suggestedOutreachCategory('Metal Door 1.0 model recommendation; wooden doors mentioned as background'),'security_door');
  assert.equal(suggestedOutreachCategory('铝木门窗选型'),'aluminum_wood_windows');
  assert.equal(suggestedOutreachCategory('smart lock'),'smart_lock');
  assert.equal(suggestedOutreachCategory('Hello cooperation'),'');

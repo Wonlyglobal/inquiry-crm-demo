@@ -37,6 +37,8 @@ test('writing stays model-based and evidence-aware without fixed word-count or r
  const request=composeRequest({...input,company_facts:[],market_facts:[],product_facts:[]});const body=composeBody(request);
  assert.equal(body.model,'qwen-plus');assert.match(body.messages[0].content,/two distinct/);assert.match(body.messages[0].content,/not grounds to refuse/);
  assert.match(body.messages[0].content,/company research/);assert.match(body.messages[0].content,/market context/);assert.match(body.messages[0].content,/product information/);
+ assert.match(body.messages[0].content,/door-and-lock business/);assert.match(body.messages[0].content,/three short paragraphs/);assert.match(body.messages[0].content,/Missing evidence should become a precise neutral question/);
+ assert.match(body.messages[0].content,/No wall of text/);assert.match(body.messages[0].content,/Do not assume the recipient is a manufacturer/);
 });
 test('server authenticates original user and reads only inquiry id; service role is audit-only',()=>{
  const source=readFileSync(new URL('../supabase/functions/outreach-compose/index.ts',import.meta.url),'utf8');

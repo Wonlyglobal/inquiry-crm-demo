@@ -2342,7 +2342,8 @@
           <p id="outreach-status" class="hint" style="margin-top:16px">草稿尚未生成</p>
           <section class="quality-panel" style="margin-top:16px"><b>Grace 产品证据开发信</b><p class="hint">内部检索当前产品资料，不调用外部模型。证据草稿禁止直接发送，不替代客户背调或产品专家核验。</p>
             <fieldset><legend>王力产品门类（可多选）</legend><p id="grace-outreach-selection-note" class="hint" role="status"></p><div id="grace-outreach-categories" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px"></div><div class="form-actions"><button id="grace-outreach-all" type="button" class="ghost">选择全门类</button><button id="grace-outreach-clear" type="button" class="ghost">清空 / 待确认</button></div><small>全门类仅指本工具列出的12类，不代表均有资料或已经确认适合客户；缺资料时不会保存完整草稿。</small></fieldset>
-            <section id="grace-outreach-product-profile" class="quality-panel" hidden aria-label="具体产品介绍"></section>
+            <details id="grace-outreach-product-profile" class="quality-panel" hidden aria-label="官网背景简介，非画册证据"></details>
+            <div class="form-actions"><button id="grace-outreach-read-catalogue" class="ghost" type="button">读取画册产品介绍（不生成开发信）</button><select id="grace-outreach-catalogue-choice" class="input" aria-label="选择原画册"><option value="c2">零售画册</option><option value="c1">工程画册</option><option value="c3">静音木门画册</option><option value="c4">真智能锁画册</option></select><button id="grace-outreach-open-catalogue" class="ghost" type="button">打开授权画册原页</button></div><p id="grace-outreach-catalogue-status" class="hint" role="status">尚未读取画册；官网概述不是画册证据。</p><section id="grace-outreach-catalogue-evidence" class="quality-panel" aria-label="本次画册页证据"></section><div id="grace-outreach-catalogue-viewer"></div>
             <div class="detail-grid"><div class="field"><label for="grace-outreach-model">具体型号（选填，多门类通用时留空）</label><input id="grace-outreach-model" class="input" maxlength="80" placeholder="例如 Metal Door 1.0；仅核对资料，不自动承诺参数" /></div><div class="field"><label for="grace-outreach-application">使用场景（选填）</label><input id="grace-outreach-application" class="input" maxlength="200" placeholder="例如住宅入户；未知请留空" /></div><div class="field"><label for="grace-outreach-requirements">需求说明（选填）</label><input id="grace-outreach-requirements" class="input" maxlength="400" placeholder="仅填必要业务要求，不填银行、证件、密钥等敏感信息" /></div><div class="field"><label>已核实客户/市场切入点（英文，15–400字）</label><textarea id="grace-outreach-angle" class="input" rows="3" maxlength="400" placeholder="依据本询盘和有日期的背调/市场来源填写；不猜采购预算或项目"></textarea></div></div>
             <label><input id="grace-outreach-confirm" type="checkbox"> 我已核对门类及切入点与本询盘背调/市场来源；产品摘录仍需人工审核</label><div class="form-actions"><button id="grace-outreach-generate" class="primary" type="button">读取 Grace 产品证据并保存草稿</button></div><p id="grace-outreach-result" class="hint" role="status"></p></section>
           <details id="grace-outreach-private-panel" class="quality-panel hidden"><summary>本次产品原文（仅当前获授权会话，不写入共享草稿）</summary><pre id="grace-outreach-private-evidence" style="white-space:pre-wrap;color:#17231f;background:#fff;padding:16px"></pre></details>
@@ -6629,11 +6630,13 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
         $("#detail-original-message").value = inquiry.original_message || "";
-        const {mountOutreachProducts,renderOutreachProductProfile}=await import("./assets/outreach-product-selection.mjs?v=20261024-2");
+        const {mountOutreachProducts,renderOutreachProductProfile}=await import("./assets/outreach-product-selection.mjs?v=20261024-3");
         const productSuggestion=mountOutreachProducts($("#grace-outreach-categories"),[inquiry.title,inquiry.demand_summary].filter(Boolean).join(' '));
         $("#grace-outreach-selection-note").textContent=productSuggestion?"已按本询盘主题/需求预选最匹配门类，请核对后增减；不是产品适配结论。":"未发现明确门类，请选择或保留待确认；不会默认木门。";
         ["model","application","requirements"].forEach(key=>$("#grace-outreach-"+key).value="");
         $("#grace-outreach-confirm").checked=false;
+        $("#grace-outreach-catalogue-evidence").replaceChildren();$("#grace-outreach-catalogue-status").textContent="尚未读取画册；官网概述不是画册证据。";
+        $("#grace-outreach-catalogue-viewer").replaceChildren();$("#grace-outreach-catalogue-choice").value=productSuggestion==='wooden_door'?'c3':productSuggestion==='smart_lock'?'c4':'c2';
         renderOutreachProductProfile($("#grace-outreach-product-profile"),[inquiry.title,inquiry.demand_summary].filter(Boolean).join(' '));
         $("#detail-smart-country").value = inquiry.target_country || "";
         $("#detail-smart-name").value = inquiry.contact_name || "";
@@ -8879,11 +8882,32 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         }
       }
       $("#generate-outreach").addEventListener("click",generateOutreach);
-      $("#grace-outreach-all").addEventListener("click",()=>{$("#grace-outreach-categories").querySelectorAll('input').forEach(box=>box.checked=true);$("#grace-outreach-confirm").checked=false;$("#grace-outreach-selection-note").textContent="已选择本工具全部12类；将逐类核验资料，不等于客户需要全品类。";});
-      $("#grace-outreach-clear").addEventListener("click",()=>{$("#grace-outreach-categories").querySelectorAll('input').forEach(box=>box.checked=false);$("#grace-outreach-confirm").checked=false;$("#grace-outreach-selection-note").textContent="门类待确认，请核实后选择；未选择时不生成产品草稿。";});
+      function clearCataloguePreview(){ $("#grace-outreach-catalogue-evidence").replaceChildren();$("#grace-outreach-catalogue-status").textContent="选择已变化，请重新读取对应画册；旧结果已清除。"; }
+      $("#grace-outreach-open-catalogue").addEventListener("click",async()=>{
+        const id=currentInquiry?.id,button=$("#grace-outreach-open-catalogue"),catalog=$("#grace-outreach-catalogue-choice").value;if(!id||button.disabled)return;button.disabled=true;
+        try{const response=await supabase.functions.invoke('agent-conversation',{body:{action:'catalog-pages',persona:'Grace',catalog}});if(response.error||response.data?.error)throw Error(await edgeFunctionErrorMessage(response));if(currentInquiry?.id!==id||$("#grace-outreach-catalogue-choice").value!==catalog)return;
+          const {openCatalogViewer}=await import("./assets/agent-catalog-viewer.mjs");if(currentInquiry?.id!==id)return;const container=$("#grace-outreach-catalogue-viewer");container.replaceChildren();openCatalogViewer({title:response.data.title,urls:response.data.urls||[],pdf:response.data.pdf||null,start:1,container});
+        }catch(e){if(currentInquiry?.id===id)$("#grace-outreach-catalogue-status").textContent="原画册未打开："+(e.message||'请核对权限和连接');}finally{button.disabled=false;}
+      });
+      $("#grace-outreach-catalogue-choice").addEventListener("change",()=>$("#grace-outreach-catalogue-viewer").replaceChildren());
+      $("#grace-outreach-read-catalogue").addEventListener("click",async()=>{
+        const id=currentInquiry?.id,button=$("#grace-outreach-read-catalogue"),status=$("#grace-outreach-catalogue-status");if(!id||button.disabled)return;
+        const categories=[...$("#grace-outreach-categories").querySelectorAll('input:checked')].map(box=>box.value);if(!categories.length)return toast("请先选择要查阅的产品门类");
+        const model=$("#grace-outreach-model").value.trim()||(/metal\s*door\s*1\.0|金属门\s*1\.0/i.test([currentInquiry.title,currentInquiry.demand_summary].join(' '))?'Metal Door 1.0':'');
+        const selection=JSON.stringify({categories,model});button.disabled=true;button.setAttribute('aria-busy','true');$("#grace-outreach-catalogue-evidence").replaceChildren();status.textContent="正在通过原物料授权读取当前版画册及页码…";
+        try{const response=await supabase.functions.invoke('agent-conversation',{body:{action:'outreach-product-evidence',inquiry_id:id,categories,model}});if(response.error||response.data?.error)throw Error(await edgeFunctionErrorMessage(response));
+          const currentCategories=[...$("#grace-outreach-categories").querySelectorAll('input:checked')].map(box=>box.value);const currentModel=$("#grace-outreach-model").value.trim()||(/metal\s*door\s*1\.0|金属门\s*1\.0/i.test([currentInquiry?.title,currentInquiry?.demand_summary].join(' '))?'Metal Door 1.0':'');
+          if(currentInquiry?.id!==id||selection!==JSON.stringify({categories:currentCategories,model:currentModel}))return;
+          const {renderCatalogueEvidence}=await import("./assets/outreach-product-selection.mjs?v=20261024-3");renderCatalogueEvidence($("#grace-outreach-catalogue-evidence"),response.data);status.textContent=response.data.evidence?.length?`已读取 ${response.data.evidence.length} 条画册页证据；未生成或保存开发信。`:"未取得对应画册页，不能用官网介绍替代；请核对资料及授权状态。";
+        }catch(e){if(currentInquiry?.id===id)status.textContent="画册读取未完成："+(e.message||'请稍后重试')+"；未生成开发信。";}finally{button.disabled=false;button.removeAttribute('aria-busy');}
+      });
+      $("#grace-outreach-categories").addEventListener("change",clearCataloguePreview);
+      $("#grace-outreach-model").addEventListener("input",clearCataloguePreview);
+      $("#grace-outreach-all").addEventListener("click",()=>{clearCataloguePreview();$("#grace-outreach-categories").querySelectorAll('input').forEach(box=>box.checked=true);$("#grace-outreach-confirm").checked=false;$("#grace-outreach-selection-note").textContent="已选择本工具全部12类；将逐类核验资料，不等于客户需要全品类。";});
+      $("#grace-outreach-clear").addEventListener("click",()=>{clearCataloguePreview();$("#grace-outreach-categories").querySelectorAll('input').forEach(box=>box.checked=false);$("#grace-outreach-confirm").checked=false;$("#grace-outreach-selection-note").textContent="门类待确认，请核实后选择；未选择时不生成产品草稿。";});
       $("#grace-outreach-categories").addEventListener("change",()=>{$("#grace-outreach-confirm").checked=false;});
       ["model","application","requirements","angle"].forEach(key=>$("#grace-outreach-"+key).addEventListener("input",()=>{$("#grace-outreach-confirm").checked=false;}));
-      $("#grace-outreach-model").addEventListener("input",async()=>{const {renderOutreachProductProfile}=await import("./assets/outreach-product-selection.mjs?v=20261024-2");renderOutreachProductProfile($("#grace-outreach-product-profile"),[$("#grace-outreach-model").value,currentInquiry?.title,currentInquiry?.demand_summary].filter(Boolean).join(' '));});
+      $("#grace-outreach-model").addEventListener("input",async()=>{const {renderOutreachProductProfile}=await import("./assets/outreach-product-selection.mjs?v=20261024-3");renderOutreachProductProfile($("#grace-outreach-product-profile"),[$("#grace-outreach-model").value,currentInquiry?.title,currentInquiry?.demand_summary].filter(Boolean).join(' '));});
       $("#grace-outreach-generate").addEventListener("click",async()=>{
         if(!currentInquiry)return;const result=$("#grace-outreach-result"),button=$("#grace-outreach-generate"),id=currentInquiry.id;
         if(!$("#grace-outreach-confirm").checked)return toast("请先人工核对客户切入点与来源");

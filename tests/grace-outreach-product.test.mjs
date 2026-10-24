@@ -19,7 +19,7 @@ test('shared draft contains references only, never internal filenames/excerpts o
  assert.match(r.body,/资料ID：fixture/);assert.doesNotMatch(r.body,/PRIVATE SYNTHETIC DOCUMENT TEXT|木门画册.pdf/);assert.doesNotMatch(r.letter,/certified|warranty|fire.rating|lead.time|MOQ/i);
 });
 test('integration uses original inquiry RLS, signed material reads and original user draft insert/readback',()=>{
- const fn=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');const start=fn.indexOf("if(input.action==='outreach-product-draft')");const block=fn.slice(start,fn.indexOf("if(input.action==='material-progress')",start));
+ const fn=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');const start=fn.indexOf("if(input.action==='outreach-product-draft'");const block=fn.slice(start,fn.indexOf("if(input.action==='material-progress')",start));
  assert.match(block,/client\.from\('inquiries'\)/);assert.match(block,/gateMaterialEvidence\(await loadFullMaterials/);assert.match(block,/client\.from\('outreach_drafts'\)\.insert/);assert.match(block,/readback.body!==result.body/);assert.doesNotMatch(block,/providerJson|mailbox-send|letter\.foreverdoodle|admin\.from\('outreach_drafts'\)/);
  const send=readFileSync(new URL('../supabase/functions/mailbox-send/index.ts',import.meta.url),'utf8');assert.ok(send.indexOf('内部产品证据草稿不可直接发送')<send.indexOf('nodemailer.createTransport'));
  assert.match(send,/String\(draft.body\|\|''\)\.includes/);

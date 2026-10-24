@@ -24,7 +24,7 @@ test('existing customer-data containment stays fail-closed; new path requires se
  const source=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');
  const old=readFileSync(new URL('../supabase/functions/_shared/customer-data-ai.ts',import.meta.url),'utf8');
  assert.match(old,/return assertCustomerDataAiPolicy\(\)/);assert.match(source,/BAILIAN_AGENT_POLICY/);assert.match(source,/if\(!enabled\)return/);assert.match(source,/if\(auditError\)return/);assert.match(source,/data.user!==user.id/);assert.match(source,/data.persona!==input.persona/);assert.match(source,/data.expires<Date.now\(\)/);
- const draftStart=source.indexOf("if(input.action==='outreach-product-draft')"),draftEnd=source.indexOf("if(input.action==='material-progress')",draftStart);
+ const draftStart=source.indexOf("if(input.action==='outreach-product-draft'"),draftEnd=source.indexOf("if(input.action==='material-progress')",draftStart);
  const draftPath=source.slice(draftStart,draftEnd);
  assert.match(draftPath,/client\.from\('inquiries'\)\.select\('id'\)/);
  assert.doesNotMatch(draftPath,/providerJson|requestBody|CHAT_URL|email_messages|quotations|contacts/);

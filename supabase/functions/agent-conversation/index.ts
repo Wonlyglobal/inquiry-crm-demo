@@ -47,7 +47,7 @@ import {preferenceInstruction} from './response-preferences.mjs';
 import {signMaterialFileRequest,MATERIAL_ACTOR} from './material-file-proof.mjs';
 import {resolveMaterialTurn,conciseMaterialAnswer} from './material-dialogue.mjs';
 import {loadFullMaterials,fullMaterialAnswer} from './materials.mjs';
-import {outreachProductRequest,outreachProductEvidence,buildProductReviewDraft,PRODUCT_CATEGORIES} from './outreach-product-draft.mjs';
+import {outreachProductRequest,outreachEvidenceRequest,productCatalogueQueries,outreachProductEvidence,buildProductReviewDraft,PRODUCT_CATEGORIES} from './outreach-product-draft.mjs';
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
 import {loadWebKnowledge,sourceFooter} from './web-knowledge.mjs';
 import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
@@ -119,25 +119,32 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    return json({url:'https://file.foreverdoodle.com:8088/api/integrations/crm/file',body,proof:await signMaterialFileRequest({body,actor:user.id,privateJwk}),expires_in:30});
   }
   const materialConfig={actor:user.id,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET')};
-  if(input.action==='outreach-product-draft'){
+  if(input.action==='outreach-product-draft'||input.action==='outreach-product-evidence'){
    if(user.app_metadata?.crm_read_only===true||user.role==='crm_marketing_readonly')return json({error:'只读账号不能保存草稿'},403);
-   let request;try{request=outreachProductRequest(input)}catch(e){return json({error:e instanceof Error?e.message:'产品草稿请求无效'},400)}
+   const preview=input.action==='outreach-product-evidence';
+   let request;try{request=preview?outreachEvidenceRequest(input):outreachProductRequest(input)}catch(e){return json({error:e instanceof Error?e.message:'产品草稿请求无效'},400)}
    const {data:inquiry,error:inquiryError}=await client.from('inquiries').select('id').eq('id',request.inquiry_id).single();
    if(inquiryError||!inquiry)return json({error:'无权访问该询盘'},403);
    const audit=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
    const {count,error:limitError}=await audit.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','grace_outreach_product_draft').gte('created_at',new Date(Date.now()-60000).toISOString());
    if(limitError)return json({error:'产品草稿限额核验失败'},503);if((count||0)>=5)return json({error:'产品草稿请求较多，请一分钟后再试'},429);
-   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'inquiry',entity_id:inquiry.id,action:'grace_outreach_product_draft',after_data:{category:request.category,categories:request.categories,operation:'requested',external_model_called:false},reason:'用户主动生成内部产品证据草稿；沿用本人询盘RLS及物料授权，不自动发送'});
+   const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'inquiry',entity_id:inquiry.id,action:'grace_outreach_product_draft',after_data:{category:request.category,categories:request.categories,operation:preview?'catalogue_preview':'requested',external_model_called:false},reason:'用户主动读取内部产品证据或生成草稿；沿用本人询盘RLS及物料授权，不自动发送'});
    if(auditError)return json({error:'产品草稿审计失败'},503);
    const evidence:any[]=[],missing:string[]=[];
    // Bound concurrent reads; no customer angle/scenario/requirements in material queries.
    for(let offset=0;offset<request.categories.length;offset+=3){
     const batch=await Promise.all(request.categories.slice(offset,offset+3).map(async(category:string)=>{
-     const materials=gateMaterialEvidence(await loadFullMaterials({...materialConfig,question:'物料：'+PRODUCT_CATEGORIES[category].query}));
-     return {category,items:outreachProductEvidence(materials,category,request.model)};
+     const collected:any[]=[],statuses:string[]=[];
+     for(const query of productCatalogueQueries(category)){
+      const materials=gateMaterialEvidence(await loadFullMaterials({...materialConfig,question:'物料：'+query}));
+      statuses.push(materials.status);
+      collected.push(...outreachProductEvidence(materials,category,request.model,preview));
+     }
+     const seen=new Set();return {category,items:collected.filter((e:any)=>{const key=e.asset_id+':'+e.sha256+':'+e.page;if(seen.has(key))return false;seen.add(key);return true}).slice(0,6),statuses};
     }));
     for(const part of batch){if(!part.items.length)missing.push(PRODUCT_CATEGORIES[part.category].label);else evidence.push(...part.items);}
    }
+   if(preview)return json({evidence,missing_categories:missing,status:evidence.length?'available':'evidence_gap',read_at:new Date().toISOString(),catalogue_only:true,draft_saved:false,external_model_called:false,send_allowed:false});
    if(missing.length)return json({error:'以下所选门类缺少当前版对应'+(request.model?'型号':'')+'页码证据：'+missing.join('、')+'。未保存草稿；请补资料或缩小选择范围。',status:'evidence_gap',missing_categories:missing},409);
    const result=buildProductReviewDraft(request,evidence);
    result.body+='\n\n本次选型输入（内部审核，客户需求尚须核实，不作为产品承诺）\n门类：'+request.categories.map((k:string)=>PRODUCT_CATEGORIES[k].label).join(' / ')+'\n型号：'+(request.model||'未指定')+'\n场景：'+(request.application||'未提供')+'\n需求说明：'+(request.requirements||'未提供');

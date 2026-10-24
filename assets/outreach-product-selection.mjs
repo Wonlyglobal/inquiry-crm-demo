@@ -20,8 +20,21 @@ export const METAL_DOOR_1_PROFILE={
 export function renderOutreachProductProfile(container,text=''){
  container.replaceChildren();const matched=/metal\s*door\s*1\.0|金属门\s*1\.0/i.test(String(text));container.hidden=!matched;if(!matched)return;
  const p=METAL_DOOR_1_PROFILE;
+ if(container.tagName==='DETAILS'){const summary=document.createElement('summary');summary.textContent='官网背景简介（非画册，不代表当前推荐产品）';container.append(summary);}
  const title=document.createElement('h4');title.textContent=p.title;container.append(title);
  for(const text of [p.introduction,p.selection,p.limits]){const line=document.createElement('p');line.textContent=text;container.append(line);}
  const link=document.createElement('a');link.href=p.source;link.target='_blank';link.rel='noopener noreferrer';link.textContent='查看官网产品介绍 ↗';
  const note=document.createElement('small');note.textContent=' 来源：WONLY公开产品页；核对日期 '+p.checked+'。官网介绍不替代内部画册页码证据或产品专家核验。';container.append(link,note);
+}
+export function renderCatalogueEvidence(container,data){
+ container.replaceChildren();
+ const note=document.createElement('p');note.textContent='以下是本次授权查询返回的画册页文字，机器提取、未人工核验；不代表已读完整册或获得参数/认证批准。';container.append(note);
+ for(const e of data.evidence||[]){const card=document.createElement('article'),title=document.createElement('h5'),quote=document.createElement('pre'),state=document.createElement('small');
+  title.textContent=`${e.name}｜${e.version}｜第${e.page}页`;quote.textContent=e.quote;quote.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font:inherit';
+  state.textContent=`${e.partial?'部分解析，存在缺口；':'已返回本页文本；'}机器提取未人工核验，索引版本未复验原文件实时版本。`;card.append(title,quote,state);
+  if(/not\s+recommended|不推荐|不建议|淘汰|停产/i.test(e.quote||'')){const warning=document.createElement('p');warning.textContent='本页含“不推荐/限制使用”等表述，需结合原页核对其对应型号与条件，不得将该页包装为产品推荐。';warning.style.color='#a13c32';card.prepend(warning);}
+  container.append(card);
+ }
+ if(data.missing_categories?.length||!data.evidence?.length){const missing=document.createElement('p');missing.textContent='本次未取得对应画册页证据：'+(data.missing_categories||[]).join('、')+'。可能是授权/连接、索引或匹配范围问题，不代表画册不存在；请在原物料系统核对。';container.append(missing);}
+ const footer=document.createElement('small');footer.textContent='查询时间：'+(data.read_at||'未返回')+'；未保存草稿、未发送邮件。';container.append(footer);
 }

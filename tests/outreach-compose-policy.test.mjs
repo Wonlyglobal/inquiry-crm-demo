@@ -6,7 +6,9 @@ const fact={statement:'Synthetic company distributes entry doors.',source:'https
 const input={inquiry_id:'11111111-1111-4111-8111-111111111111',objective:'meeting',tone:'consultative',company_facts:[fact],market_facts:[{...fact,statement:'Synthetic sourced market context.'}],product_facts:[{...fact,statement:'Synthetic approved public product claim.'}],confirmed_public:true};
 test('composition requires explicit confirmation and public sourced company evidence',()=>{
  assert.equal(composeRequest(input).company_facts.length,1);
- for(const change of [{confirmed_public:false},{company_facts:[]},{market_facts:[]},{product_facts:[]},{email:'private@example.com'},{original_message:'raw thread'}])assert.throws(()=>composeRequest({...input,...change}));
+ for(const change of [{confirmed_public:false},{email:'private@example.com'},{original_message:'raw thread'}])assert.throws(()=>composeRequest({...input,...change}));
+ assert.deepEqual(composeRequest({...input,market_facts:[],product_facts:[]}).market_facts,[]);
+ assert.deepEqual(composeRequest({...input,company_facts:[],market_facts:[],product_facts:[]}).company_facts,[]);
 });
 test('public projection rejects internal URLs, contacts, high sensitivity and missing dates',()=>{
  for(const source of ['http://example.com','https://127.0.0.1/x','https://crm.foreverdoodle.com/x','https://abc.supabase.co/x','https://example.com/x?token=a','https://user:pass@example.com/x'])assert.throws(()=>publicEvidenceItem({...fact,source}));
@@ -28,6 +30,12 @@ test('truncated output, credentials and unsolicited promises cannot become draft
  assert.throws(()=>checkedComposedLetter(payload({subject:'Synthetic',body:'Hello content'},'length')));
  for(const body of ['Our MOQ is 100 sets.','We guarantee completion.','Email private@example.com','Dear Customer, body','<script>bad</script>'])assert.throws(()=>checkedComposedLetter(payload({subject:'Synthetic',body})));
  assert.equal(checkedComposedLetter(payload({subject:'Synthetic meeting',body:'A public event suggests a relevant discussion. Could we arrange a short call?'})).send_allowed,false);
+ assert.equal(checkedComposedLetter(payload({subject:'Synthetic meeting',subject_b:'A different angle',body:'A public event suggests a relevant discussion. Could we arrange a short call?'})).subject_b,'A different angle');
+});
+test('writing stays model-based and evidence-aware without fixed word-count or research-completeness refusal',()=>{
+ const request=composeRequest({...input,company_facts:[],market_facts:[],product_facts:[]});const body=composeBody(request);
+ assert.equal(body.model,'qwen-plus');assert.match(body.messages[0].content,/two distinct/);assert.match(body.messages[0].content,/not grounds to refuse/);
+ assert.match(body.messages[0].content,/company research/);assert.match(body.messages[0].content,/market context/);assert.match(body.messages[0].content,/product information/);
 });
 test('server authenticates original user and reads only inquiry id; service role is audit-only',()=>{
  const source=readFileSync(new URL('../supabase/functions/outreach-compose/index.ts',import.meta.url),'utf8');

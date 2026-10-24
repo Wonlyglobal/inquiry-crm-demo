@@ -38,3 +38,13 @@ test('incomplete research and missing recipient do not prevent editable model-ge
  assert.equal(h.find('#outreach-subject-b').value,'Explore a potential fit');assert.match(h.find('#outreach-body').value,/selection requirements/);
  assert.equal(h.find('#send-outreach').disabled,true);
 });
+test('first click can confirm scope and generate without requiring another click',async()=>{
+ const h=harness();let confirmation='';h.ctx.confirm=async text=>{confirmation=text;return true};
+ await generatePublicOutreach(h.ctx);
+ assert.match(confirmation,/尚未勾选公开依据/);assert.equal(h.calls[0].name,'outreach-compose');
+ assert.equal(h.calls[0].payload.company_facts.length,0,'unselected candidates are not silently approved');
+ assert.equal(h.calls[1].saved,true);
+});
+test('cancelled first-click scope confirmation performs no model call or save',async()=>{
+ const h=harness();h.ctx.confirm=async()=>false;await generatePublicOutreach(h.ctx);assert.equal(h.calls.length,0);
+});

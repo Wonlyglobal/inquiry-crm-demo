@@ -36,8 +36,16 @@ export function addPublicOutreachEvidence(ctx){
 }
 export async function generatePublicOutreach(ctx){
  const inquiry=ctx.getInquiry(),$=ctx.find;if(!inquiry)return;
- if(state.inquiryId!==inquiry.id){preparePublicOutreachEvidence(ctx);return}
- if(!$('#outreach-public-confirm').checked){$('#outreach-advanced-materials').open=true;$('#outreach-public-panel').open=true;return ctx.toast('请先核实并确认本次选中的最小公开依据')}
+ if(state.inquiryId!==inquiry.id)preparePublicOutreachEvidence(ctx);
+ if(!$('#outreach-public-confirm').checked){
+  $('#outreach-advanced-materials').open=true;$('#outreach-public-panel').open=true;
+  const selected=[...document.querySelectorAll('[data-public-evidence-index]:checked')].map(box=>state.items[Number(box.dataset.publicEvidenceIndex)]).filter(Boolean);
+  const evidence=selected.map(item=>`${item.statement}\n来源：${item.source}｜日期：${item.date}`).join('\n\n');
+  const message=selected.length?`请核实以下所选公开依据并确认允许用于本次生成：\n\n${evidence}`:'本次尚未勾选公开依据，将只生成谨慎的需求了解草稿，不会虚构公司、市场或产品事实。若需要个性化研究信，请取消后勾选已核实依据。';
+  if(!ctx.confirm||!await ctx.confirm(message+'\n\n仅将上述公开摘要交给已批准的百炼北京；不发送原邮件、联系人或内部画册，不自动发送邮件。',{title:'确认本次生成范围',confirmText:'确认并生成'}))return ctx.toast('未确认生成范围，未调用模型');
+  if(ctx.getInquiry()?.id!==inquiry.id)return;
+  $('#outreach-public-confirm').checked=true;
+ }
  const button=$('#generate-outreach');let input;
  try{
   const selected=[...document.querySelectorAll('[data-public-evidence-index]:checked')].map(box=>state.items[Number(box.dataset.publicEvidenceIndex)]).filter(Boolean);

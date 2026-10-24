@@ -20,6 +20,12 @@ test('internal history moves exact analysis out of final preview without modifyi
 });
 test('refresh routes internal review to history restore before customer-email validation and never re-enables send',()=>{
  const block=html.slice(html.indexOf('const latestDraft=(draftHistory'),html.indexOf('const quoteReviewButton=',html.indexOf('const latestDraft=(draftHistory')));
+ assert.match(block,/find\(draft=>!isInternalProductReviewDraft\(draft\)/);
+ assert.ok(block.indexOf('currentInquiry.latestOutreachDraft =')<block.indexOf('renderOutreachHistory('));
  assert.match(block,/if \(latestDraft && isInternalProductReviewDraft\(latestDraft\)\) \{\s+loadOutreachHistoryVersion\(latestDraft\);\s+\} else if \(latestDraft && !legacyDraftError\)/);
  assert.match(block,/latestDraft\?\.status !== "sent" && !isInternalProductReviewDraft\(latestDraft\)/);
+});
+test('history labels distinguish internal worksheets and customer letters and scroll to selected content',()=>{
+ const block=html.slice(html.indexOf('function renderOutreachHistory('),html.indexOf('function unifiedEnglishSignature('));
+ assert.match(block,/产品整理单（无客户正文）/);assert.match(block,/客户开发信/);assert.match(block,/scrollIntoView/);
 });

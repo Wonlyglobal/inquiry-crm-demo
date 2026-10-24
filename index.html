@@ -6736,11 +6736,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (latestImport?.summary) showTopeasePreview(latestImport.summary, latestImport.file_name || "粘贴内容", latestImport.created_at);
         else $("#topease-preview").classList.add("hidden");
-        const latestDraft=(draftHistory||[])[0]||null;
+        const latestDraft=(draftHistory||[]).find(draft=>!isInternalProductReviewDraft(draft)&&String(draft.body||'').trim())||(draftHistory||[])[0]||null;
         currentInquiry.outreachDraftHistory=draftHistory||[];
         currentInquiry.outreachDraftId = latestDraft?.id || null;
-        renderOutreachHistory(currentInquiry.outreachDraftHistory);
         currentInquiry.latestOutreachDraft = latestDraft || null;
+        renderOutreachHistory(currentInquiry.outreachDraftHistory);
         $("#outreach-public-evidence-list").replaceChildren();$("#outreach-public-confirm").checked=false;
         ["#outreach-public-statement","#outreach-public-source","#outreach-public-date"].forEach(selector=>$(selector).value='');
         document.querySelectorAll('[data-outreach-language-code]').forEach(box=>box.checked=false);updateOutreachLanguageSelection();
@@ -8738,7 +8738,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const internal=isInternalProductReviewDraft(draft);
         $("#outreach-analysis-notes").textContent=internal?draft.body:'';
         $("#outreach-analysis-panel").classList.toggle('hidden',!internal);
-        if(internal){$("#outreach-body").value='';$("#outreach-subject-a").value='';$("#outreach-subject-b").value='';$("#outreach-draft").classList.add('hidden');$("#outreach-status").textContent='内部整理单已放入依据区；请生成客户正文。';}
+        if(internal)$("#outreach-advanced-materials").open=true;
+        if(internal){$("#outreach-body").value='';$("#outreach-subject-a").value='';$("#outreach-subject-b").value='';$("#outreach-draft").classList.add('hidden');$("#outreach-status").textContent='此版本是产品整理单，没有客户开发信正文。请点击“一键生成开发信”，或选择其他客户开发信版本。';$("#outreach-analysis-panel").open=true;}
       }
       function loadOutreachHistoryVersion(draft){
         finalizedOutreachCopy=null;
@@ -8748,7 +8749,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       function renderOutreachHistory(drafts=[]){
         separateOutreachAnalysis(currentInquiry?.latestOutreachDraft);
         const panel=$("#outreach-history-panel"),list=$("#outreach-history-list");if(!panel||!list)return;panel.classList.toggle("hidden",!drafts.length);$("#outreach-history-count").textContent=`${drafts.length} 个版本`;list.replaceChildren();drafts.forEach((draft,index)=>{const button=document.createElement("button");button.type="button";button.className=draft.id===currentInquiry?.outreachDraftId?"primary":"ghost";button.textContent=`${index===0?"最新 · ":""}${fmtDate(draft.created_at)} · ${{sent:"已发送",failed:"失败",draft:"草稿"}[draft.status]||draft.status}`;button.addEventListener("click",()=>loadOutreachHistoryVersion(draft));list.append(button)});
-        Array.from(list.children).forEach((button,index)=>{const draft=drafts[index];button.textContent+=` · ${draft.language||'en'}${draft.source_final_copy_id?' · 译稿':''}`;});
+        Array.from(list.children).forEach((button,index)=>{
+          const draft=drafts[index],internal=isInternalProductReviewDraft(draft);
+          button.textContent+=internal?' · 产品整理单（无客户正文）':` · ${draft.language||'en'} · ${draft.source_final_copy_id?'译稿':'客户开发信'}`;
+          button.addEventListener('click',()=>{
+            const target=$(internal?'#outreach-analysis-panel':'#outreach-body');
+            target?.scrollIntoView?.({behavior:'smooth',block:'center'});
+            if(!internal)target?.focus?.({preventScroll:true});
+          });
+        });
       }
       function unifiedEnglishSignature(signerName = preferredEnglishName()) {
         return [
@@ -8831,15 +8840,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         outreachComposeMode="reply";const originalSubject=String(currentInquiry.email_intake?.subject||currentInquiry.title||"Your inquiry").replace(/^(?:re\s*:\s*)+/i,"").trim(),replySubject=`Re: ${originalSubject}`;
         $("#outreach-recipient").value=recipient;$("#outreach-subject-a").value=replySubject;$("#outreach-subject-b").value=replySubject;$("#outreach-selected-subject").value="a";$("#outreach-body").value=`Dear ${currentInquiry.contact_name||"Customer"},\n\nThank you for your inquiry.\n\n\n\n${unifiedEnglishSignature()}`;$("#outreach-draft-title").textContent="询盘回复草稿";$("#outreach-status").textContent="正在回复客户原询盘 · 请补充正文后发送";$("#outreach-draft").classList.remove("hidden");$("#outreach-body").focus();evaluateOutreachDraft(replySubject,$("#outreach-body").value);$("#outreach-body").scrollIntoView({behavior:"smooth",block:"center"});
       });
-      function publicOutreachContext(){return {getInquiry:()=>currentInquiry,find:$,toast,research:assessResearchQuality,lines:researchLines,parse:parseResearchEvidenceLine,recipient:resolveInquiryRecipient,contactName:()=>$("#detail-smart-name").value||currentInquiry?.contact_name,signature:unifiedEnglishSignature,save:saveOutreachDraft,setMode:mode=>{outreachComposeMode=mode},quality:(subject,body)=>evaluateOutreachDraft(subject,body,$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim()),invoke:(name,options)=>supabase.functions.invoke(name,options),edgeError:edgeFunctionErrorMessage};}
-      $("#outreach-public-prepare").addEventListener('click',async()=>{const {preparePublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-4');preparePublicOutreachEvidence(publicOutreachContext())});
-      $("#outreach-public-add").addEventListener('click',async()=>{const {addPublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-4');addPublicOutreachEvidence(publicOutreachContext())});
+      function publicOutreachContext(){return {getInquiry:()=>currentInquiry,find:$,toast,confirm:appConfirm,research:assessResearchQuality,lines:researchLines,parse:parseResearchEvidenceLine,recipient:resolveInquiryRecipient,contactName:()=>$("#detail-smart-name").value||currentInquiry?.contact_name,signature:unifiedEnglishSignature,save:saveOutreachDraft,setMode:mode=>{outreachComposeMode=mode},quality:(subject,body)=>evaluateOutreachDraft(subject,body,$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim()),invoke:(name,options)=>supabase.functions.invoke(name,options),edgeError:edgeFunctionErrorMessage};}
+      $("#outreach-public-prepare").addEventListener('click',async()=>{const {preparePublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-5');preparePublicOutreachEvidence(publicOutreachContext())});
+      $("#outreach-public-add").addEventListener('click',async()=>{const {addPublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-5');addPublicOutreachEvidence(publicOutreachContext())});
       async function generateOutreach() {
         const button=$("#generate-outreach");if(button.dataset.requestActive==='true')return;
         button.dataset.requestActive='true';button.disabled=true;
         try{
         finalizedOutreachCopy=null;
-        const {generatePublicOutreach}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-4');
+        const {generatePublicOutreach}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-5');
         await generatePublicOutreach(publicOutreachContext());
         updateOutreachLanguageSelection();
         }catch(e){toast('生成未完成：'+e.message)}finally{delete button.dataset.requestActive;button.disabled=false;}
@@ -8902,18 +8911,21 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         updateOutreachLanguageSelection();
         $("#outreach-final-status").textContent=finalizedOutreachCopy?'已恢复定稿快照，可翻译；修改正文后须重新定稿。':'尚未定稿；修改后保存新版本，再确认定稿。';
       }
-      $("#finalize-outreach").addEventListener('click',async()=>{
+      async function finalizeCurrentOutreach(){
         if(translatingOutreach)return;
         const button=$("#finalize-outreach");button.disabled=true;
         try{
+          if(isInternalProductReviewDraft(currentInquiry?.latestOutreachDraft)||!$("#outreach-body").value.trim())throw Error('此版本没有客户正文，请先生成开发信');
           if(!await appConfirm('确认主题与正文已经人工核对，可按批准范围交由百炼北京翻译？不包含原线程、背调、内部画册或附件，译文不会自动发送。',{title:'确认客户正文定稿',confirmText:'保存并定稿'}))return;
           const draft=await saveOutreachDraft();
           const {data,error}=await supabase.from('outreach_final_copies').insert({draft_id:draft.id}).select().single();if(error)throw error;
           const read=await supabase.from('outreach_final_copies').select('*').eq('id',data.id).single();
           if(read.error||!finalCopyMatches(read.data))throw Error('定稿回读未确认，请重新打开历史版本');
           finalizedOutreachCopy=read.data;$("#outreach-final-status").textContent='定稿已保存并回读；可以生成独立语言草稿，不自动发送。';
-        }catch(e){toast('定稿失败：'+e.message)}finally{button.disabled=false}
-      });
+          return read.data;
+        }catch(e){toast('定稿失败：'+e.message);return null}finally{button.disabled=false;updateOutreachLanguageSelection()}
+      }
+      $("#finalize-outreach").addEventListener('click',finalizeCurrentOutreach);
       async function translateFinalOutreach(languages){
         if(translatingOutreach)return;
         const copy=finalizedOutreachCopy;
@@ -8947,7 +8959,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#translate-all-outreach").addEventListener('click',async()=>{
         const {selectedTranslationLanguages}=await import('./assets/outreach-languages.mjs?v=20261024-1');
         const selected=selectedTranslationLanguages([...document.querySelectorAll('[data-outreach-language-code]:checked')].map(box=>box.value));
-        if(!selected.length)return toast('请先勾选目标语言');await translateFinalOutreach(selected);
+        if(!selected.length)return toast('请先勾选目标语言');
+        if(!finalCopyMatches(finalizedOutreachCopy)&&!await finalizeCurrentOutreach())return;
+        await translateFinalOutreach(selected);
       });
       $("#copy-outreach").addEventListener("click", async () => {
         const text = `Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`;
@@ -8981,9 +8995,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(readback.error||readback.data?.body!==body||readback.data?.selected_subject!==subject)throw Error('草稿可能已保存，但回读未确认，请刷新历史版本');
         if(currentInquiry?.id!==inquiryId)throw Error('草稿已保存，当前询盘已切换，请回原询盘查看');
         finalizedOutreachCopy=null;
-        currentInquiry.outreachDraftHistory=[data,...(currentInquiry.outreachDraftHistory||[])];renderOutreachHistory(currentInquiry.outreachDraftHistory);
         currentInquiry.outreachDraftId = data.id;
         currentInquiry.latestOutreachDraft=data;
+        currentInquiry.outreachDraftHistory=[data,...(currentInquiry.outreachDraftHistory||[])];renderOutreachHistory(currentInquiry.outreachDraftHistory);
         assessResearchQuality();
         $("#outreach-status").textContent = `草稿已保存 · ${fmtDate(data.created_at)}`;
         return { ...data, subject, body };

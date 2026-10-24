@@ -8724,6 +8724,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       }
       function renderOutreachHistory(drafts=[]){
         const panel=$("#outreach-history-panel"),list=$("#outreach-history-list");if(!panel||!list)return;panel.classList.toggle("hidden",!drafts.length);$("#outreach-history-count").textContent=`${drafts.length} 个版本`;list.replaceChildren();drafts.forEach((draft,index)=>{const button=document.createElement("button");button.type="button";button.className=draft.id===currentInquiry?.outreachDraftId?"primary":"ghost";button.textContent=`${index===0?"最新 · ":""}${fmtDate(draft.created_at)} · ${{sent:"已发送",failed:"失败",draft:"草稿"}[draft.status]||draft.status}`;button.addEventListener("click",()=>loadOutreachHistoryVersion(draft));list.append(button)});
+        Array.from(list.children).forEach((button,index)=>{const draft=drafts[index];button.textContent+=` · ${draft.language||'en'}${draft.source_final_copy_id?' · 译稿':''}`;});
       }
       function unifiedEnglishSignature(signerName = preferredEnglishName()) {
         return [

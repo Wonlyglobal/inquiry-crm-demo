@@ -1,4 +1,4 @@
-import {normalizeProductInput,modelCodes,bareModel,materialFields,materialVersion} from './product-input.mjs';
+import {normalizeProductInput,modelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts} from './product-input.mjs';
 import {productLedger,productLedgerText} from './product-coverage.mjs';
 import {profileEvidence} from './knowledge-profile.mjs';
 import {materialQuery,coverageSummary} from './document-knowledge.mjs';
@@ -15,6 +15,13 @@ export function resolveMaterialTurn(question,history=[]){
  if(/产品手册|宣传册|产品目录|资料库|物料[:：]|查找|寻找|安装视频|(?:木门|安全门|防盗门|智能锁|门锁|医用门|防火门|防火窗).{0,8}(?:画册|样本)/.test(q)&&! /^(那|它|这个|该型号)/.test(q))return {question:q};
  const followup=/^(那|它|这个|该型号|还有)/.test(q)||q.length<=60&&(properties.length>0||ids.length>0&&(/呢|怎么样|如何/.test(q)||bareModel(q)));
  if(!followup)return {question:q};
+ // A literal named product has no model code; retain its file scope and name for short followups.
+ if(!ids.length&&namedMaterialProducts(q).length)return {question:'物料：'+q.replace(/^(那|它|这个|该型号|还有)+/,'')};
+ const named=namedMaterialProducts(previous);
+ if(!ids.length&&oldIds.length<=1&&named.length===1&&!/对比|比较| versus | vs\.? |与|和/.test(previous)){
+  const at=prior.query.indexOf(named[0]);
+  if(at>=0){const anchor=prior.query.slice(0,at+named[0].length),request=q.replace(/^(那|它|这个|该型号|还有)+/,'').replace(/^的/,'').replace(/[呢。？?！!]+$/,'').trim();return {question:`物料：${anchor} ${request}`.trim()}}
+ }
  const target=ids.length?ids:oldIds;
  if(target.length!==1)return {question:'物料：'+q,clarification:'请告诉我具体产品型号，或直接输入“物料：关键词”。当前上下文无法唯一确定你指的是哪款产品。'};
  const version=materialVersion(q)||materialVersion(previous);
@@ -43,12 +50,17 @@ export function conciseMaterialAnswer(data,question){
  if(!data.assets.length)return '在本次有权检索的资料中没有找到匹配内容，不能据此判断该产品不存在。请提供完整型号，或减少关键词后重试。\n'+coverageSummary(data.document_coverage);
  const wanted=fields(question),blocks=[];
  for(const a of data.assets.slice(0,3)){
-  const refs=[];const profile=profileEvidence(a.document?.knowledge_profile);if(profile)refs.push(profile);if(a.video){for(const segment of (a.video.segments||[]).slice(0,2))refs.push(`[${Math.floor(segment.start/60)}:${String(Math.floor(segment.start%60)).padStart(2,'0')} ${segment.kind==='speech'?'语音转写':segment.kind==='screen_text'?'画面文字':'画面推测'}] ${segment.text.slice(0,420)}`);if(!refs.length)refs.push('视频尚无可引用片段；状态：'+({queued:'排队中',processing:'处理中',failed:'失败',partial:'部分解析',ready:'采样完成'}[a.video.status]||'未解析'))}for(const p of a.document?.pages||[]){
-   for(const f of p.facts||[])if((!wanted.length||wanted.some(w=>f.quote.includes(w)||f.field===w))&&p.chunks.join('\n').includes(f.quote))refs.push(`[${p.location}] ${f.quote}`);
-   if(!refs.length&&p.chunks.length)refs.push(`[${p.location}] ${p.chunks[0].slice(0,420)}`);
+  const refs=[],requested=wanted.filter(x=>!['来源','页码','版本'].includes(x));
+  for(const f of a.document?.product_understanding?.findings||[]){
+   if(!requested.length||requested.some(w=>f.field===w||fields(f.field).includes(w)))refs.push(`[第${f.page}页｜${f.field}，机器解释未人工核验] ${f.value}\n原文依据：${f.quote}`);
    if(refs.length>=3)break;
   }
-  blocks.push(`${blocks.length+1}. ${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n`+(refs.length?refs.slice(0,3).join('\n'):a.excerpt?'现有索引摘录：'+a.excerpt.slice(0,420):'暂无可用于回答的正文证据。')+(a.document?.status==='partial'?'\n此资料仅部分解析，仍有缺口。':''));
+  const profile=profileEvidence(a.document?.knowledge_profile);if(!refs.length&&!requested.length&&profile)refs.push(profile);if(a.video){for(const segment of (a.video.segments||[]).slice(0,2))refs.push(`[${Math.floor(segment.start/60)}:${String(Math.floor(segment.start%60)).padStart(2,'0')} ${segment.kind==='speech'?'语音转写':segment.kind==='screen_text'?'画面文字':'画面推测'}] ${segment.text.slice(0,420)}`);if(!refs.length)refs.push('视频尚无可引用片段；状态：'+({queued:'排队中',processing:'处理中',failed:'失败',partial:'部分解析',ready:'采样完成'}[a.video.status]||'未解析'))}for(const p of a.document?.pages||[]){
+   for(const f of p.facts||[])if((!wanted.length||wanted.some(w=>f.quote.includes(w)||f.field===w))&&p.chunks.join('\n').includes(f.quote))refs.push(`[${p.location}] ${f.quote}`);
+   if(!refs.length&&!requested.length&&p.chunks.length)refs.push(`[${p.location}] ${p.chunks[0].slice(0,420)}`);
+   if(refs.length>=3)break;
+  }
+  blocks.push(`${blocks.length+1}. ${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n`+(refs.length?refs.slice(0,3).join('\n'):requested.length?'本次返回证据未明确覆盖所问参数，不能据此补充数值或条件。':a.excerpt?'现有索引摘录：'+a.excerpt.slice(0,420):'暂无可用于回答的正文证据。')+(a.document?.status==='partial'?'\n此资料仅部分解析，仍有缺口。':''));
  }
  const differences=evidenceDifferences(data.assets),ledger=productLedgerText(productLedger(data));
  return `已找到本页 ${data.assets.length} 项相关资料，先列出 ${blocks.length} 项证据。以下是原文摘录，不是已核验的产品结论。\n\n`+(ledger?ledger+'\n':'')+blocks.join('\n\n')+(differences?'\n\n'+differences:'')+'\n\n可继续问某型号的具体参数，或说“展开”查看本页详细证据。'+(data.has_more?'说“下一页”继续相同关键词。':'');

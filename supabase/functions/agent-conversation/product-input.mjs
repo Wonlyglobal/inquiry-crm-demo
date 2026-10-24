@@ -32,3 +32,8 @@ const FIELD_PATTERNS=[['功能',/功能|features?|functions?/i],['配置',/配�
 export const materialFields=value=>FIELD_PATTERNS.filter(([,re])=>re.test(String(value))).map(([label])=>label);
 export const seriesIntent=value=>/产品系列|系列目录|产品线|产品目录|型号目录|型号清单|有哪些型号|product (?:range|series|catalog(?:ue)?)|model (?:list|catalog(?:ue)?)/i.test(String(value));
 export const materialVersion=value=>String(value).match(/\bv[ \t]*\d{1,3}(?!\d)|第[一二三四五六七八九十0-9]{1,3}版|20\d{2}年(?:\d{1,2}月)?版/ig)?.at(-1)||'';
+
+// Literal multiword product names supplied by the user, never inferred aliases or product facts.
+export function namedMaterialProducts(value){
+ return [...new Set((String(value).match(/\b(?:[A-Z][A-Za-z-]{1,30} +){1,5}(?:Door|Window|Lock|Panel|Frame)\b/g)||[]))].slice(0,3);
+}

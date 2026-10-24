@@ -1,4 +1,4 @@
-import {seriesIntent} from './product-input.mjs';
+import {seriesIntent,namedMaterialProducts} from './product-input.mjs';
 import {productEvidence,productEvidenceText} from './product-evidence.mjs';
 import {normalizeProfile,profileEvidence} from './knowledge-profile.mjs';
 import {materialConstraints} from './material-relevance.mjs';
@@ -12,7 +12,10 @@ export function materialQuery(question){
  const query=original.replace(/^.*?[：:]/,'').replace(/第\s*\d+\s*页/g,'').replace(/最新|最近|当前/g,' ').replace(/帮我|请|找到|查找|找一下|查一下|资料库|物料系统|产品知识|资料|物料|文件|给我|我要|想要|找|王力|我们|我司|介绍一下|介绍|了解|告诉我|是多少|是什么|怎么样|有哪些|如何|多少|的|？|\?/g,' ').trim().slice(0,120);
  const ids=query.match(/[a-z0-9][a-z0-9_-]{1,39}/gi)||[];
  const fields=[['防火','防火'],['隔音','隔音'],['尺寸','尺寸'],['规格','规格'],['材质','材质'],['型号','型号'],['认证','认证'],['安装','安装'],['质保','质保'],['保养','保养'],['参数','参数']].filter(([k])=>query.includes(k)).map(([,v])=>v);
- const terms=[...new Set([...ids,...fields])].slice(0,6);
+ const named=namedMaterialProducts(original).length>0;
+ const neutral=/^(?:what|which|is|are|the|its|about|and|of|sound|insulation|material|materials|thickness|dimensions|size|specifications|parameters|source|reference|page|warranty)$/i;
+ const searchIds=named?ids.filter(x=>!neutral.test(x)):ids;
+ const terms=[...new Set([...searchIds,...(named?[]:fields)])].slice(0,6);
  const constraints=materialConstraints(original);
  return {query,terms:terms.length?terms:[query].filter(Boolean),page,constraints};
 }

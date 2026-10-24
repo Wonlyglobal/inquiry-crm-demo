@@ -5,6 +5,7 @@ import {composeRequest,composeBody,checkedComposedLetter,publicEvidenceItem} fro
 const fact={statement:'Synthetic company distributes entry doors.',source:'https://example.com/about',date:'2026-10-24'};
 const input={inquiry_id:'11111111-1111-4111-8111-111111111111',objective:'meeting',tone:'consultative',company_facts:[fact],market_facts:[{...fact,statement:'Synthetic sourced market context.'}],product_facts:[{...fact,statement:'Synthetic approved public product claim.'}],confirmed_public:true};
 test('composition requires explicit confirmation and public sourced company evidence',()=>{
+ assert.deepEqual(composeRequest(composeRequest(input)),composeRequest(input),'validated browser request must remain valid after JSON transport and server validation');
  assert.equal(composeRequest(input).company_facts.length,1);
  for(const change of [{confirmed_public:false},{email:'private@example.com'},{original_message:'raw thread'}])assert.throws(()=>composeRequest({...input,...change}));
  assert.deepEqual(composeRequest({...input,market_facts:[],product_facts:[]}).market_facts,[]);

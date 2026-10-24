@@ -1,4 +1,4 @@
-import {composeRequest,publicEvidenceItem} from './outreach-compose-policy.mjs?v=20261024-3';
+import {composeRequest,publicEvidenceItem} from './outreach-compose-policy.mjs?v=20261024-4';
 import {revealOutreachPreview} from './outreach-preview.mjs?v=20261024-1';
 let state={inquiryId:null,items:[]};
 function render(ctx){
@@ -41,8 +41,8 @@ export async function generatePublicOutreach(ctx){
   $('#outreach-advanced-materials').open=true;$('#outreach-public-panel').open=true;
   const selected=[...document.querySelectorAll('[data-public-evidence-index]:checked')].map(box=>state.items[Number(box.dataset.publicEvidenceIndex)]).filter(Boolean);
   const evidence=selected.map(item=>`${item.statement}\n来源：${item.source}｜日期：${item.date}`).join('\n\n');
-  const message=selected.length?`请核实以下所选公开依据并确认允许用于本次生成：\n\n${evidence}`:'本次尚未勾选公开依据，将只生成谨慎的需求了解草稿，不会虚构公司、市场或产品事实。若需要个性化研究信，请取消后勾选已核实依据。';
-  if(!ctx.confirm||!await ctx.confirm(message+'\n\n仅将上述公开摘要交给已批准的百炼北京；不发送原邮件、联系人或内部画册，不自动发送邮件。',{title:'确认本次生成范围',confirmText:'确认并生成'}))return ctx.toast('未确认生成范围，未调用模型');
+  const message=`请核实以下所选公开依据并确认允许用于本次生成：\n\n${evidence}`;
+  if(selected.length&&(!ctx.confirm||!await ctx.confirm(message+'\n\n仅将上述公开摘要交给已批准的百炼北京；不发送原邮件、联系人或内部画册，不自动发送邮件。',{title:'确认本次生成范围',confirmText:'确认并生成'})))return ctx.toast('未确认生成范围，未调用模型');
   if(ctx.getInquiry()?.id!==inquiry.id)return;
   $('#outreach-public-confirm').checked=true;
  }
@@ -68,5 +68,5 @@ export async function generatePublicOutreach(ctx){
   await ctx.save();if(ctx.getInquiry()?.id!==id)return;
   ctx.quality(result.subject,body);$('#save-outreach').disabled=false;$('#send-outreach').disabled=false;$('#send-outreach').classList.remove('hidden');
   $('#outreach-status').textContent='已保存并回读 · 依据公司、市场与公开产品主张 · 待人工审核，未发送';ctx.toast('开发信已保存，请核对研究事实、产品主张与沟通目标；未发送');
- }catch(e){if(ctx.getInquiry()?.id===id)$('#outreach-status').textContent='生成或保存未完成，请检查提示；未发送';ctx.toast(e.message)}finally{button.disabled=false;button.textContent='一键生成开发信'}
+ }catch(e){if(ctx.getInquiry()?.id===id)$('#outreach-status').textContent=`生成或保存未完成：${e.message}；未发送`;ctx.toast(e.message)}finally{button.disabled=false;button.textContent='一键生成开发信'}
 }

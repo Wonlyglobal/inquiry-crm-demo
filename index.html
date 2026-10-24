@@ -6637,7 +6637,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
         $("#detail-original-message").value = inquiry.original_message || "";
-        const {mountOutreachProducts,renderOutreachProductProfile}=await import("./assets/outreach-product-selection.mjs?v=20261024-1");
+        const {mountOutreachProducts,renderOutreachProductProfile}=await import("./assets/outreach-product-selection.mjs?v=20261024-2");
         const productSuggestion=mountOutreachProducts($("#grace-outreach-categories"),[inquiry.title,inquiry.demand_summary].filter(Boolean).join(' '));
         $("#grace-outreach-selection-note").textContent=productSuggestion?"已按本询盘主题/需求预选最匹配门类，请核对后增减；不是产品适配结论。":"未发现明确门类，请选择或保留待确认；不会默认木门。";
         ["model","application","requirements"].forEach(key=>$("#grace-outreach-"+key).value="");
@@ -8891,7 +8891,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#grace-outreach-clear").addEventListener("click",()=>{$("#grace-outreach-categories").querySelectorAll('input').forEach(box=>box.checked=false);$("#grace-outreach-confirm").checked=false;$("#grace-outreach-selection-note").textContent="门类待确认，请核实后选择；未选择时不生成产品草稿。";});
       $("#grace-outreach-categories").addEventListener("change",()=>{$("#grace-outreach-confirm").checked=false;});
       ["model","application","requirements","angle"].forEach(key=>$("#grace-outreach-"+key).addEventListener("input",()=>{$("#grace-outreach-confirm").checked=false;}));
-      $("#grace-outreach-model").addEventListener("input",async()=>{const {renderOutreachProductProfile}=await import("./assets/outreach-product-selection.mjs?v=20261024-1");renderOutreachProductProfile($("#grace-outreach-product-profile"),[$("#grace-outreach-model").value,currentInquiry?.title,currentInquiry?.demand_summary].filter(Boolean).join(' '));});
+      $("#grace-outreach-model").addEventListener("input",async()=>{const {renderOutreachProductProfile}=await import("./assets/outreach-product-selection.mjs?v=20261024-2");renderOutreachProductProfile($("#grace-outreach-product-profile"),[$("#grace-outreach-model").value,currentInquiry?.title,currentInquiry?.demand_summary].filter(Boolean).join(' '));});
       $("#grace-outreach-generate").addEventListener("click",async()=>{
         if(!currentInquiry)return;const result=$("#grace-outreach-result"),button=$("#grace-outreach-generate"),id=currentInquiry.id;
         if(!$("#grace-outreach-confirm").checked)return toast("请先人工核对客户切入点与来源");

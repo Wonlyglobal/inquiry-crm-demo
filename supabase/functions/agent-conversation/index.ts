@@ -130,22 +130,28 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    if(limitError)return json({error:'产品草稿限额核验失败'},503);if((count||0)>=5)return json({error:'产品草稿请求较多，请一分钟后再试'},429);
    const {error:auditError}=await audit.from('audit_logs').insert({actor_id:user.id,entity_type:'inquiry',entity_id:inquiry.id,action:'grace_outreach_product_draft',after_data:{category:request.category,categories:request.categories,operation:preview?'catalogue_preview':'requested',external_model_called:false},reason:'用户主动读取内部产品证据或生成草稿；沿用本人询盘RLS及物料授权，不自动发送'});
    if(auditError)return json({error:'产品草稿审计失败'},503);
-   const evidence:any[]=[],missing:string[]=[];
+   const evidence:any[]=[],missing:string[]=[],categoryResults:any[]=[];
    // Bound concurrent reads; no customer angle/scenario/requirements in material queries.
    for(let offset=0;offset<request.categories.length;offset+=3){
     const batch=await Promise.all(request.categories.slice(offset,offset+3).map(async(category:string)=>{
-     const collected:any[]=[],statuses:string[]=[];
+     const collected:any[]=[],searches:any[]=[];
      for(const query of productCatalogueQueries(category)){
       const materials=gateMaterialEvidence(await loadFullMaterials({...materialConfig,question:'物料：'+query}));
-      statuses.push(materials.status);
-      collected.push(...outreachProductEvidence(materials,category,request.model,preview));
+      const items=outreachProductEvidence(materials,category,request.model,true);
+      searches.push({query,status:materials.status,code:materials.code||null,returned_assets:(materials.assets||[]).length,has_more:materials.has_more===true,matched_pages:items.length});
+      collected.push(...items);
+      if(items.length)break;
      }
-     const seen=new Set();return {category,items:collected.filter((e:any)=>{const key=e.asset_id+':'+e.sha256+':'+e.page;if(seen.has(key))return false;seen.add(key);return true}).slice(0,6),statuses};
+     const seen=new Set();return {category,items:collected.filter((e:any)=>{const key=e.asset_id+':'+e.sha256+':'+e.page;if(seen.has(key))return false;seen.add(key);return true}).slice(0,6),searches};
     }));
-    for(const part of batch){if(!part.items.length)missing.push(PRODUCT_CATEGORIES[part.category].label);else evidence.push(...part.items);}
+    for(const part of batch){
+     const label=PRODUCT_CATEGORIES[part.category].query;
+     if(!part.items.length)missing.push(label);else evidence.push(...part.items);
+     categoryResults.push({category:part.category,label,matched_pages:part.items.length,status:part.items.length?'matched':part.searches.some((s:any)=>s.status==='available')?'not_matched':'search_unavailable',searches:part.searches,scope:'bounded_authorized_search_not_full_catalogue'});
+    }
    }
-   if(preview)return json({evidence,missing_categories:missing,status:evidence.length?'available':'evidence_gap',read_at:new Date().toISOString(),catalogue_only:true,draft_saved:false,external_model_called:false,send_allowed:false});
-   if(missing.length)return json({error:'以下所选门类缺少当前版对应'+(request.model?'型号':'')+'页码证据：'+missing.join('、')+'。未保存草稿；请补资料或缩小选择范围。',status:'evidence_gap',missing_categories:missing},409);
+   if(preview)return json({evidence,category_results:categoryResults,missing_categories:missing,status:evidence.length?'available':'evidence_gap',read_at:new Date().toISOString(),catalogue_only:true,draft_saved:false,external_model_called:false,send_allowed:false});
+   if(missing.length)return json({error:'已按所选门类搜索画册，本次尚未匹配到以下门类的可定位页码：'+missing.join('、')+'。不代表没有当前版画册；请查看逐类检索结果。未保存草稿。',status:'evidence_gap',evidence,category_results:categoryResults,missing_categories:missing,read_at:new Date().toISOString(),catalogue_only:true,draft_saved:false},409);
    const result=buildProductReviewDraft(request,evidence);
    result.body+='\n\n本次选型输入（内部审核，客户需求尚须核实，不作为产品承诺）\n门类：'+request.categories.map((k:string)=>PRODUCT_CATEGORIES[k].label).join(' / ')+'\n型号：'+(request.model||'未指定')+'\n场景：'+(request.application||'未提供')+'\n需求说明：'+(request.requirements||'未提供');
    const payload={inquiry_id:inquiry.id,created_by:user.id,recipient_email:request.recipient,subject_a:result.subject,subject_b:result.subject,selected_subject:result.subject,body:result.body,language:'en',tone:'consultative',objective:'qualify',status:'draft'};

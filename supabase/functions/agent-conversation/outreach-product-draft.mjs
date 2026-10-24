@@ -8,7 +8,7 @@ export function outreachProductRequest(input){
  input={...input,category:categories[0]};
  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(input.inquiry_id||'')||!Object.hasOwn(PRODUCT_CATEGORIES,input.category))throw Error('产品草稿询盘或门类无效');
  const recipient=String(input.recipient||'').trim();if(!/^[^\s@]{1,100}@[^\s@]{1,150}\.[^\s@]{2,30}$/.test(recipient))throw Error('产品草稿邮箱格式无效');
- const angle=String(input.angle||'').trim();if(angle.length<15||angle.length>400||/[\r\n]/.test(angle)||!/[a-z]/i.test(angle))throw Error('请填写15至400字的英文客户切入点，并人工核对其来源');
+ const angle=String(input.angle||'').trim();if(angle.length>4000||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(angle))throw Error('补充说明过长或含无效控制字符，请精简后重试');
  const signer=String(input.signer||'WONLY Sales').trim();if(signer.length>80||/[\r\n]/.test(signer))throw Error('签名无效');
  const context={};for(const [key,max] of [['model',80],['application',200],['requirements',400]]){const value=String(input[key]||'').trim();if(value.length>max||/[\r\n\x00-\x1f]/.test(value))throw Error('型号/场景/需求超长或含无效换行');context[key]=value;}
  return {inquiry_id:input.inquiry_id,category:input.category,categories,recipient,angle,signer,...context};
@@ -38,7 +38,10 @@ export function buildProductReviewDraft(input,evidence,now=new Date().toISOStrin
  const categories=input.categories||[input.category];const c={label:categories.map(k=>PRODUCT_CATEGORIES[k]?.label).filter(Boolean).join(' / ')};if(!c.label||!evidence.length||categories.some(k=>!evidence.some(e=>e.category===k||categories.length===1&&!e.category)))throw Error('所选门类尚缺当前版可定位产品证据，不能生成完整产品开发信');
  const subject=`WONLY ${c.label} — requirements discussion`;
  // Product parameters/certifications are deliberately not inferred from extraction.
- const letter=`Hello,\n\nI am reaching out about ${input.angle.replace(/[.!?]+$/,'')}. I would like to explore whether WONLY ${c.label} could be relevant to your requirements. Before recommending a specific model, we would need to confirm your intended application and installation conditions. Could you share the main requirement you would like us to review first? We can then identify the appropriate product information for your evaluation.\n\nBest regards,\n${input.signer}\nWONLY International Sales Team\nwww.wonlyglobal.com`;
+ const angle=String(input.angle||'').trim();
+ // Non-English/context text remains in the internal review notes; never fake a translation.
+ const opening=angle&&angle.length<=400&&/^[\x20-\x7e\r\n\t]+$/.test(angle)?`I am reaching out about ${angle.replace(/\s+/g,' ').replace(/[.!?]+$/,'')}.`:'I would like to discuss your product requirements.';
+ const letter=`Hello,\n\n${opening} I would like to explore whether WONLY ${c.label} could be relevant to your requirements. Before recommending a specific model, we would need to confirm your intended application and installation conditions. Could you share the main requirement you would like us to review first? We can then identify the appropriate product information for your evaluation.\n\nBest regards,\n${input.signer}\nWONLY International Sales Team\nwww.wonlyglobal.com`;
  // Shared CRM draft RLS is not material-library membership. Store opaque references only,
  // never filenames or excerpts. Reading source text again requires the original material gateway.
  const notes=evidence.map((e,i)=>`${i+1}. 资料ID：${e.asset_id}；版本：${e.version}；第${e.page}页\n索引版本摘要：${e.sha256}\n${e.partial?'部分解析，仍有缺口；':''}机器提取，未人工核验；未复验原文件实时版本。原文件与摘录不存入共享草稿，重新查阅须通过原物料授权。`).join('\n\n');

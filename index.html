@@ -2352,7 +2352,7 @@
             <fieldset><legend>王力产品门类（可多选）</legend><p id="grace-outreach-selection-note" class="hint" role="status"></p><div id="grace-outreach-categories" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px"></div><div class="form-actions"><button id="grace-outreach-all" type="button" class="ghost">选择全门类</button><button id="grace-outreach-clear" type="button" class="ghost">清空 / 待确认</button></div><small>全门类仅指本工具列出的12类，不代表均有资料或已经确认适合客户；缺资料时不会保存完整草稿。</small></fieldset>
             <details id="grace-outreach-product-profile" class="quality-panel" hidden aria-label="官网背景简介，非画册证据"></details>
             <div class="form-actions"><button id="grace-outreach-read-catalogue" class="ghost" type="button">读取画册产品介绍（不生成开发信）</button><select id="grace-outreach-catalogue-choice" class="input" aria-label="选择原画册"><option value="c2">零售画册</option><option value="c1">工程画册</option><option value="c3">静音木门画册</option><option value="c4">真智能锁画册</option></select><button id="grace-outreach-open-catalogue" class="ghost" type="button">打开授权画册原页</button></div><p id="grace-outreach-catalogue-status" class="hint" role="status">尚未读取画册；官网概述不是画册证据。</p><section id="grace-outreach-catalogue-evidence" class="quality-panel" aria-label="本次画册页证据"></section><div id="grace-outreach-catalogue-viewer"></div>
-            <div class="detail-grid"><div class="field"><label for="grace-outreach-model">具体型号（选填，多门类通用时留空）</label><input id="grace-outreach-model" class="input" maxlength="80" placeholder="例如 Metal Door 1.0；仅核对资料，不自动承诺参数" /></div><div class="field"><label for="grace-outreach-application">使用场景（选填）</label><input id="grace-outreach-application" class="input" maxlength="200" placeholder="例如住宅入户；未知请留空" /></div><div class="field"><label for="grace-outreach-requirements">需求说明（选填）</label><input id="grace-outreach-requirements" class="input" maxlength="400" placeholder="仅填必要业务要求，不填银行、证件、密钥等敏感信息" /></div><div class="field"><label>已核实客户/市场切入点（英文，15–400字）</label><textarea id="grace-outreach-angle" class="input" rows="3" maxlength="400" placeholder="依据本询盘和有日期的背调/市场来源填写；不猜采购预算或项目"></textarea></div></div>
+            <div class="detail-grid"><div class="field"><label for="grace-outreach-model">具体型号（选填，多门类通用时留空）</label><input id="grace-outreach-model" class="input" maxlength="80" placeholder="例如 Metal Door 1.0；仅核对资料，不自动承诺参数" /></div><div class="field"><label for="grace-outreach-application">使用场景（选填）</label><input id="grace-outreach-application" class="input" maxlength="200" placeholder="例如住宅入户；未知请留空" /></div><div class="field"><label for="grace-outreach-requirements">需求说明（选填）</label><input id="grace-outreach-requirements" class="input" maxlength="400" placeholder="仅填必要业务要求，不填银行、证件、密钥等敏感信息" /></div><div class="field"><label for="grace-outreach-angle">客户/市场切入点（选填，支持中文）</label><textarea id="grace-outreach-angle" class="input" rows="3" maxlength="4000" placeholder="可用中文补充或留空；不要猜测预算或项目"></textarea><small>中文说明保留在内部审核备注，不会伪装成英文翻译；留空时使用中性的英文需求确认。仍须核对产品证据与客户来源。</small></div></div>
             <label><input id="grace-outreach-confirm" type="checkbox"> 我已核对门类及切入点与本询盘背调/市场来源；产品摘录仍需人工审核</label><div class="form-actions"><button id="grace-outreach-generate" class="primary" type="button">读取 Grace 产品证据并保存草稿</button></div><p id="grace-outreach-result" class="hint" role="status"></p></section>
           <details id="grace-outreach-private-panel" class="quality-panel hidden"><summary>本次产品原文（仅当前获授权会话，不写入共享草稿）</summary><pre id="grace-outreach-private-evidence" style="white-space:pre-wrap;color:#17231f;background:#fff;padding:16px"></pre></details>
           <div id="outreach-history-panel" class="quality-panel hidden" style="margin-top:16px"><div class="quality-panel-head"><div><b>开发信生成历史</b><div class="hint" style="margin-top:6px">默认展示最新版本；点击历史版本可查看并继续编辑。</div></div><span id="outreach-history-count" class="tag">0 个版本</span></div><div id="outreach-history-list" class="heading-actions" style="margin-top:12px;justify-content:flex-start;overflow-x:auto"></div></div>
@@ -2379,6 +2379,7 @@
             </div>
             <div id="outreach-change-summary" class="notice hidden" style="margin-bottom:16px" aria-live="polite"></div>
             <div class="form-actions" style="margin:0 0 16px;position:sticky;top:12px;z-index:3;background:rgba(255,255,255,.96);padding:12px;border:1px solid var(--line);border-radius:14px"><span class="hint" style="margin-right:auto">生成后请人工确认；发送会使用当前业务员邮箱并自动记录到 CRM。</span><button id="save-outreach" class="ghost" type="button">保存草稿</button><button id="send-outreach" class="primary" type="button">用我的邮箱发送</button></div>
+            <div class="form-actions"><button id="finalize-outreach" class="ghost" type="button">保存并确认定稿</button><button id="translate-all-outreach" class="ghost" type="button">定稿后一键生成多语言</button><span id="outreach-final-status" class="hint" role="status">修改后保存为新版本；确认定稿后可翻译，不自动发送。</span></div>
             <div class="field"><label id="outreach-body-label">英文正文</label><textarea id="outreach-body" class="input" rows="14"></textarea><div style="margin-top:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff"><span class="hint">邮件签名 Logo 预览</span><br><img src="https://letter.foreverdoodle.com/wonly-logo-gold.png" alt="WONLY" style="display:block;width:210px;max-width:100%;height:auto;margin-top:8px" /></div></div>
             <div id="outreach-quality-panel" class="quality-panel"><div class="quality-panel-head"><b>发送前质检</b><span id="outreach-quality-badge" class="tag">待质检</span></div><div id="outreach-quality-checks" class="quality-checks"></div></div>
             <div class="form-actions"><button id="copy-outreach" class="ghost" type="button">复制开发信</button></div>
@@ -6560,7 +6561,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
             .select("id,processing_status,research_completed_at,registered_at,forwarded_at,received_at,sender_email,sender_name,subject,parsed_data")
             .eq("inquiry_id", id)
             .maybeSingle(),
-          loadModuleRowsPaged((from,to)=>supabase.from("outreach_drafts").select("id,recipient_email,subject_a,subject_b,selected_subject,body,language,tone,objective,status,sent_at,created_at")
+          loadModuleRowsPaged((from,to)=>supabase.from("outreach_drafts").select("id,recipient_email,subject_a,subject_b,selected_subject,body,language,tone,objective,status,sent_at,created_at,source_final_copy_id")
             .eq("inquiry_id", id).order("created_at", { ascending: false }).range(from,to)),
           supabase.from("inquiry_retention_requests").select("id,requested_by,requested_until,reason,status,reviewed_by,review_reason,reviewed_at,created_at")
             .eq("inquiry_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle(),
@@ -6741,6 +6742,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if (latestDraft && isInternalProductReviewDraft(latestDraft)) {
           loadOutreachHistoryVersion(latestDraft);
         } else if (latestDraft && !legacyDraftError) {
+          finalizedOutreachCopy=null;
+          setTimeout(()=>restoreOutreachFinalCopy(latestDraft),0);
           outreachComposeMode=/^re\s*:/i.test(latestDraft.selected_subject||latestDraft.subject_a||"")?"reply":"outreach";
           $("#outreach-draft-title").textContent=outreachComposeMode==="reply"?"询盘回复草稿":"开发邮件草稿";
           $("#outreach-subject-a").value = latestDraft.subject_a || ""; $("#outreach-subject-b").value = latestDraft.subject_b || "";
@@ -8723,6 +8726,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       }
       function isInternalProductReviewDraft(draft){return String(draft?.body||"").includes("【Grace 产品证据草稿｜仅内部审核，不可直接发送】")}
       function loadOutreachHistoryVersion(draft){
+        finalizedOutreachCopy=null;
+        setTimeout(()=>restoreOutreachFinalCopy(draft),0);
         if(!draft)return;currentInquiry.outreachDraftId=draft.id;currentInquiry.latestOutreachDraft=draft;outreachComposeMode=/^re\s*:/i.test(draft.selected_subject||draft.subject_a||"")?"reply":"outreach";$("#outreach-draft-title").textContent=outreachComposeMode==="reply"?"询盘回复草稿":"开发邮件草稿";$("#outreach-recipient").value=draft.recipient_email||resolveInquiryRecipient();$("#outreach-subject-a").value=draft.subject_a||"";$("#outreach-subject-b").value=draft.subject_b||"";$("#outreach-selected-subject").value=draft.selected_subject===draft.subject_b?"b":"a";$("#outreach-body").value=draft.body||"";$("#outreach-tone").value=draft.tone||"consultative";$("#outreach-objective").value=draft.objective||"qualify";const names={en:"英文",es:"西班牙文",pt:"葡萄牙文",fr:"法文",ar:"阿拉伯文",ru:"俄文"},language=names[draft.language]||"英文";$("#outreach-target-language").value=language;$("#outreach-body-label").textContent=`${language}正文`;$("#outreach-status").textContent=draft.status==="sent"?`已发送 · ${fmtDate(draft.sent_at)}`:`历史版本 · ${fmtDate(draft.created_at)}`;$("#send-outreach").disabled=draft.status==="sent";$("#save-outreach").disabled=draft.status==="sent";$("#send-outreach").classList.toggle("hidden",draft.status==="sent");$("#outreach-draft").classList.remove("hidden");if(isInternalProductReviewDraft(draft)){$("#send-outreach").disabled=true;$("#send-outreach").classList.add("hidden");$("#outreach-status").textContent=`内部产品证据草稿 · ${fmtDate(draft.created_at)} · 仅审核，不可直接发送`;}renderOutreachHistory(currentInquiry.outreachDraftHistory||[]);evaluateOutreachDraft(draft.selected_subject||draft.subject_a||"",draft.body||"",$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim());
       }
       function renderOutreachHistory(drafts=[]){
@@ -8806,6 +8811,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#outreach-recipient").value=recipient;$("#outreach-subject-a").value=replySubject;$("#outreach-subject-b").value=replySubject;$("#outreach-selected-subject").value="a";$("#outreach-body").value=`Dear ${currentInquiry.contact_name||"Customer"},\n\nThank you for your inquiry.\n\n\n\n${unifiedEnglishSignature()}`;$("#outreach-draft-title").textContent="询盘回复草稿";$("#outreach-status").textContent="正在回复客户原询盘 · 请补充正文后发送";$("#outreach-draft").classList.remove("hidden");$("#outreach-body").focus();evaluateOutreachDraft(replySubject,$("#outreach-body").value);$("#outreach-body").scrollIntoView({behavior:"smooth",block:"center"});
       });
       async function generateOutreach() {
+        finalizedOutreachCopy=null;
         if (!currentInquiry) return;
         const previousSubject=$("#outreach-subject-a").value.trim(),previousBody=stripExistingSignature($("#outreach-body").value),previousLanguage=$("#outreach-target-language").value||"英文";
         outreachComposeMode="outreach";$("#outreach-draft-title").textContent="开发邮件草稿";
@@ -8927,7 +8933,47 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       });
       $("#update-outreach").addEventListener("click",()=>{if(!$("#update-outreach").disabled)$("#generate-outreach").click()});
       $("#regenerate-outreach").addEventListener("click",async()=>{const button=$("#regenerate-outreach");if(button.disabled)return;button.disabled=true;button.textContent="正在重新生成…";try{await generateOutreach()}finally{button.disabled=false;button.textContent="按补充信息重新生成"}});
-      document.querySelectorAll("[data-outreach-language]").forEach(button=>button.addEventListener("click",async()=>{$("#outreach-target-language").value=button.dataset.outreachLanguage;document.querySelectorAll("[data-outreach-language]").forEach(item=>item.classList.toggle("active",item===button));button.disabled=true;const original=button.textContent;button.textContent="生成中…";try{await generateOutreach()}finally{button.disabled=false;button.textContent=original}}));
+      let finalizedOutreachCopy=null, translatingOutreach=false;
+      const outreachLanguageCodes={英文:'en',西班牙文:'es',葡萄牙文:'pt',法文:'fr',阿拉伯文:'ar',俄文:'ru'};
+      function finalCopyMatches(copy){return Boolean(copy&&copy.inquiry_id===currentInquiry?.id&&copy.draft_id===currentInquiry?.outreachDraftId&&copy.subject===($("#outreach-selected-subject").value==='b'?$("#outreach-subject-b").value:$("#outreach-subject-a").value).trim()&&copy.body===$("#outreach-body").value.trim()&&copy.source_language===(outreachLanguageCodes[$("#outreach-target-language").value]||'en'));}
+      async function restoreOutreachFinalCopy(draft){
+        if(!draft||currentInquiry?.outreachDraftId!==draft.id)return;
+        const {data,error}=await supabase.from('outreach_final_copies').select('*').eq('draft_id',draft.id).eq('finalized_by',profile.id).order('finalized_at',{ascending:false}).limit(1);
+        if(currentInquiry?.outreachDraftId!==draft.id)return;
+        finalizedOutreachCopy=!error&&finalCopyMatches(data?.[0])?data[0]:null;
+        $("#outreach-final-status").textContent=finalizedOutreachCopy?'已恢复定稿快照，可翻译；修改正文后须重新定稿。':'尚未定稿；修改后保存新版本，再确认定稿。';
+      }
+      $("#finalize-outreach").addEventListener('click',async()=>{
+        if(translatingOutreach)return;
+        const button=$("#finalize-outreach");button.disabled=true;
+        try{
+          if(!await appConfirm('确认主题与正文已经人工核对，可按批准范围交由百炼北京翻译？不包含原线程、背调、内部画册或附件，译文不会自动发送。',{title:'确认客户正文定稿',confirmText:'保存并定稿'}))return;
+          const draft=await saveOutreachDraft();
+          const {data,error}=await supabase.from('outreach_final_copies').insert({draft_id:draft.id}).select().single();if(error)throw error;
+          const read=await supabase.from('outreach_final_copies').select('*').eq('id',data.id).single();
+          if(read.error||!finalCopyMatches(read.data))throw Error('定稿回读未确认，请重新打开历史版本');
+          finalizedOutreachCopy=read.data;$("#outreach-final-status").textContent='定稿已保存并回读；可以生成独立语言草稿，不自动发送。';
+        }catch(e){toast('定稿失败：'+e.message)}finally{button.disabled=false}
+      });
+      async function translateFinalOutreach(languages){
+        if(translatingOutreach)return;
+        const copy=finalizedOutreachCopy;
+        if(!finalCopyMatches(copy))return toast('请先保存并确认当前正文定稿');
+        translatingOutreach=true;const results=[];
+        try{for(const language of languages.filter(x=>x!==copy.source_language)){
+          if(!finalCopyMatches(copy))throw Error('正文或询盘已切换，停止后续翻译；已保存译稿保留');
+          $("#outreach-final-status").textContent=`正在翻译 ${language}，已完成 ${results.length} 个版本…`;
+          const {data,error}=await supabase.functions.invoke('outreach-translate',{body:{final_copy_id:copy.id,target_language:language}});
+          if(error||data?.error)throw Error(data?.error||await edgeFunctionErrorMessage({error,data}));
+          if(!data?.readback_verified||!data.draft?.id)throw Error('译稿回读未确认');
+          results.push(data.draft);
+          if(currentInquiry?.id===copy.inquiry_id){currentInquiry.outreachDraftHistory=[data.draft,...(currentInquiry.outreachDraftHistory||[]).filter(x=>x.id!==data.draft.id)];renderOutreachHistory(currentInquiry.outreachDraftHistory);}
+        }
+          if(currentInquiry?.id===copy.inquiry_id)$("#outreach-final-status").textContent=`已保存并回读 ${results.length} 个语言草稿。请从历史版本打开、修改及核对；未发送。`;
+        }catch(e){toast(e.message);if(currentInquiry?.id===copy.inquiry_id)$("#outreach-final-status").textContent=`本次已保存 ${results.length} 个译稿；${e.message}`;}finally{translatingOutreach=false}
+      }
+      document.querySelectorAll('[data-outreach-language]').forEach(button=>button.addEventListener('click',()=>translateFinalOutreach([outreachLanguageCodes[button.dataset.outreachLanguage]])));
+      $("#translate-all-outreach").addEventListener('click',()=>translateFinalOutreach(Object.values(outreachLanguageCodes)));
       $("#copy-outreach").addEventListener("click", async () => {
         const text = `Subject A: ${$("#outreach-subject-a").value}\nSubject B: ${$("#outreach-subject-b").value}\n\n${$("#outreach-body").value}`;
         await navigator.clipboard.writeText(text);
@@ -8935,6 +8981,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       });
       async function saveOutreachDraft() {
         if (!currentInquiry) throw new Error("请先打开询盘");
+        const inquiryId=currentInquiry.id;
+        if(currentInquiry.latestOutreachDraft?.status==='sent')throw Error('已发送版本不可修改，请另建草稿');
         if(String($("#outreach-body").value||'').includes('【Grace 产品证据草稿｜仅内部审核，不可直接发送】'))throw new Error('该内部证据版本已保存；请通过Grace入口另建版本，审核后另存客户正文');
         const researchQuality = assessResearchQuality();
         if (outreachComposeMode!=="reply"&&!researchQuality.generated) throw new Error("请先生成客户背调");
@@ -8949,9 +8997,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if (!quality.passed) throw new Error(quality.blockers.map((item) => item.label).join("；"));
         const languageCodes={英文:"en",西班牙文:"es",葡萄牙文:"pt",法文:"fr",阿拉伯文:"ar",俄文:"ru"};
         const payload={ inquiry_id: currentInquiry.id, created_by: profile.id, recipient_email: recipient, subject_a: subjectA, subject_b: subjectB, selected_subject: subject, body, language: languageCodes[$("#outreach-target-language").value]||"en", tone: $("#outreach-tone").value, objective: $("#outreach-objective").value, status: "draft" };
-        const query=currentInquiry.outreachDraftId?supabase.from("outreach_drafts").update(payload).eq("id",currentInquiry.outreachDraftId):supabase.from("outreach_drafts").insert(payload);
+        if(currentInquiry.latestOutreachDraft?.source_final_copy_id)payload.source_final_copy_id=currentInquiry.latestOutreachDraft.source_final_copy_id;
+        const query=supabase.from("outreach_drafts").insert(payload);
         const { data, error } = await query.select().single();
         if (error) throw error;
+        const readback=await supabase.from('outreach_drafts').select('id,body,selected_subject').eq('id',data.id).single();
+        if(readback.error||readback.data?.body!==body||readback.data?.selected_subject!==subject)throw Error('草稿可能已保存，但回读未确认，请刷新历史版本');
+        if(currentInquiry?.id!==inquiryId)throw Error('草稿已保存，当前询盘已切换，请回原询盘查看');
+        finalizedOutreachCopy=null;
+        currentInquiry.outreachDraftHistory=[data,...(currentInquiry.outreachDraftHistory||[])];renderOutreachHistory(currentInquiry.outreachDraftHistory);
         currentInquiry.outreachDraftId = data.id;
         currentInquiry.latestOutreachDraft=data;
         assessResearchQuality();
@@ -8964,6 +9018,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         finally { button.disabled = false; }
       });
       ["#outreach-subject-a", "#outreach-subject-b", "#outreach-body", "#outreach-selected-subject"].forEach((selector) => $(selector).addEventListener("input", () => {
+        finalizedOutreachCopy=null;
+        $("#outreach-final-status").textContent='正文已修改，请保存并重新确认定稿。';
         const subject = $("#outreach-selected-subject").value === "b" ? $("#outreach-subject-b").value : $("#outreach-subject-a").value;
         evaluateOutreachDraft(subject, $("#outreach-body").value, $("#detail-research-company").value.trim(), $("#detail-research-domain").value.trim());
       }));

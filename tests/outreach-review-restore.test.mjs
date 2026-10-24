@@ -7,7 +7,7 @@ const start=html.indexOf('      function isInternalProductReviewDraft(');
 const end=html.indexOf('      function renderOutreachHistory(',start);
 function context(){
  const nodes=new Map();const $=selector=>{if(!nodes.has(selector)){const classes=new Set();nodes.set(selector,{value:'',textContent:'',disabled:false,classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),toggle:(x,on)=>on?classes.add(x):classes.delete(x),contains:x=>classes.has(x)}})}return nodes.get(selector)};
- const ctx={$,currentInquiry:{outreachDraftHistory:[]},resolveInquiryRecipient:()=>'',fmtDate:x=>x,renderOutreachHistory:()=>{},evaluateOutreachDraft:()=>{}};vm.createContext(ctx);vm.runInContext(html.slice(start,end),ctx);return ctx;
+ const ctx={$,finalizedOutreachCopy:null,setTimeout:()=>{},restoreOutreachFinalCopy:()=>{},currentInquiry:{outreachDraftHistory:[]},resolveInquiryRecipient:()=>'',fmtDate:x=>x,renderOutreachHistory:()=>{},evaluateOutreachDraft:()=>{}};vm.createContext(ctx);vm.runInContext(html.slice(start,end),ctx);return ctx;
 }
 test('restoring internal history preserves exact body and hides send, then ordinary history restores normal controls',()=>{
  const c=context();const body='【Grace 产品证据草稿｜仅内部审核，不可直接发送】\nfixture reference only';

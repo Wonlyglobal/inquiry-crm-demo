@@ -1,4 +1,4 @@
-import {composeRequest,publicEvidenceItem} from './outreach-compose-policy.mjs?v=20261024-2';
+import {composeRequest,publicEvidenceItem} from './outreach-compose-policy.mjs?v=20261024-3';
 let state={inquiryId:null,items:[]};
 function render(ctx){
  const {find:$}=ctx,container=$('#outreach-public-evidence-list');container.replaceChildren();
@@ -9,7 +9,7 @@ function render(ctx){
   text.textContent=` ${names[item.kind]}：${item.statement}｜日期：${item.date}｜来源：${item.source}`;label.append(box,text);label.style.cssText='display:block;margin:12px 0;overflow-wrap:anywhere';container.append(label);
  }
  if(!state.items.length)container.textContent='没有符合最小公开格式的候选。可人工补充已核实摘要、公开来源和日期；不能用原邮件或内部画册替代。';
- const coverage=document.createElement('p');coverage.textContent=['公司背调','相关市场调研','获准公开产品'].map((name,i)=>`${name}候选 ${state.items.filter(item=>item.kind===['company_facts','market_facts','product_facts'][i]).length} 条`).join(' · ')+'。三类均需勾选并核实；候选数量不代表已确认，缺项不会生成通用替代正文。';container.append(coverage);
+ const coverage=document.createElement('p');coverage.textContent=['公司背调','相关市场调研','获准公开产品'].map((name,i)=>`${name}候选 ${state.items.filter(item=>item.kind===['company_facts','market_facts','product_facts'][i]).length} 条`).join(' · ')+'。只使用已核实的可公开依据；市场与产品暂无可靠依据时不虚构，不要求补齐三类才能生成。';container.append(coverage);
  $('#outreach-public-confirm').checked=false;
 }
 export function preparePublicOutreachEvidence(ctx){
@@ -22,6 +22,7 @@ export function preparePublicOutreachEvidence(ctx){
   try{const item=publicEvidenceItem({statement:parsed.statement,source:parsed.sourceUrl,date:parsed.date});const key=item.source+'|'+item.statement;if(seen.has(key))continue;seen.add(key);state.items.push({...item,kind})}catch{}
  }
  render(ctx);ctx.find('#outreach-public-panel').open=true;
+ ctx.find('#outreach-advanced-materials').open=true;
  ctx.toast('已列出带公开来源及日期的候选，请核实内容并勾选；未向模型发送');
 }
 export function addPublicOutreachEvidence(ctx){
@@ -34,15 +35,14 @@ export function addPublicOutreachEvidence(ctx){
 }
 export async function generatePublicOutreach(ctx){
  const inquiry=ctx.getInquiry(),$=ctx.find;if(!inquiry)return;
- if(!ctx.research().generated)return ctx.toast('请先完成客户背调资料整理');
  if(state.inquiryId!==inquiry.id){preparePublicOutreachEvidence(ctx);return}
- if(!$('#outreach-public-confirm').checked){$('#outreach-public-panel').open=true;return ctx.toast('请先核实并确认本次选中的最小公开依据')}
+ if(!$('#outreach-public-confirm').checked){$('#outreach-advanced-materials').open=true;$('#outreach-public-panel').open=true;return ctx.toast('请先核实并确认本次选中的最小公开依据')}
  const button=$('#generate-outreach');let input;
  try{
   const selected=[...document.querySelectorAll('[data-public-evidence-index]:checked')].map(box=>state.items[Number(box.dataset.publicEvidenceIndex)]).filter(Boolean);
   input=composeRequest({inquiry_id:inquiry.id,objective:$('#outreach-objective').value,tone:$('#outreach-tone').value,confirmed_public:true,...Object.fromEntries(['company_facts','market_facts','product_facts'].map(kind=>[kind,selected.filter(item=>item.kind===kind).map(({statement,source,date})=>({statement,source,date}))]))});
  }catch(e){return ctx.toast(e.message)}
- const recipient=ctx.recipient();if(!recipient)return ctx.toast('缺少客户邮箱，未生成');
+ const recipient=ctx.recipient();
  const id=inquiry.id;button.disabled=true;button.textContent='正在按公开依据生成…';$('#outreach-status').textContent='仅发送已确认的公开摘要；不会发送客户邮箱电话、原邮件或内部画册。';
  try{
   const response=await ctx.invoke('outreach-compose',{body:input});
@@ -51,9 +51,10 @@ export async function generatePublicOutreach(ctx){
   const result=response.data;if(!result?.subject||!result?.body||result.pending_human_review!==true)throw Error('未收到有效的待审核草稿');
   const name=String(ctx.contactName()||'Customer').trim().split(/\s+/)[0];
   const body=`Dear ${name},\n\n${result.body}\n\n${ctx.signature()}`;
-  $('#outreach-subject-a').value=result.subject;$('#outreach-subject-b').value=result.subject;$('#outreach-selected-subject').value='a';$('#outreach-body').value=body;$('#outreach-recipient').value=recipient;$('#outreach-target-language').value='英文';$('#outreach-body-label').textContent='英文正文';
+  $('#outreach-subject-a').value=result.subject;$('#outreach-subject-b').value=result.subject_b||result.subject;$('#outreach-selected-subject').value='a';$('#outreach-body').value=body;$('#outreach-recipient').value=recipient;$('#outreach-target-language').value='英文';$('#outreach-body-label').textContent='英文正文';
   inquiry.outreachDraftId=null;inquiry.latestOutreachDraft=null;ctx.setMode('outreach');
   $('#outreach-draft').classList.remove('hidden');$('#outreach-draft-title').textContent='研究型开发信草稿';
+  if(!recipient){ctx.quality(result.subject,body);$('#outreach-status').textContent='正文已生成，可编辑；尚无收件人，未保存或发送。';$('#send-outreach').disabled=true;return}
   await ctx.save();if(ctx.getInquiry()?.id!==id)return;
   ctx.quality(result.subject,body);$('#save-outreach').disabled=false;$('#send-outreach').disabled=false;$('#send-outreach').classList.remove('hidden');
   $('#outreach-status').textContent='已保存并回读 · 依据公司、市场与公开产品主张 · 待人工审核，未发送';ctx.toast('开发信已保存，请核对研究事实、产品主张与沟通目标；未发送');

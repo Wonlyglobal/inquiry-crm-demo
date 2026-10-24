@@ -18,8 +18,6 @@ test('public candidate preparation never calls provider and starts unselected',(
 test('generation refuses unconfirmed input and never projects local recipient or signature',async()=>{
  const h=harness();preparePublicOutreachEvidence(h.ctx);await generatePublicOutreach(h.ctx);assert.equal(h.calls.length,0);
  h.created.find(n=>n.dataset.publicEvidenceIndex==='0').checked=true;h.find('#outreach-public-confirm').checked=true;
- await generatePublicOutreach(h.ctx);
- assert.equal(h.calls.length,0,'company-only input must not generate a generic letter');
  for(const kind of ['market_facts','product_facts']){
   h.find('#outreach-public-kind').value=kind;h.find('#outreach-public-statement').value='Synthetic reviewed '+kind;h.find('#outreach-public-source').value='https://example.com/'+kind;h.find('#outreach-public-date').value='2026-10-24';addPublicOutreachEvidence(h.ctx);
  }
@@ -30,4 +28,12 @@ test('generation refuses unconfirmed input and never projects local recipient or
  assert.equal(h.calls[0].name,'outreach-compose');assert.equal(h.calls[0].payload.company_facts.length,1);
  assert.equal(JSON.stringify(h.calls[0].payload).includes('private-recipient'),false);assert.equal(JSON.stringify(h.calls[0].payload).includes('Private Person'),false);assert.equal(JSON.stringify(h.calls[0].payload).includes('Private Signer'),false);
  assert.match(h.find('#outreach-body').value,/Dear Private,/);assert.match(h.find('#outreach-body').value,/Private Signer/);assert.equal(h.calls[1].saved,true);
+});
+test('incomplete research and missing recipient do not prevent editable model-generated copy',async()=>{
+ const h=harness();h.ctx.research=()=>({generated:false,facts:[],signals:[]});h.ctx.recipient=()=>'';
+ h.ctx.invoke=async(name,options)=>{h.calls.push({name,payload:options.body});return {data:{subject:'A needs discussion',subject_b:'Explore a potential fit',body:'Could we discuss the application and selection requirements?',pending_human_review:true}}};
+ preparePublicOutreachEvidence(h.ctx);h.find('#outreach-public-confirm').checked=true;await generatePublicOutreach(h.ctx);
+ assert.equal(h.calls[0].name,'outreach-compose');assert.equal(h.calls.length,1,'no save without recipient');
+ assert.equal(h.find('#outreach-subject-b').value,'Explore a potential fit');assert.match(h.find('#outreach-body').value,/selection requirements/);
+ assert.equal(h.find('#send-outreach').disabled,true);
 });

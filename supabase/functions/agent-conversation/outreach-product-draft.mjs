@@ -13,9 +13,26 @@ export function outreachProductRequest(input){
  const context={};for(const [key,max] of [['model',80],['application',200],['requirements',400]]){const value=String(input[key]||'').trim();if(value.length>max||/[\r\n\x00-\x1f]/.test(value))throw Error('型号/场景/需求超长或含无效换行');context[key]=value;}
  return {inquiry_id:input.inquiry_id,category:input.category,categories,recipient,angle,signer,...context};
 }
-export function outreachProductEvidence(data,category,model=''){
+export function outreachEvidenceRequest(input){
+ if(!input||Object.keys(input).some(k=>!['action','inquiry_id','categories','model'].includes(k)))throw Error('画册预览字段无效');
+ return outreachProductRequest({...input,action:'outreach-product-draft',recipient:'internal@example.invalid',angle:'internal catalogue evidence preview',signer:'Internal'});
+}
+export function productCatalogueQueries(category){
+ if(['security_door','steel_door','armored_door','cast_aluminum_door','copper_door'].includes(category))return ['海外零售画册','Retail Product Catalogue'];
+ if(category==='wooden_door')return ['静音木门画册','Soundproof Wooden Doors'];
+ if(category==='smart_lock')return ['智能锁画册','True Smart Locks'];
+ return ['海外工程画册','Project Solutions'];
+}
+export function outreachProductEvidence(data,category,model='',catalogueOnly=false){
  const c=Object.hasOwn(PRODUCT_CATEGORIES,category)?PRODUCT_CATEGORIES[category]:null;if(!c||data?.status!=='available')return [];
- return (data.assets||[]).filter(a=>a.isCurrentVersion===true&&a.versionLabel&&a.document?.sha256&&['ready','partial'].includes(a.document?.status)&&!/logo|标志|标识/i.test(a.name)&&c.terms.test(a.name)).slice(0,3).flatMap(a=>(a.document.pages||[]).filter(p=>Number.isInteger(p.page)&&p.chunks?.some(s=>s.trim())&&(!model||[a.name,...p.chunks].join(' ').toLowerCase().includes(model.toLowerCase()))).slice(0,2).map(p=>({category,asset_id:a.id,name:a.name,version:a.versionLabel,page:p.page,sha256:a.document.sha256,partial:a.document.status==='partial',quote:p.chunks.find(s=>s.trim()).slice(0,600),human_verified:false,source_freshness_verified:false})));
+ const normalized=s=>String(s).toLowerCase().replace(/[\s_-]+/g,'');
+ const baseline=/^(?:metaldoor|金属门)1\.0$/.test(normalized(model));
+ return (data.assets||[]).filter(a=>a.isCurrentVersion===true&&a.versionLabel&&/^[a-f0-9]{64}$/.test(a.document?.sha256||'')&&['ready','partial'].includes(a.document?.status)&&!/logo|标志|标识|展会|进度|计划|exhibition|schedule/i.test(a.name)&&(!catalogueOnly||/画册|catalog|brochure/i.test(a.name))).slice(0,12).flatMap(a=>(a.document.pages||[]).filter(p=>{
+  if(!Number.isInteger(p.page)||!p.chunks?.some(s=>s.trim()))return false;
+  const page=p.chunks.join(' '),categoryMatch=c.terms.test(a.name)||c.terms.test(page)||(baseline&&['security_door','steel_door'].includes(category)&&/金属门|metal\s*doors?/i.test(page));
+  const modelMatch=!model||normalized(a.name+' '+page).includes(normalized(model))||(baseline&&/(?:^|[^\d])1\.0(?:[^\d]|$)/.test(page));
+  return categoryMatch&&modelMatch;
+ }).slice(0,3).map(p=>({category,asset_id:a.id,name:a.name,version:a.versionLabel,page:p.page,sha256:a.document.sha256,partial:a.document.status==='partial',quote:p.chunks.filter(s=>s.trim()).join('\n').slice(0,1800),human_verified:false,source_freshness_verified:false})));
 }
 export function buildProductReviewDraft(input,evidence,now=new Date().toISOString()){
  const categories=input.categories||[input.category];const c={label:categories.map(k=>PRODUCT_CATEGORIES[k]?.label).filter(Boolean).join(' / ')};if(!c.label||!evidence.length||categories.some(k=>!evidence.some(e=>e.category===k||categories.length===1&&!e.category)))throw Error('所选门类尚缺当前版可定位产品证据，不能生成完整产品开发信');

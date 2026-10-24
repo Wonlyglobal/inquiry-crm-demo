@@ -1,5 +1,11 @@
 /* Only the active outreach section owns this fixed action. Reuse the original
    button so loading, permissions and click handlers cannot drift between copies. */
+#detail-modal:has([data-detail-section="outreach"]:not(.hidden)) .modal {
+  /* backdrop-filter establishes a containing block for fixed descendants.
+     This page is already opaque; keep its action anchored to the viewport. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 [data-detail-section="outreach"] #generate-outreach {
   position: fixed;
   right: max(24px, env(safe-area-inset-right));

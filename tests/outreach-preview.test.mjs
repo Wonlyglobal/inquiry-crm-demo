@@ -11,5 +11,6 @@ test('hidden result or inactive inquiry tab never steals focus',()=>{
 test('floating action reuses the original button and handles safe areas',()=>{
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8'),css=readFileSync(new URL('../assets/outreach-floating-action.css',import.meta.url),'utf8');
  assert.equal((html.match(/id="generate-outreach"/g)||[]).length,1);assert.match(css,/position: fixed/);assert.match(css,/safe-area-inset-bottom/);assert.match(html,/dataset\.requestActive==='true'/);
+ assert.match(css,/#detail-modal:has\(\[data-detail-section="outreach"\]:not\(\.hidden\)\) \.modal/);assert.match(css,/backdrop-filter: none/);
  assert.doesNotMatch(html,/generate-outreach"\)\.disabled = !generated/);
 });

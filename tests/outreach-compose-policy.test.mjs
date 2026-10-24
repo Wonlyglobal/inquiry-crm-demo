@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {composeRequest,composeBody,checkedComposedLetter,publicEvidenceItem} from '../assets/outreach-compose-policy.mjs';
 const fact={statement:'Synthetic company distributes entry doors.',source:'https://example.com/about',date:'2026-10-24'};
-const input={inquiry_id:'11111111-1111-4111-8111-111111111111',objective:'meeting',tone:'consultative',company_facts:[fact],market_facts:[],product_facts:[],confirmed_public:true};
+const input={inquiry_id:'11111111-1111-4111-8111-111111111111',objective:'meeting',tone:'consultative',company_facts:[fact],market_facts:[{...fact,statement:'Synthetic sourced market context.'}],product_facts:[{...fact,statement:'Synthetic approved public product claim.'}],confirmed_public:true};
 test('composition requires explicit confirmation and public sourced company evidence',()=>{
  assert.equal(composeRequest(input).company_facts.length,1);
- for(const change of [{confirmed_public:false},{company_facts:[]},{email:'private@example.com'},{original_message:'raw thread'}])assert.throws(()=>composeRequest({...input,...change}));
+ for(const change of [{confirmed_public:false},{company_facts:[]},{market_facts:[]},{product_facts:[]},{email:'private@example.com'},{original_message:'raw thread'}])assert.throws(()=>composeRequest({...input,...change}));
 });
 test('public projection rejects internal URLs, contacts, high sensitivity and missing dates',()=>{
  for(const source of ['http://example.com','https://127.0.0.1/x','https://crm.foreverdoodle.com/x','https://abc.supabase.co/x','https://example.com/x?token=a','https://user:pass@example.com/x'])assert.throws(()=>publicEvidenceItem({...fact,source}));
@@ -20,6 +20,7 @@ test('model projection retains approved company, market and product facts but no
  assert.equal(projection.market_facts.length,1);assert.equal(projection.product_facts.length,1);
  assert.equal(JSON.stringify(payload).includes(input.inquiry_id),false);
  assert.match(payload.messages[0].content,/20-minute online meeting/);
+ assert.match(payload.messages[0].content,/fact from EACH/);
  assert.doesNotMatch(composeBody({...request,objective:'qualify'}).messages[0].content,/invite one 20-minute/);
 });
 test('truncated output, credentials and unsolicited promises cannot become drafts',()=>{

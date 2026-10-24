@@ -1,4 +1,4 @@
-import {composeRequest,publicEvidenceItem} from './outreach-compose-policy.mjs?v=20261024-1';
+import {composeRequest,publicEvidenceItem} from './outreach-compose-policy.mjs?v=20261024-2';
 let state={inquiryId:null,items:[]};
 function render(ctx){
  const {find:$}=ctx,container=$('#outreach-public-evidence-list');container.replaceChildren();
@@ -9,6 +9,7 @@ function render(ctx){
   text.textContent=` ${names[item.kind]}：${item.statement}｜日期：${item.date}｜来源：${item.source}`;label.append(box,text);label.style.cssText='display:block;margin:12px 0;overflow-wrap:anywhere';container.append(label);
  }
  if(!state.items.length)container.textContent='没有符合最小公开格式的候选。可人工补充已核实摘要、公开来源和日期；不能用原邮件或内部画册替代。';
+ const coverage=document.createElement('p');coverage.textContent=['公司背调','相关市场调研','获准公开产品'].map((name,i)=>`${name}候选 ${state.items.filter(item=>item.kind===['company_facts','market_facts','product_facts'][i]).length} 条`).join(' · ')+'。三类均需勾选并核实；候选数量不代表已确认，缺项不会生成通用替代正文。';container.append(coverage);
  $('#outreach-public-confirm').checked=false;
 }
 export function preparePublicOutreachEvidence(ctx){
@@ -55,6 +56,6 @@ export async function generatePublicOutreach(ctx){
   $('#outreach-draft').classList.remove('hidden');$('#outreach-draft-title').textContent='研究型开发信草稿';
   await ctx.save();if(ctx.getInquiry()?.id!==id)return;
   ctx.quality(result.subject,body);$('#save-outreach').disabled=false;$('#send-outreach').disabled=false;$('#send-outreach').classList.remove('hidden');
-  $('#outreach-status').textContent='已保存并回读 · 保留所选公开研究依据 · 待人工审核，未发送';ctx.toast('开发信已保存，请核对研究事实、产品主张与沟通目标；未发送');
+  $('#outreach-status').textContent='已保存并回读 · 依据公司、市场与公开产品主张 · 待人工审核，未发送';ctx.toast('开发信已保存，请核对研究事实、产品主张与沟通目标；未发送');
  }catch(e){if(ctx.getInquiry()?.id===id)$('#outreach-status').textContent='生成或保存未完成，请检查提示；未发送';ctx.toast(e.message)}finally{button.disabled=false;button.textContent='一键生成开发信'}
 }

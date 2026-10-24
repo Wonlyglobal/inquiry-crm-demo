@@ -18,7 +18,7 @@ test('customer angle is optional and accepts short, Chinese, multiline and longe
  for(const angle of ['', '门类确认', 'Hi', '中文需求\n补充说明', '中'.repeat(600)]){
   const req=outreachProductRequest({...input,angle});assert.equal(req.angle,angle);
   const draft=buildProductReviewDraft(req,evidence);assert.equal(draft.send_allowed,false);
-  if(!angle||/中文|门类|中/.test(angle)){assert.match(draft.letter,/discuss your product requirements/);assert.doesNotMatch(draft.letter,/中文|门类|中/);}
+  assert.equal(draft.letter,'');assert.match(draft.body,/不是开发信，尚未生成客户正文/);assert.doesNotMatch(draft.body,/I would like to discuss|待审核英文正文/);
   if(angle)assert.ok(draft.body.includes(angle));
  }
 });
@@ -26,6 +26,7 @@ test('shared draft contains references only, never internal filenames/excerpts o
  const e=outreachProductEvidence(gateMaterialEvidence({status:'available',assets:[asset]}),'wooden_door');const r=buildProductReviewDraft(input,e,'2026-10-22T00:00:00Z');
  assert.ok(r.body.startsWith(REVIEW_MARKER));assert.equal(r.status,'pending_human_review');assert.equal(r.send_allowed,false);assert.equal(r.external_model_called,false);
  assert.match(r.body,/资料ID：fixture/);assert.doesNotMatch(r.body,/PRIVATE SYNTHETIC DOCUMENT TEXT|木门画册.pdf/);assert.doesNotMatch(r.letter,/certified|warranty|fire.rating|lead.time|MOQ/i);
+ assert.equal(r.letter,'');assert.match(r.body,/三类依据齐备/);assert.doesNotMatch(r.body,/Hello,|Best regards|I would like to explore whether/);
 });
 test('integration uses original inquiry RLS, signed material reads and original user draft insert/readback',()=>{
  const fn=readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');const start=fn.indexOf("if(input.action==='outreach-product-draft'");const block=fn.slice(start,fn.indexOf("if(input.action==='material-progress')",start));

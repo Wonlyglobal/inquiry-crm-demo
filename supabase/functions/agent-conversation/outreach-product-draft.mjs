@@ -40,14 +40,13 @@ export function outreachProductEvidence(data,category,model='',catalogueOnly=fal
 }
 export function buildProductReviewDraft(input,evidence,now=new Date().toISOString()){
  const categories=input.categories||[input.category];const c={label:categories.map(k=>PRODUCT_CATEGORIES[k]?.label).filter(Boolean).join(' / ')};if(!c.label||!evidence.length||categories.some(k=>!evidence.some(e=>e.category===k||categories.length===1&&!e.category)))throw Error('所选门类尚缺当前版可定位产品证据，不能生成完整产品开发信');
- const subject=`WONLY ${c.label} — requirements discussion`;
+ const subject=`WONLY ${c.label} — internal evidence worksheet`;
  // Product parameters/certifications are deliberately not inferred from extraction.
  const angle=String(input.angle||'').trim();
  // Non-English/context text remains in the internal review notes; never fake a translation.
- const opening=angle&&angle.length<=400&&/^[\x20-\x7e\r\n\t]+$/.test(angle)?`I am reaching out about ${angle.replace(/\s+/g,' ').replace(/[.!?]+$/,'')}.`:'I would like to discuss your product requirements.';
- const letter=`Hello,\n\n${opening} I would like to explore whether WONLY ${c.label} could be relevant to your requirements. Before recommending a specific model, we would need to confirm your intended application and installation conditions. Could you share the main requirement you would like us to review first? We can then identify the appropriate product information for your evaluation.\n\nBest regards,\n${input.signer}\nWONLY International Sales Team\nwww.wonlyglobal.com`;
+ const letter=''; // Evidence retrieval alone is not a researched customer letter.
  // Shared CRM draft RLS is not material-library membership. Store opaque references only,
  // never filenames or excerpts. Reading source text again requires the original material gateway.
  const notes=evidence.map((e,i)=>`${i+1}. 资料ID：${e.asset_id}；版本：${e.version}；第${e.page}页\n索引版本摘要：${e.sha256}\n${e.partial?'部分解析，仍有缺口；':''}机器提取，未人工核验；未复验原文件实时版本。原文件与摘录不存入共享草稿，重新查阅须通过原物料授权。`).join('\n\n');
- return {subject,letter,body:`${REVIEW_MARKER}\n\n待审核英文正文\n${letter}\n\n内部产品证据与审核步骤（不对客转发）\n生成时间：${now}\n客户/市场切入点：${input.angle}\n\n${notes}\n\n审核步骤：\n1. 核对客户切入点与原始背调/市场来源；本工具不重新核实该输入。\n2. 阅读上述原文并确认门类、型号、配置、当前版本与可披露范围。摘录不等于性能或认证结论。\n3. 仅将获准对外的主张整理为另一份客户正文，再按既有人工审核与触达规则处理。本证据草稿被服务端禁止发送。`,status:'pending_human_review',external_model_called:false,send_allowed:false,evidence_count:evidence.length};
+ return {subject,letter,body:`${REVIEW_MARKER}\n\n产品证据整理单（不是开发信，尚未生成客户正文）\n本入口仅整理授权产品引用，不会用通用英文模板冒充公司、市场与产品研究。\n\n内部产品证据与审核步骤（不对客转发）\n生成时间：${now}\n客户/市场切入点（输入线索，未核实）：${angle}\n\n${notes}\n\n下一步：\n1. 在“研究型开发信”核对公司公开事实与相关市场来源，不能用同名门店或宏观趋势推断客户需求。\n2. 经原物料授权阅读证据并核实门类、型号、版本和适用条件；机器摘录不等于产品承诺或可公开批准。\n3. 仅将获准公开的产品主张和公开来源加入研究型依据；内部画册、摘录和本整理单不得复制给外部模型。\n4. 三类依据齐备并确认后点击“一键生成开发信”，形成独立待审核客户正文。缺少任一类须补充，不生成通用替代正文。本整理单仍禁止发送。`,status:'pending_human_review',external_model_called:false,send_allowed:false,evidence_count:evidence.length};
 }

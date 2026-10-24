@@ -60,3 +60,10 @@ test('UI saves new versions and translation never calls legacy generator',()=>{
  const listener=html.slice(start,html.indexOf('      $("#copy-outreach")',start));
  assert.match(listener,/translateFinalOutreach/);assert.doesNotMatch(listener,/generateOutreach/);
 });
+test('new reply detaches prior sent/finalized version and resets language',()=>{
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const source=html.slice(html.indexOf('$("#reply-inquiry").addEventListener'),html.indexOf('      async function generateOutreach()'));
+ assert.match(source,/finalizedOutreachCopy=null;currentInquiry.outreachDraftId=null;currentInquiry.latestOutreachDraft=null/);
+ assert.match(source,/\$\("#save-outreach"\)\.disabled=false/);
+ assert.match(source,/\$\("#outreach-target-language"\)\.value='英文'/);
+});

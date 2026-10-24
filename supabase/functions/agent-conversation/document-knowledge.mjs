@@ -14,7 +14,7 @@ export function materialQuery(question){
  const ids=query.match(/[a-z0-9][a-z0-9_-]{1,39}/gi)||[];
  const fields=[['防火','防火'],['隔音','隔音'],['尺寸','尺寸'],['规格','规格'],['材质','材质'],['型号','型号'],['认证','认证'],['安装','安装'],['质保','质保'],['保养','保养'],['参数','参数']].filter(([k])=>query.includes(k)).map(([,v])=>v);
  const named=namedMaterialProducts(original).length>0;
- const neutral=/^(?:what|which|is|are|the|its|about|and|of|sound|insulation|material|materials|thickness|dimensions|size|specifications|parameters|source|reference|page|warranty)$/i;
+ const neutral=/^(?:what|which|is|are|the|its|about|and|of|sound|insulation|material|materials|thickness|dimensions|size|specifications|parameters|source|reference|page|warranty|lock|options?|colou?rs?|finishes)$/i;
  const searchIds=named?ids.filter(x=>!neutral.test(x)):ids;
  const terms=[...new Set([...searchIds,...(named?[]:fields)])].slice(0,6);
  const constraints=materialConstraints(original);

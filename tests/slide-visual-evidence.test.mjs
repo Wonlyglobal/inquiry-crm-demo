@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeSlideVisual,slideVisualText} from '../supabase/functions/agent-conversation/slide-visual.mjs';
-import {normalizeDocument,documentEvidence} from '../supabase/functions/agent-conversation/document-knowledge.mjs';
+import {materialQuery,normalizeDocument,documentEvidence} from '../supabase/functions/agent-conversation/document-knowledge.mjs';
 import {resolveMaterialTurn,conciseMaterialAnswer} from '../supabase/functions/agent-conversation/material-dialogue.mjs';
 import {materialFields} from '../supabase/functions/agent-conversation/product-input.mjs';
 const sha='a'.repeat(64),render='b'.repeat(64);
@@ -35,3 +35,5 @@ test('literal color and lock-option fields support followups',()=>{
  const turn=resolveMaterialTurn('那它的来源和页码呢？',history);
  assert.ok(turn.question.includes('Synthetic_Long_Document_Product_Information_20260101_0001'));assert.ok(turn.question.includes('TEST-X404'));assert.equal(turn.clarification,undefined);
 });
+
+test('named product field labels rank evidence without filtering quotes by field words',()=>{const q=materialQuery('物料：Synthetic_Long_Document_20260101 Test Door Lock Options');assert.ok(q.query.includes('Lock Options'));assert.ok(!q.terms.includes('Lock'));assert.ok(!q.terms.includes('Options'));assert.ok(q.terms.includes('Door'));});

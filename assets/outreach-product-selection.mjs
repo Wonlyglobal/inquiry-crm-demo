@@ -1,6 +1,7 @@
 export const OUTREACH_CATEGORIES=[['security_door','防盗门'],['steel_door','钢质门'],['wooden_door','木门'],['armored_door','装甲门'],['cast_aluminum_door','铸铝门'],['copper_door','铜门'],['fire_door','防火门'],['medical_door','医用门'],['aluminum_windows','铝合金门窗'],['aluminum_wood_windows','铝木门窗'],['smart_lock','智能锁'],['mechanical_hardware','机械锁及五金']];
 export function suggestedOutreachCategory(text=''){
  const t=String(text);
+ if(/metal\s*door\s*1\.0|金属门\s*1\.0/i.test(t))return 'security_door';
  const rules=[['aluminum_wood_windows',/铝木|alumin(?:um|ium)[ -]wood/i],['cast_aluminum_door',/铸铝|cast alumin/i],['armored_door',/装甲|armou?red door/i],['copper_door',/铜门|copper door/i],['medical_door',/医用门|医疗门|hospital door|medical door/i],['fire_door',/防火门|fire door/i],['smart_lock',/智能锁|smart lock/i],['mechanical_hardware',/机械锁|机械五金|mechanical lock|door hardware/i],['wooden_door',/木门|wooden door/i],['security_door',/防盗门|security door|Metal Door 1\.0/i],['steel_door',/钢质门|金属门|steel door|metal door/i],['aluminum_windows',/铝合金|aluminum window|aluminium window/i]];
  return rules.find(([,pattern])=>pattern.test(t))?.[0]||'';
 }

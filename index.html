@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <script>if(location.pathname==='/grace.html'||new URLSearchParams(location.search).get('app')==='grace'){document.documentElement.dataset.graceApp='true';document.documentElement.dataset.graceEntry='true'}</script>
     <link rel="stylesheet" href="./assets/grace-entry.css?v=20261015-1" />
+    <link rel="stylesheet" href="./assets/outreach-floating-action.css?v=20261024-1" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>王力 · 全球询盘 CRM</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -8692,8 +8693,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           [...facts.slice(0, 3).map((text) => ({ type: "已确认事实", text })), ...strongSignals.slice(0, 3).map((text) => ({ type: "需求信号", text }))].forEach((item) => { const card = document.createElement("div"); card.className = "evidence-item"; card.textContent = item.text; const meta = document.createElement("small"); meta.textContent = item.type; card.append(meta); evidence.append(card); });
           if (!evidence.children.length) { const empty = document.createElement("div"); empty.className = "evidence-item"; empty.textContent = "尚无达到写信门槛的证据。"; evidence.append(empty); }
           $("#outreach-eligibility").textContent = generated ? (ready?"可生成 · 质量完整":"可生成 · 建议补充资料") : "尚未生成背调";
-          $("#generate-outreach").disabled = !generated;
-          $("#generate-outreach").title = generated ? "" : "请先生成客户背调";
+          $("#generate-outreach").disabled = $("#generate-outreach").dataset.requestActive === 'true';
+          $("#generate-outreach").title = "生成可编辑的开发信草稿";
           $("#update-outreach").disabled=!researchChanged;
           $("#update-outreach").title=researchChanged?"背调已有更新，点击重新生成开发信":draftAt?"背调无更新":"尚无已保存的开发信";
           renderResearchDecisionBrief({ ready, identityReady, facts: traceableFacts, signals: strongSignals });
@@ -8831,13 +8832,17 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#outreach-recipient").value=recipient;$("#outreach-subject-a").value=replySubject;$("#outreach-subject-b").value=replySubject;$("#outreach-selected-subject").value="a";$("#outreach-body").value=`Dear ${currentInquiry.contact_name||"Customer"},\n\nThank you for your inquiry.\n\n\n\n${unifiedEnglishSignature()}`;$("#outreach-draft-title").textContent="询盘回复草稿";$("#outreach-status").textContent="正在回复客户原询盘 · 请补充正文后发送";$("#outreach-draft").classList.remove("hidden");$("#outreach-body").focus();evaluateOutreachDraft(replySubject,$("#outreach-body").value);$("#outreach-body").scrollIntoView({behavior:"smooth",block:"center"});
       });
       function publicOutreachContext(){return {getInquiry:()=>currentInquiry,find:$,toast,research:assessResearchQuality,lines:researchLines,parse:parseResearchEvidenceLine,recipient:resolveInquiryRecipient,contactName:()=>$("#detail-smart-name").value||currentInquiry?.contact_name,signature:unifiedEnglishSignature,save:saveOutreachDraft,setMode:mode=>{outreachComposeMode=mode},quality:(subject,body)=>evaluateOutreachDraft(subject,body,$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim()),invoke:(name,options)=>supabase.functions.invoke(name,options),edgeError:edgeFunctionErrorMessage};}
-      $("#outreach-public-prepare").addEventListener('click',async()=>{const {preparePublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-3');preparePublicOutreachEvidence(publicOutreachContext())});
-      $("#outreach-public-add").addEventListener('click',async()=>{const {addPublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-3');addPublicOutreachEvidence(publicOutreachContext())});
+      $("#outreach-public-prepare").addEventListener('click',async()=>{const {preparePublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-4');preparePublicOutreachEvidence(publicOutreachContext())});
+      $("#outreach-public-add").addEventListener('click',async()=>{const {addPublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-4');addPublicOutreachEvidence(publicOutreachContext())});
       async function generateOutreach() {
+        const button=$("#generate-outreach");if(button.dataset.requestActive==='true')return;
+        button.dataset.requestActive='true';button.disabled=true;
+        try{
         finalizedOutreachCopy=null;
-        const {generatePublicOutreach}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-3');
+        const {generatePublicOutreach}=await import('./assets/outreach-public-compose-ui.mjs?v=20261024-4');
         await generatePublicOutreach(publicOutreachContext());
         updateOutreachLanguageSelection();
+        }catch(e){toast('生成未完成：'+e.message)}finally{delete button.dataset.requestActive;button.disabled=false;}
       }
       $("#generate-outreach").addEventListener("click",generateOutreach);
       function clearCataloguePreview(){ $("#grace-outreach-catalogue-evidence").replaceChildren();$("#grace-outreach-catalogue-status").textContent="选择已变化，请重新读取对应画册；旧结果已清除。"; }

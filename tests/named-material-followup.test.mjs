@@ -15,3 +15,5 @@ test('unrecorded parameter does not become an unrelated fact or guessed value',(
 test('literal series and trim names also retain source without inventing model aliases',()=>{for(const n of ['Test Wood Series','Test Minimalist Architrave']){const a=resolveMaterialTurn('那它的厚度呢',['物料：'+n]);assert.match(a.question,new RegExp(n));assert.match(a.question,/厚度/);assert.equal(a.clarification,undefined)}});
 
 test('same-page foreign product and unattributed native facts cannot answer the named target',()=>{const x=structuredClone(data);x.assets[0].document.product_understanding.findings[0].product='Test Other Door';x.assets[0].document.pages=[{location:'第10页',chunks:['material synthetic other product'],facts:[{field:'材质',quote:'material synthetic other product'}]}];const a=conciseMaterialAnswer(x,'物料：Test Acoustic Door 材质');assert.match(a,/未明确覆盖所问参数/);assert.doesNotMatch(a,/synthetic other product|31 dB/)});
+
+test('compound parameter questions disclose unanswered fields alongside supported values',()=>{const a=conciseMaterialAnswer(data,'物料：Test Acoustic Door 隔音和质保');assert.match(a,/31 dB under laboratory conditions/);assert.match(a,/未明确覆盖：质保/)});

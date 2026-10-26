@@ -1,3 +1,4 @@
+import {loadPrivateProductEvidence,nativeGapText} from '../supabase/functions/agent-conversation/private-product-knowledge.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -96,7 +97,7 @@ test('actual market handler makes two authorized lookups and exposes source stat
  assert.match(src,/import \{[^\n]*loadMarketMaterials[^\n]*\} from '\.\/product-market\.mjs'/);
  const branch=src.slice(src.indexOf('   if(marketTurn){'),src.indexOf('   const v9Turn=')),calls=[];
  let audited=false;
- const deps={marketTurn:question,guest:false,input:{persona:'Grace'},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='product_country_market_analysis';return {error:null}}})},loadCatalog:async()=>catalog,findModels:()=>[model],loadFullMaterials:async config=>{calls.push(config.question);return response([/v9/.test(config.question)?asset('V9','a','配置'):asset('V10','b','安装')])},gateMaterialEvidence,materialConfig:{},productMarketReport,marketProductScope,loadMarketMaterials,crmMarketPriorityIntent,crmMarketPriorityScope,withCrmMarketPriority,evidenceCheck:()=>({status:'synthetic'}),user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async()=>null,json:x=>x};
+ const deps={client:{rpc:async()=>({data:{documents:[]}})},loadPrivateProductEvidence,nativeGapText,marketTurn:question,guest:false,input:{persona:'Grace'},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='product_country_market_analysis';return {error:null}}})},loadCatalog:async()=>catalog,findModels:()=>[model],loadFullMaterials:async config=>{calls.push(config.question);return response([/v9/.test(config.question)?asset('V9','a','配置'):asset('V10','b','安装')])},gateMaterialEvidence,materialConfig:{},productMarketReport,marketProductScope,loadMarketMaterials,crmMarketPriorityIntent,crmMarketPriorityScope,withCrmMarketPriority,evidenceCheck:()=>({status:'synthetic'}),user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async()=>null,json:x=>x};
  for(const name of [...src.matchAll(/import \{([^}]+)\} from '\.\/product-input\.mjs'/g)].flatMap(m=>m[1].split(',').map(s=>s.trim())))if(name in productInput)deps[name]=productInput[name];
  const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
  const result=await new AsyncFunction(...Object.keys(deps),branch)(...Object.values(deps));

@@ -131,7 +131,7 @@ export function allMarketEvidence(){
  return [...validMarketEvidence(),...PUBLIC_EVIDENCE.map(e=>({id:'existing-'+e.id,country:e.market,category:e.category==='medical_door'?'hospital_door':e.category,kind:'case',title:e.company+' · '+e.product,url:e.source_url,published_at:null,checked_at:e.accessed,read_status:'existing_index_not_rechecked',fact:(DIMENSIONS[e.dimension]?.label||e.dimension)+'：'+e.value,condition:'既有公开证据库的候选对标记录；本轮未重开原网页，不证明同档直接竞争或当前销售/认证范围。',implication:'仅作官方原文回查线索；复核当地配置、日期和同口径价格/服务后再比较，不以此记录直接判断优劣、需求或竞争强度。'}))];
 }
 const fresh=(e,now)=>{const age=now-Date.parse(e.checked_at);return e.read_status==='body_verified'&&age>=-86400000&&age<=(e.kind==='admission'?180:90)*86400000};
-export function modelMarketEvidence(model,catalog,materials,{edition=''}={}){
+export function modelMarketEvidence(model,catalog,materials,{edition='',native=null}={}){
  const ids=new Set((catalog?.sources||[]).map(s=>s.id));
  const old=(catalog?.products||[]).filter(p=>norm(p.model)===norm(model)&&ids.has(p.catalog)&&Number.isInteger(p.page)&&p.page>0);
  const facts=[],incomplete=new Set();
@@ -149,6 +149,9 @@ export function modelMarketEvidence(model,catalog,materials,{edition=''}={}){
    facts.push({field:f.field,value:f.quote,ref:`${a.name} 第${p.page}页`,edition:a.versionLabel||'版次未标注',date:a.updatedAt||null,sha256:a.document.sha256,current:true,source_page:p.page,source_quote:f.quote,source_kind:'native'});
   }
  }
+ // Private native annotations require their own geometric/source validator. They are
+ // never passed through the legacy quote path or accepted from the chat request body.
+ for(const f of native?.facts||[])if(f.analysis_eligible===true&&f.current===true)facts.push(f);
  // A native quote and its machine interpretation share one source. Their different
  // representations are not conflicting values. Distinct interpretations/quotes still conflict.
  const sourceKey=f=>JSON.stringify([f.sha256,editionKey(f.edition),f.source_page,norm(f.field),f.source_quote]);
@@ -165,7 +168,7 @@ export function modelMarketEvidence(model,catalog,materials,{edition=''}={}){
  // citations visible, but do not assemble an unproven configuration across source hashes.
  const configurations=new Set(current.filter(analyticalMarketFact).map(f=>f.sha256));
  const source_configuration_ambiguous=configurations.size>1;
- const retrieval_incomplete=(materials.source_lookups||[]).some(s=>s.completeness!=='complete');
+ const retrieval_incomplete=(materials.source_lookups||[]).some(s=>s.completeness!=='complete')||!!native?.blocked?.length;
  if(source_configuration_ambiguous||retrieval_incomplete)for(const f of current)if(analyticalMarketFact(f))f.analysis_eligible=false;
  // Fixed August records are supplemental only. An explicitly requested edition never falls back.
  const supplemental=edition?[]:old.flatMap(p=>Object.entries(p.specs||{}).filter(([,v])=>typeof v==='string'&&v.trim()).map(([field,value])=>({field,value,ref:`${CATALOG[p.catalog]||p.catalog} PDF第${p.page}页`,edition:'2026年8月版；未核定为现行配置',date:'2026-08',current:false})));
@@ -192,7 +195,7 @@ function renderCountry(a,now){
   '\n五力核对：'+a.forces.map(([label,value])=>`${label}：${value}`).join('；')+'。'+(a.decision?'\n\n'+renderMarketDecision(a.decision):'')+
   (publicFile.research_gaps?.[a.country.code]?.length?'\n\n本轮公开研究缺口（实际核验2026-10-26）：\n'+publicFile.research_gaps[a.country.code].map(g=>'- '+g).join('\n'):'');
 }
-export function productMarketReport({question,catalog,materials={status:'unavailable',assets:[]},evidence=allMarketEvidence(),now=Date.now(),countryScope=null}){
+export function productMarketReport({question,catalog,materials={status:'unavailable',assets:[]},native=null,evidence=allMarketEvidence(),now=Date.now(),countryScope=null}){
  const q=String(question),explicit=materialModelCodes(q),known=findModels(q,catalog),edition=materialVersion(q),cat=catOf(q);
  const unique=[...new Set((catalog?.products||[]).filter(p=>!cat||p.category===cat).map(p=>p.model).filter(Boolean))];
  const models=explicit.length?explicit.map(m=>known.find(k=>norm(k)===norm(m))||m):known;
@@ -206,7 +209,7 @@ export function productMarketReport({question,catalog,materials={status:'unavail
   return {answer:heading+`本次目录找到${unique.length}个${CAT.find(([c])=>c===cat)?.[1]||'产品'}型号；这是已索引目录，不是全部现售SKU。产品第${page}页，本页${items.length}个：\n`+items.map(m=>`${m}：可逐款查询产品证据、SWOT与国家匹配；尚未生成或核验该款市场结论。`).join('\n')+`\n请指定一个完整型号和国家，例如“分析${items[0]||'完整型号'}在新加坡的市场，给出SWOT和国家匹配度”。${unique.length>page*8?'可问“产品第'+(page+1)+'页”。':''}\n`+coverage,models:[],countries:[],status:'needs_model',material_question:PREFIX+q.slice(0,475)};
  }
  if(models.length>1)return {answer:heading+'一次先核验一个完整型号，避免把不同配置混成一份SWOT。当前识别：'+models.join('、')+'。请选其中一款；其他型号的证据未被合并。',models,countries:[],status:'needs_model',material_question:PREFIX+q.slice(0,475)};
- const product=modelMarketEvidence(models[0],catalog,materials,{edition});if(!product.category)product.category=cat;
+ const product=modelMarketEvidence(models[0],catalog,materials,{edition,native});if(!product.category)product.category=cat;
  const current=product.facts,parameters=current.filter(analyticalFact),old=product.supplemental;
  const sourceLine=f=>`${f.field}：${f.value}｜${f.ref}｜${f.edition}｜来源日期：${f.date||'未标注'}${f.sha256?'｜SHA-256 '+f.sha256:''}`;
  const referenced=new Set(current.map(f=>f.sha256)),seenSources=new Set();

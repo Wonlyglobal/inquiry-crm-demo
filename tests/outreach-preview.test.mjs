@@ -8,9 +8,9 @@ test('hidden result or inactive inquiry tab never steals focus',()=>{
  const draft={classList:{contains:()=>true}};assert.equal(revealOutreachPreview(x=>x==='#outreach-draft'?draft:{}),false);
  draft.classList.contains=()=>false;draft.closest=()=>({classList:{contains:()=>true}});assert.equal(revealOutreachPreview(x=>x==='#outreach-draft'?draft:{}),false);
 });
-test('floating action reuses the original button and handles safe areas',()=>{
+test('earliest layout keeps the original action in the header with request protection',()=>{
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8'),css=readFileSync(new URL('../assets/outreach-floating-action.css',import.meta.url),'utf8');
- assert.equal((html.match(/id="generate-outreach"/g)||[]).length,1);assert.match(css,/position: fixed/);assert.match(css,/safe-area-inset-bottom/);assert.match(html,/dataset\.requestActive==='true'/);
+ assert.equal((html.match(/id="generate-outreach"/g)||[]).length,1);assert.doesNotMatch(html,/<link[^>]+outreach-floating-action/);assert.match(html,/dataset\.requestActive==='true'/);
  assert.match(css,/#detail-modal:has\(\[data-detail-section="outreach"\]:not\(\.hidden\)\) \.modal/);assert.match(css,/backdrop-filter: none/);
  assert.doesNotMatch(html,/generate-outreach"\)\.disabled = !generated/);
 });

@@ -8,6 +8,7 @@ import {privateReportQuestion} from './private-report-context.mjs';
 import {questionPlan,runQuestionPlan} from './question-plan.mjs';
 import {normalizeProductInput,bareModel} from './product-input.mjs';
 import {privateV9Turn} from './private-v9-turn.mjs';
+import {nativeProductTurn,loadPrivateProductEvidence,nativeProductAnswer,nativeGapText} from './private-product-knowledge.mjs';
 import {evidenceCheck,sourceStatusIntent,sourceStatusAnswer} from './acceptance-status.mjs';
 import {crmGuideIntent,crmGuideAnswer,CRM_GUIDE_VERSION} from './crm-guide.mjs';
 import {answerDepthInstruction} from './answer-depth.mjs';
@@ -315,10 +316,24 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
     const codes=materialModelCodes(marketScope),models=catalog?findModels(marketScope,catalog):[];
     const target=codes.length===1?codes[0]:models.length===1?models[0]:null;
     const materials=target?gateMaterialEvidence(await loadMarketMaterials(marketScope,target,catalog,question=>loadFullMaterials({...materialConfig,question}))):{status:'not_requested',assets:[]};
-    const report=withCrmMarketPriority(productMarketReport({question:marketScope,catalog,materials,countryScope:priority.status==='not_requested'?null:priority.countries}),priority);
+    const native=target?await loadPrivateProductEvidence(client,{model:target,edition:materialVersion(marketScope)||'',materials}):null;
+    const report=withCrmMarketPriority(productMarketReport({question:marketScope,catalog,materials,native,countryScope:priority.status==='not_requested'?null:priority.countries}),priority);
+    if(native?.receipts?.length)report.answer+='\n\n私有原生页证据（机器整理，图片/图表和实际现售配置未核验）：\n'+native.receipts.map(r=>`知识编号：${r.id}；知识键：${r.key}；知识包SHA-256：${r.digest}`).join('\n')+'\n'+[...new Set(native.gaps.map(nativeGapText))].join('\n')+'\n私有产品读取上限最近5份，不代表全库；原文发布日期未知时保持未知。';
+    else if(native)report.answer+='\n私有原生页补读：'+(native.status==='unavailable'?'本次读取未完成，不将失败当作无参数。':'最近5份私有产品证据未命中本型号/版次，不代表全库不存在。');
     report.material_question='产品市场：'+marketTurn.replace(/；本轮国家[^\n]*$/,'').slice(0,475);
     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'product_country_market_analysis',persona:input.persona,provider:'internal',models:report.models.slice(0,4),countries:report.countries,status:report.status,current_source_count:report.current_source_count||0,current_parameter_count:report.current_parameter_count||0,material_status:materials.status},reason:'同型号私有证据与官方公开市场样本在系统内核对，不送外部模型、不改变客户或投放'});if(error)return json({error:'调用审计失败'},503);
     return json({answer:report.answer,provider:'internal',model:'product-market',context:{route:'product_market',status:report.status,models:report.models,countries:report.countries,crm_priority_status:priority.status,material_sources:materials.source_lookups||[],evidence_check:evidenceCheck(materials),material_question:report.material_question},ticket:await ticket({user:user.id,persona:input.persona,text:'产品证据、SWOT、国家适配和竞争核对已放在窗口里；尚缺的资料也单独列出了。',expires:Date.now()+300000},key)});
+   }
+   const nativeTurn=guest?null:nativeProductTurn(input.question,input.materialHistory||[]);
+   if(nativeTurn){
+    const catalog=await loadCatalog(admin);
+    const materials=gateMaterialEvidence(await loadMarketMaterials(nativeTurn.question,nativeTurn.model,catalog,question=>loadFullMaterials({...materialConfig,question})));
+    const native=await loadPrivateProductEvidence(client,{...nativeTurn,materials});
+    if(native.receipts.length){
+     const report=nativeProductAnswer(native,nativeTurn);
+     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'private_product_native',provider:'internal',field_count:report.field_count,source_matched_count:report.source_matched_count},reason:'原用户私有产品原生页/区域证据与本次签名源核对，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);
+     return json({answer:report.answer,provider:'internal',model:'private-product-native',context:{route:'materials',material_question:report.material_question,receipts:report.receipts,native_fields:report.field_count,source_matched_fields:report.source_matched_count},ticket:await ticket({user:user.id,persona:input.persona,text:'带型号、页码和缺口的原生文字证据已放在窗口里，机器摘录仍需核对。',expires:Date.now()+300000},key)});
+    }
    }
    const v9Turn=guest?null:privateV9Turn(input.question,input.materialHistory||[]);
    if(v9Turn){

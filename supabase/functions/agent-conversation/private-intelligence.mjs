@@ -1,4 +1,6 @@
 import {existingVideoIntent,loadExistingVideoIndex,existingVideoAnalysis} from './social-video-existing.mjs';
+import {nativeProductEvidence} from './product-native-evidence.mjs';
+import {nativeProductAnswer} from './private-product-knowledge.mjs';
 // Private company reports: deterministic retrieval only. Never add these documents to model memory.
 import {loadSocialContent,socialContentIntent,privateSocialContentAnalysis} from './social-content.mjs';
 import {formatPrivateSection} from './private-report-format.mjs';
@@ -14,7 +16,7 @@ export function privateIntelligenceIntent(q=''){
 }
 export function privateIntelligenceQuery(q='',now=Date.now()){
  q=typeof q==='string'?q.normalize('NFKC'):'';
- const id=q.match(/\b(?:weekly|daily|evidence|tiktok|instagram|facebook|youtube)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?\b/)?.[0]||null;
+ const id=q.match(/\b(?:product-[0-9a-f]{64}|(?:weekly|daily|evidence|tiktok|instagram|facebook|youtube)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?)\b/)?.[0]||null;
  const kind=id?id.split('-')[0]:/tiktok/i.test(q)?'tiktok':/instagram/i.test(q)?'instagram':/facebook/i.test(q)?'facebook':/youtube/i.test(q)?'youtube':/周报/.test(q)?'weekly':/日报/.test(q)?'daily':/证据/.test(q)?'evidence':null;
  const dates=q.match(/20\d{2}-\d{2}-\d{2}/g)||[];
  let from=dates[0]||null,to=dates[1]||null;
@@ -33,6 +35,10 @@ export function privateIntelligenceAnswer(result,question='',now=Date.now(),cont
  if(!rows.length)return '私有知识库没有查到对应日期的已同步报告或证据。这不表示该期间没有业务或市场变化；请先导入对应报告。';
  const out=['以下来自公司私有知识库；报告与证据未发送给外部模型。'];
  for(const row of rows){const d=row.document;
+  if(d.kind==='product'){
+   const e=d.product_evidence,checked=nativeProductEvidence(d,{model:e.model,edition:e.source_edition,sources:[]});
+   out.push('\n'+nativeProductAnswer({...checked,receipts:[{id:row.id,digest:row.digest,key:d.key}],status:'available'},{model:e.model,edition:e.source_edition,question:''}).answer);continue;
+  }
   const social=existingVideoIntent(question)?existingVideoAnalysis(d,video,question,now):socialContentIntent(question)?privateSocialContentAnalysis(d,content,now):socialAnalysisIntent(question)?privateSocialAnalysis(d,now):privateSocialDisplay(d,question);
   if(social!==null){out.push('\n'+social,`\n知识编号：${row.id}；版本校验：${row.digest}`);continue}
   out.push(`\n${d.title}`,`报告期间：${d.period.from}—${d.period.to}；来源生成：${d.generated_at}`,'状态：自动汇总，未经人工事实核验；导入时间不等于源数据更新时间。');

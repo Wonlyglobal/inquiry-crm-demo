@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {productMarketIntent,productMarketTurn,countryMatches,validMarketEvidence,modelMarketEvidence,countryAssessment,productMarketReport,marketProductScope,marketMaterialQuestion} from '../supabase/functions/agent-conversation/product-market.mjs';
+import {productMarketIntent,productMarketTurn,countryMatches,validMarketEvidence,modelMarketEvidence,countryAssessment,productMarketReport,marketProductScope,marketMaterialQuestion,allMarketEvidence} from '../supabase/functions/agent-conversation/product-market.mjs';
 import * as productInput from '../supabase/functions/agent-conversation/product-input.mjs';
 import {privateV9Turn} from '../supabase/functions/agent-conversation/private-v9-turn.mjs';
 const now=Date.parse('2026-10-26T04:00:00Z'),sha='a'.repeat(64);
@@ -71,11 +71,15 @@ test('same country and category official evidence only; competitor existence is 
  const sg=countryMatches('新加坡')[0],a=countryAssessment(p,sg,undefined,now);
  assert.equal(a.cases.length,1);assert.equal(a.admission.length,1);assert.equal(a.score,null);assert.equal(a.competition_score,null);assert.match(a.competition,/强度待核验/);
  const wooden=countryAssessment({...p,category:'wooden_door'},sg,undefined,now);assert.equal(wooden.rows.length,0);
- const mx=countryAssessment(p,countryMatches('墨西哥')[0],undefined,now);assert.equal(mx.rows.length,0);assert.match(mx.competition,/未知/);
+ const mx=countryAssessment(p,countryMatches('墨西哥')[0],undefined,now);assert.equal(mx.usable.length,0);assert.equal(mx.cases.length,0);assert.ok(mx.rows.every(e=>e.read_status==='existing_index_not_rechecked'));assert.match(mx.competition,/未知/);
 });
 test('stale official evidence remains visible with dates, but is excluded from present conclusions',()=>{
  const r=report('TEST80 PRO智能锁新加坡SWOT',{now:Date.parse('2027-10-26')});
  assert.equal(r.assessments[0].usable.length,0);assert.match(r.answer,/历史证据，需复核/);assert.match(r.answer,/2026-10-26/);assert.doesNotMatch(r.assessments[0].competition,/存在可核对/);
+});
+test('the full existing public competitor index is searched without promoting historical access to current verification',()=>{
+ const rows=allMarketEvidence(),old=rows.filter(e=>e.read_status==='existing_index_not_rechecked');assert.ok(old.length>0);assert.ok(rows.length>validMarketEvidence().length);
+ const r=report('TEST80 PRO智能锁墨西哥市场分析');assert.match(r.answer,/公开市场检索覆盖/);assert.match(r.answer,/原库访问日期（本轮未重验）/);assert.equal(r.assessments[0].cases.length,0);assert.match(r.answer,/本轮未重开原网页/);
 });
 test('SWOT separates unknowns from weaknesses and attributes advice as hypotheses',()=>{
  const r=report('TEST80 PRO智能锁新加坡市场分析，SWOT和国家匹配度');

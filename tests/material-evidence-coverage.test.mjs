@@ -41,7 +41,7 @@ test('new native field labels survive the signed load, normalizer, gate and mark
 });
 
 test('requested quote windows survive the fourth chunk and late characters without joining text',async()=>{
- for(const chunks of [['unrelated a','unrelated b','unrelated c',quote],['x'.repeat(1000)+quote+'y'.repeat(1000)]]){
+ for(const chunks of [['unrelated a','unrelated b','unrelated c',quote],['x'.repeat(1000)+' '+quote+' '+'y'.repeat(1000)]]){
   const {gated,product}=await retrieve([asset(document({pages:[{page:1,chunks,facts:[]}]}))]);
   assert.equal(product.facts.length,1);const d=gated.assets[0].document;budgets(d);
   assert.ok(d.pages[0].chunks.some(c=>c.includes(quote)));
@@ -108,7 +108,7 @@ test('new selection never bypasses exact model, edition, current status, hash or
 
 test('long chunk windows do not evict a different chunk containing a contradictory value',async()=>{
  const rows=[finding(),finding({field:'尺寸',value:'20mm',quote:model+' synthetic size 20mm'}),finding({field:'材质',value:'steel',quote:model+' synthetic steel'}),finding({value:'9V',quote:model+' synthetic power 9V'})];
- const long=rows.slice(0,3).map(f=>f.quote).join('x'.repeat(1000));
+ const long=rows.slice(0,3).map(f=>f.quote).join(' '+' '+'x'.repeat(1000)+' '+' ');
  const doc=document({pages:[{page:1,chunks:[long,rows[3].quote],facts:[]}],product_understanding:{schema:'local-product-v1',source_sha256:sha,status:'processed',findings:rows}});
  const {gated,product}=await retrieve([asset(doc)],model+' 智能锁画册v9 参数');
  assert.ok(product.conflicts.includes('供电'));assert.ok(!product.facts.some(f=>f.field==='供电'));budgets(gated.assets[0].document);
@@ -118,7 +118,7 @@ test('omitted same-field candidates at every display limit forbid a remaining-fi
  const second=finding({value:'9V',quote:model+' synthetic power 9V'});
  const filler=Array.from({length:11},(_,i)=>finding({field:'尺寸 '+i,value:'20mm',quote:model+' synthetic size 20mm '+i}));
  const scenarios=[
-  document({pages:[{page:1,chunks:[quote+'x'.repeat(1000)+filler[0].quote+'x'.repeat(1000)+filler[1].quote+'x'.repeat(1000)+second.quote],facts:[]}],product_understanding:{schema:'local-product-v1',source_sha256:sha,status:'processed',findings:[finding(),...filler.slice(0,2),second]}}),
+  document({pages:[{page:1,chunks:[quote+' '+'x'.repeat(1000)+' '+filler[0].quote+' '+'x'.repeat(1000)+' '+filler[1].quote+' '+'x'.repeat(1000)+' '+second.quote],facts:[]}],product_understanding:{schema:'local-product-v1',source_sha256:sha,status:'processed',findings:[finding(),...filler.slice(0,2),second]}}),
   document({pages:[{page:1,chunks:[[quote,...filler.map(f=>f.quote),second.quote].join('\n')],facts:[]}],product_understanding:{schema:'local-product-v1',source_sha256:sha,status:'processed',findings:[finding(),...filler,second]}}),
   document({pages:Array.from({length:7},(_,i)=>({page:i+1,chunks:[i===6?second.quote:quote],facts:[]})),product_understanding:{schema:'local-product-v1',source_sha256:sha,status:'processed',findings:Array.from({length:7},(_,i)=>finding(i===6?{...second,page:7}:{page:i+1}))}}),
   document({product_understanding:null,pages:[{page:1,chunks:Array.from({length:5},(_,i)=>model+' synthetic power '+(i+8)+'V'),facts:Array.from({length:5},(_,i)=>native({quote:model+' synthetic power '+(i+8)+'V'}))}]})

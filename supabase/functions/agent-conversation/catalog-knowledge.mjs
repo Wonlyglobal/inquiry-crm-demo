@@ -38,7 +38,7 @@ export function findModels(question,catalog){
  for(const m of models){
   const n=norm(m);if(n.length<3)continue;
   const pat=m.trim().split(/[\s\-_/]+/).map(esc).join('[\\s\\-_/]*');
-  const re=new RegExp('(^|[^A-Za-z0-9])('+pat+')(?![A-Za-z0-9])','i');const r=q.match(re);
+  const re=new RegExp('(^|[^A-Za-z0-9])('+pat+')(?![A-Za-z0-9]|[\\s_/.\\-]+(?:PRO|MAX|PLUS|ULTRA|LITE|BASIC|STANDARD)\\b)','i');const r=q.match(re);
   if(r){hits.push(m);const at=r.index+r[1].length;q=q.slice(0,at)+' '.repeat(r[2].length)+q.slice(at+r[2].length)}
  }
  const seen=new Set();return hits.filter(m=>{const k=norm(m);if(seen.has(k))return false;seen.add(k);return true}).slice(0,4);

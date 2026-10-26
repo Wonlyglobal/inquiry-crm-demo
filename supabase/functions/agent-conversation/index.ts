@@ -19,7 +19,7 @@ import {correctionCommand,runCorrectionCommand,relevantCorrections,loadApprovedC
 import {backgroundIntent,backgroundContext} from './background-research.mjs';
 import {companyLookupIntent,lookupCompanies,companyAnswer} from './company-research.mjs';
 import {projectTurn,projectQuestion,projectIntent,projectAnswer} from './catalog-projects.mjs';
-import {productMarketTurn,productMarketReport,marketProductScope,marketMaterialQuestion} from './product-market.mjs';
+import {productMarketTurn,productMarketReport,marketProductScope,loadMarketMaterials} from './product-market.mjs';
 import {crmMarketPriorityIntent,crmMarketPriorityScope,withCrmMarketPriority} from './market-priority.mjs';
 import {validateFeedback,feedbackSummaryIntent,feedbackSummaryAnswer} from './answer-feedback.mjs';
 import {embed,recallMemories,storeMemory,recallInstruction,shouldStore,conversationMemoryCommand,runConversationMemoryCommand} from './conversation-memory.mjs';
@@ -309,11 +309,11 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
     const marketScope=marketProductScope(priority.question,catalog);
     const codes=materialModelCodes(marketScope),models=catalog?findModels(marketScope,catalog):[];
     const target=codes.length===1?codes[0]:models.length===1?models[0]:null;
-    const materials=target?gateMaterialEvidence(await loadFullMaterials({...materialConfig,question:marketMaterialQuestion(marketScope,target)}).catch(()=>({status:'unavailable',assets:[]}))):{status:'not_requested',assets:[]};
+    const materials=target?gateMaterialEvidence(await loadMarketMaterials(marketScope,target,catalog,question=>loadFullMaterials({...materialConfig,question}))):{status:'not_requested',assets:[]};
     const report=withCrmMarketPriority(productMarketReport({question:marketScope,catalog,materials,countryScope:priority.status==='not_requested'?null:priority.countries}),priority);
     report.material_question='产品市场：'+marketTurn.replace(/；本轮国家[^\n]*$/,'').slice(0,475);
     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'product_country_market_analysis',persona:input.persona,provider:'internal',models:report.models.slice(0,4),countries:report.countries,status:report.status,current_source_count:report.current_source_count||0,current_parameter_count:report.current_parameter_count||0,material_status:materials.status},reason:'同型号私有证据与官方公开市场样本在系统内核对，不送外部模型、不改变客户或投放'});if(error)return json({error:'调用审计失败'},503);
-    return json({answer:report.answer,provider:'internal',model:'product-market',context:{route:'product_market',status:report.status,models:report.models,countries:report.countries,crm_priority_status:priority.status,evidence_check:evidenceCheck(materials),material_question:report.material_question},ticket:await ticket({user:user.id,persona:input.persona,text:'产品证据、SWOT、国家适配和竞争核对已放在窗口里；尚缺的资料也单独列出了。',expires:Date.now()+300000},key)});
+    return json({answer:report.answer,provider:'internal',model:'product-market',context:{route:'product_market',status:report.status,models:report.models,countries:report.countries,crm_priority_status:priority.status,material_sources:materials.source_lookups||[],evidence_check:evidenceCheck(materials),material_question:report.material_question},ticket:await ticket({user:user.id,persona:input.persona,text:'产品证据、SWOT、国家适配和竞争核对已放在窗口里；尚缺的资料也单独列出了。',expires:Date.now()+300000},key)});
    }
    const v9Turn=guest?null:privateV9Turn(input.question,input.materialHistory||[]);
    if(v9Turn){

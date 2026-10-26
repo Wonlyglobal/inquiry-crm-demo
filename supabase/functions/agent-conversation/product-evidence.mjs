@@ -1,9 +1,10 @@
+import {mentions,findingModelMatchesProduct} from './product-materials.mjs';
 // Company-only results: never include this structure in external model context.
-export function productEvidence(raw,sha,{rank=()=>0,onCandidates=()=>{}}={}){
+export function productEvidence(raw,sha,{rank=()=>0,onCandidates=()=>{},accept=()=>true}={}){
  if(raw?.schema!=='local-product-v1'||!/^[a-f0-9]{64}$/.test(sha||'')||raw.source_sha256!==sha)return null;
  const statuses=['processing','processed','partial','limited','no_text'];
  const input=Array.isArray(raw.findings)?raw.findings:[];
- const valid=input.filter(f=>Number.isInteger(f?.page)&&f.page>0&&f.page<=500&&typeof f.product==='string'&&f.product.length>=2&&f.product.length<=100&&typeof f.quote==='string'&&f.quote.length<=500&&f.quote.includes(f.product)&&typeof f.field==='string'&&f.field.length<=60&&typeof f.value==='string'&&f.value.length<=250).map(f=>({product:f.product,field:f.field,value:f.value,page:f.page,quote:f.quote,human_verified:false,...(typeof f.model==='string'&&f.model.length<=60?{model:f.model}:{}),...(f.method==='rule'?{method:'rule'}:{})}));
+ const valid=input.filter(f=>Number.isInteger(f?.page)&&f.page>0&&f.page<=500&&typeof f.product==='string'&&f.product.length>=2&&f.product.length<=100&&typeof f.quote==='string'&&f.quote.length<=500&&f.quote.includes(f.product)&&(!f.model||typeof f.model==='string'&&mentions({excerpt:f.quote},f.model))&&findingModelMatchesProduct(f)&&typeof f.field==='string'&&f.field.length<=60&&typeof f.value==='string'&&f.value.length<=250&&accept(f)).map(f=>({product:f.product,field:f.field,value:f.value,page:f.page,quote:f.quote,human_verified:false,...(typeof f.model==='string'&&f.model.length<=60?{model:f.model}:{}),...(f.method==='rule'?{method:'rule'}:{})}));
  // Select supported, requested evidence before the existing display limit. Never infer an alias.
  const seen=new Set(),unique=valid.filter(f=>{const key=JSON.stringify([f.product,f.model||'',f.page,f.field,f.value,f.quote]);if(seen.has(key))return false;seen.add(key);return true});
  onCandidates(unique);

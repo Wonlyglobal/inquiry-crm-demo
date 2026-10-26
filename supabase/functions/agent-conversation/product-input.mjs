@@ -8,7 +8,7 @@ function chineseNumber(s){
 const EN={zero:0,oh:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90};
 const EN_WORD=Object.keys(EN).join('|');
 function englishNumber(s){const words=s.toLowerCase().trim().split(/[ -]+/);if(words.every(w=>EN[w]<10))return words.map(w=>EN[w]).join('');if(words.length===1)return String(EN[words[0]]);if(words.length===2&&EN[words[0]]>=20&&EN[words[0]]%10===0&&EN[words[1]]<10)return String(EN[words[0]]+EN[words[1]]);return null}
-const suffix=s=>s.replace(/(\d)(pro|max|plus|ultra)\b/ig,'$1 $2');
+const suffix=s=>s.replace(/(\d)[\s_/.-]*(pro|max|plus|ultra|lite|basic|standard)\b/ig,'$1 $2');
 export function normalizeProductInput(value){
  let q=String(value||'').normalize('NFKC');
  q=q.replace(/(?:艾克斯|埃克斯|艾斯|诶斯)(?=[ \t-]*(?:\d|[零〇一二两三四五六七八九十百千]))/g,w=>/克斯/.test(w)?'X':'S');
@@ -20,12 +20,12 @@ export function normalizeProductInput(value){
 }
 export function modelCodes(value){
  const q=normalizeProductInput(value),out=[];
- for(const m of q.matchAll(/\b[A-Za-z][A-Za-z0-9_-]{0,38}\d[A-Za-z0-9_-]*\b(?:[ \t_-]*(?:pro|max|plus|ultra)\b)?/gi)){
+ for(const m of q.matchAll(/\b[A-Za-z][A-Za-z0-9_-]{0,38}\d[A-Za-z0-9_-]*\b(?:[ \t_-]*(?:pro|max|plus|ultra|lite|basic|standard)\b)?/gi)){
   const code=m[0].trim().toUpperCase();if(/^(?:V\d+|ISO\d+|EN\d+|UL\d+)$/.test(code))continue;
   if(!out.includes(code))out.push(code);
  }return out.slice(0,4);
 }
-export const bareModel=value=>/^\s*[A-Za-z]{1,3}\d{2,4}[A-Za-z]?(?:[ \t_-]*(?:pro|max|plus|ultra))?\s*[。？！!?]*$/i.test(normalizeProductInput(value));
+export const bareModel=value=>/^\s*[A-Za-z]{1,3}\d{2,4}[A-Za-z]?(?:[ \t_-]*(?:pro|max|plus|ultra|lite|basic|standard))?\s*[。？！!?]*$/i.test(normalizeProductInput(value));
 
 // Requested dimensions only; these labels never infer product facts or model aliases.
 const FIELD_PATTERNS=[['颜色',/颜色|colou?rs?|finishes/i],['锁选项',/锁选项|锁配置|锁具|lock options?/i],['厚度',/厚度|thickness/i],['功能',/功能|features?|functions?/i],['配置',/配置|configuration/i],['供电',/供电|power supply/i],['电池',/电池|battery/i],['维护',/维护|maintenance/i],['防火',/防火|fire rating/i],['隔音',/隔音|sound insulation/i],['尺寸',/尺寸|dimensions?|size/i],['规格',/规格|specifications?/i],['材质',/材质|materials?/i],['型号',/型号|model/i],['认证',/认证|certification/i],['安装',/安装|installation/i],['质保',/质保|warranty/i],['保养',/保养/i],['参数',/参数|parameters?/i],['来源',/来源|出处|source|reference/i],['版本',/版本|version|edition/i],['页码',/页码|第几页|page/i],['适用条件',/适用|限制|户外|室外|场景|limitations?|outdoor|application/i],['开锁方式',/开锁|解锁|unlock/i]];

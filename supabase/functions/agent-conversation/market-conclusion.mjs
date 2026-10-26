@@ -1,12 +1,12 @@
 // Deterministic internal synthesis; no product excerpt is sent to a model.
-export const analyticalMarketFact=f=>/功能|配置|开锁|解锁|供电|电池|安装|尺寸|厚度|材质|结构|性能|认证|适用|场景|维护|质保|保修|feature|function|config|unlock|power|battery|install|dimension|thickness|material|performance|certif|application|warranty/i.test(f.field)&&!/^(?:型号|名称|产品名称|系列|model|name|series)$/i.test(f.field);
+export const analyticalMarketFact=f=>f.analysis_eligible!==false&&/功能|配置|开锁|解锁|供电|电池|安装|尺寸|厚度|材质|结构|性能|认证|适用|场景|维护|质保|保修|feature|function|config|unlock|power|battery|install|dimension|thickness|material|performance|certif|application|warranty/i.test(f.field)&&!/^(?:型号|名称|产品名称|系列|model|name|series)$/i.test(f.field);
 export const negativeMarketFact=f=>/无|未|没有|不(?:支持|具备|含|能|适用|符合|通过|提供|兼容|可)|缺少|尚缺|待(?:确认|核验|认证)|\bnot\b|\bwithout\b|\bno\b|\bcannot\b|\bun(?:certified|available|supported)\b/i.test(String(f.value||'').replace(/无线|无钥匙|无接触|无感|\bwireless\b|\bkeyless\b|\bcontactless\b|\bno-key\b/gi,''));
 export function marketDecision(product,assessment){
  const parameters=(product.facts||[]).filter(analyticalMarketFact),usable=assessment.usable||[];
  const groups={access:parameters.filter(f=>/开锁|解锁|功能|配置|unlock|feature|function/i.test(f.field)),power:parameters.filter(f=>/供电|电池|power|battery/i.test(f.field)),installation:parameters.filter(f=>/安装|尺寸|厚度|结构|install|dimension|thickness/i.test(f.field)),connectivity:parameters.filter(f=>/联网|连接|通信|connect|wireless/i.test(f.field))};
  const market={supply:usable.filter(e=>['case','channel','price'].includes(e.kind)),price:usable.filter(e=>e.kind==='price'),channel:usable.filter(e=>e.kind==='channel'),admission:usable.filter(e=>e.kind==='admission'),demand:usable.filter(e=>e.kind==='demand')};
  const ids=rows=>rows.map(e=>'['+e.id+']').join('、');
- const blockers=[!parameters.length?'同型号现行功能参数尚未建立':null,product.conflicts?.length?'同字段证据存在冲突，冲突项不得用于适配':null,
+ const blockers=[product.source_configuration_ambiguous?'多份独立来源的配置尚未对齐，不能拼接字段作为同一配置':!parameters.length?'同型号现行功能参数尚未建立':null,product.conflicts?.length?'同字段证据存在冲突，冲突项不得用于适配':null,
   '本型号在拟用用途/无线配置下的准入适用性和证书范围未核实',!groups.installation.length?'缺本型号安装接口与目标门体的对应测量':'已有安装相关标称，尚缺目标门体逐项测量及样机结果',
   '缺同配置完整交付成本、可执行售后承诺和直接购买验证'].filter(Boolean);
  const checks=[

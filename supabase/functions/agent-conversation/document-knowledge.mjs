@@ -1,6 +1,6 @@
 import {normalizeSlideVisual,slideVisualText} from './slide-visual.mjs';
 import {seriesIntent,namedMaterialProducts,materialModelCodes,materialFields} from './product-input.mjs';
-import {mentions} from './product-materials.mjs';
+import {mentions,sourceQuoteAt,sourceNamesModel} from './product-materials.mjs';
 import {productEvidence,productEvidenceText} from './product-evidence.mjs';
 import {normalizeProfile,profileEvidence} from './knowledge-profile.mjs';
 import {materialConstraints} from './material-relevance.mjs';
@@ -11,27 +11,38 @@ export function materialQuery(question){
  // A directory request asks for authorized catalogue metadata; instructions about citations are not search terms.
  if(seriesIntent(original))return {query:'',terms:[],page,constraints:materialConstraints(original)};
  if(/^(?:查看|查询|帮我看)?(?:最新物料|最新资料|所有资料|全部资料|公司动态|知识覆盖|产品知识覆盖|解析进度|学了多少|了解多少)[。？?！!]*$/.test(original))return {query:'',terms:[],page};
- const query=original.replace(/^.*?[：:]/,'').replace(/第\s*\d+\s*页/g,'').replace(/最新|最近|当前/g,' ').replace(/帮我|请|找到|查找|找一下|查一下|资料库|物料系统|产品知识|资料|物料|文件|给我|我要|想要|找|王力|我们|我司|介绍一下|介绍|了解|告诉我|是多少|是什么|怎么样|有哪些|如何|多少|的|？|\?/g,' ').trim().slice(0,120);
+ // Only the explicit routing prefix is disposable; a model may precede a meaningful colon.
+ const text=original.replace(/^\s*物料\s*[:：]/,'').replace(/第\s*\d+\s*页/g,'').replace(/最新|最近|当前/g,' ').replace(/帮我|请|找到|查找|找一下|查一下|资料库|物料系统|产品知识|资料|物料|文件|给我|我要|想要|找|王力|我们|我司|介绍一下|介绍|了解|告诉我|是多少|是什么|怎么样|有哪些|如何|多少|的|？|\?/g,' ').trim();
+ const constraints=materialConstraints(original),models=materialModelCodes(original);
+ // The private adapter routes by query, not constraints. Reserve only the explicitly
+ // requested smart-lock V9 scope and a single complete model before the 120-character cap.
+ const v9=/智能锁|smart.?lock/i.test(original)&&/^(?:v\s*9|第九版)$/i.test(constraints.version);
+ const anchor=v9?['智能锁画册v9',...(models.length===1?[models[0]]:[])].join(' '):'';
+ const query=(anchor?anchor+' '+text:text).slice(0,120);
  const ids=query.match(/[a-z0-9][a-z0-9_-]{1,39}/gi)||[];
  const fields=[['防火','防火'],['隔音','隔音'],['尺寸','尺寸'],['规格','规格'],['材质','材质'],['型号','型号'],['认证','认证'],['安装','安装'],['质保','质保'],['保养','保养'],['参数','参数']].filter(([k])=>query.includes(k)).map(([,v])=>v);
  const named=namedMaterialProducts(original).length>0;
  const neutral=/^(?:what|which|is|are|the|its|about|and|of|sound|insulation|material|materials|thickness|dimensions|size|specifications|parameters|source|reference|page|warranty|lock|options?|colou?rs?|finishes)$/i;
  const searchIds=named?ids.filter(x=>!neutral.test(x)):ids;
  const terms=[...new Set([...searchIds,...(named?[]:fields)])].slice(0,6);
- const constraints=materialConstraints(original);
  return {query,terms:terms.length?terms:[query].filter(Boolean),page,constraints};
 }
 const NATIVE_FIELDS=new Set(['型号','尺寸','材质','认证','性能','安装','维护','功能','配置','供电','电池','开锁方式','适用条件','厚度','规格','质保','保养','锁选项','颜色','隔音','防火']);
 const identity=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[\s_/-]+/g,'');
 // Output chunks stay contiguous source substrings, never joined product/table sections.
 function evidenceChunks(chunks,quotes){
- const windows=[],anchors=quotes.map(quote=>({quote,index:chunks.findIndex(c=>c.includes(quote))})).filter(a=>a.quote&&a.index>=0);
+ const windows=[],anchors=quotes.map(a=>{
+  const quote=a.quote;for(let index=0;index<chunks.length;index++){
+   const at=a.model?sourceQuoteAt(chunks[index],quote,a.model):chunks[index].indexOf(quote);
+   if(at>=0)return {quote,index,at};
+  }return {quote,index:-1,at:-1};
+ }).filter(a=>a.quote&&a.index>=0);
  // First retain distinct source chunks. Extra windows from one long chunk cannot evict
  // another chunk's candidate contradiction merely because it appeared later in findings.
- for(const distinct of [true,false])for(const {quote,index} of anchors){
+ for(const distinct of [true,false])for(const {quote,index,at} of anchors){
   if(windows.length===3)break;
-  if(windows.some(w=>w.text.includes(quote))||distinct&&windows.some(w=>w.index===index))continue;
-  const chunk=chunks[index],at=chunk.indexOf(quote),start=Math.max(0,Math.min(at-120,chunk.length-850));
+  if(windows.some(w=>w.index===index&&w.start<=at&&w.start+w.text.length>=at+quote.length)||distinct&&windows.some(w=>w.index===index))continue;
+  const chunk=chunks[index],start=Math.max(0,Math.min(at-120,chunk.length-850));
   windows.push({index,start,text:chunk.slice(start,start+850)});
  }
  for(let index=0;index<chunks.length&&windows.length<3;index++)if(!windows.some(w=>w.index===index))windows.push({index,start:0,text:chunks[index].slice(0,850)});
@@ -49,11 +60,17 @@ export function normalizeDocument(d,question=''){
  const supportedFinding=f=>supports(f)&&(String(f.value).match(/\d+(?:\.\d+)?/g)||[]).every(n=>f.quote.includes(n));
  const rank=f=>(supportedFinding(f)?8:0)+(models.some(m=>identity(m)===identity(f.model||f.product))?4:0)+(requested(f)?2:0);
  let semanticCandidates=[];const nativeCandidates=[];
- const product_understanding=productEvidence(d.product_understanding,d.sha256,{rank,onCandidates:rows=>{semanticCandidates=rows.filter(supportedFinding)}});
+ const originalContextValid=f=>{
+  const chunks=(pagesByNumber.get(f.page)||[]).flatMap(p=>p.chunks);
+  // Missing pages/quotes retain the established gate diagnostics; present quotes
+  // must pass identity checks before any source context can be lost to cropping.
+  return !chunks.some(c=>c.includes(f.quote))||sourceNamesModel(chunks,f.quote,f.model||f.product);
+ };
+ const product_understanding=productEvidence(d.product_understanding,d.sha256,{rank,accept:originalContextValid,onCandidates:rows=>{semanticCandidates=rows.filter(supportedFinding)}});
  const selection={pages_invalid:inputPages.length-shaped.length,pages_out_of_range:shaped.length-pages.length,pages_omitted:0,chunks_omitted:0,chunks_repositioned:0,native_facts_omitted:0,native_fact_duplicates:0,native_fields_rejected:0,semantic_findings_invalid:product_understanding?.selection.invalid_findings||0,semantic_finding_duplicates:product_understanding?.selection.duplicate_findings||0,semantic_findings_omitted:product_understanding?.selection.omitted_findings||0,semantic_source_rejected:d.product_understanding&&!product_understanding?1:0,budget_incomplete_fields:0};
  const prepared=pages.map(p=>{
   const raw=Array.isArray(p.facts)?p.facts:[];
-  const valid=raw.filter(f=>f&&NATIVE_FIELDS.has(f.field)&&f.kind==='source_excerpt');
+  const valid=raw.filter(f=>f&&NATIVE_FIELDS.has(f.field)&&f.kind==='source_excerpt'&&materialModelCodes(f.quote).every(model=>sourceNamesModel(p.chunks,f.quote,model)));
   selection.native_fields_rejected+=raw.length-valid.length;
   const nativeRank=f=>(f.quote.trim()&&p.chunks.some(c=>c.includes(f.quote))?8:0)+(models.some(m=>mentions({excerpt:f.quote},m))?4:0)+(requested(f)?2:0);
   const seen=new Set(),unique=valid.map(f=>({field:f.field,quote:String(f.quote||'').slice(0,500)})).filter(f=>{const key=JSON.stringify([f.field,f.quote]);if(seen.has(key))return false;seen.add(key);return true});
@@ -62,7 +79,7 @@ export function normalizeDocument(d,question=''){
   selection.native_fact_duplicates+=valid.length-unique.length;
   selection.native_facts_omitted+=Math.max(0,unique.length-facts.length);
   const semantic=(product_understanding?.findings||[]).filter(f=>f.page===p.page).sort((a,b)=>rank(b)-rank(a));
-  const anchors=[...semantic.filter(supports).map(f=>({quote:f.quote,rank:rank(f)})),...facts.filter(f=>p.chunks.some(c=>c.includes(f.quote))).map(f=>({quote:f.quote,rank:nativeRank(f)}))].sort((a,b)=>b.rank-a.rank).map(f=>f.quote);
+  const anchors=[...semantic.filter(supports).map(f=>({quote:f.quote,model:f.model||f.product,rank:rank(f)})),...facts.filter(f=>p.chunks.some(c=>c.includes(f.quote))).map(f=>({quote:f.quote,model:models.find(m=>mentions({excerpt:f.quote},m)),rank:nativeRank(f)}))].sort((a,b)=>b.rank-a.rank);
   const score=Math.max(0,...semantic.filter(supports).map(rank),...facts.map(nativeRank));
   return {page:p.page,location:String(p.location||'第'+p.page+'页').slice(0,140),kind:['sheet_cells','ocr','native_and_ocr','native_text'].includes(p.kind)?p.kind:'source_text',facts,rawChunks:p.chunks,anchors,score};
  });

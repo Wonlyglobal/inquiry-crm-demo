@@ -1,3 +1,4 @@
+import {sourceNamesModel,findingModelMatchesProduct} from './product-materials.mjs';
 // Runs after authorized retrieval, before any material renderer or client payload.
 // Validates returned evidence structure, not source truth or live-file hashes.
 export const EVIDENCE_DIAGNOSTIC_KEYS=['pages_invalid','pages_out_of_range','pages_omitted','chunks_omitted','chunks_repositioned','native_facts_omitted','native_fact_duplicates','native_fields_rejected','semantic_findings_invalid','semantic_finding_duplicates','semantic_findings_omitted','semantic_source_rejected','budget_incomplete_fields','unusable_document_pages','native_quote_missing','semantic_page_missing','semantic_quote_missing','semantic_number_missing','semantic_product_missing'];
@@ -27,7 +28,7 @@ export function gateMaterialEvidence(data){
      if(!page){hidden++;diagnostics.semantic_page_missing++;return false}
      const quoted=page.chunks.some(c=>c.includes(f.quote));
      const numbers=(String(f.value).match(/\d+(?:\.\d+)?/g)||[]).every(n=>f.quote.includes(n));
-     const named=f.quote.includes(f.product);
+     const named=f.quote.includes(f.product)&&findingModelMatchesProduct(f)&&sourceNamesModel(page.chunks,f.quote,f.model||f.product);
      if(!quoted)diagnostics.semantic_quote_missing++;
      if(!numbers)diagnostics.semantic_number_missing++;
      if(!named)diagnostics.semantic_product_missing++;

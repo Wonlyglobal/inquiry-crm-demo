@@ -4,6 +4,7 @@ test('no-model parameter lookup counts all page candidates before limiting displ
  const catalog={products:[],pages:Array.from({length:12},(_,i)=>({catalog:'c1',page:i+1,text:'Synthetic acoustic clue 42 dB. Not assigned to a product.'}))};
  const a=specAnswer(specIntent('木门隔音多少分贝'),catalog);
  assert.match(a,/全部正文页检索找到 12 条数值线索/);assert.equal((a.match(/PDF第/g)||[]).length,3);assert.match(a,/产品归属未确认，不能直接当作该门类参数/);
+ assert.match(a,/2026 年 8 月版/);
 });
 test('parameter miss is an index gap rather than a claim about every original document',()=>{
  const a=specAnswer(specIntent('木门隔音多少分贝'),{products:[],pages:[]});assert.match(a,/不能据此判断原画册没有写明/);

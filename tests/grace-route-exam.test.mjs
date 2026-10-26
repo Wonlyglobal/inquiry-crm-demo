@@ -13,7 +13,7 @@ const catalog={products:[
  pages:[{catalog:'c3',page:3,text:'静音木门 采用多层密封 静音设计'}]};
 test('spec lookup: catalogue values with pages, never generic numbers',()=>{
  const f=specAnswer(specIntent('防火门耐火多久'),catalog);assert.match(f,/EI 60（FW-60；工程画册 PDF第12页）/);
- const w=specAnswer(specIntent('静音木门隔音多少分贝'),catalog);assert.match(w,/没有写明木门的「隔声」/);assert.match(w,/不会用行业通用数值/);
+ const w=specAnswer(specIntent('静音木门隔音多少分贝'),catalog);assert.match(w,/未取得木门的「隔声」证据/);assert.match(w,/不能据此判断原画册没有写明/);assert.match(w,/不会用行业通用数值/);
  const r=specAnswer(specIntent('有没有达到 RC3 防盗等级的门'),catalog);assert.match(r,/没有找到明确标为 RC3/);assert.match(r,/Grade A/);
  assert.equal(specIntent('木门多久能交货'),null);assert.equal(specIntent('竞品防火门耐火等级'),null);
 });

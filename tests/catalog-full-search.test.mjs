@@ -11,5 +11,17 @@ test('all product and corporate questions search complete page, fact and product
 });
 test('unknown catalogue question is kept internal with explicit no-match coverage rather than model guess',()=>{
  const a=fullCatalogueAnswer(null,fixture,'画册 nonexistentword');assert.match(a.answer,/不能据此回答“没有”/);assert.equal(a.coverage.matches,0);assert.match(a.coverage_text,/未解析页/);
- assert.equal(fullCatalogueAnswer(null,null,'画册'),null);
+ const failed=fullCatalogueAnswer(null,null,'画册 PRIVATE-QUESTION');assert.equal(failed.status,'unavailable');assert.equal(failed.coverage,null);assert.match(failed.answer,/不会改用外部模型/);assert.doesNotMatch(failed.answer,/PRIVATE-QUESTION/);
+});
+test('unlisted Chinese company and product subjects search every source without a magic keyword',()=>{
+ const c={...fixture,pages:[...fixture.pages,{catalog:'c1',page:44,text:'仅合成数据：特殊复合涂层工艺。'}]};
+ for(const q of ['王力采用什么特殊复合涂层工艺','锁具采用什么特殊复合涂层工艺']){
+  assert.equal(catalogPrecheck(q),true);const a=fullCatalogueAnswer(catalogIntent(q,c),c,q);
+  assert.ok(a.coverage.terms.includes('涂层'));assert.equal(a.coverage.records_searched,38);assert.match(a.answer,/PDF第44页/);
+ }
+ for(const q of ['WONLY manufacturing technology','What material properties do wooden doors have?','木门厚度请附PDF页码'])assert.equal(catalogPrecheck(q),true,q);
+ for(const q of ['我们本月客户询盘统计','本月社媒帖子数据','我们的营销策略分析','WONLY monthly inquiry statistics','WONLY marketing strategy'])assert.equal(catalogPrecheck(q),false,q);
+ assert.equal(catalogIntent('TEST-998的参数请附PDF页码',fixture)?.kind,'models');
+ assert.equal(catalogPrecheck('下载非洲标杆案例画册'),false);
+ assert.equal(catalogIntent('下载非洲标杆案例画册',fixture),null);
 });

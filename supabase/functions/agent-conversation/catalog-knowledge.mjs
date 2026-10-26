@@ -13,6 +13,7 @@ const CATEGORY_NAMES={smart_lock:'智能锁',smart_door:'智能门',security_doo
 const CATEGORY_WORDS=[['smart_lock',/智能锁|指纹锁|人脸锁|门锁|smart ?lock/i],['smart_door',/智能门|smart ?door/i],['security_door',/防盗门|入户门|钢门|security ?door/i],['wooden_door',/木门|静音门|室内门|wooden ?door/i],['hospital_door',/医院门|医疗门|病房门/],['school_door',/学校门|教室门/],['refuge_door',/避难门|避难间/],['fire_window',/防火窗/],['lock_body',/锁体/],['lock_core',/锁芯/],['hinge',/合页|铰链/],['door_viewer',/猫眼/]];
 const SPEC_WORDS=/资料|产品信息|信息|产品介绍|了解|画册|型号|参数|规格|尺寸|厚度|等级|锁体|锁芯|门扇|门框|面板|颜色|配色|色号|认证|安装|维护|质保|适用|条件|标准|国标|功能|配置|开锁方式|屏幕|供电|电池|续航|区别|对比|差别|哪款|哪些|有什么|多少|是什么|介绍/;
 const FILE_REQUEST=/发(给)?我|发一下|下载|文件|资料包|链接|PDF|pdf|原图|图片|视频/;
+const fileDelivery=q=>FILE_REQUEST.test(q)&&!(/页码|出处|引用|来源|\bpages?\b|citations?|cite|references?/i.test(q)&&!/下载|发给|发送|发我|发一下|原图|资料包|链接|download|send/i.test(q));
 const FACT_TOPICS=[['patents',/专利/],['rnd',/研发(投入|团队|人员|中心|基地)?/],['capacity',/产能|年产/],['bases',/生产基地|工厂|基地/],['listing',/上市|股票|605268/],['brand_value',/品牌价值/],['awards',/获奖|奖项|红点|iF/i],['challenge',/开锁挑战|百万挑战|挑战/],['landmarks',/地标|标杆项目|案例|项目业绩/],['developers',/开发商|地产商|百强/],['service',/服务网点|售后|服务团队/],['lock_core',/锁芯|C级|GA\/T/],['triple_protection',/三防分离|三重防护/],['remote_sensing',/远感|雷达/],['standards',/标准/],['fire_window',/防火窗/],['coating',/涂装|附着力|磷化/],['founding',/成立|创立|哪一年/]];
 const CONFLICT_TOPICS={patents:/专利/,rnd_team:/研发(团队|人员|人数)/,users:/用户数|服务用户/,keyway:/钥匙槽|钥匙孔|键槽|keyway/i,lock_core_ratio:/锁芯|C级|A级|倍/,wood_leaf:/木门.*厚|门扇厚/,s80_colour:/S80/i};
 
@@ -48,21 +49,25 @@ export function catalogPrecheck(question){
  const q=normalizeModelQuestion(question).slice(0,500);
  // The fixed August index cannot answer a request constrained to another edition.
  if(materialVersion(q))return false;
+ if(fileDelivery(q))return false;
  if(projectQuestion(q))return true;
  if(/王力|我们|我司|wonly/i.test(q)&&FACT_TOPICS.some(([,re])=>re.test(q)))return true;
  if(bareModel(q))return true;
  if(inventoryIntent(q)||selectionIntent(q))return true;
- if(FILE_REQUEST.test(q))return false;
+ // Factual company/product knowledge must not depend on a known model or “画册”.
+ // CRM records, platform metrics and analytical workflows retain their own authorized sources.
+ const operational=/询盘|客户|商机|合同|报价|员工|利润|营收|成本|统计|SEO|GSC|GA4|社媒|帖子|粉丝|tiktok|instagram|facebook|youtube|市场|营销|策略|计划|增长|投放|广告|\binquir(?:y|ies)\b|\bcustomers?\b|\bcontracts?\b|\bquotes?\b|\bstatistics\b|\bmarketing\b|\bstrategy\b|\bcampaigns?\b|operating system|computer software|操作系统/i.test(q);
+ if(!operational&&((/王力|我们|我司|wonly/i.test(q)&&/什么|哪些|多少|哪年|哪里|介绍|说明|有没有|是否|情况|设计|工艺|材料|制造|技术|功能|\bwhat\b|\bwhich\b|\bwhere\b|\bwhen\b|describe|explain|technology|manufactur|design|materials?/i.test(q))||(/门|锁|门窗|五金|\bdoors?\b|\blocks?\b|\bwindows?\b|\bhardware\b/i.test(q)&&/设计|材质|材料|性能|工艺|参数|规格|型号|制造|技术|功能|厚度|尺寸|隔音|隔声|认证|安装|维护|质保|耐火|防火|design|materials?|performance|specifications?|parameters?|dimensions?|thickness|manufactur|technology|functions?/i.test(q))))return true;
  return /画册/.test(q)||(/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/.test(q)&&SPEC_WORDS.test(q))||(CATEGORY_WORDS.some(([,re])=>re.test(q))&&/型号|有哪些|哪几款|系列|产品线|参数|规格/.test(q));
 }
 
 export function catalogIntent(question,catalog){
  const q=normalizeModelQuestion(question).slice(0,500);
  if(!catalog)return null;
+ if(fileDelivery(q))return null;
  const projects=projectIntent(q);if(projects)return projects;
  if(selectionIntent(q))return {kind:'selection'};
  if(inventoryIntent(q))return {kind:'inventory'};
- if(FILE_REQUEST.test(q))return null;
  const models=findModels(q,catalog);
  const categories=CATEGORY_WORDS.filter(([,re])=>re.test(q)).map(([c])=>c);
  const facts=/画册|王力|我们|我司|wonly/i.test(q)?FACT_TOPICS.filter(([,re])=>re.test(q)).map(([t])=>t):[];
@@ -77,10 +82,10 @@ export function catalogIntent(question,catalog){
  return null;
 }
 export function fullCatalogueAnswer(intent,catalog,question=''){
- if(!catalog)return null;
+ if(!catalog)return {status:'unavailable',answer:'本次未能读取公司私有画册索引，检索尚未完成，不能据此判断有无对应产品、参数或项目；不会改用外部模型猜测内部资料。',coverage:null,coverage_text:'画册索引未能读取，不能记为检索成功。'};
  const search=searchCatalogue(question,catalog,{models:intent?.models||[]});
  const answer=catalogAnswer(intent,catalog,question);
- return {answer:answer||[HEAD(catalog),catalogueSearchFallback(search,{ref}),NOTE].join('\n\n'),coverage:search.coverage,coverage_text:catalogueSearchCoverage(search)};
+ return {status:'available',answer:answer||[HEAD(catalog),catalogueSearchFallback(search,{ref}),NOTE].join('\n\n'),coverage:search.coverage,coverage_text:catalogueSearchCoverage(search)};
 }
 
 const ref=(c,p)=>`${CATALOG_NAMES[c]||c} PDF第${p}页`;

@@ -19,10 +19,24 @@ export const SPEC_DIMS=[
 ];
 const STRONG=new Set(['fire_rating','acoustic','security_class']);
 const MODEL_CODE=/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/;
+// Query-only context, explicitly marked by the authenticated catalogue response.
+export function catalogueTurn(question,history=[]){
+ const q=String(question||'').trim(),stored=String(history.at(-1)||'');
+ if(!stored.startsWith('画册检索：')||q.length>80)return null;
+ const previous=stored.slice('画册检索：'.length);
+ if(/^(?:那)?(?:来源|出处|页码|版本|展开|详细|source|references?|pages?)/i.test(q))return previous+' '+q;
+ if(!/^(?:那|它|这个|还有)|呢[？?。]*$/.test(q))return null;
+ const prior=specIntent(previous);if(!prior)return null;
+ if(specIntent(q))return q;
+ const withCategory=prior.catLabel+' '+q;
+ if(specIntent(withCategory))return withCategory;
+ const withDimension=q+' '+prior.dimLabel;
+ return specIntent(withDimension)?withDimension:null;
+}
 
 export function specIntent(question){
  const q=String(question||'').slice(0,300);
- if(/竞品|对手|同行|对比|比较|价格|多少钱|发我|下载|PDF|视频/i.test(q))return null;
+ if(/竞品|对手|同行|对比|比较|价格|多少钱|发我|下载|视频/i.test(q)||/PDF/i.test(q)&&!/页码|出处|引用|来源|\bpages?\b|citations?|cite|references?/i.test(q))return null;
  const cat=CATS.find(([,re])=>re.test(q));if(!cat)return null;
  const dim=SPEC_DIMS.find(([,,ask])=>ask.test(q));if(!dim)return null;
  if(cat[0]==='any'&&!/有没有|有哪些|哪款|哪些门|什么门/.test(q))return null;
@@ -47,11 +61,11 @@ export function specAnswer(intent,catalog){
  const wantRe=intent.want?new RegExp(intent.want.replace(/(\d)/,'\\s?$1'),'i'):null;
  const matched=wantRe?list.filter(r=>wantRe.test(r.value)):list;
  const pageHits=[];
- if(!list.length)for(const pg of catalog.pages||[]){const t=String(pg.text||'');const m=t.match(valRe);if(m){const i=m.index;pageHits.push(`- ${ref(pg.catalog,pg.page)}：…${t.slice(Math.max(0,i-60),i+80).replace(/\s+/g,' ').trim()}…`)}if(pageHits.length>=3)break}
+ if(!list.length)for(const pg of catalog.pages||[]){const t=String(pg.text||'');const m=t.match(valRe);if(m){const i=m.index;pageHits.push(`- ${ref(pg.catalog,pg.page)}：…${t.slice(Math.max(0,i-60),i+80).replace(/\s+/g,' ').trim()}…`)}}
  const head=`王力海外画册（2026 年 8 月版）里关于${intent.catLabel}「${label}」的写法：`;
  const tail='\n\n以上只来自画册，系统内查找，没有发送给外部模型；对外报价或投标前，以检测报告为准。';
- if(!list.length&&!pageHits.length)return `王力海外画册（2026 年 8 月版）里没有写明${intent.catLabel}的「${label}」。\n\n我不会用行业通用数值代替王力的参数——对外回答客户前，请产品部提供有检测报告支撑的数据；也可以说具体型号，我按型号再查一次。`+tail;
- if(!list.length)return `画册的产品参数表里没有${intent.catLabel}「${label}」这一项，但正文里有这些提法（文字识别结果，可能有错字）：\n${pageHits.join('\n')}`+tail;
+ if(!list.length&&!pageHits.length)return `本次海外画册索引（2026 年 8 月版）未取得${intent.catLabel}的「${label}」证据，不能据此判断原画册没有写明。\n\n我不会用行业通用数值代替王力的参数——对外回答客户前，请产品部提供有检测报告支撑的数据；也可以说具体型号，我按型号再查一次。`+tail;
+ if(!list.length)return head+`\n本次参数表索引未取得${intent.catLabel}「${label}」的明确字段；全部正文页检索找到 ${pageHits.length} 条数值线索，先列前 ${Math.min(3,pageHits.length)} 条（文字识别未核验，产品归属未确认，不能直接当作该门类参数）：\n${pageHits.slice(0,3).join('\n')}`+tail;
  const lines=(matched.length?matched:list).slice(0,8).map(r=>`- ${r.value}（${r.models.join('、')||'未标型号'}；${[...r.refs].slice(0,2).join('、')}）`);
  const wantNote=intent.want?(matched.length?`\n\n符合你问的 ${intent.want} 的有 ${matched.length} 种写法，见上。`:`\n\n画册里没有找到明确标为 ${intent.want} 的产品；上面是画册里现有的${label}写法，等级体系不同（如 GB 国标与 EN）不能直接换算。`):'';
  return head+'\n'+lines.join('\n')+wantNote+tail;

@@ -1,4 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {dailyState,summarize,localDay,importRows} from '../assets/sales-leads.mjs';
 test('Shanghai day does not depend on browser timezone',()=>{assert.equal(localDay(new Date('2026-10-25T16:01:00Z')),'2026-10-26')});
 const day={sales_id:'s',day:'2026-10-26',daily_min:1};
@@ -17,4 +18,9 @@ test('cohort ratio and period conversions use different denominators',()=>{
 test('Excel input is explicit, bounded and requires acquisition date',()=>{
  const r={'客户名称':'合成客户','国家':'合成地区','邮箱':'test@example.com','来源':'自主开发','需求简述':'合成门类需求','获取日期':'2026-10-26'};
  assert.equal(importRows([r])[0].source,'outbound');assert.throws(()=>importRows([{...r,'获取日期':''}]));assert.throws(()=>importRows(Array(201).fill(r)));assert.throws(()=>importRows([]));
+});
+test('new importer pins authoritative current parser and rejects oversized sheets without formula parsing',()=>{
+ const page=readFileSync(new URL('../assets/sales-leads-page.mjs',import.meta.url),'utf8');
+ assert.match(page,/cdn\.sheetjs\.com\/xlsx-0\.20\.3\/package\/xlsx\.mjs/);assert.doesNotMatch(page,/xlsx@0\.18/);
+ assert.match(page,/sheetRows:202/);assert.match(page,/cellFormula:false/);assert.match(page,/!fullref/);
 });

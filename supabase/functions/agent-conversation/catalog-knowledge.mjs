@@ -82,10 +82,10 @@ export function catalogIntent(question,catalog){
  return null;
 }
 export function fullCatalogueAnswer(intent,catalog,question=''){
- if(!catalog)return null;
+ if(!catalog)return {status:'unavailable',answer:'本次未能读取公司私有画册索引，检索尚未完成，不能据此判断有无对应产品、参数或项目；不会改用外部模型猜测内部资料。',coverage:null,coverage_text:'画册索引未能读取，不能记为检索成功。'};
  const search=searchCatalogue(question,catalog,{models:intent?.models||[]});
  const answer=catalogAnswer(intent,catalog,question);
- return {answer:answer||[HEAD(catalog),catalogueSearchFallback(search,{ref}),NOTE].join('\n\n'),coverage:search.coverage,coverage_text:catalogueSearchCoverage(search)};
+ return {status:'available',answer:answer||[HEAD(catalog),catalogueSearchFallback(search,{ref}),NOTE].join('\n\n'),coverage:search.coverage,coverage_text:catalogueSearchCoverage(search)};
 }
 
 const ref=(c,p)=>`${CATALOG_NAMES[c]||c} PDF第${p}页`;

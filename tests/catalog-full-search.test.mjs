@@ -11,7 +11,7 @@ test('all product and corporate questions search complete page, fact and product
 });
 test('unknown catalogue question is kept internal with explicit no-match coverage rather than model guess',()=>{
  const a=fullCatalogueAnswer(null,fixture,'画册 nonexistentword');assert.match(a.answer,/不能据此回答“没有”/);assert.equal(a.coverage.matches,0);assert.match(a.coverage_text,/未解析页/);
- assert.equal(fullCatalogueAnswer(null,null,'画册'),null);
+ const failed=fullCatalogueAnswer(null,null,'画册 PRIVATE-QUESTION');assert.equal(failed.status,'unavailable');assert.equal(failed.coverage,null);assert.match(failed.answer,/不会改用外部模型/);assert.doesNotMatch(failed.answer,/PRIVATE-QUESTION/);
 });
 test('unlisted Chinese company and product subjects search every source without a magic keyword',()=>{
  const c={...fixture,pages:[...fixture.pages,{catalog:'c1',page:44,text:'仅合成数据：特殊复合涂层工艺。'}]};

@@ -24,3 +24,9 @@ test('actual handler audits internal clarification and does not load materials o
  assert.equal(audited,true);assert.equal(r.provider,'internal');assert.equal(r.context.status,'clarification');assert.equal(r.context.material_question,history[0]);
  assert.doesNotMatch(branch,/loadFullMaterials|providerJson|fetch\(/);
 });
+
+test('natural analyse-product-market wording routes internally even without SWOT or adjacent market-analysis words',async()=>{
+ const {productMarketIntent}=await import('../supabase/functions/agent-conversation/product-market.mjs');
+ for(const q of ['只分析智能锁画册v9的TEST80 PRO在马来西亚的市场，保留来源','分析TEST80 Basic在肯尼亚的市场','评估TEST80 PRO的越南市场','Analyse the TEST80 PRO market in Vietnam'])assert.equal(productMarketIntent(q),true);
+ for(const q of ['TEST80 PRO的尺寸是多少','分析TEST80 PRO安装视频画面'])assert.equal(productMarketIntent(q),false);
+});

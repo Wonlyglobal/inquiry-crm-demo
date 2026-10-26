@@ -6,7 +6,7 @@ const now=Date.parse('2026-10-26T04:00:00Z'),sha='a'.repeat(64);
 const catalog={schema:'wonly-catalog-v1',sources:[{id:'c4',pages:12}],products:[{model:'TEST80 PRO',category:'smart_lock',catalog:'c4',page:4,specs:{Unlocking:'Synthetic fingerprint'}}],pages:[{catalog:'c4',page:4,text:'TEST80 PRO synthetic page'}],facts:[]};
 const fact={product:'TEST80 PRO',field:'开锁方式',value:'合成指纹、密码',quote:'TEST80 PRO 合成指纹、密码',page:2};
 const asset={name:'Synthetic V9.pdf',versionLabel:'V9',isCurrentVersion:true,updatedAt:'2026-10-25',document:{sha256:sha,pages:[{page:2,chunks:[fact.quote],facts:[]}],product_understanding:{findings:[fact]}}};
-const materials={status:'available',assets:[asset]};
+const materials={status:'available',assets:[asset],has_more:false};
 const report=(q,rest={})=>productMarketReport({question:q,catalog,materials,now,...rest});
 test('market questions use a distinct integrated workflow, ordinary parameters do not',()=>{
  for(const q of ['分析TEST80 PRO在新加坡的市场，给出SWOT和匹配度','智能锁各国市场分析','country fit of TEST80 PRO','市场竞争度'])assert.ok(productMarketIntent(q));

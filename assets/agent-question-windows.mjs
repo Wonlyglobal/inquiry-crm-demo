@@ -3,9 +3,11 @@ export function currentQuestionWindow(host){const active=activeTurns.get(host);i
 // Keep original message nodes and file buttons: no HTML interpretation or cloned handlers.
 export function appendQuestionMessage(host,role,text,{card:target=null,newWindow=false,historical=false}={}){
  const node=document.createElement('div');node.className=`ai-message ${role}`;node.textContent=text;
- let card=target||(role==='user'?(host.querySelector('.question-window[open]')||currentQuestionWindow(host)):currentQuestionWindow(host));
+ let card=target||currentQuestionWindow(host);
  const fresh=host.dataset.newQuestion==='true';
- if((role==='user'&&(fresh||newWindow||card?.dataset?.historyOnly==='true'||!card?.querySelector('.ai-message.user')))||!card?.classList.contains('question-window')){
+ // A follow-up keeps its model context, but gets its own question/answer card.
+ // Only an explicit target (e.g. revealing a pending answer) reuses a card.
+ if((role==='user'&&(!target||fresh||newWindow||card?.dataset?.historyOnly==='true'||!card?.querySelector('.ai-message.user')))||!card?.classList.contains('question-window')){
   if(!historical)delete host.dataset.newQuestion;
   for(const old of host.querySelectorAll('.question-window'))old.open=false;
   card=document.createElement('details');card.className='question-window';card.open=true;

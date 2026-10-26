@@ -5,7 +5,7 @@ import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=2026
 import {createPhoneSession} from './agent-phone.mjs?v=20261015-stable-call1';
 import {preparePhoneInput,capturePhoneTurn} from './agent-phone-input.mjs?v=20261015-stable-call1';
 import {modelChoiceButtons,clarificationButtons,clarificationChoices} from './agent-model-choices.mjs?v=20261012-feedback';
-import {currentQuestionWindow} from './agent-question-windows.mjs?v=20261015-history2';
+import {currentQuestionWindow} from './agent-question-windows.mjs?v=20261026-turn1';
 // Keeps the latest turns within the server limits (20 messages, 40,000 characters; each message ≤6,000).
 export function fitHistory(list,maxChars=38000){const out=[];let n=0;for(const m of [...list].reverse().slice(0,20)){const c=String(m.content).slice(0,6000);if(n+c.length>maxChars)break;n+=c.length;out.unshift({role:m.role,content:c})}if(out[0]?.role==='assistant')out.shift();return out}
 // "Open it for me" actions from the agent: CRM pages, competitors' official pages, keyword searches.
@@ -124,7 +124,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(mode.value!=='bailian')return false;
   if(busy||recorder||player){state(recorder?'正在录音，请先结束录音':player?'正在播报，请先点击停止再提问':'正在处理上一条问题，请稍候或点击停止',recorder?'listening':player?'speaking':'thinking');return true}
   if(!ready){const epoch=version;state('正在重新连接…','thinking');await checkConnection({textOnly:true});if(epoch!==version||!ready)return true}
-  if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question);showPending();return true}
+  if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question,{card:currentQuestionWindow(host.querySelector('#ai-assistant-messages'))});showPending();return true}
   if(host.querySelector('#ai-assistant-messages')?.dataset?.newQuestion==='true'){histories.delete(getPersona());materialHistories.delete(getPersona());privateReports.delete(getPersona())}
   pending=null;reveal.hidden=true;delete host.dataset.graceEvidenceCheck;delete host.dataset.gracePrivateKnowledgeCheck;
   stopAll({keepWake:voice,keepPhone:!!phoneSignal});const epoch=version,persona=getPersona(),askedAt=performance.now();controller=new AbortController();busy=true;lastTicket=null;state(voice?(phoneSignal?'听到了，正在整理…':''):'收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');

@@ -23,9 +23,9 @@ export function searchCatalogue(question,catalog,{models=[]}={}){
  if(!models.length){
   const stop=/^(?:王力|我们|我司|画册|公司|产品|资料|介绍|说明|哪些|什么|多少|情况|请问|查询|查找|查看|有没有|是否|如何|怎么|具体|一下|全部|所有|来源|缺口|页码)$/;
   // Word segmentation keeps unfamiliar Chinese subjects searchable without a topic allowlist.
-  const parts=[...new Intl.Segmenter('zh',{granularity:'word'}).segment(q)];
+  const parts=typeof Intl.Segmenter==='function'?[...new Intl.Segmenter('zh',{granularity:'word'}).segment(q)]:[...q].map(segment=>({segment,isWordLike:/\p{Script=Han}/u.test(segment)}));
   for(const part of parts)if(part.isWordLike&&/[\p{Script=Han}]/u.test(part.segment)&&part.segment.length>=2&&!stop.test(part.segment))terms.push(part.segment);
-  for(let i=1;i<parts.length;i++)if(parts[i-1].isWordLike&&parts[i].isWordLike&&/^\p{Script=Han}$/u.test(parts[i-1].segment)&&/^\p{Script=Han}$/u.test(parts[i].segment))terms.push(parts[i-1].segment+parts[i].segment);
+  for(let i=1;i<parts.length;i++)if(parts[i-1].isWordLike&&parts[i].isWordLike&&/^\p{Script=Han}$/u.test(parts[i-1].segment)&&/^\p{Script=Han}$/u.test(parts[i].segment)&&!stop.test(parts[i-1].segment+parts[i].segment))terms.push(parts[i-1].segment+parts[i].segment);
  }
  const unique=[...new Set(terms.map(w=>w.toLowerCase()))].slice(0,64);
  const sources=catalog?.sources||[],ids=new Set(sources.map(s=>s.id));

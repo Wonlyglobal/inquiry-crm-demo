@@ -61,9 +61,14 @@ export function productMarketTurn(question,history=[]){
  const next=/下一页/.test(q)?((/每个国家|所有国家|全部国家|各国|全球国家|all countries/i.test(prior)?'国家':'产品')+'第'+(Number(prior.match(/(?:产品|国家)第\s*(\d+)\s*页/)?.[1]||1)+1)+'页'):q;
  return (base+'；'+next).slice(0,480);
 }
+export function marketFollowupClarification(question,history=[]){
+ const q=normalizeProductInput(question).trim(),previous=history.find(h=>String(h).startsWith(PREFIX));
+ if(!previous||q.length>80||! /^(?:那|那么|换成|改为|再看|继续|来源|证据|缺口|为什么|哪些|建议|评分|匹配|竞争)/.test(q)||productMarketTurn(q,history))return null;
+ return {answer:'这句追问还不能确定要切换的国家、完整型号或分析维度。请写明具体国家或完整型号；我会沿用上一条市场分析范围，尚未重新查询，也没有生成新的市场结论。',material_question:String(previous).slice(0,500)};
+}
 const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const zh=new Intl.DisplayNames(['zh-CN'],{type:'region'}),en=new Intl.DisplayNames(['en'],{type:'region'});
-const ALIASES={GB:['英国','United Kingdom','Great Britain','UK'],US:['美国','USA','United States'],AE:['阿联酋','迪拜','UAE'],SA:['沙特','Saudi Arabia'],SG:['新加坡','Singapore'],KR:['韩国','South Korea'],RU:['俄罗斯','Russia'],VN:['越南','Vietnam']};
+const ALIASES={GB:['英国','United Kingdom','Great Britain','UK'],US:['美国','USA','United States'],AE:['阿联酋','迪拜','UAE'],SA:['沙特','Saudi Arabia'],SG:['新加坡','Singapore'],KR:['韩国','South Korea'],RU:['俄罗斯','Russia'],VN:['越南','Vietnam'],ID:['印尼','Indonesia']};
 const COUNTRIES=COUNTRY_CODES.map(code=>({code,label:zh.of(code),aliases:[...new Set([zh.of(code),en.of(code),...(ALIASES[code]||[])])]}));
 export function countryMatches(question){
  const q=String(question||''),matches=[];

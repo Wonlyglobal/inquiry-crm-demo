@@ -95,7 +95,7 @@ export function countryAssessment(product,country,evidence=validMarketEvidence()
  return {country,rows,usable,cases,admission,score:null,competition_score:null,
   fit:!current?'产品现行证据待补，暂不能定级':admission.length?'有条件候选，准入与商业适配待核验':'资料不足，暂不能定级',
   competition:cases.length?'存在可核对竞品供给；强度待核验':'尚缺当地同类竞品证据；强度未知',
-  dimensions:dimensionGroups.map(([label,needed],i)=>({label,status:i===1&&current?'已有本型号机器摘录，尚未验证当地适配':i===2&&admission.length?'已取得规则，未取得该型号合规证明':i===3&&cases.length?'有竞品交付案例，缺王力同口径价格/渠道数据':'待补证据',needed})),
+  dimensions:dimensionGroups.map(([label,needed],i)=>({label,status:i===1&&current?'已有本型号机器摘录，尚未验证当地适配':i===2&&admission.length?'已取得规则，未取得该型号合规证明':i===3&&cases.length?'有竞品交付案例，缺王力同口径价格/渠道数据':'待补证据',needed:i===1&&category!=='smart_lock'?'结构、安装接口与尺寸、使用环境及配置':needed})),
   forces:[['现有竞争',cases.length?'已有同国同类供应样本，缺价格带/份额/渠道覆盖，不能判高低':'缺同国同类供应样本'],['替代品','缺机械锁/其他方案的同场景比较'],['潜在进入者','缺进入成本与渠道壁垒证据'],['买方议价','缺客户集中度、转换成本及采购方式'],['供应商议价','缺关键零部件可替代性与采购集中度']]};
 }
 function renderCountry(a,now){

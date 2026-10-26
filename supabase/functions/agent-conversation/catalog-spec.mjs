@@ -22,7 +22,7 @@ const MODEL_CODE=/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/;
 
 export function specIntent(question){
  const q=String(question||'').slice(0,300);
- if(/竞品|对手|同行|对比|比较|价格|多少钱|发我|下载|PDF|视频/i.test(q))return null;
+ if(/竞品|对手|同行|对比|比较|价格|多少钱|发我|下载|视频/i.test(q)||/PDF/i.test(q)&&!/页码|出处|引用|来源|\bpages?\b|citations?|cite|references?/i.test(q))return null;
  const cat=CATS.find(([,re])=>re.test(q));if(!cat)return null;
  const dim=SPEC_DIMS.find(([,,ask])=>ask.test(q));if(!dim)return null;
  if(cat[0]==='any'&&!/有没有|有哪些|哪款|哪些门|什么门/.test(q))return null;

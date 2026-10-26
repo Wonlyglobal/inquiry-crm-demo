@@ -19,5 +19,9 @@ test('unlisted Chinese company and product subjects search every source without 
   assert.equal(catalogPrecheck(q),true);const a=fullCatalogueAnswer(catalogIntent(q,c),c,q);
   assert.ok(a.coverage.terms.includes('涂层'));assert.equal(a.coverage.records_searched,38);assert.match(a.answer,/PDF第44页/);
  }
- for(const q of ['我们本月客户询盘统计','本月社媒帖子数据','我们的营销策略分析'])assert.equal(catalogPrecheck(q),false,q);
+ for(const q of ['WONLY manufacturing technology','What material properties do wooden doors have?','木门厚度请附PDF页码'])assert.equal(catalogPrecheck(q),true,q);
+ for(const q of ['我们本月客户询盘统计','本月社媒帖子数据','我们的营销策略分析','WONLY monthly inquiry statistics','WONLY marketing strategy'])assert.equal(catalogPrecheck(q),false,q);
+ assert.equal(catalogIntent('TEST-998的参数请附PDF页码',fixture)?.kind,'models');
+ assert.equal(catalogPrecheck('下载非洲标杆案例画册'),false);
+ assert.equal(catalogIntent('下载非洲标杆案例画册',fixture),null);
 });

@@ -18,7 +18,7 @@ const TOPICS=[
 ];
 export function searchCatalogue(question,catalog,{models=[]}={}){
  const q=String(question||'').normalize('NFKC').slice(0,500);
- const terms=models.length?models:q.match(/[A-Za-z][A-Za-z0-9.-]{2,}/g)?.filter(x=>! /^(?:the|and|for|what|which|wonly|pdf)$/i.test(x))||[];
+ const terms=models.length?models:q.match(/[A-Za-z][A-Za-z0-9.-]{2,}/g)?.filter(x=>! /^(?:the|and|for|what|which|wonly|pdf|does|how|many|please|describe|explain|about|tell|our|uses?|with|are|can|has|have|from|this|that|its|their|all|provide)$/i.test(x))||[];
  if(!models.length)for(const [re,words] of TOPICS)if(re.test(q))terms.push(...words);
  if(!models.length){
   const stop=/^(?:王力|我们|我司|画册|公司|产品|资料|介绍|说明|哪些|什么|多少|情况|请问|查询|查找|查看|有没有|是否|如何|怎么|具体|一下|全部|所有|来源|缺口|页码)$/;

@@ -9,6 +9,10 @@ test('no-model parameter lookup counts all page candidates before limiting displ
 test('parameter miss is an index gap rather than a claim about every original document',()=>{
  const a=specAnswer(specIntent('木门隔音多少分贝'),{products:[],pages:[]});assert.match(a,/不能据此判断原画册没有写明/);
 });
+test('PDF page citation requests do not disable parameter retrieval',()=>{
+ assert.equal(specIntent('木门隔音多少分贝，请附PDF页码').dim,'acoustic');
+ assert.equal(specIntent('下载木门隔音PDF'),null);
+});
 test('no-model parameter route shares full-index coverage and the existing signed library lookup',async()=>{
  const s=await readFile(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');const block=s.slice(s.indexOf('   if(spec){'),s.indexOf('   if(!guest&&catalogPrecheck'));
  assert.match(block,/fullCatalogueAnswer\(null,catalog,catalogQuestion\)/);assert.match(block,/loadFullMaterials\(\{\.\.\.materialConfig,question:catalogQuestion\}/);assert.match(block,/search_coverage:fullSearch/);assert.doesNotMatch(block,/body=requestBody|embed\(/);

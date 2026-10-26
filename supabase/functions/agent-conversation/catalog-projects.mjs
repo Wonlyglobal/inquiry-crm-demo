@@ -26,7 +26,7 @@ export function projectTurn(question,history=[]){
  const q=String(question||'').trim(),prior=String(history.at(-1)||'');
  if(projectQuestion(q))return q;
  if(projectQuestion(prior)&&q.length<=80&&/^(那|还有|非洲|埃及|来源|出处|页码|展开|详细)/.test(q)){
-  if(/非洲|Africa/i.test(q))return `画册 非洲标杆项目 ${q}`;
+  if(projectIntent(q+' 项目案例')?.terms.length)return `画册 ${q} 标杆项目`;
   return `${prior} ${q}`.slice(0,500);
  }
  return null;

@@ -37,10 +37,11 @@ test('no match, unavailable index and partial coverage never prove absence of co
  assert.match(a,/不能据此说公司没有/);assert.match(a,/图片文字、未索引页或其他版本/);assert.match(a,/0 个已索引页面/);
 });
 test('followup keeps project topic and requested region, and state stores query only',()=>{
- const q='王力在哪些地区有标杆案例';const next=projectTurn('那非洲呢？',[q]);assert.match(next,/非洲标杆项目/);
+ const q='王力在哪些地区有标杆案例';const next=projectTurn('那非洲呢？',[q]);assert.match(next,/非洲.*标杆项目/);
  assert.ok(projectIntent(next).terms.includes('Egypt'));
  const h=nextMaterialHistory({provider:'internal',answer:'PRIVATE SOURCE BODY',context:{route:'catalog',material_question:next}});assert.deepEqual(h,[next]);assert.doesNotMatch(JSON.stringify(h),/PRIVATE/);
  assert.match(projectTurn('来源页码呢？',h),/非洲/);assert.equal(projectTurn('本月询盘怎么样',h),null);
+ const country=projectIntent(projectTurn('那埃及呢？',h));assert.equal(country.geography,'埃及');assert.ok(!country.terms.includes('Ghana'));
 });
 test('matches beyond the former first-six fact limit remain searchable',()=>{
  const fixture={...catalog,pages:Array.from({length:30},(_,i)=>({catalog:'c1',page:i+1,text:i===29?'Landmark projects\nSynthetic Egypt project':'Landmark projects\nSynthetic France project'}))};

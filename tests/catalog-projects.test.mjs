@@ -50,3 +50,10 @@ test('matches beyond the former first-six fact limit remain searchable',()=>{
 test('other supported regions remain filtered instead of returning all Africa projects',()=>{
  const r=projectEvidence(projectIntent('欧洲有哪些标杆项目'),catalog);assert.equal(r.hits.length,1);assert.equal(r.hits[0].catalog,'c3');
 });
+test('an unrecognized geography never silently widens to all projects',()=>{
+ for(const q of ['合成地区有哪些标杆项目','Syntheticland reference projects']){
+  const intent=projectIntent(q);assert.equal(intent.literal_geography,true);assert.equal(projectEvidence(intent,catalog).hits.length,0);
+  assert.match(catalogAnswer(intent,catalog,q),/不用其他地区的项目代替/);
+ }
+ assert.equal(projectIntent('王力有哪些标杆案例').literal_geography,false);
+});

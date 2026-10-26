@@ -36,7 +36,9 @@ export function projectIntent(question){
  const q=String(question).slice(0,500),regions=REGIONS.filter(r=>r.names.some(w=>has(q,w)));
  const countries=REGIONS.flatMap(r=>r.countries).filter(words=>words.some(w=>has(q,w)));
  const requested=[...regions.flatMap(r=>[r.names,...r.countries]),...countries];
- return {kind:'projects',geography:regions.length?regions.map(r=>r.names[0]).join('、'):countries.map(r=>r[0]).join('、'),terms:[...new Set(requested.flat())]};
+ const literal=!requested.length?(q.replace(/^画册\s*/, '').match(/^([^\s，。？?]{2,12}?)(?:有哪些|有什么|的)(?:标杆|项目|工程|案例)/)?.[1]||q.match(/^([A-Za-z][A-Za-z -]{1,30}?)\s+(?:reference|benchmark|landmark)\s+projects?/i)?.[1]||''):'';
+ const unknown=literal&&!/王力|我司|我们|wonly|画册|哪些地区|哪些国家|所有|全部|公司/i.test(literal)?literal:'';
+ return {kind:'projects',geography:regions.length?regions.map(r=>r.names[0]).join('、'):countries.map(r=>r[0]).join('、')||unknown,terms:requested.length?[...new Set(requested.flat())]:unknown?[unknown]:[],literal_geography:!!unknown};
 }
 export function projectEvidence(intent,catalog){
  const sourceIds=new Set((catalog?.sources||[]).map(s=>s.id));
@@ -63,5 +65,5 @@ export function projectAnswer(intent,catalog,{ref,head,note}){
  const {hits,coverage}=projectEvidence(intent,catalog);
  const c=`检索范围：已扫描全部 ${coverage.sources} 本已授权画册索引、${coverage.indexed_pages} 个已索引页面（原册登记 ${coverage.declared_pages||'未标注'} 页）；索引覆盖不等于全部原页均已解析。`;
  const body=hits.length?hits.slice(0,12).map(p=>`- ${ref(p.catalog,p.page)}\n原页文字线索：\n${p.quote}`).join('\n\n'):'本次已索引文字没有检出对应项目证据。这是检索缺口，不能据此说公司没有这些项目；图片文字、未索引页或其他版本仍需核对。';
- return [head(catalog),c,`按${intent.geography||'项目'}查得 ${hits.length} 条原页线索${hits.length>12?'，本次展示前12条':''}：`,body,'项目名称与国家/地区的对应关系须对照同页版式核实；相邻文字不能自动视为同一项目。画册记录不证明当前履约状态或获准对外引用。',note].join('\n\n');
+ return [head(catalog),c,intent.literal_geography?'地区词暂未完成同义词扩展，本轮仅按所写原词检索，不用其他地区的项目代替。':null,`按${intent.geography||'项目'}查得 ${hits.length} 条原页线索${hits.length>12?'，本次展示前12条':''}：`,body,'项目名称与国家/地区的对应关系须对照同页版式核实；相邻文字不能自动视为同一项目。画册记录不证明当前履约状态或获准对外引用。',note].filter(Boolean).join('\n\n');
 }

@@ -458,6 +458,10 @@ verify_jwt = false
 # The handler validates a dedicated random Vault-backed token before mailbox access.
 verify_jwt = false
 
+[functions.sales-lead-dispatch]
+# Cron worker token is verified server-side before service access; no user route.
+verify_jwt = false
+
 [functions.outreach-translate]
 # Handler authenticates active actor, checks own immutable snapshot through RLS.
 verify_jwt = false

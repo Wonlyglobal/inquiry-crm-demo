@@ -1,6 +1,8 @@
 import {normalizeProductInput,bareModel,materialVersion} from './product-input.mjs';
 import {selectionIntent,selectionAnswer} from './product-selection.mjs';
 import {inventoryIntent,inventoryAnswer} from './product-inventory.mjs';
+import {projectQuestion,projectIntent,projectAnswer} from './catalog-projects.mjs';
+import {searchCatalogue,catalogueSearchCoverage,catalogueSearchFallback} from './catalog-search.mjs';
 // Deterministic answers from the private WONLY overseas catalogue knowledge (wonly-catalog-v1).
 // Source: the four 2026-08 overseas catalogues, read by Claude under Chloe's 2026-09-28 authorisation.
 // The file lives only in the private storage bucket (service role). Answers are rendered locally,
@@ -46,6 +48,8 @@ export function catalogPrecheck(question){
  const q=normalizeModelQuestion(question).slice(0,500);
  // The fixed August index cannot answer a request constrained to another edition.
  if(materialVersion(q))return false;
+ if(projectQuestion(q))return true;
+ if(/王力|我们|我司|wonly/i.test(q)&&FACT_TOPICS.some(([,re])=>re.test(q)))return true;
  if(bareModel(q))return true;
  if(inventoryIntent(q)||selectionIntent(q))return true;
  if(FILE_REQUEST.test(q))return false;
@@ -55,12 +59,13 @@ export function catalogPrecheck(question){
 export function catalogIntent(question,catalog){
  const q=normalizeModelQuestion(question).slice(0,500);
  if(!catalog)return null;
+ const projects=projectIntent(q);if(projects)return projects;
  if(selectionIntent(q))return {kind:'selection'};
  if(inventoryIntent(q))return {kind:'inventory'};
  if(FILE_REQUEST.test(q))return null;
  const models=findModels(q,catalog);
  const categories=CATEGORY_WORDS.filter(([,re])=>re.test(q)).map(([c])=>c);
- const facts=/画册/.test(q)?FACT_TOPICS.filter(([,re])=>re.test(q)).map(([t])=>t):[];
+ const facts=/画册|王力|我们|我司|wonly/i.test(q)?FACT_TOPICS.filter(([,re])=>re.test(q)).map(([t])=>t):[];
  if(models.length)return {kind:'models',models,categories};
  // A family shorthand is not an exact model: ask which catalogue variant is intended.
  const codes=q.match(/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/g)||[];
@@ -70,6 +75,12 @@ export function catalogIntent(question,catalog){
  if(facts.length)return {kind:'facts',topics:facts};
  if(/画册/.test(q)){const words=(q.match(/[A-Za-z][A-Za-z0-9.\-]{2,}/g)||[]).filter(w=>!/^(the|and|for|wonly)$/i.test(w));if(words.length)return {kind:'search',words:words.slice(0,5)}}
  return null;
+}
+export function fullCatalogueAnswer(intent,catalog,question=''){
+ if(!catalog)return null;
+ const search=searchCatalogue(question,catalog,{models:intent?.models||[]});
+ const answer=catalogAnswer(intent,catalog,question);
+ return {answer:answer||[HEAD(catalog),catalogueSearchFallback(search,{ref}),NOTE].join('\n\n'),coverage:search.coverage,coverage_text:catalogueSearchCoverage(search)};
 }
 
 const ref=(c,p)=>`${CATALOG_NAMES[c]||c} PDF第${p}页`;
@@ -112,6 +123,7 @@ function missingRequestedTopics(question,models,catalog){
 }
 export function catalogAnswer(intent,catalog,question=''){
  if(!intent||!catalog)return null;
+ if(intent.kind==='projects')return projectAnswer(intent,catalog,{ref,head:HEAD,note:NOTE});
  if(intent.kind==='model_choices')return '画册中有这些相关型号：'+intent.models.join('、')+'。请点击下方型号选项。确认完整型号后，我会按对应画册页给出参数和资料入口，避免混用不同版本。';
  if(intent.kind==='inventory')return inventoryAnswer(catalog,question);
  if(intent.kind==='selection')return selectionAnswer(catalog,question);

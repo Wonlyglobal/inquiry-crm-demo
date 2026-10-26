@@ -4,6 +4,7 @@ import {COUNTRY_CODES} from './country-codes.mjs';
 import {findModels} from './catalog-knowledge.mjs';
 import {materialModelCodes,materialVersion,normalizeProductInput} from './product-input.mjs';
 import {searchCatalogue,catalogueSearchCoverage} from './catalog-search.mjs';
+import {mentions} from './product-materials.mjs';
 
 const norm=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[\s_/-]+/g,'');
 const CAT=[['smart_lock','智能锁',/智能锁|指纹锁|smart locks?/i],['wooden_door','木门',/木门|wooden doors?/i],['security_door','防盗门',/防盗门|security doors?/i],['smart_door','智能门',/智能门/],['hospital_door','医院门',/医院门|医疗门|hospital doors?/i],['school_door','学校门',/学校门/],['refuge_door','避难门',/避难门/],['fire_window','防火窗',/防火窗/],['lock_body','锁体',/锁体/],['lock_core','锁芯',/锁芯/],['hinge','合页',/合页|铰链/],['door_viewer','猫眼',/猫眼/]];
@@ -15,7 +16,8 @@ const PREFIX='产品市场：';
 export function productMarketTurn(question,history=[]){
  const q=normalizeProductInput(question).replace(/^产品市场：/,'').trim();
  const previous=history.find(h=>String(h).startsWith(PREFIX));
- const follow=previous&&/^(?:那|那么|换成|改为|再看|继续|来源|证据|缺口|为什么|哪些|建议|评分|匹配|竞争|下一页|产品第|国家第)/.test(q);
+ const follow=previous&&/^(?:那|那么|换成|改为|再看|继续|来源|证据|缺口|为什么|哪些|建议|评分|匹配|竞争|下一页|产品第|国家第)/.test(q)&&
+  (productMarketIntent(q)||countryMatches(q).length||materialModelCodes(q).length||catOf(q)||/来源|证据|缺口|为什么|建议|评分|匹配|竞争|下一页|产品第|国家第|优势|劣势|机会|威胁|定位|参数|安装|认证|售后/.test(q));
  if(!productMarketIntent(q)&&!follow)return null;
  if(!previous||!follow)return q;
  const prior=previous.slice(PREFIX.length),models=materialModelCodes(q),category=catOf(q),countries=countryMatches(q);
@@ -52,11 +54,15 @@ export function modelMarketEvidence(model,catalog,materials,{edition=''}={}){
  const facts=[];
  for(const a of materials?.assets||[]){
   // The original parsed source hash and explicit model association are mandatory.
-  if(a.isCurrentVersion!==true||!/^[a-f0-9]{64}$/.test(a.document?.sha256||'')||!a.document?.product_understanding)continue;
+  if(a.isCurrentVersion!==true||!/^[a-f0-9]{64}$/.test(a.document?.sha256||''))continue;
   if(edition&&editionKey(materialVersion(a.versionLabel+' '+a.name))!==editionKey(edition))continue;
-  for(const f of a.document.product_understanding.findings||[]){
+  for(const f of a.document.product_understanding?.findings||[]){
    if(norm(f.model||f.product)!==norm(model)||!Number.isInteger(f.page)||f.page<1)continue;
    facts.push({field:f.field,value:f.value,ref:`${a.name} 第${f.page}页`,edition:a.versionLabel||'版次未标注',date:a.updatedAt||null,sha256:a.document.sha256,current:true});
+  }
+  for(const p of a.document.pages||[])for(const f of p.facts||[]){
+   if(!Number.isInteger(p.page)||p.page<1||!mentions({excerpt:f.quote},model)||!(p.chunks||[]).some(c=>c.includes(f.quote)))continue;
+   facts.push({field:f.field,value:f.quote,ref:`${a.name} 第${p.page}页`,edition:a.versionLabel||'版次未标注',date:a.updatedAt||null,sha256:a.document.sha256,current:true});
   }
  }
  const conflicts=[];const values=new Map();

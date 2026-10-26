@@ -24,6 +24,7 @@ test('query-only market context switches country and model independently without
  const c=productMarketTurn('那英国呢',h);assert.match(c,/TEST80 PRO/);assert.match(c,/V9/);assert.deepEqual(countryMatches(c).map(c=>c.code),['GB']);
  const m=productMarketTurn('换成TEST90 MAX',h);assert.doesNotMatch(m,/TEST80/);assert.match(m,/TEST90 MAX/);assert.match(m,/新加坡/);assert.match(m,/V9/);
  assert.equal(productMarketTurn('今天的SEO点击',h),null);
+ assert.equal(productMarketTurn('那今天SEO点击呢',h),null);
  assert.equal(productMarketTurn('那英国呢',['画册检索：TEST80 PRO参数']),null);
  assert.match(productMarketTurn('下一页',['产品市场：智能锁市场分析 产品第2页']),/产品第3页/);
  assert.match(productMarketTurn('下一页',['产品市场：TEST80 PRO所有国家市场分析 国家第2页']),/国家第3页/);
@@ -36,6 +37,15 @@ test('current model identity, source hash, dates, edition and original page are 
  assert.equal(modelMarketEvidence('TEST80 PRO',catalog,{status:'available',assets:[wrong]}).facts.length,0);
  assert.equal(modelMarketEvidence('TEST80 PRO',catalog,{status:'available',assets:[{...asset,isCurrentVersion:false}]}).facts.length,0);
  assert.equal(modelMarketEvidence('TEST80 PRO',catalog,materials,{edition:'V8'}).facts.length,0);
+ assert.equal(modelMarketEvidence('TEST80 PRO',catalog,materials,{edition:'第九版'}).facts.length,1);
+ assert.equal(modelMarketEvidence('TEST80 PRO',catalog,{status:'available',assets:[{...asset,document:{...asset.document,sha256:'bad'}}]}).facts.length,0);
+});
+test('native excerpt must itself identify the exact model and be present in the source page',()=>{
+ const quote='TEST80 PRO synthetic thickness 40mm';
+ const doc={sha256:sha,pages:[{page:3,chunks:[quote],facts:[{field:'尺寸',quote}]}]};
+ const p=modelMarketEvidence('TEST80 PRO',catalog,{status:'available',assets:[{...asset,document:doc}]});assert.equal(p.facts.length,1);
+ const wrong=modelMarketEvidence('TEST80 MAX',catalog,{status:'available',assets:[{...asset,document:doc}]});assert.equal(wrong.facts.length,0);
+ const absent=modelMarketEvidence('TEST80 PRO',catalog,{status:'available',assets:[{...asset,document:{...doc,pages:[{...doc.pages[0],chunks:['unrelated']}]}}]});assert.equal(absent.facts.length,0);
 });
 test('conflicting current fields are excluded rather than arbitrarily selecting a product advantage',()=>{
  const p=modelMarketEvidence('TEST80 PRO',catalog,{status:'available',assets:[asset,{...asset,name:'other',document:{...asset.document,product_understanding:{findings:[{...fact,value:'合成其他开锁'}]}}}]});

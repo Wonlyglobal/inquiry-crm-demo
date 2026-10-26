@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {productMarketIntent,productMarketTurn,countryMatches,validMarketEvidence,modelMarketEvidence,countryAssessment,productMarketReport} from '../supabase/functions/agent-conversation/product-market.mjs';
+import * as productInput from '../supabase/functions/agent-conversation/product-input.mjs';
 const now=Date.parse('2026-10-26T04:00:00Z'),sha='a'.repeat(64);
 const catalog={schema:'wonly-catalog-v1',sources:[{id:'c4',pages:12}],products:[{model:'TEST80 PRO',category:'smart_lock',catalog:'c4',page:4,specs:{Unlocking:'Synthetic fingerprint'}}],pages:[{catalog:'c4',page:4,text:'TEST80 PRO synthetic page'}],facts:[]};
 const fact={product:'TEST80 PRO',field:'开锁方式',value:'合成指纹、密码',quote:'TEST80 PRO 合成指纹、密码',page:2};
@@ -82,4 +83,15 @@ test('unknown exact model and unavailable private index fail closed rather than 
 });
 test('public evidence rejects unverified snippets and unsafe/incomplete source records',()=>{
  const good=validMarketEvidence()[0];assert.equal(validMarketEvidence({schema:'product-market-public-v1',entries:[good,{...good,id:'bad',read_status:'search_snippet'},{...good,id:'url',url:'http://example.com'}]}).length,1);
+});
+test('actual authenticated market handler resolves its declared imports and returns an audited internal report',async()=>{
+ const src=fs.readFileSync(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');
+ const branch=src.slice(src.indexOf('   if(marketTurn){'),src.indexOf('   const v9Turn='));
+ const declared=new Set([...src.matchAll(/import \{([^}]+)\} from '\.\/product-input\.mjs'/g)].flatMap(m=>m[1].split(',').map(s=>s.trim())));
+ let lookedUp=false,audited=false;
+ const deps={marketTurn:'TEST80 PRO智能锁V9在新加坡市场分析',guest:false,input:{persona:'Grace'},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='product_country_market_analysis';return {error:null}}})},loadCatalog:async()=>catalog,findModels:()=>['TEST80 PRO'],loadFullMaterials:async()=>{lookedUp=true;return materials},gateMaterialEvidence:x=>x,materialConfig:{},productMarketReport,user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async()=>null,json:x=>x};
+ for(const name of declared)if(name in productInput)deps[name]=productInput[name];
+ const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
+ const result=await new AsyncFunction(...Object.keys(deps),branch)(...Object.values(deps));
+ assert.equal(result.provider,'internal');assert.equal(result.context.route,'product_market');assert.equal(result.context.status,'preliminary');assert.equal(lookedUp,true);assert.equal(audited,true);assert.match(result.answer,/SWOT/);
 });

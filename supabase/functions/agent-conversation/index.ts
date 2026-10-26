@@ -1,5 +1,5 @@
 import {seoStatQuestion,seoStatReply} from './seo-stat-report.mjs';
-import {seriesIntent,materialVersion,namedMaterialProducts,explicitMaterialDocument} from './product-input.mjs';
+import {seriesIntent,materialVersion,materialModelCodes,namedMaterialProducts,explicitMaterialDocument} from './product-input.mjs';
 import {syncDailySocial} from './social-daily.mjs';
 import {sourceMetricsIntent,socialMetrics,sourceMetricsAnswer} from './source-metrics.mjs';
 import {privateIntelligenceIntent,readPrivateIntelligence} from './private-intelligence.mjs';

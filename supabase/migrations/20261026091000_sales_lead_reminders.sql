@@ -39,7 +39,7 @@ begin
     elsif n<day_item.daily_min then short_count:=short_count+1; end if;
    end loop;
    select jsonb_build_object('new_leads',count(*) filter(where recorded_on>=date_trunc('week',d)::date),'cohort_converted',count(*) filter(where recorded_on>=date_trunc('week',d)::date and inquiry_id is not null),'period_conversions',count(distinct inquiry_id) filter(where converted_at>=date_trunc('week',d)::timestamp at time zone 'Asia/Shanghai'),'no_new_days',none_count,'missing_days',missing,'short_days',short_count) into snap from private.sales_leads where sales_id=p.id and recorded_at<=cutoff;
-   snap:=snap||jsonb_build_object('stages',coalesce((select jsonb_object_agg(t.stage,t.n) from(select i.status::text stage,count(distinct i.id) n from private.sales_leads l join public.inquiries i on i.id=l.inquiry_id where l.sales_id=p.id group by i.status)t),'{}'::jsonb),'followup_count',(select count(*) from public.follow_ups f where exists(select 1 from private.sales_leads l where l.inquiry_id=f.inquiry_id and l.sales_id=p.id) and f.author_id=p.id and f.created_at>=date_trunc('week',d)::timestamp at time zone 'Asia/Shanghai' and f.created_at<=cutoff));
+   snap:=snap||jsonb_build_object('stages',coalesce((select jsonb_object_agg(t.stage,t.n) from(select i.status::text stage,count(distinct i.id) n from private.sales_leads l join public.inquiries i on i.id=l.inquiry_id where l.sales_id=p.id and i.owner_id=p.id group by i.status)t),'{}'::jsonb),'followup_count',(select count(*) from public.follow_ups f where exists(select 1 from private.sales_leads l where l.inquiry_id=f.inquiry_id and l.sales_id=p.id) and f.author_id=p.id and f.created_at>=date_trunc('week',d)::timestamp at time zone 'Asia/Shanghai' and f.created_at<=cutoff));
    insert into private.sales_lead_weekly(week_start,sales_id,rule_id,summary) values(date_trunc('week',d)::date,p.id,r.id,snap) on conflict do nothing returning id into wid;
    if wid is not null then
     body:=format('【个人线索与商机周报】%s 截止%s：新增%s条，本周转化%s条，无新增申报%s人天，未提交%s人天，不足目标%s人天，跟进%s次。详情及阶段请在CRM按权限查看：https://crm.foreverdoodle.com/sales-leads.html',p.full_name,local_now,snap->>'new_leads',snap->>'period_conversions',none_count,missing,short_count,snap->>'followup_count');
@@ -60,7 +60,7 @@ end $$;
 -- Outbox lease prevents duplicate concurrent dispatch. Uncertain network delivery may
 -- retry after 10 min; attempts/status retained, never claim exactly-once external delivery.
 create function public.claim_sales_lead_delivery() returns jsonb language sql security definer set search_path='' as $$
- with due as(select id from private.sales_lead_delivery where sent_at is null and attempts<5 and (claimed_at is null or claimed_at<clock_timestamp()-interval '10 minutes') order by at limit 20 for update skip locked), claimed as(update private.sales_lead_delivery d set claimed_at=clock_timestamp(),attempts=attempts+1 from due where d.id=due.id returning d.id,d.body)
+ with due as(select id from private.sales_lead_delivery where sent_at is null and attempts<5 and (claimed_at is null or claimed_at<clock_timestamp()-interval '10 minutes') order by at limit 5 for update skip locked), claimed as(update private.sales_lead_delivery d set claimed_at=clock_timestamp(),attempts=attempts+1 from due where d.id=due.id returning d.id,d.body)
  select coalesce(jsonb_agg(to_jsonb(c)),'[]') from claimed c;
 $$;
 create function public.finish_sales_lead_delivery(target uuid,succeeded boolean) returns void language sql security definer set search_path='' as $$

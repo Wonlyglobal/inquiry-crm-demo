@@ -19,6 +19,7 @@ import {correctionCommand,runCorrectionCommand,relevantCorrections,loadApprovedC
 import {backgroundIntent,backgroundContext} from './background-research.mjs';
 import {companyLookupIntent,lookupCompanies,companyAnswer} from './company-research.mjs';
 import {projectTurn,projectQuestion,projectIntent,projectAnswer} from './catalog-projects.mjs';
+import {productMarketTurn,productMarketReport} from './product-market.mjs';
 import {validateFeedback,feedbackSummaryIntent,feedbackSummaryAnswer} from './answer-feedback.mjs';
 import {embed,recallMemories,storeMemory,recallInstruction,shouldStore,conversationMemoryCommand,runConversationMemoryCommand} from './conversation-memory.mjs';
 import {compareIntent,compareAnswer} from './wonly-compare.mjs';
@@ -280,7 +281,8 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
    // Verify the original signed transcript first. Canonical spelling is used only for routing.
    input.question=normalizeProductInput(input.question);
-   const plan=nested||guest?{parts:[],overflow:false}:questionPlan(input.question);
+   const marketTurn=productMarketTurn(input.question,input.materialHistory||[]);
+   const plan=nested||guest||marketTurn?{parts:[],overflow:false}:questionPlan(input.question);
    if((plan.parts.length>1||plan.overflow)&&!socialAnalysisCoversParts(input.question,plan.parts)){
     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'compound_question',persona:input.persona,parts:plan.parts.length,overflow:plan.overflow},reason:'按明确子问题分别执行既有鉴权和只读回答路径，不将内部回答送其他模型'});if(error)return json({error:'调用审计失败'},503);
     const combined=await runQuestionPlan(plan,{signal:req.signal,materialHistory:input.materialHistory||[],run:async(question:string,materialHistory:string[])=>{
@@ -299,6 +301,16 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    }
    const courtesy=guest&&courtesyReply(input.question)?'你好，我是 Grace。现在我只回答公开的问题，内部资料需要 Chloe 本人来问。':courtesyReply(input.question);
    if(courtesy){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'courtesy',persona:input.persona,provider:'internal'},reason:'固定礼貌回复，不发送对话正文或业务资料'});if(error)return json({error:'调用审计失败'},503);return json({answer:courtesy,provider:'internal',model:'courtesy',context:{route:'conversation'},ticket:await ticket({user:user.id,persona:input.persona,text:courtesy,expires:Date.now()+300000},key)});}
+   if(marketTurn){
+    if(guest)return json({answer:'逐款产品市场分析只供已授权本人在公司系统内查询。',provider:'internal',model:'product-market',context:{route:'product_market',status:'not_authorized'}});
+    const catalog=await loadCatalog(admin);
+    const codes=materialModelCodes(marketTurn),models=catalog?findModels(marketTurn,catalog):[];
+    const target=codes.length===1?codes[0]:models.length===1?models[0]:null;
+    const materials=target?gateMaterialEvidence(await loadFullMaterials({...materialConfig,question:'物料：'+target+' '+(materialVersion(marketTurn)||'')}).catch(()=>({status:'unavailable',assets:[]}))):{status:'not_requested',assets:[]};
+    const report=productMarketReport({question:marketTurn,catalog,materials});
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'product_country_market_analysis',persona:input.persona,provider:'internal',models:report.models.slice(0,4),countries:report.countries,status:report.status,current_source_count:report.current_source_count||0,material_status:materials.status},reason:'同型号私有证据与官方公开市场样本在系统内核对，不送外部模型、不改变客户或投放'});if(error)return json({error:'调用审计失败'},503);
+    return json({answer:report.answer,provider:'internal',model:'product-market',context:{route:'product_market',status:report.status,models:report.models,countries:report.countries,material_question:report.material_question},ticket:await ticket({user:user.id,persona:input.persona,text:'产品证据、SWOT、国家适配和竞争核对已放在窗口里；尚缺的资料也单独列出了。',expires:Date.now()+300000},key)});
+   }
    const v9Turn=guest?null:privateV9Turn(input.question,input.materialHistory||[]);
    if(v9Turn){
     const question=v9Turn.question;const materials=v9Turn.clarification?{status:'clarification',assets:[]}:gateMaterialEvidence(await loadFullMaterials({...materialConfig,question}));

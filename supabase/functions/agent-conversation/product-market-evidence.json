@@ -1,0 +1,45 @@
+{
+  "schema": "product-market-public-v1",
+  "scope": "Official public evidence only; country/category scoped, not a census or market share estimate.",
+  "entries": [
+    {
+      "id": "sg-digital-fire-lock-coc",
+      "country": "SG", "category": "smart_lock", "kind": "admission",
+      "title": "SCDF Fire Code 11.8.2(c)",
+      "url": "https://www.scdf.gov.sg/fire-safety-services-listing/fire-code-2023/table-of-content/chapter-11-regulated-fire-safety-products-and-materials/clause-11.8-additional-requirements-for-specific-products",
+      "published_at": null, "checked_at": "2026-10-26", "read_status": "body_verified",
+      "fact": "防火门上的数字锁须随门认证或持有独立CoC；锁具耐火等级须不低于门，测试门型限制需核对。",
+      "condition": "用于新加坡防火门的数字锁；不是对所有门锁场景的统一判断。",
+      "implication": "先核对具体锁具、门组合及CoC范围，不能用国内等级或画册宣称代替当地证明。"
+    },
+    {
+      "id": "sg-yale-installed-offer", "country": "SG", "category": "smart_lock", "kind": "case",
+      "title": "Yale Singapore FAQ: orders and installation", "url": "https://www.yalesmart.com/sg/faqs",
+      "published_at": null, "checked_at": "2026-10-26", "read_status": "body_verified",
+      "fact": "官网FAQ将智能数字锁价格与安装及GST一起说明，并提供官方安装人员预约交付。",
+      "condition": "Yale新加坡官方销售路径自述；不证明行业普遍条件、销量或份额。",
+      "implication": "建议用含安装的完整交付成本和服务响应做对照，不能只比较出厂价；这是可借鉴机制，非已验证增长案例。"
+    },
+    {
+      "id": "gb-connectable-security", "country": "GB", "category": "smart_lock", "kind": "admission",
+      "title": "UK consumer connectable product security guidance", "url": "https://www.gov.uk/guidance/regulations-consumer-connectable-product-security",
+      "published_at": "2024-01-08", "updated_at": "2025-03-17", "checked_at": "2026-10-26", "read_status": "body_verified",
+      "fact": "英国相关消费联网产品安全制度自2024年4月29日起实施，制造商、进口商和分销商须核对安全及合规声明义务。",
+      "condition": "仅相关联网消费产品；具体联网方式、豁免及北爱尔兰适用法规须单独核对。",
+      "implication": "智能锁先确认联网配置及适用性，再核对安全更新期限、漏洞报告和合规声明；不能直接判定某型号已合规。"
+    },
+    {
+      "id": "gb-yale-linus-l2", "country": "GB", "category": "smart_lock", "kind": "case",
+      "title": "Yale UK Linus Smart Lock L2", "url": "https://yalehome.co.uk/linus-smart-lock-l2-uk/",
+      "published_at": null, "checked_at": "2026-10-26", "read_status": "body_verified",
+      "fact": "英国型号SL103页面列出Wi-Fi、蓝牙、App远程开锁、门适配检查入口，并注明不含安装。",
+      "condition": "这一具体官网型号与配置；不把其价格、适配或认证推广到所有英国智能锁。",
+      "implication": "建议把门与锁体兼容、联网功能及安装是否包含列为同档对比项；仅产品供应证据，不代表市场规模或竞争强度。"
+    }
+  ],
+  "methods": [
+    {"name":"STP与4P", "url":"https://openstax.org/books/principles-marketing/pages/5-6-product-positioning", "checked_at":"2026-10-26", "use":"按客户场景细分、选择目标并定位，再核对产品、价格、渠道与传播；不凭功能数推算购买意愿。"},
+    {"name":"波特五力", "url":"https://www.isc.hbs.edu/strategy/business-strategy/Pages/the-five-forces.aspx", "checked_at":"2026-10-26", "use":"分别检查现有竞争、替代品、潜在进入者、买方与供应商议价；有品牌存在不等于竞争激烈。"},
+    {"name":"SWOT与外部环境核对", "url":"https://www.cipd.org/uk/knowledge/factsheets/swot-analysis-factsheet/", "checked_at":"2026-10-26", "use":"内部优势/劣势与外部机会/威胁分开；缺证据单列缺口，不把未知写成劣势。"}
+  ]
+}

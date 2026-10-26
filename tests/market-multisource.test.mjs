@@ -13,7 +13,7 @@ const asset=(version,hash,field='配置')=>{
  const quote=model+' synthetic '+field;
  return {id:'same-synthetic-id',name:'Synthetic '+version,versionLabel:version,isCurrentVersion:true,updatedAt:version==='V9'?'2026-10-24':'2026-10-25',document:{status:'ready',sha256:hash.repeat(64),pages_total:1,pages:[{page:1,chunks:[quote],facts:[]}],product_understanding:{status:'ready',findings:[{product:model,field,value:'synthetic '+field,quote,page:1}]}}};
 };
-const response=(assets,extra={})=>({status:'available',assets,...extra});
+const response=(assets,extra={})=>({status:'available',assets,has_more:false,...extra});
 
 test('unversioned smart-lock market scope queries V9 and ordinary library by the complete model only',()=>{
  assert.equal(marketProductScope(question,catalog),question);
@@ -39,7 +39,7 @@ test('explicit editions never add another source or fall back to another version
 test('an unavailable explicit V9 request does not issue an ordinary-library fallback',async()=>{
  const calls=[];
  const result=await loadMarketMaterials(question+' V9',model,catalog,async q=>{calls.push(q);throw new Error('synthetic unavailable')});
- assert.deepEqual(calls,['物料：TEST80 PRO 智能锁画册v9']);assert.equal(result.status,'unavailable');assert.equal(result.assets.length,0);
+ assert.deepEqual(calls,['物料：TEST80 PRO 智能锁画册v9 第1页']);assert.equal(result.status,'unavailable');assert.equal(result.assets.length,0);
  assert.deepEqual(result.source_lookups.map(s=>s.source),['smart-lock-v9']);
 });
 
@@ -61,11 +61,11 @@ test('same asset identifiers across lookups retain independent source, edition, 
 });
 
 test('lookup limits and unknown coverage remain distinct instead of claiming a completed whole-library search',async()=>{
- const result=await loadMarketMaterials(question,model,catalog,async q=>response([],/v9/.test(q)?{has_more:true,match_total:8}:{}));
+ const result=await loadMarketMaterials(question,model,catalog,async q=>response([],/v9/.test(q)?{has_more:true,match_total:8}:{has_more:undefined}));
  assert.equal(result.has_more,true);
- assert.deepEqual(result.source_lookups,[
-  {source:'smart-lock-v9',status:'available',asset_count:0,has_more:true,match_total:8},
-  {source:'material-library',status:'available',asset_count:0,has_more:null,match_total:null}]);
+ assert.deepEqual(result.source_lookups.map(({source,status,asset_count,has_more,match_total})=>({source,status,asset_count,has_more,match_total})),[
+  {source:'smart-lock-v9',status:'partial',asset_count:0,has_more:true,match_total:8},
+  {source:'material-library',status:'partial',asset_count:0,has_more:true,match_total:null}]);
 });
 
 test('one failed lookup preserves the other source and returns only fixed status diagnostics',async()=>{
@@ -79,7 +79,7 @@ test('one failed lookup preserves the other source and returns only fixed status
  const failed=await loadMarketMaterials(question,model,catalog,async()=>({status:'unexpected status with synthetic text',assets:[asset('V9','a')]}));
  assert.equal(failed.status,'unavailable');assert.equal(failed.assets.length,0);
  const unconfigured=await loadMarketMaterials(question,model,catalog,async()=>({status:'not_configured',assets:[]}));
- assert.equal(unconfigured.status,'not_configured');
+ assert.equal(unconfigured.status,'unavailable');
 });
 
 test('the existing evidence gate still rejects unsupported quotes from either source',async()=>{
@@ -100,7 +100,7 @@ test('actual market handler makes two authorized lookups and exposes source stat
  for(const name of [...src.matchAll(/import \{([^}]+)\} from '\.\/product-input\.mjs'/g)].flatMap(m=>m[1].split(',').map(s=>s.trim())))if(name in productInput)deps[name]=productInput[name];
  const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
  const result=await new AsyncFunction(...Object.keys(deps),branch)(...Object.values(deps));
- assert.equal(calls.length,2);assert.deepEqual(calls,['物料：TEST80 PRO 智能锁画册v9','物料：TEST80 PRO']);
+ assert.equal(calls.length,2);assert.deepEqual(calls,['物料：TEST80 PRO 智能锁画册v9 第1页','物料：TEST80 PRO 第1页']);
  assert.equal(audited,true);assert.equal(result.provider,'internal');assert.equal(result.context.material_sources.length,2);
  assert.match(result.context.material_question,/产品市场：/);assert.doesNotMatch(result.context.material_question,/v9/i);
  assert.match(result.answer,/指定资料版本：未指定/);assert.match(result.answer,/SHA-256 a{64}/);assert.match(result.answer,/SHA-256 b{64}/);

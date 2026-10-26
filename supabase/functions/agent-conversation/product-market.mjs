@@ -5,6 +5,7 @@ import {findModels} from './catalog-knowledge.mjs';
 import {materialModelCodes,materialVersion,normalizeProductInput} from './product-input.mjs';
 import {searchCatalogue,catalogueSearchCoverage} from './catalog-search.mjs';
 import {mentions} from './product-materials.mjs';
+import {privateV9Turn} from './private-v9-turn.mjs';
 
 const norm=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[\s_/-]+/g,'');
 const CAT=[['smart_lock','智能锁',/智能锁|指纹锁|smart locks?/i],['wooden_door','木门',/木门|wooden doors?/i],['security_door','防盗门',/防盗门|security doors?/i],['smart_door','智能门',/智能门/],['hospital_door','医院门',/医院门|医疗门|hospital doors?/i],['school_door','学校门',/学校门/],['refuge_door','避难门',/避难门/],['fire_window','防火窗',/防火窗/],['lock_body','锁体',/锁体/],['lock_core','锁芯',/锁芯/],['hinge','合页',/合页|铰链/],['door_viewer','猫眼',/猫眼/]];
@@ -12,6 +13,17 @@ const CATALOG={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'�
 const editionKey=s=>norm(s).replace(/第([一二三四五六七八九十\d]+)版/g,(_,n)=>'V'+({'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10}[n]||n));
 const catOf=q=>CAT.find(([, ,re])=>re.test(q))?.[0]||null;
 export const productMarketIntent=q=>/SWOT|国家匹配|市场匹配|市场竞争|竞争(?:强度|程度|度)|市场(?:分析|定位|机会|结论)|各国|每个国家|五力|market (?:analysis|fit)|country fit/i.test(String(q));
+// The owner-selected smart-lock master is V9; never silently answer from the fixed August index.
+export function marketProductScope(question,catalog){
+ const q=String(question),models=findModels(q,catalog);
+ const smart=catOf(q)==='smart_lock'||models.some(m=>(catalog?.products||[]).some(p=>norm(p.model)===norm(m)&&p.category==='smart_lock'));
+ return smart&&!materialVersion(q)?q+' 智能锁画册v9':q;
+}
+export function marketMaterialQuestion(question,model){
+ const edition=materialVersion(question);
+ if(editionKey(edition)==='V9')return privateV9Turn('智能锁画册v9 '+model+'参数与来源页码')?.question||'物料：'+model+' 智能锁画册v9';
+ return '物料：'+model+' '+edition;
+}
 const PREFIX='产品市场：';
 export function productMarketTurn(question,history=[]){
  const q=normalizeProductInput(question).replace(/^产品市场：/,'').trim();
@@ -109,7 +121,7 @@ export function productMarketReport({question,catalog,materials={status:'unavail
  const current=product.facts,old=product.supplemental;
  const sourceLine=f=>`${f.field}：${f.value}｜${f.ref}｜${f.edition}｜来源日期：${f.date||'未标注'}${f.sha256?'｜SHA-256 '+f.sha256:''}`;
  const hasProduct=current.length||old.length;
- const productText=`型号：${product.model}；门类：${CAT.find(([c])=>c===product.category)?.[1]||'未核定'}\n现行产品证据（机器提取，未人工核验）：\n`+(current.length?current.slice(0,8).map(sourceLine).join('\n'):'本次未取得明确属于此型号的现行参数摘录。')+(old.length?'\n历史补充资料（不覆盖V9/其他指定版本，不用于现行合规结论）：\n'+old.slice(0,6).map(sourceLine).join('\n'):'')+`\n物料查询状态：${product.source_status}；现行同字段冲突${product.conflicts.length}项（冲突项不参与判断）。`;
+ const productText=`型号：${product.model}；门类：${CAT.find(([c])=>c===product.category)?.[1]||'未核定'}；指定资料版本：${edition||'未指定，现行资料优先'}\n现行产品证据（机器提取，未人工核验）：\n`+(current.length?current.slice(0,8).map(sourceLine).join('\n'):'本次未取得明确属于此型号的现行参数摘录。')+(old.length?'\n历史补充资料（不覆盖V9/其他指定版本，不用于现行合规结论）：\n'+old.slice(0,6).map(sourceLine).join('\n'):'')+`\n物料查询状态：${product.source_status}；现行同字段冲突${product.conflicts.length}项（冲突项不参与判断）。`;
  const positive=current.filter(f=>!/不支持|没有|未|无|not\b|without|\bno\b/i.test(f.value));
  const featureText=textFacts(positive.length?positive:old.filter(f=>!/不支持|没有|未|无|not\b|without|\bno\b/i.test(f.value))),unlock=/开锁|unlock|finger|指纹|密码|人脸/i.test(featureText),remote=/remote|远程|联网|wi.?fi|bluetooth|蓝牙/i.test(featureText);
  const positioning=hasProduct?(product.category==='smart_lock'?(unlock?'无钥匙进入便利可作为场景假设，需验证实际使用人群、识别体验及应急开锁。':'先明确用户进入/离开场景，不能以型号名称推断开锁配置。')+(remote?'资料出现联网/远程相关表述；需核对具体配置、安全支持和权限管理。':'本次未取得足以确认联网能力的证据，不能承诺远程管理。'):'先用该型号已有结构/性能证据验证具体场景，不把其他型号或门类的案例当本型号业绩。'):'产品证据不足，先补身份、配置及适用条件，不输出产品优势。';

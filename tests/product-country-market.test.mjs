@@ -60,6 +60,12 @@ test('conflicting current fields are excluded rather than arbitrarily selecting 
  const p=modelMarketEvidence('TEST80 PRO',catalog,{status:'available',assets:[asset,{...asset,name:'other',document:{...asset.document,product_understanding:{findings:[{...fact,value:'合成其他开锁'}]}}}]});
  assert.equal(p.facts.length,0);assert.equal(p.conflicts.length,1);
 });
+test('model identity alone cannot become a strength, product readiness or positive country fit',()=>{
+ const identity={...asset,document:{...asset.document,product_understanding:{findings:[{...fact,field:'型号',value:'TEST80 PRO',quote:'TEST80 PRO'}]}}};
+ const r=report('TEST80 PRO智能锁V9新加坡SWOT',{materials:{status:'available',assets:[identity]}});
+ assert.equal(r.current_source_count,1);assert.equal(r.current_parameter_count,0);assert.equal(r.status,'product_evidence_gap');
+ assert.match(r.answer,/型号或名称仅能确认身份/);assert.doesNotMatch(r.answer,/型号“TEST80 PRO”/);assert.match(r.assessments[0].fit,/暂不能定级/);
+});
 test('same country and category official evidence only; competitor existence is not competition score',()=>{
  const p=modelMarketEvidence('TEST80 PRO',catalog,materials);
  const sg=countryMatches('新加坡')[0],a=countryAssessment(p,sg,undefined,now);

@@ -86,12 +86,14 @@ export function modelMarketEvidence(model,catalog,materials,{edition=''}={}){
  return {model,category:old[0]?.category||null,facts:current,supplemental,conflicts,source_status:materials?.status||'unavailable',human_verified:false};
 }
 const textFacts=rows=>rows.map(f=>`${f.field}：${f.value}`).join('；');
+// Identity is a source locator. A model/name alone cannot establish a feature, strength or fit.
+const analyticalFact=f=>/功能|配置|开锁|解锁|供电|电池|安装|尺寸|厚度|材质|结构|性能|认证|适用|场景|维护|质保|保修|feature|function|config|unlock|power|battery|install|dimension|thickness|material|performance|certif|application|warranty/i.test(f.field)&&! /^(?:型号|名称|产品名称|系列|model|name|series)$/i.test(f.field);
 const dimensionGroups=[['需求与使用场景','实际购买需求、细分客户和替代方案'],['产品与安装适配','锁体尺寸、门厚、开向、环境与联网条件'],['准入与认证','具体型号/配置/门组合的当地准入范围'],['价格与渠道','同档含税落地价、安装费、渠道毛利与获客成本'],['交付与售后','当地安装、备件、保修及服务能力']];
 export function countryAssessment(product,country,evidence=validMarketEvidence(),now=Date.now()){
  const category=product.category;
  const rows=evidence.filter(e=>e.country===country.code&&e.category===category);
  const usable=rows.filter(e=>fresh(e,now)),cases=usable.filter(e=>e.kind==='case'),admission=usable.filter(e=>e.kind==='admission');
- const current=product.facts.length>0&&!product.conflicts.length;
+ const current=product.facts.some(analyticalFact)&&!product.conflicts.length;
  return {country,rows,usable,cases,admission,score:null,competition_score:null,
   fit:!current?'产品现行证据待补，暂不能定级':admission.length?'有条件候选，准入与商业适配待核验':'资料不足，暂不能定级',
   competition:cases.length?'存在可核对竞品供给；强度待核验':'尚缺当地同类竞品证据；强度未知',
@@ -118,17 +120,17 @@ export function productMarketReport({question,catalog,materials={status:'unavail
  }
  if(models.length>1)return {answer:heading+'一次先核验一个完整型号，避免把不同配置混成一份SWOT。当前识别：'+models.join('、')+'。请选其中一款；其他型号的证据未被合并。',models,countries:[],status:'needs_model',material_question:PREFIX+q.slice(0,475)};
  const product=modelMarketEvidence(models[0],catalog,materials,{edition});if(!product.category)product.category=cat;
- const current=product.facts,old=product.supplemental;
+ const current=product.facts,parameters=current.filter(analyticalFact),old=product.supplemental;
  const sourceLine=f=>`${f.field}：${f.value}｜${f.ref}｜${f.edition}｜来源日期：${f.date||'未标注'}${f.sha256?'｜SHA-256 '+f.sha256:''}`;
  const hasProduct=current.length||old.length;
  const productText=`型号：${product.model}；门类：${CAT.find(([c])=>c===product.category)?.[1]||'未核定'}；指定资料版本：${edition||'未指定，现行资料优先'}\n现行产品证据（机器提取，未人工核验）：\n`+(current.length?current.slice(0,8).map(sourceLine).join('\n'):'本次未取得明确属于此型号的现行参数摘录。')+(old.length?'\n历史补充资料（不覆盖V9/其他指定版本，不用于现行合规结论）：\n'+old.slice(0,6).map(sourceLine).join('\n'):'')+`\n物料查询状态：${product.source_status}；现行同字段冲突${product.conflicts.length}项（冲突项不参与判断）。`;
- const positive=current.filter(f=>!/不支持|没有|未|无|not\b|without|\bno\b/i.test(f.value));
+ const positive=parameters.filter(f=>!/不支持|没有|未|无|not\b|without|\bno\b/i.test(f.value));
  const featureText=textFacts(positive.length?positive:old.filter(f=>!/不支持|没有|未|无|not\b|without|\bno\b/i.test(f.value))),unlock=/开锁|unlock|finger|指纹|密码|人脸/i.test(featureText),remote=/remote|远程|联网|wi.?fi|bluetooth|蓝牙/i.test(featureText);
  const positioning=hasProduct?(product.category==='smart_lock'?(unlock?'无钥匙进入便利可作为场景假设，需验证实际使用人群、识别体验及应急开锁。':'先明确用户进入/离开场景，不能以型号名称推断开锁配置。')+(remote?'资料出现联网/远程相关表述；需核对具体配置、安全支持和权限管理。':'本次未取得足以确认联网能力的证据，不能承诺远程管理。'):'先用该型号已有结构/性能证据验证具体场景，不把其他型号或门类的案例当本型号业绩。'):'产品证据不足，先补身份、配置及适用条件，不输出产品优势。';
  const assessments=countries.map(c=>countryAssessment(product,c,evidence,now));
  const swot='SWOT（事实、推断与缺口分开）\nS 潜在优势：'+(positive.length?positive.slice(0,2).map(f=>`${f.field}“${f.value}”（${f.ref}）可作为待测试卖点；相对优势尚需同档竞品验证`).join('；'):'尚无现行证据支持优势判断；旧画册仅可提供核对线索')+'。\nW 已确认劣势：本次没有足够可比证据判定；参数、价格或渠道未知单列缺口，不把未知当实际劣势。\nO 机会假设：'+(assessments.some(a=>a.cases.length)?'可借当地已观察到的供给/交付机制设计差异化测试，不能据此断言需求规模或增长。':'缺当地需求与案例验证，暂不判定市场机会。')+'\nT 外部威胁/约束：'+(assessments.flatMap(a=>a.admission).map(e=>`[${e.id}] ${e.fact}`).join('；')||'当地准入、替代方案和同档竞争资料待补，不能断言竞争少或准入容易。');
- const decision=current.length?'先作为市场验证候选，暂不批准商业投放或全国排名；优先解决准入、安装适配与服务交付，再验证客户愿付价格。':'暂缓给出现行产品市场适配结论，先补同型号现行证据；不能用旧版资料判定适合出口。';
+ const decision=parameters.length?'先作为市场验证候选，暂不批准商业投放或全国排名；优先解决准入、安装适配与服务交付，再验证客户愿付价格。':'暂缓给出现行产品市场适配结论：尚缺同型号功能/参数/适用条件证据；型号或名称仅能确认身份，不能作为产品优势，也不能用旧版资料判定适合出口。';
  const action='下一步与验收指标（建议，未执行）\n1. 产品/准入：核对同型号原页、配置、门组合及适用认证；记录符合、冲突、未取得，准入未知不算通过。\n2. 渠道/价格：选目标国家一个细分场景，取得同档含税落地价、安装/备件/服务承诺和需求访谈；记录完整交付成本与适配失败原因。\n3. 小范围验证：先验证样锁安装与使用任务，再验证定位文案；看安装一次通过、关键任务完成、合格询盘与售后问题。未建立基线不编增长率、ROI或销量目标。';
  const methods='方法依据：\n'+publicFile.methods.map(m=>`${m.name}：${m.use}\n${m.url}（核验${m.checked_at}）`).join('\n');
- return {answer:heading+`阶段结论：${decision}\n\n`+productText+'\n\nSTP定位与4P核对：'+positioning+'价格、渠道与推广主张分别验证，产品功能不等于当地购买需求。\n\n'+swot+'\n\n'+(assessments.length?assessments.map(a=>renderCountry(a,now)).join('\n\n'):'请补充具体国家；不把地区或默认国家套用到全部国家。当前有新加坡和英国智能锁官方证据样本，其他国家同样可查询并保留缺口。')+(all?`\n国家目录覆盖${COUNTRIES.length}个ISO国家/地区，本页${countries.length}个，国家第${countryPage}页；目录存在不等于已研究。${COUNTRIES.length>countryPage*12?'可问“国家第'+(countryPage+1)+'页”。':''}`:'')+'\n\n评分口径：国家匹配按需求、产品适配、准入、价格渠道、交付售后五维核对；竞争度按五力独立核对。当前缺少可审计的同口径需求、成本及竞争基线，暂不生成0—100分或国家排序，也不把证据覆盖率冒充匹配分。\n\n'+action+'\n\n'+coverage+'\n当前版本标记来自物料接口，SHA-256标识本次解析来源；本次未重新计算原件哈希。物料接口有返回/分页/解析限额，未命中不等于没有；未按相似标题绑定项目、未将公司案例当本型号销量。\n\n'+methods+'\n内部资料与本报告仅在公司系统内处理，未发送外部模型；本次不改客户、发帖或投放。',models,countries:countries.map(c=>c.code),status:current.length?'preliminary':'product_evidence_gap',product,current_source_count:current.length,assessments,material_question:PREFIX+q.slice(0,475)};
+ return {answer:heading+`阶段结论：${decision}\n\n`+productText+'\n\nSTP定位与4P核对：'+positioning+'价格、渠道与推广主张分别验证，产品功能不等于当地购买需求。\n\n'+swot+'\n\n'+(assessments.length?assessments.map(a=>renderCountry(a,now)).join('\n\n'):'请补充具体国家；不把地区或默认国家套用到全部国家。当前有新加坡和英国智能锁官方证据样本，其他国家同样可查询并保留缺口。')+(all?`\n国家目录覆盖${COUNTRIES.length}个ISO国家/地区，本页${countries.length}个，国家第${countryPage}页；目录存在不等于已研究。${COUNTRIES.length>countryPage*12?'可问“国家第'+(countryPage+1)+'页”。':''}`:'')+'\n\n评分口径：国家匹配按需求、产品适配、准入、价格渠道、交付售后五维核对；竞争度按五力独立核对。当前缺少可审计的同口径需求、成本及竞争基线，暂不生成0—100分或国家排序，也不把证据覆盖率冒充匹配分。\n\n'+action+'\n\n'+coverage+'\n当前版本标记来自物料接口，SHA-256标识本次解析来源；本次未重新计算原件哈希。物料接口有返回/分页/解析限额，未命中不等于没有；未按相似标题绑定项目、未将公司案例当本型号销量。\n\n'+methods+'\n内部资料与本报告仅在公司系统内处理，未发送外部模型；本次不改客户、发帖或投放。',models,countries:countries.map(c=>c.code),status:parameters.length?'preliminary':'product_evidence_gap',product,current_source_count:current.length,current_parameter_count:parameters.length,assessments,material_question:PREFIX+q.slice(0,475)};
 }

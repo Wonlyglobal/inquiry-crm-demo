@@ -921,7 +921,7 @@
       .daily-lead-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:15px 16px; border-bottom:1px solid var(--line); background:var(--soft); }
       .daily-lead-head h4 { margin:0; font-size:15px; }
       .daily-lead-head p { margin:4px 0 0; color:var(--muted); font-size:11px; }
-      .daily-lead-actions { display:flex; align-items:center; gap:9px; flex-shrink:0; }
+      .daily-lead-actions { display:flex; align-items:center; justify-content:flex-end; gap:9px; flex-wrap:wrap; min-width:0; max-width:100%; }
       .daily-lead-table { overflow-x:auto; }
       .daily-lead-table table { min-width:900px; }
       .daily-lead-table tbody tr { cursor:pointer; }
@@ -2068,16 +2068,17 @@
           <div id="sales-daily-form">
             <div class="daily-section-tabs"><button type="button" class="daily-section-tab active" data-daily-section="report">今日工作日报</button><button type="button" class="daily-section-tab" data-daily-section="history">历史客户线索看板</button></div>
             <div id="daily-report-panel">
-            <section class="card daily-content-card"><p class="hint">新增线索来自 CRM 真实记录，无需手工填数字；日报只需补充关键进展、所需支持和明日计划。</p>
+            <section class="card daily-content-card"><p class="hint">日报与每日线索看板共用线索账本：按服务器实际录入日统计，不按获取日期回填；转化商机单独计数。文字进展不会增加线索数量。</p>
             <input id="daily-new-leads" type="hidden" value="0" />
             <div class="daily-lead-section">
               <div class="daily-lead-head">
-                <div><h4>今日新增客户线索</h4><p>展示你在所选日期亲自新建的客户线索，点击任意一行可查看询盘详情。</p></div>
-                <div class="daily-lead-actions"><span id="daily-lead-count" class="tag">0 条</span><button id="daily-add-lead" type="button" class="primary">+ 新增客户线索</button></div>
+                <div><h4>今日新增客户线索</h4><p>展示所选日期实际录入的线索，手动录入与 Excel 导入统一计数；已转化的行可查看个人商机。</p></div>
+                <div class="daily-lead-actions"><span id="daily-lead-count" class="tag">待核对</span><button id="daily-refresh-leads" type="button" class="ghost">刷新线索</button><button id="daily-add-lead" type="button" class="primary">+ 新增客户线索</button></div>
               </div>
+              <p id="daily-metric-asof" class="hint">正在读取线索账本</p><p id="daily-snapshot" class="hint"></p>
               <div class="daily-lead-table">
                 <table>
-                  <thead><tr><th>编号</th><th>客户/公司</th><th>询盘主题</th><th>国家/地区</th><th>来源</th><th>当前阶段</th><th>新增时间</th></tr></thead>
+                  <thead><tr><th>序号</th><th>客户/公司</th><th>需求</th><th>国家/地区</th><th>来源</th><th>商机阶段</th><th>实际录入时间</th></tr></thead>
                   <tbody id="daily-lead-body"></tbody>
                 </table>
                 <div id="daily-lead-empty" class="empty">所选日期暂无新增客户线索</div>
@@ -2103,14 +2104,14 @@
             </section>
             </div>
             <div id="daily-history-panel" class="hidden">
-              <section class="card daily-history-toolbar"><div><h4>历史客户线索数据看板</h4><p>只统计你亲自创建的真实线索，所有数据可追溯到询盘详情。</p></div><div class="daily-history-filters"><select id="daily-history-period" class="input compact"><option value="month">本月</option><option value="quarter">本季度</option><option value="year">本年</option><option value="all">全部</option></select><select id="daily-history-channel" class="input compact"><option value="">全部渠道</option><option value="outbound">销售自主开发</option><option value="website">官网表单</option><option value="email">企业邮箱</option><option value="google_ads">Google Ads</option><option value="meta_ads">Meta Ads</option><option value="linkedin">LinkedIn</option><option value="exhibition">展会</option><option value="referral">经销商/客户转介绍</option><option value="other">其他</option><option value="manual">手工录入（待补充渠道）</option></select></div></section>
-              <div class="daily-history-kpis"><div class="card"><span>累计新增线索</span><b id="daily-history-total">0</b></div><div class="card"><span>有效线索率</span><b id="daily-history-valid-rate">—</b></div><div class="card"><span>进行中线索</span><b id="daily-history-active">0</b></div><div class="card"><span>已成交线索</span><b id="daily-history-won">0</b></div></div>
+              <section class="card daily-history-toolbar"><div><h4>历史客户线索数据看板</h4><p>与每日线索看板一致，统计账本启用后的实际录入记录；不混入旧询盘。获取日期不改变录入日期。</p></div><div class="daily-history-filters"><select id="daily-history-period" class="input compact"><option value="month">本月</option><option value="quarter">本季度</option><option value="year">本年</option><option value="all">全部</option></select><select id="daily-history-channel" class="input compact"><option value="">全部来源</option><option value="outbound">自主开发</option><option value="website">官网</option><option value="email">邮箱</option><option value="whatsapp">WhatsApp</option><option value="wechat">微信</option><option value="phone">电话</option><option value="exhibition">展会</option><option value="social_media">社媒</option><option value="offline_visit">拜访</option><option value="dealer_referral">经销商转介绍</option><option value="customer_referral">客户转介绍</option><option value="internal_referral">团队转介绍</option><option value="other">其他</option></select></div></section>
+              <div class="daily-history-kpis"><div class="card"><span>累计新增线索</span><b id="daily-history-total">0</b></div><div class="card"><span>本批线索已转化率</span><b id="daily-history-valid-rate">—</b></div><div class="card"><span>本批尚未转化</span><b id="daily-history-active">0</b></div><div class="card"><span>本批已转化商机</span><b id="daily-history-won">0</b></div></div>
               <div class="daily-history-breakdown"><section class="card"><h4>商机阶段分布</h4><div id="daily-history-stages" class="daily-history-chip-list"></div></section><section class="card"><h4>线索来源分布</h4><div id="daily-history-sources" class="daily-history-chip-list"></div></section></div>
-              <div class="table-wrap daily-report-table"><div class="table-head"><span>历史客户线索明细</span><span id="daily-history-summary" class="tag">0 条</span></div><div class="daily-lead-table"><table><thead><tr><th>编号</th><th>客户/公司</th><th>询盘主题</th><th>国家/地区</th><th>来源</th><th>有效性</th><th>阶段</th><th>创建时间</th></tr></thead><tbody id="daily-history-body"></tbody></table><div id="daily-history-empty" class="empty">当前周期暂无客户线索</div></div></div>
+              <div class="table-wrap daily-report-table"><div class="table-head"><span>历史客户线索明细</span><span id="daily-history-summary" class="tag">0 条</span></div><div class="daily-lead-table"><table><thead><tr><th>序号</th><th>客户/公司</th><th>需求</th><th>国家/地区</th><th>来源</th><th>录入方式</th><th>商机阶段</th><th>实际录入时间</th></tr></thead><tbody id="daily-history-body"></tbody></table><div id="daily-history-empty" class="empty">当前周期暂无客户线索</div></div></div>
             </div>
           </div>
           <div id="manager-daily-view" class="hidden">
-            <div class="daily-summary-kpis"><div class="card"><span>应提交成员</span><b id="daily-kpi-total">0</b></div><div class="card"><span>已提交</span><b id="daily-kpi-submitted">0</b></div><div class="card"><span>新增线索</span><b id="daily-kpi-leads">0</b></div></div>
+            <div class="daily-summary-kpis"><div class="card"><span>应提交成员</span><b id="daily-kpi-total">0</b></div><div class="card"><span>已提交</span><b id="daily-kpi-submitted">0</b></div><div class="card"><span>实际新增线索（实时）</span><b id="daily-kpi-leads">0</b></div><div class="card"><span>当日转化商机（实时）</span><b id="daily-kpi-converted">0</b></div></div><p class="hint">实时数量包含尚未提交日报的成员。下表数字为提交时快照；草稿与模拟日报不计入已提交。无新增申报不等于提交日报。</p>
             <div class="table-wrap daily-report-table">
               <div class="table-head">
                 <span>团队日报明细</span
@@ -2121,7 +2122,9 @@
                   <tr>
                     <th>销售</th>
                     <th>数据类型</th>
-                    <th>新增线索</th>
+                    <th>新增线索（快照）</th>
+                    <th>当日转化（快照）</th>
+                    <th>快照口径 / 截止时间</th>
                     <th>关键进展</th>
                     <th>困难与支持</th>
                     <th>明日计划</th>
@@ -2568,6 +2571,8 @@
     <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261019-private3" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
+      import {createDailyReportController} from './assets/daily-report-ui.mjs?v=20261026-ledger1';
+      import {submittedDailySalesIds} from './assets/daily-lead-reporting.mjs?v=20261026-ledger1';
       import {marketSummary} from './assets/agent-market-summary.mjs?v=20261012-market';
       import {mountExhibitionCalendar} from './assets/exhibition-calendar.mjs?v=20261013-11';
       let exhibitionCalendarController=null;
@@ -5722,8 +5727,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       }
       function renderManagerWorkbench(rows,profiles,followups){
         if(profile?.role!=="sales_manager")return;
-        const now=new Date(),sales=(profiles||[]).filter(x=>x.role==="sales"),open=rows.filter(x=>x.validity==="valid"&&!["won","lost"].includes(x.status)),openIds=new Set(open.map(x=>x.id)),pending=open.filter(x=>x.status==="pending_assignment"||!x.owner_id),pendingInvalid=rows.filter(x=>x.invalid_review_status==="pending"),pendingRetention=(dashboardState.retentionRequests||[]).filter(x=>x.status==="pending"&&openIds.has(x.inquiry_id)),expiredRetention=open.filter(x=>x.owner_id&&x.retained_until&&new Date(`${x.retained_until}T23:59:59+08:00`)<now),customerReplies=latestInboundTasks(open),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),overdueFollowups=(followups||[]).filter(x=>openIds.has(x.inquiry_id)&&x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),submitted=new Set((dashboardState.dailyReports||[]).map(x=>x.sales_id)),missingReports=sales.filter(x=>!submitted.has(x.id)),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999),wonCny=sumWonCny(rows.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd))),usd=fxToCny("USD"),audits=dashboardState.audits||[],pendingWon=audits.filter(a=>a.action==="won_requested"&&rows.some(x=>x.id===a.entity_id)&&!audits.some(x=>["won_approved","won_rejected"].includes(x.action)&&x.entity_id===a.entity_id&&new Date(x.created_at)>new Date(a.created_at)));
-        $("#manager-workbench-kpis").innerHTML=[["待审核成交",pendingWon.length],["待审核无效",pendingInvalid.length],["待审核保留",pendingRetention.length],["待分配询盘",pending.length],["客户回复待处理",customerReplies.length],["首次响应超时",responseOverdue.length],["跟进已逾期",overdueFollowups.length],["保留期已到",expiredRetention.length],["今日未交日报",missingReports.length],["团队本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i<9&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
+        const now=new Date(),sales=(profiles||[]).filter(x=>x.role==="sales"),open=rows.filter(x=>x.validity==="valid"&&!["won","lost"].includes(x.status)),openIds=new Set(open.map(x=>x.id)),pending=open.filter(x=>x.status==="pending_assignment"||!x.owner_id),pendingInvalid=rows.filter(x=>x.invalid_review_status==="pending"),pendingRetention=(dashboardState.retentionRequests||[]).filter(x=>x.status==="pending"&&openIds.has(x.inquiry_id)),expiredRetention=open.filter(x=>x.owner_id&&x.retained_until&&new Date(`${x.retained_until}T23:59:59+08:00`)<now),customerReplies=latestInboundTasks(open),responseOverdue=open.filter(x=>x.assigned_at&&!x.first_valid_contact_at&&now-new Date(x.assigned_at)>1800000),overdueFollowups=(followups||[]).filter(x=>openIds.has(x.inquiry_id)&&x.next_follow_up_at&&!x.completed_at&&new Date(x.next_follow_up_at)<now),submitted=submittedDailySalesIds(dashboardState.dailyReports||[],chinaDate(),dashboardState.dailyManagementPeople||[]),missingReports=(dashboardState.dailyManagementPeople||[]).filter(x=>!submitted.has(x.id)),monthStart=new Date(now.getFullYear(),now.getMonth(),1),monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999),wonCny=sumWonCny(rows.filter(x=>x.status==="won"&&inRange(x.won_at||x.created_at,monthStart,monthEnd))),usd=fxToCny("USD"),audits=dashboardState.audits||[],pendingWon=audits.filter(a=>a.action==="won_requested"&&rows.some(x=>x.id===a.entity_id)&&!audits.some(x=>["won_approved","won_rejected"].includes(x.action)&&x.entity_id===a.entity_id&&new Date(x.created_at)>new Date(a.created_at)));
+        $("#manager-workbench-kpis").innerHTML=[["待审核成交",pendingWon.length],["待审核无效",pendingInvalid.length],["待审核保留",pendingRetention.length],["待分配询盘",pending.length],["客户回复待处理",customerReplies.length],["首次响应超时",responseOverdue.length],["跟进已逾期",overdueFollowups.length],["保留期已到",expiredRetention.length],["今日尚未提交日报",dashboardState.dailyReportsError?"待核对":missingReports.length],["团队本月成交额",`${money(wonCny,"CNY")}${usd?` / ${money(wonCny/usd,"USD")}`:""}`]].map(([label,value],i)=>`<div class="sales-workbench-kpi"><span>${label}</span><b class="${i<9&&Number(value)>0?"danger-text":""}">${value}</b></div>`).join("");
         const priorities=[];pendingInvalid.forEach(x=>priorities.push({priority:0,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===x.invalid_requested_by)?.full_name||"业务员"}提交无效申请，等待审核`,time:x.invalid_requested_at,label:"审核无效"}));pendingWon.forEach(a=>{const x=rows.find(row=>row.id===a.entity_id),requester=profiles.find(p=>p.id===a.actor_id)?.full_name||"业务员",d=a.after_data||{};if(x)priorities.push({priority:0,id:x.id,title:x.title,reason:`${requester}提交成交申请 · ${d.won_currency||""} ${Number(d.won_amount||0).toLocaleString("zh-CN")}`,time:a.created_at,label:"审核成交"})});pendingRetention.forEach(r=>{const x=rows.find(row=>row.id===r.inquiry_id),requester=profiles.find(p=>p.id===r.requested_by)?.full_name||"业务员";if(x)priorities.push({priority:0,id:x.id,title:x.title,reason:`${requester}申请保留至 ${r.requested_until}：${r.reason}`,time:r.created_at,label:"审核保留"})});expiredRetention.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"客户保留期已到，需决定延期、转派或释放公海",time:`${x.retained_until}T23:59:59+08:00`,label:"处理到期"}));pending.forEach(x=>priorities.push({priority:1,id:x.id,title:x.title,reason:"等待主管分配负责人",time:x.created_at,label:"待分配"}));customerReplies.forEach(x=>priorities.push({priority:2,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===x.owner_id)?.full_name||"负责人"}有客户新回复待处理`,time:x.latestInboundAt,label:"客户回复"}));responseOverdue.forEach(x=>priorities.push({priority:3,id:x.id,title:x.title,reason:"分配后超过 30 分钟未完成首次有效联系",time:x.assigned_at,label:"响应超时"}));overdueFollowups.forEach(f=>{const x=rows.find(row=>row.id===f.inquiry_id);if(x)priorities.push({priority:4,id:x.id,title:x.title,reason:`${profiles.find(p=>p.id===f.author_id)?.full_name||"业务员"}的跟进任务已逾期`,time:f.next_follow_up_at,label:"跟进逾期"})});
         priorities.push(...stageWarningTasks(open));const consolidated=consolidateTasks(priorities);
         $("#manager-priority-list").innerHTML=consolidated.length?consolidated.slice(0,12).map(t=>`<div class="sales-task-item" data-manager-task="${t.id}"><div><b>${esc(t.title)}</b><small>${esc(t.reason)}</small></div><small>${taskTimeText(t.time)}</small><span class="tag">${t.label}</span></div>`).join(""):'<div class="empty"><b>暂无团队紧急事项</b><small>当前分配、响应和跟进均无异常</small></div>';
@@ -6405,6 +6410,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           supabase.from("exchange_rates").select("*").order("rate_date", { ascending: false }).limit(500),
         ]);
         renderSalesAmountRankingEarly(rows, earlyProfiles || [], earlyTargetPeople || [], earlyRates || []);
+        const dailyScopeResult=profile?.role==="sales_manager"?await supabase.rpc("get_my_management_scope"): {data:{people:[]},error:null};
         const dashboardResults = await Promise.all([
           supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active,avatar_url").eq("active", true),
           loadAllDashboardFollowups(),
@@ -6419,7 +6425,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           supabase.from("exchange_rates").select("*").order("rate_date",{ascending:false}).limit(500),
           loadModuleRowsPaged((from,to)=>supabase.from("legacy_engineering_projects").select("legacy_project_id,country,partner_name,product_type,project_status,next_milestone_at,contract_amount_wan,legacy_owner_name,owner_id,source_created_at").range(from,to)),
           profile?.role==="owner"?loadModuleRowsPaged((from,to)=>supabase.from("historical_sales_order_lines").select("source_row,source_month,legacy_owner_name,owner_id,order_no,contract_name,order_quantity,amount_wan,ordered_at,target_stock_at,expected_stock_at,status_code").order("ordered_at",{ascending:false}).range(from,to)):Promise.resolve({data:[],error:null}),
-          loadModuleRowsPaged((from,to)=>supabase.from("daily_sales_reports").select("sales_id,report_date,submitted_at").eq("report_date",chinaDate()).range(from,to)),
+          loadModuleRowsPaged((from,to)=>supabase.from("daily_sales_reports").select("sales_id,report_date,status,submitted_at,is_simulated").eq("report_date",chinaDate()).eq("status","submitted").eq("is_simulated",false).not("submitted_at","is",null).range(from,to)),
           loadModuleRowsPaged((from,to)=>supabase.from("email_intake").select("id,inquiry_id,sender_email,subject,processing_status,received_at,created_at").order("created_at",{ascending:false}).range(from,to)),
           loadModuleRowsPaged((from,to)=>supabase.from("companies").select("id,name,research_status,updated_at").order("updated_at",{ascending:false}).range(from,to)),
           loadModuleRowsPaged((from,to)=>supabase.from("inquiry_retention_requests").select("id,inquiry_id,requested_by,requested_until,reason,status,created_at").order("created_at",{ascending:false}).range(from,to)),
@@ -6442,7 +6448,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(productSelect&&productSelect.options.length===1)[...new Set([...rows.map(x=>x.product_category),...(legacyProjects||[]).map(x=>x.product_type)].filter(Boolean))].sort().forEach(v=>productSelect.add(new Option(v,v)));
         const syncedRates=await syncDailyExchangeRates(rows,exchangeRates||[]);
         const primaryTouchByInquiry=new Map();for(const touch of marketingTouches||[]){if(touch.is_primary&&!primaryTouchByInquiry.has(touch.inquiry_id))primaryTouchByInquiry.set(touch.inquiry_id,touch)}rows.forEach(x=>{x.primary_marketing_touch=primaryTouchByInquiry.get(x.id)||null});
-        dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.whatsappMessages=dashboardWhatsAppMessages||[];dashboardState.replyReminders=replyReminders||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.historicalOrders=historicalOrders||[];dashboardState.dailyReports=dailyReports||[];dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
+        dashboardState.emailMessages=dashboardEmailMessages||[];dashboardState.whatsappMessages=dashboardWhatsAppMessages||[];dashboardState.replyReminders=replyReminders||[];dashboardState.costs=channelCosts||[]; dashboardState.targets=salesTargets||[];dashboardState.targetPeople=targetPeople||[];dashboardState.targetPlanItems=targetPlanItems||[];dashboardState.audits=dashboardAudits||[];dashboardState.rates=syncedRates;dashboardState.legacy=legacyProjects||[];dashboardState.historicalOrders=historicalOrders||[];dashboardState.dailyReports=dailyReports||[];dashboardState.dailyManagementPeople=dailyScopeResult.data?.people||[];dashboardState.dailyReportsError=dailyReportsResult.error||dailyScopeResult.error||(!Array.isArray(dailyScopeResult.data?.people)?new Error("日报管理范围未完成核对"):null);dashboardState.emailIntakes=emailIntakes||[];dashboardState.researchCompanies=researchCompanies||[];dashboardState.retentionRequests=retentionRequests||[];dashboardState.marketingTouches=marketingTouches||[];
         renderDashboard(rows, dashboardProfiles||[], history||[], dashboardFollowups||[]);
         if($(".nav[data-view=\"marketing-center\"]")?.classList.contains("active"))renderMarketingWorkbench(rows);
         const latestByInquiry = new Map();
@@ -7313,38 +7319,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#daily-date-today").addEventListener("click",()=>{const today=chinaDate(),[year,month]=today.split("-").map(Number);dailyCalendarMonth=new Date(year,month-1,1);$("#daily-date").value=today;renderDailyDatePicker();closeDailyDatePicker();$("#daily-date").dispatchEvent(new Event("change"));});
       $("#daily-date-close").addEventListener("click",closeDailyDatePicker);
       document.addEventListener("click",event=>{if(!event.target.closest(".daily-date-control"))closeDailyDatePicker();});
-      function dailyHistoryStart(period){
-        if(period==="all")return null;
-        const [year,month]=chinaDate().split("-").map(Number);
-        const startMonth=period==="year"?1:period==="quarter"?Math.floor((month-1)/3)*3+1:month;
-        return `${year}-${String(startMonth).padStart(2,"0")}-01T00:00:00+08:00`;
-      }
-      function renderDailyHistoryChips(target,items,emptyText){
-        const box=$(target);box.replaceChildren();
-        if(!items.length){const span=document.createElement("span");span.className="muted";span.textContent=emptyText;box.append(span);return;}
-        items.forEach(([name,count])=>{const chip=document.createElement("span");chip.className="daily-history-chip";const label=document.createElement("span");label.textContent=name;const value=document.createElement("b");value.textContent=count;chip.append(label,value);box.append(chip);});
-      }
-      async function loadDailyHistory(){
-        if(profile.role!=="sales")return;
-        const period=$("#daily-history-period").value,channel=$("#daily-history-channel").value;
-        let query=supabase.from("inquiries").select("id,inquiry_no,title,target_country,source,status,validity,created_at,companies(name),contacts(full_name,email)").eq("created_by",profile.id).eq("excluded_from_dashboard",false).order("created_at",{ascending:false});
-        const start=dailyHistoryStart(period);if(start)query=query.gte("created_at",start);
-        if(channel)query=query.eq("source",channel);
-        const {data,error}=await query;
-        if(error){toast("历史线索加载失败："+error.message);return;}
-        const rows=data||[],valid=rows.filter(x=>x.validity==="valid").length,active=rows.filter(x=>!["won","lost"].includes(x.status)&&x.validity!=="invalid").length,won=rows.filter(x=>x.status==="won").length;
-        $("#daily-history-total").textContent=rows.length;
-        $("#daily-history-valid-rate").textContent=rows.length?`${Math.round(valid/rows.length*100)}%`:"—";
-        $("#daily-history-active").textContent=active;
-        $("#daily-history-won").textContent=won;
-        $("#daily-history-summary").textContent=`${rows.length} 条`;
-        const countBy=(key,labeler)=>Object.entries(rows.reduce((map,row)=>{const keyValue=row[key]||"未设置";map[keyValue]=(map[keyValue]||0)+1;return map;},{})).sort((a,b)=>b[1]-a[1]).map(([keyValue,count])=>[labeler(keyValue),count]);
-        renderDailyHistoryChips("#daily-history-stages",countBy("status",value=>statusNames[value]||value),"暂无阶段数据");
-        renderDailyHistoryChips("#daily-history-sources",countBy("source",value=>sourceNames[value]||value),"暂无来源数据");
-        const body=$("#daily-history-body");body.replaceChildren();$("#daily-history-empty").classList.toggle("hidden",Boolean(rows.length));
-        const validityNames={pending:"待确认",valid:"有效",invalid:"无效"};
-        rows.forEach(lead=>{const tr=document.createElement("tr"),customer=lead.companies?.name||lead.contacts?.full_name||lead.contacts?.email||"—";[String(lead.inquiry_no||"").padStart(6,"0"),customer,lead.title||"—",displayCountry(lead.target_country),sourceNames[lead.source]||lead.source||"—",validityNames[lead.validity]||lead.validity||"—",statusNames[lead.status]||lead.status||"—",fmtDate(lead.created_at)].forEach((value,index)=>{const td=document.createElement("td");td.textContent=value;if(index===2)td.className="daily-lead-title";tr.append(td);});tr.addEventListener("click",()=>{$("#daily-modal").classList.add("hidden");openInquiryDetail(lead.id);});body.append(tr);});
-      }
+      const dailyReportController=createDailyReportController({supabase,getProfile:()=>profile,$,today:chinaDate,fmtDate,displayCountry,openInquiryDetail,toast,confirm:appConfirm});
+      async function loadDailyHistory(){await dailyReportController.loadHistory();}
       async function setDailySection(section){
         dailySection=section;
         $$('[data-daily-section]').forEach(button=>button.classList.toggle("active",button.dataset.dailySection===section));
@@ -7357,93 +7333,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#daily-modal").classList.remove("hidden");
         if (!$("#daily-date").value) $("#daily-date").value = chinaDate();
         $("#daily-date-text").textContent=dailyDateLabel($("#daily-date").value);
-        const selectedDate = $("#daily-date").value;
         const isManager = ["owner", "sales_manager"].includes(profile.role);
-        $("#sales-daily-form").classList.toggle(
-          "hidden",
-          profile.role !== "sales",
-        );
-        $("#manager-daily-view").classList.toggle("hidden", !isManager);
+        $("#sales-daily-form").classList.toggle("hidden",profile.role!=="sales");
+        $("#manager-daily-view").classList.toggle("hidden",!isManager);
         $("#daily-date-toolbar").classList.toggle("hidden",profile.role==="sales"&&dailySection==="history");
-        if (isManager) {
-          const [{ data: scope, error: scopeError }, { data: reports, error: reportError }] = await Promise.all([
-            supabase.rpc("get_my_management_scope"),
-            supabase
-              .from("daily_sales_reports")
-              .select(
-                "sales_id,new_leads_count,key_progress,blockers,tomorrow_plan,submitted_at,is_simulated,profiles(full_name)",
-              )
-              .eq("report_date", selectedDate)
-              .eq("status", "submitted")
-              .order("submitted_at", { ascending: false }),
-          ]);
-          if(scopeError||reportError){$("#daily-report-body").replaceChildren();$("#daily-summary").textContent="管理范围或日报加载失败，请重试";toast((scopeError||reportError).message);return}
-          const sales=scope?.people||[];
-          const realReports=(reports||[]).filter(x=>!x.is_simulated);
-          const totalSales=sales?.length||0,totalReports=realReports.length;
-          $("#daily-summary").textContent =
-            `${totalReports}/${totalSales} 已提交`;
-          $("#daily-kpi-total").textContent=totalSales;
-          $("#daily-kpi-submitted").textContent=totalReports;
-          $("#daily-kpi-leads").textContent=realReports.reduce((s,x)=>s+(Number(x.new_leads_count)||0),0);
-          const body = $("#daily-report-body");
-          body.replaceChildren();
-          $("#daily-empty").classList.toggle(
-            "hidden",
-            Boolean(reports?.length),
-          );
-          (reports || []).forEach((x) => {
-            const tr = document.createElement("tr");
-            [
-              x.profiles?.full_name || "—",
-              x.is_simulated?"模拟数据":"正式日报",
-              x.new_leads_count,
-              x.key_progress || "—",
-              x.blockers || "—",
-              x.tomorrow_plan || "—",
-              fmtDate(x.submitted_at),
-            ].forEach((v) => {
-              const td = document.createElement("td");
-              td.textContent = v;
-              tr.append(td);
-            });
-            body.append(tr);
-          });
-        } else if (profile.role === "sales") {
-          const date = selectedDate;
-          const start = `${date}T00:00:00+08:00`;
-          const nextDate = new Date(`${date}T00:00:00+08:00`);
-          nextDate.setDate(nextDate.getDate() + 1);
-          const [{data:existing},{data:dailyLeads,error:leadError}]=await Promise.all([
-            supabase.from("daily_sales_reports").select("new_leads_count,key_progress,blockers,tomorrow_plan,status,draft_saved_at,submitted_at").eq("sales_id",profile.id).eq("report_date",date).maybeSingle(),
-            supabase.from("inquiries").select("id,inquiry_no,title,target_country,source,status,created_at,companies(name),contacts(full_name,email)").eq("created_by",profile.id).eq("excluded_from_dashboard",false).gte("created_at",start).lt("created_at",nextDate.toISOString()).order("created_at",{ascending:false}),
-          ]);
-          if(leadError) throw leadError;
-          const leadRows=dailyLeads||[];
-          $("#daily-new-leads").value=leadRows.length;
-          $("#daily-lead-count").textContent=`${leadRows.length} 条`;
-          const leadBody=$("#daily-lead-body");
-          leadBody.replaceChildren();
-          $("#daily-lead-empty").classList.toggle("hidden",Boolean(leadRows.length));
-          leadRows.forEach((lead)=>{
-            const tr=document.createElement("tr");
-            const customer=lead.companies?.name||lead.contacts?.full_name||lead.contacts?.email||"—";
-            [String(lead.inquiry_no||"").padStart(6,"0"),customer,lead.title||"—",displayCountry(lead.target_country),sourceNames[lead.source]||lead.source||"—",statusNames[lead.status]||lead.status||"—",fmtDate(lead.created_at)].forEach((value,index)=>{
-              const td=document.createElement("td");
-              td.textContent=value;
-              if(index===2)td.className="daily-lead-title";
-              tr.append(td);
-            });
-            tr.addEventListener("click",()=>{$("#daily-modal").classList.add("hidden");openInquiryDetail(lead.id);});
-            leadBody.append(tr);
-          });
-          $("#daily-progress").value=existing?.key_progress||"";
-          $("#daily-blockers").value=existing?.blockers||"";
-          $("#daily-plan").value=existing?.tomorrow_plan||"";
-          const submitted=existing?.status==="submitted";
-          $("#daily-save-state").textContent=submitted?`已提交 · ${fmtDate(existing.submitted_at)}`:existing?`草稿已保存 · ${fmtDate(existing.draft_saved_at)}`:"未保存";
-          ["#daily-progress","#daily-blockers","#daily-plan","#save-daily-draft","#submit-daily"].forEach(selector=>$(selector).disabled=submitted);
-        }
+        await dailyReportController.open($("#daily-date").value);
       }
       $$(".nav[data-view]").forEach((item) =>
         item.addEventListener("click", () => {
@@ -7460,28 +7354,12 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#daily-history-period").addEventListener("change",loadDailyHistory);
       $("#daily-history-channel").addEventListener("change",loadDailyHistory);
       $("#daily-add-lead").addEventListener("click",()=>{
-        returnToDailyAfterLeadCreate=true;
-        $("#daily-modal").classList.add("hidden");
-        $("#new-inquiry").click();
+        // Open the canonical ledger without discarding unsaved report text.
+        window.open('sales-leads.html','_blank','noopener,noreferrer');
+        toast('请在每日线索页保存后返回，点击“刷新线索”；未保存的日报文字仍保留。');
       });
-      async function persistDailyReport(submitReport){
-        if(submitReport&&!await appConfirm("确认提交这份日报？\n\n提交后将同步给主管，且不能再修改。",{title:"提交日报",confirmText:"确认提交"}))return;
-        const button=$(submitReport?"#submit-daily":"#save-daily-draft");button.disabled=true;
-        const { error } = await supabase.rpc("save_or_submit_daily_report", {
-          target_date: $("#daily-date").value || chinaDate(),
-          key_progress_text: $("#daily-progress").value.trim() || null,
-          blockers_text: $("#daily-blockers").value.trim() || null,
-          tomorrow_plan_text: $("#daily-plan").value.trim() || null,
-          submit_report: submitReport,
-        });
-        button.disabled=false;
-        if (error) {
-          toast((submitReport?"日报提交失败：":"草稿保存失败：") + error.message);
-          return;
-        }
-        toast(submitReport?"日报已提交并同步给主管":"日报草稿已保存");
-        await openDailyReport();
-      }
+      $("#daily-refresh-leads").addEventListener("click",()=>dailyReportController.refreshLeads());
+      async function persistDailyReport(submitReport){await dailyReportController.save(submitReport);}
       $("#save-daily-draft").addEventListener("click",()=>persistDailyReport(false));
       $("#submit-daily").addEventListener("click",()=>persistDailyReport(true));
       function localDateTimeValue(date = new Date()) {

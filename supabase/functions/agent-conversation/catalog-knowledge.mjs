@@ -53,6 +53,10 @@ export function catalogPrecheck(question){
  if(bareModel(q))return true;
  if(inventoryIntent(q)||selectionIntent(q))return true;
  if(FILE_REQUEST.test(q))return false;
+ // Factual company/product knowledge must not depend on a known model or “画册”.
+ // CRM records, platform metrics and analytical workflows retain their own authorized sources.
+ const operational=/询盘|客户|商机|合同|报价|员工|利润|营收|成本|统计|SEO|GSC|GA4|社媒|帖子|粉丝|tiktok|instagram|facebook|youtube|市场|营销|策略|计划|增长|投放|广告/i.test(q);
+ if(!operational&&((/王力|我们|我司|wonly/i.test(q)&&/什么|哪些|多少|哪年|哪里|介绍|说明|有没有|是否|情况|设计|工艺|材料|制造|技术|功能/.test(q))||(/门|锁|门窗|五金/.test(q)&&/设计|材质|材料|性能|工艺|参数|规格|型号|制造|技术|功能/.test(q))))return true;
  return /画册/.test(q)||(/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/.test(q)&&SPEC_WORDS.test(q))||(CATEGORY_WORDS.some(([,re])=>re.test(q))&&/型号|有哪些|哪几款|系列|产品线|参数|规格/.test(q));
 }
 

@@ -13,3 +13,11 @@ test('unknown catalogue question is kept internal with explicit no-match coverag
  const a=fullCatalogueAnswer(null,fixture,'画册 nonexistentword');assert.match(a.answer,/不能据此回答“没有”/);assert.equal(a.coverage.matches,0);assert.match(a.coverage_text,/未解析页/);
  assert.equal(fullCatalogueAnswer(null,null,'画册'),null);
 });
+test('unlisted Chinese company and product subjects search every source without a magic keyword',()=>{
+ const c={...fixture,pages:[...fixture.pages,{catalog:'c1',page:44,text:'仅合成数据：特殊复合涂层工艺。'}]};
+ for(const q of ['王力采用什么特殊复合涂层工艺','锁具采用什么特殊复合涂层工艺']){
+  assert.equal(catalogPrecheck(q),true);const a=fullCatalogueAnswer(catalogIntent(q,c),c,q);
+  assert.ok(a.coverage.terms.includes('涂层'));assert.equal(a.coverage.records_searched,38);assert.match(a.answer,/PDF第44页/);
+ }
+ for(const q of ['我们本月客户询盘统计','本月社媒帖子数据','我们的营销策略分析'])assert.equal(catalogPrecheck(q),false,q);
+});

@@ -19,6 +19,20 @@ export const SPEC_DIMS=[
 ];
 const STRONG=new Set(['fire_rating','acoustic','security_class']);
 const MODEL_CODE=/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/;
+// Query-only context, explicitly marked by the authenticated catalogue response.
+export function catalogueTurn(question,history=[]){
+ const q=String(question||'').trim(),stored=String(history.at(-1)||'');
+ if(!stored.startsWith('画册检索：')||q.length>80)return null;
+ const previous=stored.slice('画册检索：'.length);
+ if(/^(?:那)?(?:来源|出处|页码|版本|展开|详细|source|references?|pages?)/i.test(q))return previous+' '+q;
+ if(!/^(?:那|它|这个|还有)|呢[？?。]*$/.test(q))return null;
+ const prior=specIntent(previous);if(!prior)return null;
+ if(specIntent(q))return q;
+ const withCategory=prior.catLabel+' '+q;
+ if(specIntent(withCategory))return withCategory;
+ const withDimension=q+' '+prior.dimLabel;
+ return specIntent(withDimension)?withDimension:null;
+}
 
 export function specIntent(question){
  const q=String(question||'').slice(0,300);

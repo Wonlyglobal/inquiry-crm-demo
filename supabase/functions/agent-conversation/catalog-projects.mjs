@@ -18,6 +18,8 @@ const escape=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const has=(s,w)=>new RegExp(/[A-Za-z]/.test(w)?`(?<![A-Za-z])${escape(w)}(?![A-Za-z])`:escape(w),'i').test(s);
 export function projectQuestion(question){
  const q=String(question||'').normalize('NFKC').slice(0,500);
+ if(/选型|适合|推荐/.test(q)&&!/标杆|地标|案例|项目业绩|工程业绩/.test(q))return false;
+ if(/代码|编程|算法|诉讼|医学/.test(q)&&!/王力|我司|wonly|画册/i.test(q))return false;
  return PROJECT.test(q)&&!(/客户|询盘|商机|合同|报价|我的项目|竞品|对手/.test(q)&&! /画册/.test(q));
 }
 export function projectTurn(question,history=[]){

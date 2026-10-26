@@ -15,7 +15,7 @@ test('natural case questions and PDF citation requests use private catalogue wit
  for(const q of ['非洲有哪些标杆案例','王力在哪些地区有标杆案例，举一下','画册中非洲标杆项目，请附PDF页码','Africa reference projects']){
   assert.equal(catalogPrecheck(q),true,q);assert.equal(catalogIntent(q,catalog).kind,'projects',q);
  }
- for(const q of ['我的项目报价','客户案例合同','本月非洲询盘','竞品在非洲有哪些标杆案例'])assert.equal(projectQuestion(q),false,q);
+ for(const q of ['我的项目报价','客户案例合同','本月非洲询盘','竞品在非洲有哪些标杆案例','什么产品适合埃及项目','给我编程案例'])assert.equal(projectQuestion(q),false,q);
 });
 test('all catalogue sources and all indexed pages are scanned before presentation limits',()=>{
  const q='非洲有哪些标杆案例',r=projectEvidence(projectIntent(q),catalog);

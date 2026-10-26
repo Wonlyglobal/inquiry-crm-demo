@@ -2,6 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import fs f
 import {productMarketIntent,productMarketTurn,countryMatches,validMarketEvidence,modelMarketEvidence,countryAssessment,productMarketReport,marketProductScope,marketMaterialQuestion,allMarketEvidence} from '../supabase/functions/agent-conversation/product-market.mjs';
 import * as productInput from '../supabase/functions/agent-conversation/product-input.mjs';
 import {privateV9Turn} from '../supabase/functions/agent-conversation/private-v9-turn.mjs';
+import {crmMarketPriorityIntent,crmMarketPriorityScope,withCrmMarketPriority} from '../supabase/functions/agent-conversation/market-priority.mjs';
 const now=Date.parse('2026-10-26T04:00:00Z'),sha='a'.repeat(64);
 const catalog={schema:'wonly-catalog-v1',sources:[{id:'c4',pages:12}],products:[{model:'TEST80 PRO',category:'smart_lock',catalog:'c4',page:4,specs:{Unlocking:'Synthetic fingerprint'}}],pages:[{catalog:'c4',page:4,text:'TEST80 PRO synthetic page'}],facts:[]};
 const fact={product:'TEST80 PRO',field:'开锁方式',value:'合成指纹、密码',quote:'TEST80 PRO 合成指纹、密码',page:2};
@@ -38,6 +39,7 @@ test('query-only market context switches country and model independently without
  assert.match(productMarketTurn('下一页',['产品市场：智能锁市场分析 产品第2页']),/产品第3页/);
  assert.match(productMarketTurn('下一页',['产品市场：TEST80 PRO所有国家市场分析 国家第2页']),/国家第3页/);
  assert.doesNotMatch(productMarketTurn('那新加坡呢',['产品市场：TEST80 PRO所有国家市场分析']),/所有国家/);
+ assert.doesNotMatch(productMarketTurn('那越南呢',['产品市场：TEST80 PRO智能锁按CRM重点国家市场分析 V9']),/CRM重点国家/);
 });
 test('current model identity, source hash, dates, edition and original page are retained',()=>{
  const p=modelMarketEvidence('TEST80 PRO',catalog,materials,{edition:'V9'});
@@ -107,7 +109,7 @@ test('actual authenticated market handler resolves its declared imports and retu
  const branch=src.slice(src.indexOf('   if(marketTurn){'),src.indexOf('   const v9Turn='));
  const declared=new Set([...src.matchAll(/import \{([^}]+)\} from '\.\/product-input\.mjs'/g)].flatMap(m=>m[1].split(',').map(s=>s.trim())));
  let lookedUp=false,audited=false;
- const deps={marketTurn:'TEST80 PRO智能锁V9在新加坡市场分析',guest:false,input:{persona:'Grace'},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='product_country_market_analysis';return {error:null}}})},loadCatalog:async()=>catalog,findModels:()=>['TEST80 PRO'],loadFullMaterials:async()=>{lookedUp=true;return materials},gateMaterialEvidence:x=>x,materialConfig:{},productMarketReport,marketProductScope,marketMaterialQuestion,user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async()=>null,json:x=>x};
+ const deps={marketTurn:'TEST80 PRO智能锁V9在新加坡市场分析',guest:false,input:{persona:'Grace'},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='product_country_market_analysis';return {error:null}}})},loadCatalog:async()=>catalog,findModels:()=>['TEST80 PRO'],loadFullMaterials:async()=>{lookedUp=true;return materials},gateMaterialEvidence:x=>x,materialConfig:{},productMarketReport,marketProductScope,marketMaterialQuestion,crmMarketPriorityIntent,crmMarketPriorityScope,withCrmMarketPriority,evidenceCheck:()=>({status:'synthetic'}),user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async()=>null,json:x=>x};
  for(const name of declared)if(name in productInput)deps[name]=productInput[name];
  const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
  const result=await new AsyncFunction(...Object.keys(deps),branch)(...Object.values(deps));

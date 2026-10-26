@@ -4,42 +4,831 @@
   "entries": [
     {
       "id": "sg-digital-fire-lock-coc",
-      "country": "SG", "category": "smart_lock", "kind": "admission",
+      "country": "SG",
+      "category": "smart_lock",
+      "kind": "admission",
       "title": "SCDF Fire Code 11.8.2(c)",
       "url": "https://www.scdf.gov.sg/fire-safety-services-listing/fire-code-2023/table-of-content/chapter-11-regulated-fire-safety-products-and-materials/clause-11.8-additional-requirements-for-specific-products",
-      "published_at": null, "checked_at": "2026-10-26", "read_status": "body_verified",
+      "published_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
       "fact": "防火门上的数字锁须随门认证或持有独立CoC；锁具耐火等级须不低于门，测试门型限制需核对。",
       "condition": "用于新加坡防火门的数字锁；不是对所有门锁场景的统一判断。",
       "implication": "先核对具体锁具、门组合及CoC范围，不能用国内等级或画册宣称代替当地证明。"
     },
     {
-      "id": "sg-yale-installed-offer", "country": "SG", "category": "smart_lock", "kind": "case",
-      "title": "Yale Singapore FAQ: orders and installation", "url": "https://www.yalesmart.com/sg/faqs",
-      "published_at": null, "checked_at": "2026-10-26", "read_status": "body_verified",
+      "id": "sg-yale-installed-offer",
+      "country": "SG",
+      "category": "smart_lock",
+      "kind": "case",
+      "title": "Yale Singapore FAQ: orders and installation",
+      "url": "https://www.yalesmart.com/sg/faqs",
+      "published_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
       "fact": "官网FAQ将智能数字锁价格与安装及GST一起说明，并提供官方安装人员预约交付。",
       "condition": "Yale新加坡官方销售路径自述；不证明行业普遍条件、销量或份额。",
       "implication": "建议用含安装的完整交付成本和服务响应做对照，不能只比较出厂价；这是可借鉴机制，非已验证增长案例。"
     },
     {
-      "id": "gb-connectable-security", "country": "GB", "category": "smart_lock", "kind": "admission",
-      "title": "UK consumer connectable product security guidance", "url": "https://www.gov.uk/guidance/regulations-consumer-connectable-product-security",
-      "published_at": "2024-01-08", "updated_at": "2025-03-17", "checked_at": "2026-10-26", "read_status": "body_verified",
+      "id": "gb-connectable-security",
+      "country": "GB",
+      "category": "smart_lock",
+      "kind": "admission",
+      "title": "UK consumer connectable product security guidance",
+      "url": "https://www.gov.uk/guidance/regulations-consumer-connectable-product-security",
+      "published_at": "2024-01-08",
+      "updated_at": "2025-03-17",
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
       "fact": "英国相关消费联网产品安全制度自2024年4月29日起实施，制造商、进口商和分销商须核对安全及合规声明义务。",
       "condition": "仅相关联网消费产品；具体联网方式、豁免及北爱尔兰适用法规须单独核对。",
       "implication": "智能锁先确认联网配置及适用性，再核对安全更新期限、漏洞报告和合规声明；不能直接判定某型号已合规。"
     },
     {
-      "id": "gb-yale-linus-l2", "country": "GB", "category": "smart_lock", "kind": "case",
-      "title": "Yale UK Linus Smart Lock L2", "url": "https://yalehome.co.uk/linus-smart-lock-l2-uk/",
-      "published_at": null, "checked_at": "2026-10-26", "read_status": "body_verified",
+      "id": "gb-yale-linus-l2",
+      "country": "GB",
+      "category": "smart_lock",
+      "kind": "case",
+      "title": "Yale UK Linus Smart Lock L2",
+      "url": "https://yalehome.co.uk/linus-smart-lock-l2-uk/",
+      "published_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
       "fact": "英国型号SL103页面列出Wi-Fi、蓝牙、App远程开锁、门适配检查入口，并注明不含安装。",
       "condition": "这一具体官网型号与配置；不把其价格、适配或认证推广到所有英国智能锁。",
       "implication": "建议把门与锁体兼容、联网功能及安装是否包含列为同档对比项；仅产品供应证据，不代表市场规模或竞争强度。"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "vn-hafele-el10k-official-price-20261026",
+      "country": "VN",
+      "kind": "price",
+      "brand": "Häfele",
+      "title": "Häfele Vietnam：EL10K 912.05.317商品与价格",
+      "url": "https://hafelehome.com.vn/products/khoa-dien-tu-hafele-el10k",
+      "fact": "HäfeleHome商品页列EL10K（912.05.317）18,389,000越南盾，支持指纹、密码、卡片；商品字段明确“免费安装：否”。",
+      "condition": "2026-10-26直接商品正文观察，非结账成交价；税、运费、门体改造及安装总费用未核验。页面销量/评分不作需求或质量证据；同名型号须核对SKU与配置。",
+      "implication": "若以此作价格样本，先取得相同SKU的含税、安装、门体改造及售后完整报价，再与同锁型和访问方式的产品对照。",
+      "scenario_tags": [
+        "residential",
+        "fingerprint",
+        "installation_excluded"
+      ],
+      "body_locator": "商品标题、价格、SKU、Lắp đặt miễn phí: Không；产品描述"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "vn-hafele-sos2h-official-channel-20261026",
+      "country": "VN",
+      "kind": "channel",
+      "brand": "Häfele",
+      "title": "Häfele SOS 2h：电子锁应急服务范围",
+      "url": "https://hafelehome.com.vn/pages/hafele-sos-2h",
+      "fact": "Häfele自述SOS 2h电子锁救援周一至周日8:00—20:00，覆盖胡志明市、河内、岘港及部分邻近地区；节假日或天气可能改变服务时间。",
+      "condition": "这是品牌服务承诺，未实测响应；不是全国全天候覆盖，也未确认所有型号、收费或破坏性开锁责任。",
+      "implication": "若评估当地交付，按目标城市核验夜间锁闭、节假日、响应时限、费用与备用钥匙处理，并要求服务商书面说明覆盖。",
+      "scenario_tags": [
+        "after_sales",
+        "urban_service"
+      ],
+      "body_locator": "Thông tin chương trình：时间、地区、节假日天气附注"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": "2025-01-06",
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "vn-nso-housing-2024-release-20261026",
+      "country": "VN",
+      "kind": "demand",
+      "title": "越南统计总局：2024年人口与住房中期调查",
+      "url": "https://datacollection.nso.gov.vn/Data/Sites/1/media/nthhai/files/Thong-cao-bao-chi-Ket-qua-chu-yeu-DSGK2024.pdf",
+      "fact": "2024年中期调查公报载全国约2,810万户；89.7%的住户居住于本户自有房屋/公寓，城市79.8%、农村96.2%。",
+      "condition": "官方调查时点为2024-04-01；这是住户与产权结构，不是智能锁购买意愿、渗透率、锁数或市场规模，不能将每户乘以一把锁。",
+      "implication": "若测试住宅改装，先分别访谈城市自有住房业主、租户及管理方，并采样门材、门厚和换锁决策权限；另收集实际换锁意愿与预算。",
+      "scenario_tags": [
+        "residential",
+        "owner_occupied",
+        "demand_proxy"
+      ],
+      "body_locator": "PDF第1页发布日期及调查时点；第6页第27、31项"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "my-yale-ydm7116a-price-20261026",
+      "country": "MY",
+      "kind": "price",
+      "brand": "Yale",
+      "title": "Yale Malaysia：YDM7116A单锁价格及安装适配",
+      "url": "https://www.yalesmart.com/my/myaa-ydm7116a",
+      "fact": "Yale马来西亚商品页列YDM7116A为RM3,189含税，mortise锁，支持指纹/PIN/卡/机械钥匙及Bluetooth，木门厚40—80mm、背距60mm。",
+      "condition": "单锁目录观察；页面同时含In stock与Currently Unavailable，未确认可下单库存。远程功能提及可选Wi-Fi Bridge，赠品选择及最终套餐须结账核验；规格为厂商声明。",
+      "implication": "若比较整套价格，先确认可交付库存、网关/模块是否包含、标准安装范围及门厚背距，再对同锁型功能作逐项报价比较。",
+      "scenario_tags": [
+        "residential",
+        "mortise",
+        "timber",
+        "local_price"
+      ],
+      "body_locator": "标题/含税价格；Product Description；Feature List门厚/木门/背距"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "my-yale-installation-terms-20261026",
+      "country": "MY",
+      "kind": "channel",
+      "brand": "Yale",
+      "title": "Yale Malaysia：授权渠道安装与现场附加费用",
+      "url": "https://www.yalesmart.com/my/installation",
+      "fact": "Yale马来西亚安装政策限定本地授权渠道购入产品，锁价含标准安装；现场环境或临时换型号导致无法安装收RM150，当日紧急安装另收RM100，并提供可能收费的24/7现场应急。",
+      "condition": "品牌政策正文，未实测覆盖或履约。页面含旧新两段政策，采用标为Installation Policy的完整段；噪声法规引用未另向主管机关核验，不作为法律结论。",
+      "implication": "若评估安装渠道，要求明确授权来源、上门前门照预检、标准安装定义、失败上门费、紧急服务范围和返修责任，计入交付总成本。",
+      "scenario_tags": [
+        "installation",
+        "authorized_dealers",
+        "after_sales"
+      ],
+      "body_locator": "第二个Installation Policy段第1、2、7、9、11条"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": "2025-12-24",
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "my-dosm-housing-tenure-2024-20261026",
+      "country": "MY",
+      "kind": "demand",
+      "title": "DOSM：2024基本设施调查住房产权结构",
+      "url": "https://www.dosm.gov.my/site/downloadrelease?admin_view=&id=basic-amenities-survey-report-malaysia-2024&lang=English",
+      "fact": "马来西亚统计局2024基本设施调查发布：住户占用住房的自有比例78.0%，租住19.7%，其他quarters为2.4%；报告于2025-12-24发布。",
+      "condition": "住房产权代理指标，不是智能锁安装或购买需求；不以互联网、智能手机或电力普及率推算锁需求。具体城市、住房类型、换锁权限与预算仍未知。",
+      "implication": "若做住宅需求验证，将业主自主购买与出租/管理方采购分开访谈，优先补目标城市的门型、安装授权、当前锁和换锁触发事件。",
+      "scenario_tags": [
+        "residential",
+        "demand_proxy",
+        "tenure"
+      ],
+      "body_locator": "PDF第1页发布日期；第2页Housing第1项"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "id-bardi-z01-price-spec-20261026",
+      "country": "ID",
+      "kind": "price",
+      "brand": "BARDI",
+      "title": "BARDI Indonesia：Z01门锁价格与室内适用声明",
+      "url": "https://bardi.co.id/product/bardi-smart-door-lock-z01/",
+      "fact": "BARDI官网列Z01价格Rp1,116,000；支持BARDI app、RFID、PIN、指纹及机械钥匙，4节AA供电，品牌建议室内公寓或出租住房使用。",
+      "condition": "官方商品目录页而非结账报价；税、安装及运费未明确。页面提示购物链接错误可能表示缺货，本次未下单或确认库存；不能据此视为户外或防火门合格。",
+      "implication": "若选择室内公寓改装样本，先取得含安装报价并测试门孔调整、应急钥匙、断网/低电量行为；户外和火门须另核适用证据。",
+      "scenario_tags": [
+        "residential",
+        "indoor",
+        "rental",
+        "battery"
+      ],
+      "body_locator": "产品标题/价格/正文访问方式、电池与室内建议"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "id-bardi-palm-price-20261026",
+      "country": "ID",
+      "kind": "price",
+      "brand": "BARDI",
+      "title": "BARDI Indonesia：Palm掌纹识别门锁",
+      "url": "https://bardi.co.id/product/bardi-smart-door-lock-palm/",
+      "fact": "BARDI官网Smart Door Lock Palm商品页列Rp4,294,000，描述已登记手掌识别访问，并提供安装及重置教程入口。",
+      "condition": "品牌当前目录观察；未核验库存、税、安装费、识别误差或实物性能。与Z01为不同配置层级，不能将价差全归因于掌纹，也不代表销量或竞争强度。",
+      "implication": "若比较生物识别配置，先补电池、备用访问、门厚、安装与保修的完整同口径清单，并实际验证不同用户及环境下的使用。",
+      "scenario_tags": [
+        "residential",
+        "biometric",
+        "palm"
+      ],
+      "body_locator": "产品标题、Rp4.294.000、掌识别说明、Cara Pasang/Cara Reset"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "id-bardi-installation-service-20261026",
+      "country": "ID",
+      "kind": "channel",
+      "brand": "BARDI",
+      "title": "BARDI官方服务目录：门锁安装服务JP-32",
+      "url": "https://faq.bardi.co.id/Faq/product",
+      "fact": "BARDI官方FAQ产品/服务目录列JP-32门锁安装服务，名称标注铁门、钢门和木门，并提供服务购买入口。",
+      "condition": "服务条目存在不证明任意门型都兼容，未确认价格、城市覆盖、预约时长、门体改造范围、质保和应急响应；不能把独立安装服务视为锁价已包含。",
+      "implication": "若评估本地交付，按城市和实际门材索取安装报价与适配清单，明确门体加工、安装失败费用及售后由品牌还是服务商承担。",
+      "scenario_tags": [
+        "installation",
+        "steel",
+        "timber"
+      ],
+      "body_locator": "Daftar Produk表第81项/SKU JP-32"
+    },
+    {
+      "category": "smart_lock",
+      "published_at": "2024-02-23",
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "id": "id-telecom-certification-3-2024-20261026",
+      "country": "ID",
+      "kind": "admission",
+      "title": "印尼官方法律库：通信设备认证规定3/2024",
+      "url": "https://peraturan.bpk.go.id/Details/282035/permenkominfo-no-3-tahun-2024",
+      "fact": "印尼BPK官方法律库将Permenkominfo 3/2024标为现行，生效日2024-05-22；其正文摘要规定在印尼制造、组装或进口供贸易/使用的通信设备须符合技术标准并以证书证明。",
+      "condition": "本次直接读官方条文摘要及生效状态，未完成联网锁精确类别、模块/整机适用、豁免或频段标准判断；不能声称所有锁均需同一种认证或某竞品已合规。",
+      "implication": "若产品含Wi-Fi、Bluetooth或其他无线功能，先向主管机关/认可机构核对精确型号、模块、频段及整机的适用清单、测试和标签要求，再作准入判断。",
+      "scenario_tags": [
+        "connected_device",
+        "wireless",
+        "classification_required"
+      ],
+      "body_locator": "MATERI POKOK PERATURAN；METADATA Tanggal Berlaku/Status"
+    },
+    {
+      "id": "za-yale-zuri-offer-20261026",
+      "country": "ZA",
+      "category": "smart_lock",
+      "kind": "price",
+      "brand": "Yale",
+      "scenario_tags": [
+        "residential",
+        "mortise",
+        "bluetooth",
+        "price_offer"
+      ],
+      "title": "Yale南非Zuri标价与门厚/锁体配置",
+      "url": "https://yalehome.co.za/biometric-smart-lock-with-built-in-wi-fi-bluetooth-and-smartphone-compatibility/",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "brand_official_store",
+      "locator": "标题、库存/价格及Product Specifications",
+      "fact": "Yale南非页面列Zuri（05/107100/BL）R2,999、现货；规格列蓝牙、指纹/PIN/RFID/机械钥匙、三锁舌mortise、门厚40–100毫米、背距60毫米、4节AA电池。另列含Wi-Fi connector套装。",
+      "condition": "这是网页报价和标称配置，不是成交/销量或安装验证。含税、安装和具体地址供货未明确。页面泛称远程管理，但单锁规格为蓝牙，不能把含connector套装与单锁混用。",
+      "implication": "若对标住宅mortise锁，先测门厚、背距及开孔，再分别取得单锁和含connector的含税安装报价；远程开门需按实际套装、断网状态和账号权限复测。",
+      "price": {
+        "currency": "ZAR",
+        "amount": 2999,
+        "tax_included": null,
+        "installation_included": null,
+        "availability_claim": "in_stock",
+        "configuration": "05/107100/BL standalone"
+      }
+    },
+    {
+      "id": "za-yale-linus-l2-offer-20261026",
+      "country": "ZA",
+      "category": "smart_lock",
+      "kind": "price",
+      "brand": "Yale",
+      "scenario_tags": [
+        "residential",
+        "retrofit",
+        "wifi",
+        "indoor_only",
+        "price_offer"
+      ],
+      "title": "Yale南非Linus L2现货报价及室内使用限制",
+      "url": "https://yalehome.co.za/yale-linus-l2-smart-lock-with-built-in-wi-fi-yale-dot-and-rechargeable-battery-silver/",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "brand_official_store",
+      "locator": "价格、Key Details、Product Specifications、What's in the Box",
+      "fact": "Yale南非列银色Linus L2（Y05/103210/SI）R4,999、现货，内置Wi-Fi；规格注明仅室内使用。包装列可充电电池、Yale Dot、DoorSense和62毫米应急Euro Profile锁芯；DIY描述以已装Cylinder锁体为条件。",
+      "condition": "报价未明确含税/安装；现货是页面状态而非预约交付。额外指纹键盘单独列价，不能把PIN或指纹配件当基础包已含；不把室内主机限制外推成整门防雨认证。",
+      "implication": "若考虑保留既有锁体的改装场景，先核对锁芯突出量、应急功能和门内空间；把指纹键盘、锁芯更换及安装分项报价，并按室内安装边界验证。",
+      "price": {
+        "currency": "ZAR",
+        "amount": 4999,
+        "tax_included": null,
+        "installation_included": null,
+        "availability_claim": "in_stock",
+        "configuration": "Y05/103210/SI base package"
+      }
+    },
+    {
+      "id": "za-handyman-installation-scope-20261026",
+      "country": "ZA",
+      "category": "smart_lock",
+      "kind": "channel",
+      "brand": "Handyman Pretoria (installer)",
+      "scenario_tags": [
+        "gauteng",
+        "residential",
+        "installation",
+        "service_quote_guide"
+      ],
+      "title": "Gauteng当地安装商的Yale安装价格说明",
+      "url": "https://handymanpretoria.co.za/smart-lock-installation-cost/",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "installer_first_party_service_guide",
+      "locator": "Yale fitting costs、Residential and Commercial Installation Rates、Service Coverage",
+      "fact": "Handyman Pretoria自身服务页列Yale住宅安装R900–1,450，并称含连接测试与设置；服务说明覆盖Pretoria、Centurion、Midrand和Johannesburg等Gauteng地区，精确报价需门、品牌和地址信息。",
+      "condition": "是该安装商公开指导区间，非Yale官方固定费率、已预订服务或全国行情；发布日期不明，税、改门、配件和特殊上门条件须重新询价，不可直接与另一店裸锁价相加成承诺总价。",
+      "implication": "若计划在Gauteng做适配样机，提交具体锁型、门照片/尺寸和地址，要求分列改门、配件、税及调试的有效报价，并确认是否承接该型号及保修责任。"
+    },
+    {
+      "id": "za-icasa-type-approval-20261026",
+      "country": "ZA",
+      "category": "smart_lock",
+      "kind": "admission",
+      "scenario_tags": [
+        "radio_equipment",
+        "type_approval",
+        "import_sale"
+      ],
+      "title": "ICASA公开型号批准与申请主体规则",
+      "url": "https://www.icasa.org.za/pages/type-approval",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "regulator_official",
+      "locator": "Type Approval、Who needs to obtain a type approval certificate、Provisional Type Approval",
+      "fact": "ICASA页面说明，电子通信设备除明确豁免外需获型号批准；证书仅发给南非注册公司，申请涉及性能、EMC和安全测试。页面另设非商业试验/演示的临时批准路径，并列设备批准数据库。",
+      "condition": "通用监管页面不是具体智能锁/无线模块的合规证明。需核定无线配置、适用标准和豁免；页面同时保留2020费用等旧资料，本条不采用其费用或处理时长作为现行承诺。",
+      "implication": "在进口、销售或当地试装前，按实际无线模块/整机型号查询批准及适用范围；未能匹配时由当地申请主体确认标准或临时测试许可，不能用国外证书或免频率许可代替型号核验。"
+    },
+    {
+      "id": "za-statssa-ghs2025-connectivity-20261026",
+      "country": "ZA",
+      "category": "smart_lock",
+      "kind": "demand",
+      "scenario_tags": [
+        "demand_proxy_only",
+        "connectivity",
+        "households"
+      ],
+      "title": "Stats SA GHS2025家庭联网基础代理",
+      "url": "https://www.statssa.gov.za/publications/P0318/MEDIA%20RELEASE%20-%20%20GHS%202025%20.pdf",
+      "published_at": "2026-05-26",
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "government_statistics",
+      "locator": "官方新闻稿PDF第1页",
+      "fact": "Stats SA于2026年5月26日发布GHS2025新闻稿，称2025年85.6%的家庭可通过某种方式上网，90.6%的家庭有电力接入。",
+      "condition": "仅是2025家庭基础条件代理；某种方式上网不等于门口有稳定家庭Wi-Fi，接电不等于连续供电，更不等于智能锁装机、购买意愿或支付能力。",
+      "implication": "若验证云端远程管理场景，应在拟安装住宅实测门口Wi-Fi与断电后路由器状态；用独立的目标用户访谈或付费试验核验购买意愿，不据联网比例推算销量。"
+    },
+    {
+      "id": "ng-teklocks-catalog-offer-20261026",
+      "country": "NG",
+      "category": "smart_lock",
+      "kind": "price",
+      "brand": "TekLocks Africa",
+      "scenario_tags": [
+        "lagos",
+        "residential",
+        "fingerprint",
+        "face_id",
+        "price_offer"
+      ],
+      "title": "尼日利亚TekLocks自身目录与报价样本",
+      "url": "https://teklocksafrica.com/",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "brand_first_party_commercial",
+      "locator": "2026 Smart Lock Collection、Bundle Offers、页脚Lagos Nigeria",
+      "fact": "TekLocks拉各斯官网目录列室内Onyx Handle指纹锁NGN200,000起、Alumni铝框锁NGN220,000起及户外Onyx Sentinel Face ID锁NGN270,000起。网页有下单入口，并说明安装可另行申请。",
+      "condition": "只证明商家公开供应和起价，不是已交付项目、成交或销量。未取得单SKU完整技术页、税、安装费、门厚/开孔或可交付库存；户外名称不证明任何测试等级。",
+      "implication": "若比较指纹入户或铝框场景，分别索取单SKU数据表、适配门尺寸和含税安装报价；把铝框、室内执手及户外人脸款分开对标，避免用最低起价代表全配置。",
+      "price": {
+        "currency": "NGN",
+        "amount": 200000,
+        "is_from_price": true,
+        "tax_included": null,
+        "installation_included": null,
+        "availability_claim": "catalog_order_entry_only",
+        "configuration": "Onyx Handle indoor fingerprint lock"
+      }
+    },
+    {
+      "id": "ng-teklocks-installation-support-20261026",
+      "country": "NG",
+      "category": "smart_lock",
+      "kind": "channel",
+      "brand": "TekLocks Africa",
+      "scenario_tags": [
+        "lagos",
+        "installation",
+        "commissioning",
+        "after_sales"
+      ],
+      "title": "TekLocks尼日利亚安装与维护服务范围自述",
+      "url": "https://teklocksafrica.com/services",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "installer_first_party_service_offer",
+      "locator": "Professional Installation、Maintenance、VIP Annual Support及Lagos页脚",
+      "fact": "TekLocks服务页列上门安装、门体准备/钻孔/校准、App设置与用户开通，以及安装后30天复查；维护方案列每半年软硬件服务，VIP方案列每年两次上门。页脚地址为Lagos Nigeria。",
+      "condition": "服务商自身承诺，未验证履约或技师资质。页面未公布费用、具体城市履约范围、第三方锁支持与响应时效；FAQ仅有问题标题，不能补成答案。",
+      "implication": "若选择当地安装伙伴，要求书面确认具体城市、单门开孔责任、安装后复查、备件和服务费，并以实际样机安装/用户开通/应急恢复记录验证交付能力。"
+    },
+    {
+      "id": "ng-ncc-type-approval-faq-20261026",
+      "country": "NG",
+      "category": "smart_lock",
+      "kind": "admission",
+      "scenario_tags": [
+        "communications_equipment",
+        "type_approval",
+        "import_sale"
+      ],
+      "title": "NCC官方设备型号批准FAQ",
+      "url": "https://www.ncc.gov.ng/frequently-asked-questions",
+      "published_at": null,
+      "updated_at": "2025-05-12",
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "regulator_official",
+      "locator": "Type Approval Requirements及页脚Last Updated",
+      "fact": "NCC官方FAQ说明设备型号批准是在通信设备进口、营销、供应、销售、部署或用于尼日利亚公共通信网络前的评估过程；申请经eServices，所列材料包括符合性声明、授权书、数据表、标签、照片、手册和测试报告。",
+      "condition": "FAQ更新日为2025-05-12；不直接证明某智能锁、蓝牙/Wi-Fi模块或供应商已获批准。SIM设备核验规则与普通非蜂窝锁的适用范围须分别确认，不混用手机IMEI流程。",
+      "implication": "按拟进口整机及无线模块向NCC核对适用类别、现行要求和证书匹配，准备型号一致的材料；没有具体批准/豁免依据前，不把海外证书或商家在售当进口销售许可。"
+    },
+    {
+      "id": "ng-nbs-energy2024-operating-proxy-20261026",
+      "country": "NG",
+      "category": "smart_lock",
+      "kind": "demand",
+      "scenario_tags": [
+        "operating_conditions_proxy",
+        "power_resilience",
+        "nine_state_sample"
+      ],
+      "title": "NBS住宅能源调查：九州供电条件代理",
+      "url": "https://nigerianstat.gov.ng/pdfuploads/NIGERIA_RESIDENTIAL_ENERGY_DEMAND_SIDE_SURVEY_2024.pdf",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "government_statistics",
+      "locator": "印刷页ix（调查范围）及18（国家电网接入/供电）",
+      "fact": "NBS《住宅能源需求侧调查2024》抽取九州8,100户。报告称这些州58.2%的家庭接入国家电网；已接电户中86.6%在过去30天曾有电，所列平均每日供电6.61小时。",
+      "condition": "九州为Akwa Ibom、Bauchi、Ekiti、Oyo、Enugu、Kwara、Plateau、Kano、Sokoto；不含Lagos或Abuja，不能当全国或拉各斯2026数据。属于使用条件代理，不是智能锁需求或停电导致购买的因果证据。",
+      "implication": "若研究电池锁配云端网关的可靠性，应在实际目标城市记录断电/断网后本地开门、应急供电及网关恢复，独立核验需求；不要把本九州平均供电时数当样机续航或全国销售预测。"
+    },
+    {
+      "id": "ke-ali-yale-ydr3110-offer-20261026",
+      "country": "KE",
+      "category": "smart_lock",
+      "kind": "price",
+      "brand": "Yale (retailer Ali Glaziers)",
+      "scenario_tags": [
+        "nairobi",
+        "rim_lock",
+        "wood_or_metal",
+        "rfid_pin",
+        "price_offer"
+      ],
+      "title": "肯尼亚零售商Yale YDR3110现货与配置冲突",
+      "url": "https://aliglaziers.co.ke/yale-ydr3110-smart-door-lock-wooden-and-metal-doors",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "retailer_first_party_offer_not_brand_authorization_proof",
+      "locator": "Description、Specifications、Product Code/Availability/Price",
+      "fact": "Ali Glaziers肯尼亚自营页列Yale DDL-YDR-3110为现货、KES25,800；称其为木/金属门rim lock，支持PIN和RF卡、9V电池应急供电，BLE需配件。概述门厚35–55毫米，规格却列35–45毫米。",
+      "condition": "该店在售不证明品牌授权、实际库存或销量。门厚存在页内冲突，不得自行取较宽范围；BLE配件、税、安装、运费和交付期未确认，不把该页当整机联网或室外防护认证。",
+      "implication": "若选木门/金属门rim lock作比较，先取得厂家当前型号安装图与书面门厚范围，实测背距/开孔；在冲突解决前不判适配，另询BLE配件和含税安装到手价。",
+      "price": {
+        "currency": "KES",
+        "amount": 25800,
+        "tax_included": null,
+        "installation_included": null,
+        "availability_claim": "in_stock_on_retailer_page",
+        "configuration": "DDL-YDR-3110 base lock; BLE accessory separate"
+      }
+    },
+    {
+      "id": "ke-assa-nairobi-showroom-support-20261026",
+      "country": "KE",
+      "category": "smart_lock",
+      "kind": "channel",
+      "brand": "ASSA ABLOY / Yale",
+      "scenario_tags": [
+        "nairobi",
+        "showroom",
+        "installation_support",
+        "commercial_access"
+      ],
+      "title": "ASSA ABLOY肯尼亚Westlands展厅与安装支持",
+      "url": "https://www.assaabloy.com/ke/en/where-to-buy/assaabloy-kenya-westlands-nairobi-branch",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "brand_official_local_channel",
+      "locator": "Westlands Showroom、Location Details",
+      "fact": "ASSA ABLOY肯尼亚官网列内罗毕Westlands展厅位于Mpaka Road的Fedha Plaza底层；列Yale/UNION机械锁与SMARTair、酒店系统等数字门禁，并说明提供专业建议和安装支持。",
+      "condition": "证明品牌公开当地咨询/展示入口；不证明每款住宅智能锁现货、安装费用、任意城市覆盖、具体项目交付或售后时效。酒店/商业门禁不与住宅单锁混为同一配置。",
+      "implication": "若核验品牌当地交付条件，可按具体住宅或酒店型号向该展厅确认数据表、安装适配、供货和售后责任；比较时按住宅单锁与酒店管理系统分别取报价。"
+    },
+    {
+      "id": "ke-aalis-installed-service-price-20261026",
+      "country": "KE",
+      "category": "smart_lock",
+      "kind": "price",
+      "brand": "AALIS Studios (service provider)",
+      "scenario_tags": [
+        "nairobi",
+        "installation",
+        "commissioning",
+        "service_price_band"
+      ],
+      "title": "肯尼亚AALIS自身智能锁安装设置服务报价",
+      "url": "https://aalisstudios.com/smart-home-automation-kenya/",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "installer_first_party_service_offer",
+      "locator": "04 Best Smart Home Devices & Prices表及价格包含说明；页面只标April 2026",
+      "fact": "AALIS肯尼亚自身服务表将指纹/键盘/App智能锁列为KES18,500–42,000，含安装、App设置和访问码配置；其说明还列采购、兼容检查、配送协调、测试及保修支持，精确报价需按项目确认。",
+      "condition": "只是单一服务商的通用方案区间，未指定唯一型号，不是肯尼亚市场均价；税、改门、备件、服务时效及各城市附加费用不明。仅采用其自身服务条款，排除市场规模、租金溢价和ROI营销数字。",
+      "implication": "若比较完整交付价，先选定具体SKU、门体和地址，要求书面确认税、开孔改门、必要联网配件、保修及各项含/不含；不能把该服务区间与裸锁报价直接判贵贱。",
+      "price": {
+        "currency": "KES",
+        "amount_min": 18500,
+        "amount_max": 42000,
+        "tax_included": null,
+        "installation_included": true,
+        "configuration": "generic fingerprint/keypad/app service; exact SKU unspecified"
+      }
+    },
+    {
+      "id": "ke-ca-type-approval-market-structure-20261026",
+      "country": "KE",
+      "category": "smart_lock",
+      "kind": "admission",
+      "scenario_tags": [
+        "communications_equipment",
+        "radio_equipment",
+        "type_approval",
+        "licensed_vendor"
+      ],
+      "title": "肯尼亚CA设备型号批准与销售主体要求",
+      "url": "https://www.ca.go.ke/index.php/market-structure",
+      "published_at": null,
+      "updated_at": null,
+      "checked_at": "2026-10-26",
+      "read_status": "body_verified",
+      "source_type": "regulator_official",
+      "locator": "Type Approval / Who needs to seek type approval / application materials",
+      "fact": "肯尼亚CA官方页面称其负责公共电信网络设备及无线通信设备的型号批准；销售通信设备的主体须有适当许可并取得对应型号批准。申请清单列制造商授权、样机、英文技术/用户手册及RF、EMC、安全测试报告。",
+      "condition": "这是通用监管说明，不是任一智能锁/短距无线模块的适用性或证书结论。应另核当前设备清单、豁免/接受方式及具体配置，不把商家在售或他国证书当CA批准。",
+      "implication": "在当地进口/销售或测试部署前，向CA或合格当地申请主体核定整机和无线模块的适用类别、许可及型号状态；按实际配置备齐英文材料，未获具体依据时保留准入未知。"
     }
   ],
   "methods": [
-    {"name":"STP与4P", "url":"https://openstax.org/books/principles-marketing/pages/5-6-product-positioning", "checked_at":"2026-10-26", "use":"按客户场景细分、选择目标并定位，再核对产品、价格、渠道与传播；不凭功能数推算购买意愿。"},
-    {"name":"波特五力", "url":"https://www.isc.hbs.edu/strategy/business-strategy/Pages/the-five-forces.aspx", "checked_at":"2026-10-26", "use":"分别检查现有竞争、替代品、潜在进入者、买方与供应商议价；有品牌存在不等于竞争激烈。"},
-    {"name":"SWOT与外部环境核对", "url":"https://www.cipd.org/uk/knowledge/factsheets/swot-analysis-factsheet/", "checked_at":"2026-10-26", "use":"内部优势/劣势与外部机会/威胁分开；缺证据单列缺口，不把未知写成劣势。"}
+    {
+      "name": "STP与4P",
+      "url": "https://openstax.org/books/principles-marketing/pages/5-6-product-positioning",
+      "checked_at": "2026-10-26",
+      "use": "按客户场景细分、选择目标并定位，再核对产品、价格、渠道与传播；不凭功能数推算购买意愿。"
+    },
+    {
+      "name": "波特五力",
+      "url": "https://www.isc.hbs.edu/strategy/business-strategy/Pages/the-five-forces.aspx",
+      "checked_at": "2026-10-26",
+      "use": "分别检查现有竞争、替代品、潜在进入者、买方与供应商议价；有品牌存在不等于竞争激烈。"
+    },
+    {
+      "name": "SWOT与外部环境核对",
+      "url": "https://www.cipd.org/uk/knowledge/factsheets/swot-analysis-factsheet/",
+      "checked_at": "2026-10-26",
+      "use": "内部优势/劣势与外部机会/威胁分开；缺证据单列缺口，不把未知写成劣势。"
+    }
+  ],
+  "checked_at": "2026-10-26",
+  "research_gaps": {
+    "VN": [
+      "本轮未取得针对智能锁具体配置的现行官方监管/认证适用判断。",
+      "仅一个品牌商品和售后样本，不能推出竞争强度或价格分布。",
+      "未核验同SKU成交价、门体改造、安装完整总价或项目ROI。"
+    ],
+    "MY": [
+      "联网产品精确认证分类尚未完成；SIRIM通信/混合设备服务页直接读取502，未纳入准入证据。",
+      "Yale商品库存提示冲突，需原渠道确认。",
+      "只有单品牌当前样本，未得市场份额/销量/替代结构。"
+    ],
+    "ID": [
+      "BPS全国住房统计页直接403，不以摘要入库；本轮需求代理/实际项目仍缺。",
+      "BARDI锁价是否含税/安装、区域覆盖和库存未确认。",
+      "通信设备规则有官方现行状态，但具体锁型适用及防火/逃生等其他要求未判定。"
+    ],
+    "ZA": [
+      "两款Yale零售价格是否含VAT和安装仍未确认",
+      "安装商服务指导价不是具体型号、地址的有效正式报价",
+      "没有取得真实具名智能锁交付项目及购买量",
+      "未核具体整机/模块ICASA证书及全部进口/消防/隐私义务"
+    ],
+    "NG": [
+      "TekLocks单SKU完整技术页未读，门厚、锁体、无线配置、户外测试和实际库存未知",
+      "安装/维护费用、覆盖城市及实际履约未知",
+      "NBS九州供电数据不含Lagos/Abuja且不是全国2026状况",
+      "没有直接智能锁购买量/真实项目或具体型号NCC准入核验"
+    ],
+    "KE": [
+      "YDR3110门厚页内冲突未解决",
+      "含税、安装和配件、供货期未取得正式逐型号报价",
+      "AALIS通用服务价未指定SKU，不能当市场均价",
+      "没有本轮已核验的智能锁购买需求或真实交付项目",
+      "短距无线整机/模块的现行CA适用清单、豁免与具体证书未核定"
+    ]
+  },
+  "read_attempts": [
+    {
+      "country": "ID",
+      "url": "https://www.bps.go.id/id/statistics-table/2/ODM2IzI%3D/persentase-rumah-tangga-menurut-provinsi-tipe-daerah-dan-status-kepemilikan-rumah-milik-sendiri.html",
+      "status": "403",
+      "checked_at": "2026-10-26",
+      "gap": "搜索可见住房产权表，直接正文Forbidden，未当事实入库。"
+    },
+    {
+      "country": "ID",
+      "url": "https://www.bps.go.id/id/statistics-table/3/VmtsVFpXcGFWazR6WjNWQ1ZHbHljSFJLVm14d1FUMDkjMw%3D%3D/distribusi-persentase-rumah-tangga-menurut-provinsi-dan-status-penguasaan-bangunan-tempat-tinggal--2020.html",
+      "status": "403",
+      "checked_at": "2026-10-26",
+      "gap": "直接Forbidden，未用摘要数值。"
+    },
+    {
+      "country": "ID",
+      "url": "https://www.bps.go.id/id/statistics-table/1/MTUzNyMx/housing-indicators-1993-2022.html",
+      "status": "403",
+      "checked_at": "2026-10-26",
+      "gap": "直接Forbidden，未用摘要数值。"
+    },
+    {
+      "country": "MY",
+      "url": "https://www.sirim-qas.com.my/service/communication-multimedia-and-hybrid-product/",
+      "status": "502",
+      "checked_at": "2026-10-26",
+      "gap": "通信/多媒体/混合设备认证官方页面直接Bad Gateway，未把搜索片段当已核验准入规则。"
+    },
+    {
+      "country": "MY",
+      "url": "https://www.yalesmart.com/my/myaa-ydm7116a",
+      "status": "conflicting_stock_labels",
+      "checked_at": "2026-10-26",
+      "gap": "同一商品正文显示In stock及Currently Unavailable；保留目录价及功能，不断言即时可下单。"
+    },
+    {
+      "country": "MY",
+      "url": "https://www.yalesmart.com/my/yale-byyou-g-pro-ydm7116a",
+      "status": "bundle_not_comparable_to_single_lock",
+      "checked_at": "2026-10-26",
+      "gap": "直接正文套装RM4470.40、单件内嵌价/赠品；不把门锁+闸锁套装误当单锁竞价。"
+    },
+    {
+      "country": "MY",
+      "url": "https://www.sirim.my/Pages/CADiv/FOOTER/ca-faq.aspx",
+      "status": "body_verified_not_specific_enough",
+      "checked_at": "2026-10-26",
+      "gap": "FAQ称通用产品认证一般非强制、部分由主管部门规定强制；未定位智能锁或无线整机分类，不纳入智能锁准入已覆盖判断。"
+    },
+    {
+      "country": "ID",
+      "url": "https://www.postel.go.id/artikel-sertifikasi-alat-dan-perangkat-telekomunikasi-informasi-pelayanan-9-2152",
+      "status": "older_framework_not_used",
+      "checked_at": "2026-10-26",
+      "gap": "搜索旧服务页引用旧框架；改用现行3/2024官方法律库状态与正文摘要。"
+    },
+    {
+      "country": "VN",
+      "url": "https://hafelehome.com.vn/products/khoa-dien-tu-hafele-el10k",
+      "status": "price_scope_not_checkout_verified",
+      "checked_at": "2026-10-26",
+      "gap": "保留当次直接正文18,389,000越南盾及SKU/不含免费安装，未与第三方价或旧目录混用，待原渠道确认完整报价。"
+    },
+    {
+      "country": "NG",
+      "url": "https://www.livesmart.ng/blog/smart-door-lock-nigeria-price-guide",
+      "status": "open_failed_cache_miss_search_excerpt_only",
+      "checked_at": "2026-10-26",
+      "gap": "搜索摘要虽显示2026-10-21及拉各斯挂牌价，但打开失败；且这些价来自其他挂牌线索，非独立原商家核验。未纳入africa.json。"
+    },
+    {
+      "country": "NG",
+      "url": "https://selitaltechnology.com/catalogdoc.php",
+      "status": "open_failed",
+      "checked_at": "2026-10-26",
+      "gap": "未取得正文；搜索摘要价格未采纳。"
+    },
+    {
+      "country": "NG",
+      "url": "https://teklocksafrica.com/",
+      "status": "homepage_body_verified_product_subpage_failed",
+      "checked_at": "2026-10-26",
+      "gap": "首页目录/价格/所在地/安装另行申请已读。Aqua Sentinel和Alumni Pro单品点击未取得正文，不使用未核验子页技术参数；没有把首页户外名称当IP测试证明。"
+    },
+    {
+      "country": "ZA",
+      "url": "https://asksmarthome.co.za/product/smart-lock-ask2060-installation/",
+      "status": "open_failed_timeout",
+      "checked_at": "2026-10-26",
+      "gap": "搜索摘要有含安装R3,500及缺货信息，但原页超时；未把摘要当已读价格或供货证据。摘要内Wishome/Sweethome名称差异也未自行解决。"
+    },
+    {
+      "country": "KE",
+      "url": "https://www.assaabloy.com/ke/en/documents/product-docs/AA%20KENYA%20BROCHURE%202025.pdf",
+      "status": "open_failed",
+      "checked_at": "2026-10-26",
+      "gap": "官方2025画册搜索命中4109A，但本次未取得PDF正文；不把搜索摘要当肯尼亚配置或现货证明。"
+    },
+    {
+      "country": "KE",
+      "url": "https://www.assaabloy.com/ke/en/documents/product-docs/AA%20KENYA%20BROCHURE.pdf",
+      "status": "open_failed",
+      "checked_at": "2026-10-26",
+      "gap": "未取得正文；没有借用其他国家4109参数。"
+    },
+    {
+      "country": "KE",
+      "url": "https://aliglaziers.co.ke/door-locks?limit=50&order=DESC&sort=p.price",
+      "status": "listing_open_failed_direct_product_verified_instead",
+      "checked_at": "2026-10-26",
+      "gap": "分类页打开失败；随后直接YDR3110产品页成功，只有直接页相关字段进入africa.json。"
+    },
+    {
+      "country": "NG",
+      "url": "https://consumer.ncc.gov.ng/information-education/faqs/9-type-approvals",
+      "status": "legacy_search_excerpt_not_adopted",
+      "checked_at": "2026-10-26",
+      "gap": "旧页面摘要有仅线下/不接受邮件的流程，与已读现站FAQ eServices不同；不混用版本，不据旧摘要描述现行申请流程。"
+    },
+    {
+      "country": "KE",
+      "url": "https://aliglaziers.co.ke/yale-ydr3110-smart-door-lock-wooden-and-metal-doors",
+      "status": "body_verified_conflict_preserved",
+      "checked_at": "2026-10-26",
+      "gap": "YDR3110概述支持门厚35–55mm，规格区却写35–45mm。"
+    },
+    {
+      "country": "ZA",
+      "url": "https://yalehome.co.za/biometric-smart-lock-with-built-in-wi-fi-bluetooth-and-smartphone-compatibility/",
+      "status": "body_verified_configuration_ambiguity_preserved",
+      "checked_at": "2026-10-26",
+      "gap": "URL含built-in-wi-fi；单锁规格仅列Bluetooth，正文泛称随地远程管理，另有含Wi-Fi connector套装。"
+    },
+    {
+      "country": "ZA",
+      "url": "https://www.icasa.org.za/pages/type-approval",
+      "status": "body_verified_mixed_age_information",
+      "checked_at": "2026-10-26",
+      "gap": "监管页面仍列2020费用、旧FAQ价格和通常30天，同时已有2025设备表及分类链接。"
+    },
+    {
+      "country": "KE",
+      "url": "https://aalisstudios.com/smart-home-automation-kenya/",
+      "status": "body_verified_marketing_claims_excluded",
+      "checked_at": "2026-10-26",
+      "gap": "页面同时包含其自身服务报价、第三方市场预测、租金溢价和ROI等营销数字。"
+    }
   ]
 }

@@ -1,9 +1,12 @@
 // Only structural counts leave the internal evidence path. No quotes, filenames or parameters.
+import {EVIDENCE_DIAGNOSTIC_KEYS} from './evidence-gate.mjs';
 export function evidenceCheck(data){
  const assets=data?.status==='available'&&Array.isArray(data.assets)?data.assets:[];
  let pages=0,findings=0;
  for(const a of assets){pages+=(a.document?.pages||[]).length;findings+=(a.document?.product_understanding?.findings||[]).length;}
- return {source_status:data?.status||'unavailable',source_code:/^[a-z0-9_]{1,40}$/.test(data?.code||'')?data.code:null,assets:assets.length,pages,findings,rejected:Number(data?.evidence_gate?.rejected)||0,source_freshness_verified:false,human_verified:false};
+ const diagnostics=data?.evidence_gate?.diagnostics;
+ const counts=diagnostics?Object.fromEntries(EVIDENCE_DIAGNOSTIC_KEYS.map(k=>[k,Number.isSafeInteger(diagnostics[k])&&diagnostics[k]>=0?Math.min(diagnostics[k],1000000):0])):null;
+ return {source_status:data?.status||'unavailable',source_code:/^[a-z0-9_]{1,40}$/.test(data?.code||'')?data.code:null,assets:assets.length,pages,findings,rejected:Number(data?.evidence_gate?.rejected)||0,...(counts?{diagnostics:counts}:{}),source_freshness_verified:false,human_verified:false};
 }
 export function sourceStatusIntent(q=''){
  return /SEO|GA4|GSC|SEMrush|社媒/i.test(q)&&/接入状态|连接状态|是否可读|数据日期|同步状态/.test(q)&&!/优化|分析表现|制定|投放/.test(q);

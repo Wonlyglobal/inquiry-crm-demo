@@ -19,7 +19,7 @@ grant usage on schema auth to authenticated,anon;
 `);
 const ids={s:'11111111-1111-4111-8111-111111111111',s2:'22222222-2222-4222-8222-222222222222',m:'33333333-3333-4333-8333-333333333333',o:'44444444-4444-4444-8444-444444444444',boss:'55555555-5555-4555-8555-555555555555'};
 for(const [k,id] of Object.entries(ids))await db.query('insert into public.profiles(id,full_name,team,role) values($1,$2,$3,$4)',[id,'合成'+k,k==='s2'?'B':'A',k==='s'||k==='s2'?'sales':k==='m'?'marketing':k==='boss'?'sales_manager':'owner']);
-for(const f of ['20260922190000_multichannel_customer_opportunity.sql','20261026090000_sales_lead_workspace.sql','20261026091000_sales_lead_reminders.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+f,import.meta.url),'utf8'));
+for(const f of ['20260922190000_multichannel_customer_opportunity.sql','20261026090000_sales_lead_workspace.sql','20261026091000_sales_lead_reminders.sql','20261026093000_sales_lead_future_exemptions.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+f,import.meta.url),'utf8'));
 const as=async(k)=>{await db.exec('reset role');await db.query("select set_config('test.uid',$1,false)",[ids[k]||'']);await db.exec('set role '+(k?'authenticated':'anon'))};
 const call=async(name,args)=>{const placeholders=args.map((_,i)=>'$'+(i+1)).join(',');return (await db.query('select public.'+name+'('+placeholders+') r',args)).rows[0].r};
 const reject=async fn=>{await assert.rejects(fn);checks++};const ok=x=>{assert.ok(x);checks++};
@@ -37,6 +37,10 @@ await as('s2');await reject(()=>call('convert_sales_lead',[saved[0].id]));ok((aw
 await as('m');ok((await call('sales_lead_workspace',[today,today])).leads.length===1);await reject(()=>call('record_sales_leads',[JSON.stringify([row]),'manual']));await reject(()=>call('convert_sales_lead',[saved[0].id]));await reject(()=>db.exec('select * from public.inquiries'));
 await reject(()=>call('configure_sales_leads',[today,1,'17:00',5,'16:00','不可改历史规则']));
 await call('exempt_sales_lead_day',[ids.s2,today,'合成休假记录']);
+const future=(await db.query("select ((clock_timestamp() at time zone 'Asia/Shanghai')::date+1)::text d")).rows[0].d;
+await call('exempt_sales_lead_day',[ids.s2,future,'合成未来休假']);
+await call('configure_sales_leads',[future,2,'17:00',5,'16:00','合成未来规则版本']);
+ok((await call('sales_lead_workspace',[future,future])).days.length===0);
 await as('boss');ok((await call('sales_lead_workspace',[today,today])).people.length===1);
 await as();await reject(()=>call('sales_lead_workspace',[today,today]));await reject(()=>call('claim_sales_lead_delivery',[]));
 await db.exec('reset role');await db.exec("update private.sales_lead_rules set remind_at='00:00'").then(()=>assert.fail('immutable'),()=>checks++);
@@ -48,5 +52,6 @@ await db.query('select private.process_sales_lead_schedule($1::timestamptz)',[fr
 await as('s');await reject(()=>call('claim_sales_lead_delivery',[]));await reject(()=>call('update_sales_lead_progress',[crypto.randomUUID(),'非本人线索不可变更']));
 await db.exec('reset role');await db.exec('set role service_role');const queue=await call('claim_sales_lead_delivery',[]);ok(queue.length>0);ok((await call('claim_sales_lead_delivery',[])).length===0);await call('finish_sales_lead_delivery',[queue[0].id,true]);
 await db.exec('reset role');ok((await db.query('select count(*)::int n from private.sales_lead_delivery where sent_at is not null')).rows[0].n===1);
+ok((await db.query('select r.daily_min from private.sales_lead_days d join private.sales_lead_rules r on r.id=d.rule_id where d.sales_id=$1 and d.day=$2',[ids.s2,future])).rows[0].daily_min===2);
 ok((await db.query('select count(*)::int n from private.sales_leads')).rows[0].n===1);ok((await db.query('select count(*)::int n from public.inquiries')).rows[0].n===1);
 await db.close();console.log(JSON.stringify({checks,synthetic:true,production_writes:false}));

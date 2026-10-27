@@ -35,6 +35,8 @@ def rows(words):
 
 
 def extract_panel(page, model):
+    if getattr(page, 'rotation', None) != 0:
+        raise ValueError('Rotated native pages are unsupported')
     words = page.extract_words(extra_attrs=['size'])
     heading_rows = [r for side in [False, True] for r in rows([w for w in words if w['size'] >= 22 and (w['x0'] >= float(page.width)/2) == side])
                     if canonical(' '.join(w['text'] for w in r)) == canonical(model)]
@@ -42,7 +44,7 @@ def extract_panel(page, model):
         return None
     heading_words = heading_rows[0]
     middle = float(page.width) / 2
-    right = min(w['x0'] for w in heading_words) > middle
+    right = min(w['x0'] for w in heading_words) >= middle
     panel = [round(middle, 4) if right else 0, 0, round(float(page.width), 4) if right else round(middle, 4), round(float(page.height), 4)]
     selected = [w for w in words if w['x0'] >= panel[0] and w['x1'] <= panel[2]]
     # Crossing words/unknown model headings make panel ownership ambiguous.
@@ -76,6 +78,10 @@ def extract_panel(page, model):
         features = [i for i, r in enumerate(lines) if key_features + 4 < r[0]['top'] < float(page.height) - 30]
         if features:
             groups.append(('功能说明', features))
+    # Dropping later candidates could hide a conflicting configuration. Fail the
+    # extraction rather than producing a valid-looking partial field selection.
+    if len(groups) > 4:
+        raise ValueError('Native panel field budget exceeded')
     regions = []
     for name, indexes in groups:
         if indexes != list(range(indexes[0], indexes[-1] + 1)):
@@ -91,7 +97,7 @@ def extract_panel(page, model):
                         'field': {'name': name, 'quote': quote, 'start': start, 'end': start + len(quote),
                                   'bbox': rect([w for i in indexes for w in lines[i]])},
                         'region_id': 'page-' + str(page.page_number) + ('-right' if right else '-left')})
-    return regions[:4]
+    return regions
 
 
 def main():

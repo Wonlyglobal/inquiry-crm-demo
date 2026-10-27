@@ -20,6 +20,20 @@ test('a model heading and punctuation cannot masquerade as a functional field',(
  }
 });
 
+test('identity labels with values cannot become functional evidence',()=>{
+ for(const quote of ['Model: V9','Series: Premium','Edition: V9','型号：V9','Ｍｏｄｅｌ： Ｖ９','Model: V9\nSeries: Premium\nEdition: V9','Model: V9\n : ;']){
+  const d=productDocument();const r=region({text:model+'\n'+quote,quote});r.field.name='功能说明';d.product_evidence.regions=[r];
+  blocked(check(r),'field_identity_only');const result=run(d);blocked(result,'field_identity_only');assert.equal(result.facts.length,0);
+ }
+});
+
+test('genuine feature sentences and mixed excerpts retain their original quote',()=>{
+ for(const quote of ['Model supports synthetic keypad entry','Series includes synthetic access functionality','Edition supports a synthetic entry function','型号支持合成按键功能','Model: V9\nSynthetic keypad entry']){
+  const d=productDocument();const r=region({text:model+'\n'+quote,quote});r.field.name='功能说明';d.product_evidence.regions=[r];
+  const result=run(d);assert.equal(result.blocked.length,0);assert.equal(result.facts.length,1);assert.equal(result.facts[0].source_quote,quote);assert.equal(result.facts[0].analysis_eligible,true);
+ }
+});
+
 test('native field quotes need no model prefix and retain their exact evidence and geometry',()=>{
  const input=region(),before=clone(input),v=check(input);
  assert.equal(v.blocked.length,0);assert.equal(v.fact.value,input.field.quote);assert.equal(v.fact.source_quote,input.field.quote);

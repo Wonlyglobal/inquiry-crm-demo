@@ -1,4 +1,4 @@
-import {loadPrivateProductEvidence,nativeGapText} from '../supabase/functions/agent-conversation/private-product-knowledge.mjs';
+import {loadPrivateProductEvidence,nativeGapText,nativeLookupText} from '../supabase/functions/agent-conversation/private-product-knowledge.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -97,7 +97,7 @@ test('actual market handler makes two authorized lookups and exposes source stat
  assert.match(src,/import \{[^\n]*loadMarketMaterials[^\n]*\} from '\.\/product-market\.mjs'/);
  const branch=src.slice(src.indexOf('   if(marketTurn){'),src.indexOf('   const v9Turn=')),calls=[];
  let audited=false;
- const deps={client:{rpc:async()=>({data:{documents:[]}})},loadPrivateProductEvidence,nativeGapText,marketTurn:question,guest:false,input:{persona:'Grace'},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='product_country_market_analysis';return {error:null}}})},loadCatalog:async()=>catalog,findModels:()=>[model],loadFullMaterials:async config=>{calls.push(config.question);return response([/v9/.test(config.question)?asset('V9','a','配置'):asset('V10','b','安装')])},gateMaterialEvidence,materialConfig:{},productMarketReport,marketProductScope,loadMarketMaterials,crmMarketPriorityIntent,crmMarketPriorityScope,withCrmMarketPriority,evidenceCheck:()=>({status:'synthetic'}),user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async()=>null,json:x=>x};
+ const deps={client:{rpc:async()=>({data:{documents:[]}})},loadPrivateProductEvidence,nativeGapText,nativeLookupText,marketTurn:question,guest:false,input:{persona:'Grace'},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='product_country_market_analysis';return {error:null}}})},loadCatalog:async()=>catalog,findModels:()=>[model],loadFullMaterials:async config=>{calls.push(config.question);return response([/v9/.test(config.question)?asset('V9','a','配置'):asset('V10','b','安装')])},gateMaterialEvidence,materialConfig:{},productMarketReport,marketProductScope,loadMarketMaterials,crmMarketPriorityIntent,crmMarketPriorityScope,withCrmMarketPriority,evidenceCheck:()=>({status:'synthetic'}),user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async()=>null,json:x=>x};
  for(const name of [...src.matchAll(/import \{([^}]+)\} from '\.\/product-input\.mjs'/g)].flatMap(m=>m[1].split(',').map(s=>s.trim())))if(name in productInput)deps[name]=productInput[name];
  const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
  const result=await new AsyncFunction(...Object.keys(deps),branch)(...Object.values(deps));
@@ -124,4 +124,22 @@ test('repeated references to one source hash do not manufacture a second configu
  const r=productMarketReport({question,catalog,materials:result,now:Date.parse('2026-10-26')});
  assert.equal(r.product.source_configuration_count,1);assert.equal(r.product.source_configuration_ambiguous,false);
  assert.equal(r.current_parameter_count,2);assert.equal(r.status,'preliminary');
+});
+
+test('edition metadata conflicts on the same SHA cannot manufacture a shared market configuration',()=>{
+ const first=asset('V9','a','配置'),second=asset('V8','a','安装');
+ for(const q of [question,question+' V9']){
+  const r=productMarketReport({question:q,catalog,materials:response([first,second]),evidence:[]});
+  assert.equal(r.product.source_metadata_conflict,true);assert.equal(r.product.source_configuration_ambiguous,true);assert.equal(r.current_parameter_count,0);assert.match(r.answer,/同一来源SHA对应多个版次标签/);assert.doesNotMatch(r.answer,/可作为待测试卖点/);
+ }
+ const aliases=productMarketReport({question:question+' 第九版',catalog,materials:response([first,{...first,name:'Synthetic 第九版',versionLabel:'第九版'}]),evidence:[]});
+ assert.equal(aliases.product.source_metadata_conflict,false);assert.equal(aliases.current_parameter_count,1);
+});
+
+test('an explicit edition cannot be selected by a filename that disagrees with its version label',()=>{
+ const source={...asset('V9','a'),name:'Synthetic V8'};
+ const r=productMarketReport({question:question+' V8',catalog,materials:response([source]),evidence:[]});
+ assert.equal(r.product.facts.length,0);assert.equal(r.product.source_metadata_conflict,true);assert.equal(r.current_parameter_count,0);assert.doesNotMatch(r.answer,/可作为待测试卖点/);
+ const unversioned=productMarketReport({question,catalog,materials:response([source]),evidence:[]});
+ assert.equal(unversioned.product.facts.length,1);assert.equal(unversioned.current_parameter_count,0);assert.equal(unversioned.product.source_metadata_conflict,true);
 });

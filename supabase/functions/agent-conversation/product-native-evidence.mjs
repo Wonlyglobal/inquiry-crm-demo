@@ -24,6 +24,9 @@ const date=value=>{
 };
 const stripHeading=s=>s.normalize('NFKC').trim().replace(/^(?:model|型号)\s*[:：]\s*/i,'').replace(/^[\s【\[({]+|[\s】\])}]+$/g,'');
 const punctuation=s=>/^[\s:：;；|【】\[\](){}]*$/.test(s.normalize('NFKC'));
+const identityOnly=s=>s.normalize('NFKC').split(/\r?\n/).map(line=>line.trim()).filter(line=>/[\p{L}\p{N}]/u.test(line)).every(line=>
+ /^(?:型号|名称|产品名称|系列|版次|版本|model|name|series|edition|version)(?:\s*[:：].*|[\s:：;；|.。-]*)$/i.test(line)
+ || /^(?:V\s*\d+|第[一二三四五六七八九十\d]+版)[\s:：;；|.。-]*$/i.test(line));
 
 export function validateNativeSourceRegion(raw,{model='',source_sha256=''}={}){
  if(raw?.schema!=='native_region_v1')return fail('region_schema_invalid');
@@ -59,7 +62,7 @@ export function validateNativeSourceRegion(raw,{model='',source_sha256=''}={}){
  if(!punctuation(before)||!punctuation(native.slice(h.end,lineEnd).join('')))return fail('heading_boundary_invalid');
  if(raw.field.start<h.end&&!(raw.field.start<=h.start&&raw.field.end>h.end))return fail('field_precedes_heading');
  const substantive=native.slice(raw.field.start,raw.field.end).filter((_,i)=>i+raw.field.start<h.start||i+raw.field.start>=h.end).join('').trim();
- if(!/[\p{L}\p{N}]/u.test(substantive)||canonical(substantive)===canonical(raw.field.name)||/^(?:型号|名称|产品名称|系列|model|name|series|V\s*\d+|第[一二三四五六七八九十\d]+版)[\s:：;；|.。-]*$/i.test(substantive))return fail('field_identity_only');
+ if(!/[\p{L}\p{N}]/u.test(substantive)||canonical(substantive)===canonical(raw.field.name)||identityOnly(substantive))return fail('field_identity_only');
  // A whole-page panel is insufficient when heading and field occupy disjoint columns.
  if(Math.min(h.bbox[2],raw.field.bbox[2])<=Math.max(h.bbox[0],raw.field.bbox[0])||raw.field.bbox[3]<h.bbox[1])return fail('cross_column_binding');
  // Examine every model-like reference, not just rows that look like known model-only

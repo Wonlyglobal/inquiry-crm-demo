@@ -1,4 +1,4 @@
-import {loadPrivateProductEvidence,nativeGapText} from '../supabase/functions/agent-conversation/private-product-knowledge.mjs';
+import {loadPrivateProductEvidence,nativeGapText,nativeLookupText} from '../supabase/functions/agent-conversation/private-product-knowledge.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {productMarketIntent,productMarketTurn,countryMatches,validMarketEvidence,modelMarketEvidence,countryAssessment,productMarketReport,marketProductScope,marketMaterialQuestion,loadMarketMaterials,allMarketEvidence} from '../supabase/functions/agent-conversation/product-market.mjs';
 import * as productInput from '../supabase/functions/agent-conversation/product-input.mjs';
@@ -110,7 +110,7 @@ test('actual authenticated market handler resolves its declared imports and retu
  const branch=src.slice(src.indexOf('   if(marketTurn){'),src.indexOf('   const v9Turn='));
  const declared=new Set([...src.matchAll(/import \{([^}]+)\} from '\.\/product-input\.mjs'/g)].flatMap(m=>m[1].split(',').map(s=>s.trim())));
  let lookedUp=false,audited=false;
- const deps={client:{rpc:async()=>({data:{documents:[]}})},loadPrivateProductEvidence,nativeGapText,marketTurn:'TEST80 PRO智能锁V9在新加坡市场分析',guest:false,input:{persona:'Grace'},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='product_country_market_analysis';return {error:null}}})},loadCatalog:async()=>catalog,findModels:()=>['TEST80 PRO'],loadFullMaterials:async()=>{lookedUp=true;return materials},gateMaterialEvidence:x=>x,materialConfig:{},productMarketReport,marketProductScope,loadMarketMaterials,crmMarketPriorityIntent,crmMarketPriorityScope,withCrmMarketPriority,evidenceCheck:()=>({status:'synthetic'}),user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async()=>null,json:x=>x};
+ const deps={client:{rpc:async()=>({data:{documents:[]}})},loadPrivateProductEvidence,nativeGapText,nativeLookupText,marketTurn:'TEST80 PRO智能锁V9在新加坡市场分析',guest:false,input:{persona:'Grace'},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='product_country_market_analysis';return {error:null}}})},loadCatalog:async()=>catalog,findModels:()=>['TEST80 PRO'],loadFullMaterials:async()=>{lookedUp=true;return materials},gateMaterialEvidence:x=>x,materialConfig:{},productMarketReport,marketProductScope,loadMarketMaterials,crmMarketPriorityIntent,crmMarketPriorityScope,withCrmMarketPriority,evidenceCheck:()=>({status:'synthetic'}),user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async()=>null,json:x=>x};
  for(const name of declared)if(name in productInput)deps[name]=productInput[name];
  const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
  const result=await new AsyncFunction(...Object.keys(deps),branch)(...Object.values(deps));

@@ -134,11 +134,13 @@ const fresh=(e,now)=>{const age=now-Date.parse(e.checked_at);return e.read_statu
 export function modelMarketEvidence(model,catalog,materials,{edition='',native=null}={}){
  const ids=new Set((catalog?.sources||[]).map(s=>s.id));
  const old=(catalog?.products||[]).filter(p=>norm(p.model)===norm(model)&&ids.has(p.catalog)&&Number.isInteger(p.page)&&p.page>0);
- const facts=[],incomplete=new Set();
+ const facts=[],incomplete=new Set(),sourceEditions=new Map();
  for(const a of materials?.assets||[]){
   // The original parsed source hash and explicit model association are mandatory.
   if(a.isCurrentVersion!==true||!/^[a-f0-9]{64}$/.test(a.document?.sha256||''))continue;
-  if(edition&&editionKey(materialVersion(a.versionLabel+' '+a.name))!==editionKey(edition))continue;
+  const labelEdition=materialVersion(a.versionLabel||''),nameEdition=materialVersion(a.name||''),sourceEdition=labelEdition||nameEdition;
+  if(sourceEdition){const versions=sourceEditions.get(a.document.sha256)||new Set();for(const version of [labelEdition,nameEdition].filter(Boolean))versions.add(editionKey(version));sourceEditions.set(a.document.sha256,versions)}
+  if(edition&&editionKey(sourceEdition)!==editionKey(edition))continue;
   for(const f of a.document.incomplete_fields||[])if(norm(f.model)===norm(model))incomplete.add(norm(f.field));
   for(const f of a.document.product_understanding?.findings||[]){
    if(norm(f.model||f.product)!==norm(model)||!findingModelMatchesProduct(f)||!Number.isInteger(f.page)||f.page<1||!sourceNamesModel(a.document.pages?.find(p=>p.page===f.page)?.chunks,f.quote,model))continue;
@@ -166,13 +168,14 @@ export function modelMarketEvidence(model,catalog,materials,{edition='',native=n
  const current=unique.filter(f=>!conflicts.includes(norm(f.field))&&!incomplete.has(norm(f.field))).map(({source_page,source_quote,source_kind,...f})=>f);
  // Even disjoint fields can describe different revisions/configurations. Keep their
  // citations visible, but do not assemble an unproven configuration across source hashes.
- const configurations=new Set(current.filter(analyticalMarketFact).map(f=>f.sha256));
- const source_configuration_ambiguous=configurations.size>1;
- const retrieval_incomplete=(materials.source_lookups||[]).some(s=>s.completeness!=='complete')||!!native?.blocked?.length;
+ const configurations=new Set(current.filter(analyticalMarketFact).map(f=>JSON.stringify([f.sha256,editionKey(f.edition)])));
+ const source_metadata_conflict=[...sourceEditions.values()].some(versions=>versions.size>1)||native?.source_metadata_conflict===true;
+ const source_configuration_ambiguous=configurations.size>1||source_metadata_conflict;
+ const retrieval_incomplete=(materials.source_lookups||[]).some(s=>s.completeness!=='complete')||!!native?.blocked?.length||native?.retrieval_incomplete===true||native?.has_unexamined===true||['unavailable','partial'].includes(native?.status);
  if(source_configuration_ambiguous||retrieval_incomplete)for(const f of current)if(analyticalMarketFact(f))f.analysis_eligible=false;
  // Fixed August records are supplemental only. An explicitly requested edition never falls back.
  const supplemental=edition?[]:old.flatMap(p=>Object.entries(p.specs||{}).filter(([,v])=>typeof v==='string'&&v.trim()).map(([field,value])=>({field,value,ref:`${CATALOG[p.catalog]||p.catalog} PDF第${p.page}页`,edition:'2026年8月版；未核定为现行配置',date:'2026-08',current:false})));
- return {model,category:old[0]?.category||null,facts:current,supplemental,conflicts,incomplete_fields:[...incomplete],source_configuration_count:configurations.size,source_configuration_ambiguous,retrieval_incomplete,duplicate_evidence_count:facts.length-unique.length,source_status:materials?.status||'unavailable',human_verified:false};
+ return {model,category:old[0]?.category||null,facts:current,supplemental,conflicts,incomplete_fields:[...incomplete],source_configuration_count:configurations.size,source_configuration_ambiguous,source_metadata_conflict,retrieval_incomplete,duplicate_evidence_count:facts.length-unique.length,source_status:materials?.status||'unavailable',human_verified:false};
 }
 const textFacts=rows=>rows.map(f=>`${f.field}：${f.value}`).join('；');
 // Identity is a source locator. A model/name alone cannot establish a feature, strength or fit.
@@ -219,13 +222,13 @@ export function productMarketReport({question,catalog,materials={status:'unavail
  const sourceArchive=sourceRefs.length?'\n来源档案（仅作定位与解析标识，不代表参数已核实）：\n'+sourceRefs.slice(0,8).map(a=>`${a.name}｜版次：${a.versionLabel||'未标注'}｜源端标记：${a.isCurrentVersion===true?'现行':'历史或未确认'}｜物料更新时间：${a.updatedAt||'未返回'}｜原文发布日期：未返回｜解析SHA-256：${/^[a-f0-9]{64}$/.test(a.document?.sha256||'')?a.document.sha256:'未返回'}`).join('\n')+(sourceRefs.length>8?`\n来源档案共${sourceRefs.length}项，本次展示8项；其余定位明细未展开，不能把这8项当作全部检索候选。`:'')+'\n以上更新时间不等于原文发布日期；哈希仅标识解析来源，不证明原件仍为当前供货配置。':'';
  const hasProduct=current.length||old.length;
  const lookupText=(materials.source_lookups||[]).map(s=>`${s.source==='smart-lock-v9'?'V9私有快照':'普通物料库'}：${s.status==='available'?'已返回':s.status==='partial'?'部分返回':'本次未完成'}；返回${s.asset_count}项资料投影；已查${s.page_count}批；匹配总数${s.match_total??'未返回'}${s.count_unit==='pdf_pages'?'个正文页候选':'个文件候选'}；${s.completeness==='complete'?'本次候选分页已读完':s.has_more===true?'仍有未完成候选或读取异常，不能声称查全':'覆盖完整性未确认'}（每路最多5批；每份正文仍有解析/展示限额）。`).join('\n');
- const productText=`型号：${product.model}；门类：${CAT.find(([c])=>c===product.category)?.[1]||'未核定'}；指定资料版本：${edition||'未指定，现行资料优先'}\n现行产品证据（机器提取，未人工核验）：\n`+(current.length?current.slice(0,8).map(sourceLine).join('\n'):'本次未取得明确属于此型号的现行参数摘录。')+(old.length?'\n历史补充资料（不覆盖V9/其他指定版本，不用于现行合规结论）：\n'+old.slice(0,6).map(sourceLine).join('\n'):'')+`\n物料查询状态：${product.source_status}；现行同字段冲突${product.conflicts.length}项，展示预算未完整覆盖${product.incomplete_fields.length}个字段（均不参与判断）。`+(product.source_configuration_ambiguous?'\n多份独立来源的配置尚未对齐；以上参数仅按各自来源展示，不拼接为同一产品配置，不用于优势或市场适配判断。':'')+(lookupText?'\n本次物料检索范围（不代表全库全文解析完成）：\n'+lookupText:'')+sourceArchive;
+ const productText=`型号：${product.model}；门类：${CAT.find(([c])=>c===product.category)?.[1]||'未核定'}；指定资料版本：${edition||'未指定，现行资料优先'}\n现行产品证据（机器提取，未人工核验）：\n`+(current.length?current.slice(0,8).map(sourceLine).join('\n'):'本次未取得明确属于此型号的现行参数摘录。')+(old.length?'\n历史补充资料（不覆盖V9/其他指定版本，不用于现行合规结论）：\n'+old.slice(0,6).map(sourceLine).join('\n'):'')+`\n物料查询状态：${product.source_status}；现行同字段冲突${product.conflicts.length}项，展示预算未完整覆盖${product.incomplete_fields.length}个字段（均不参与判断）。`+(product.source_metadata_conflict?'\n同一来源SHA对应多个版次标签，元数据存在冲突；本次不拼接这些版次的参数，也不用于优势或市场适配判断。':product.source_configuration_ambiguous?'\n多份独立来源的配置尚未对齐；以上参数仅按各自来源展示，不拼接为同一产品配置，不用于优势或市场适配判断。':'')+(lookupText?'\n本次物料检索范围（不代表全库全文解析完成）：\n'+lookupText:'')+sourceArchive;
  const positive=parameters.filter(f=>!negativeMarketFact(f));
  const featureText=textFacts(positive),unlock=/开锁|unlock|finger|指纹|密码|人脸/i.test(featureText),remote=/remote|远程|联网|wi.?fi|bluetooth|蓝牙/i.test(featureText);
  const positioning=hasProduct?(product.category==='smart_lock'?(unlock?'无钥匙进入便利可作为场景假设，需验证实际使用人群、识别体验及应急开锁。':'先明确用户进入/离开场景，不能以型号名称推断开锁配置。')+(remote?'资料出现联网/远程相关表述；需核对具体配置、安全支持和权限管理。':'本次未取得足以确认联网能力的证据，不能承诺远程管理。'):'先用该型号已有结构/性能证据验证具体场景，不把其他型号或门类的案例当本型号业绩。'):'产品证据不足，先补身份、配置及适用条件，不输出产品优势。';
  const assessments=countries.map(c=>{const a=countryAssessment(product,c,evidence,now);return {...a,decision:marketDecision(product,a)}});
  const swot='SWOT（事实、推断与缺口分开）\nS 潜在优势：'+(positive.length?positive.slice(0,2).map(f=>`${f.field}“${f.value}”（${f.ref}）可作为待测试卖点；相对优势尚需同档竞品验证`).join('；'):'尚无现行证据支持优势判断；旧画册仅可提供核对线索')+'。\nW 已确认劣势：本次没有足够可比证据判定；参数、价格或渠道未知单列缺口，不把未知当实际劣势。\nO 机会假设：'+(assessments.some(a=>a.cases.length)?'可借当地已观察到的供给/交付机制设计差异化测试，不能据此断言需求规模或增长。':'缺当地需求与案例验证，暂不判定市场机会。')+'\nT 外部威胁/约束：'+(assessments.flatMap(a=>a.admission).map(e=>`[${e.id}] ${e.fact}`).join('；')||'当地准入、替代方案和同档竞争资料待补，不能断言竞争少或准入容易。');
- const decision=product.retrieval_incomplete?'暂缓产品市场适配结论：物料检索范围尚未完整回读；已返回的参数仅供核对，不据不完整候选判断无冲突或产品优势。':product.source_configuration_ambiguous?'暂缓产品市场适配结论：多份独立来源的配置尚未对齐；参数分来源保留，不能拼成一套配置或产品优势。':parameters.length?'先作为市场验证候选，暂不批准商业投放或全国排名；优先解决准入、安装适配与服务交付，再验证客户愿付价格。':'暂缓给出现行产品市场适配结论：尚缺同型号功能/参数/适用条件证据；型号或名称仅能确认身份，不能作为产品优势，也不能用旧版资料判定适合出口。';
+ const decision=product.source_metadata_conflict?'暂缓产品市场适配结论：同一来源SHA的版次元数据存在冲突，需先核对原件及版次标签。':product.retrieval_incomplete?'暂缓产品市场适配结论：物料检索范围尚未完整回读；已返回的参数仅供核对，不据不完整候选判断无冲突或产品优势。':product.source_configuration_ambiguous?'暂缓产品市场适配结论：多份独立来源的配置尚未对齐；参数分来源保留，不能拼成一套配置或产品优势。':parameters.length?'先作为市场验证候选，暂不批准商业投放或全国排名；优先解决准入、安装适配与服务交付，再验证客户愿付价格。':'暂缓给出现行产品市场适配结论：尚缺同型号功能/参数/适用条件证据；型号或名称仅能确认身份，不能作为产品优势，也不能用旧版资料判定适合出口。';
  const action='下一步与验收指标（建议，未执行）\n1. 产品/准入：核对同型号原页、配置、门组合及适用认证；记录符合、冲突、未取得，准入未知不算通过。\n2. 渠道/价格：选目标国家一个细分场景，取得同档含税落地价、安装/备件/服务承诺和需求访谈；记录完整交付成本与适配失败原因。\n3. 小范围验证：先验证样锁安装与使用任务，再验证定位文案；看安装一次通过、关键任务完成、合格询盘与售后问题。未建立基线不编增长率、ROI或销量目标。';
  const methods='方法依据：\n'+publicFile.methods.map(m=>`${m.name}：${m.use}\n${m.url}（核验${m.checked_at}）`).join('\n');
  return {answer:heading+`阶段结论：${decision}\n\n`+productText+'\n\nSTP定位与4P核对：'+positioning+'价格、渠道与推广主张分别验证，产品功能不等于当地购买需求。\n\n'+swot+'\n\n'+(assessments.length?assessments.map(a=>renderCountry(a,now)).join('\n\n'):'请补充具体国家；不把地区或默认国家套用到全部国家。当前有新加坡和英国智能锁官方证据样本，其他国家同样可查询并保留缺口。')+(all?`\n国家目录覆盖${COUNTRIES.length}个ISO国家/地区，本页${countries.length}个，国家第${countryPage}页；目录存在不等于已研究。${COUNTRIES.length>countryPage*12?'可问“国家第'+(countryPage+1)+'页”。':''}`:'')+'\n\n评分口径：国家匹配按需求、产品适配、准入、价格渠道、交付售后五维核对；竞争度按五力独立核对。当前缺少可审计的同口径需求、成本及竞争基线，暂不生成0—100分或国家排序，也不把证据覆盖率冒充匹配分。\n\n'+action+'\n\n'+coverage+`\n公开市场检索覆盖：本次检查全部${evidence.length}条已收录官方样本/既有竞品记录后按国家与门类筛选；旧访问记录不冒充今日核验，不代表全球市场普查。`+'\n当前版本标记来自物料接口，SHA-256标识本次解析来源；本次未重新计算原件哈希。物料接口有返回/分页/解析限额，未命中不等于没有；未按相似标题绑定项目、未将公司案例当本型号销量。\n\n'+methods+'\n内部资料与本报告仅在公司系统内处理，未发送外部模型；本次不改客户、发帖或投放。',models,countries:countries.map(c=>c.code),status:parameters.length?'preliminary':'product_evidence_gap',product,current_source_count:current.length,current_parameter_count:parameters.length,assessments,material_question:PREFIX+q.slice(0,475)};

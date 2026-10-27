@@ -1,6 +1,16 @@
 // Explicit file selection; same authenticated internal endpoint. No browser persistence or AI calls.
 export function validPrivateReceipt(r){return !!r&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.id||'')&&/^[0-9a-f]{64}$/.test(r.digest||'')&&/^(?:(weekly|daily|evidence|tiktok|instagram|facebook|youtube)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?|product-[0-9a-f]{64})$/.test(r.key||'')}
 export function privateReceiptLabel(key){if(/^product-[0-9a-f]{64}$/.test(String(key)))return '产品原生页证据 · '+String(key).slice(8,16);const m=String(key).match(/^(weekly|daily|evidence|tiktok|instagram|facebook|youtube)-(20\d{2}-\d{2}-\d{2})(?:-(20\d{2}-\d{2}-\d{2}))?$/);return m?`${{weekly:'周报',daily:'日报',evidence:'证据',tiktok:'TikTok逐帖',instagram:'Instagram逐帖',facebook:'Facebook逐帖',youtube:'YouTube逐帖'}[m[1]]} · ${m[2]}${m[3]?'—'+m[3]:''}`:'未知报告'}
+export async function privateBundleInput(file,pasted=''){
+ if(file&&pasted.trim())throw Error('请仅选择文件或粘贴内容其中一种');
+ if(!file&&!pasted.trim())throw Error('请先选择或粘贴内部知识包');
+ if(file?.size>262144)throw Error('知识包超过256KB，请按范围分包');
+ const raw=file?await file.text():pasted;
+ if(new TextEncoder().encode(raw).length>262144)throw Error('知识包超过256KB，请按范围分包');
+ let bundle;try{bundle=JSON.parse(raw)}catch{throw Error('知识包格式不正确')}
+ if(bundle?.schema!=='grace-private-intelligence-bundle-v1'||!Array.isArray(bundle.documents)||!bundle.documents.length||bundle.documents.length>5)throw Error('知识包格式不正确');
+ return bundle;
+}
 export function privateReportButtons(receipts,onAsk,videoIndex=null){
  if(receipts?.length!==1||!validPrivateReceipt(receipts[0]))return null;
  const bar=document.createElement('div');bar.className='private-report-actions';bar.setAttribute('aria-label','继续查看这份报告');
@@ -14,12 +24,14 @@ export function mountPrivateIntelligence(host,{invoke,isAllowed}){
  const box=el('details');box.className='voice-settings-card';box.dataset.privateKnowledge='true';
  box.append(el('summary','私有知识同步'),el('p','导入内部日报、周报与证据包。仅当前授权账号可查，不公开物料，不发送给外部模型。'));
  const input=el('input');input.type='file';input.accept='.json,application/json';input.setAttribute('aria-label','选择内部知识包');
+ const pasteBox=el('details');pasteBox.append(el('summary','文件选择有问题？'));
+ const pasted=el('textarea');pasted.setAttribute('aria-label','粘贴内部知识包');pasted.rows=4;pasted.placeholder='粘贴内部知识包内容';pasteBox.append(el('p','备用方式：粘贴同一内部知识包，与文件导入使用相同校验和私有权限。'),pasted);
  const submit=el('button','同步并回读验证');submit.type='button';
  const syncSocial=el('button','同步社媒逐帖并回读');syncSocial.type='button';
  const refresh=el('button','回读已同步知识');refresh.type='button';
  const status=el('p','选择由内部简报生成的知识包后同步。');status.setAttribute('role','status');
- const receipts=el('div');receipts.setAttribute('aria-label','私有知识同步回执');box.append(syncSocial,input,submit,refresh,status,receipts);host.append(box);
- const busy=v=>{submit.disabled=syncSocial.disabled=refresh.disabled=input.disabled=v;box.setAttribute('aria-busy',String(v))};
+ const receipts=el('div');receipts.setAttribute('aria-label','私有知识同步回执');box.append(syncSocial,input,pasteBox,submit,refresh,status,receipts);host.append(box);
+ const busy=v=>{submit.disabled=syncSocial.disabled=refresh.disabled=input.disabled=pasted.disabled=v;box.setAttribute('aria-busy',String(v))};
  const allowed=()=>{if(!isAllowed()){receipts.replaceChildren();throw Error('账号已退出，未继续读取')} };
  async function verify(rows){
   if(!Array.isArray(rows)||rows.length>5||rows.some(r=>!validPrivateReceipt(r))||new Set(rows.map(r=>r.id)).size!==rows.length)throw Error('回执格式或编号不完整');
@@ -41,20 +53,20 @@ export function mountPrivateIntelligence(host,{invoke,isAllowed}){
  refresh.onclick=async()=>{
   if(!isAllowed())return;busy(true);receipts.replaceChildren();status.textContent='正在回读已同步知识…';
   try{const result=await invoke({action:'private-intelligence-list'});await verify(result.receipts);status.textContent=result.receipts.length?`已从私有库回读验证 ${result.receipts.length} 份已同步报告/证据。`:'私有库中暂无已同步报告。'}
-  catch(e){status.textContent='回读未完成：'+(e.message||'请稍后再试')+'。未改变已保存的报告。'}finally{busy(false)}
+  catch{status.textContent='回读未完成，请核对当前授权或稍后重试。未改变已保存的报告。'}finally{busy(false)}
  };
  submit.onclick=async()=>{
-  if(!isAllowed())return;const file=input.files?.[0];if(!file){status.textContent='请先选择内部知识包。';return}
-  if(file.size>262144){status.textContent='知识包超过256KB，请按日期分包。';return}
+  if(!isAllowed())return;const file=input.files?.[0];if(!file&&!pasted.value.trim()){status.textContent='请先选择或粘贴内部知识包。';return}
+  if(file?.size>262144){status.textContent='知识包超过256KB，请按日期分包。';return}
   busy(true);receipts.replaceChildren();status.textContent='正在同步并核对私有检索结果…';
   try{
-   const bundle=JSON.parse(await file.text());if(bundle.schema!=='grace-private-intelligence-bundle-v1'||!Array.isArray(bundle.documents)||!bundle.documents.length||bundle.documents.length>5)throw Error('知识包格式不正确');
+   const bundle=await privateBundleInput(file,pasted.value);
    if(!isAllowed())throw Error('账号已退出，未提交');
    const result=await invoke({action:'private-intelligence-import',documents:bundle.documents});
    if(!Array.isArray(result.receipts)||result.receipts.length!==bundle.documents.length)throw Error('未取得完整同步回执');
    await verify(result.receipts);
-   status.textContent=`已同步并回读验证 ${result.receipts.length} 份报告/证据。`+(bundle.documents.some(d=>d.kind==='product')?'可问完整型号的参数，再追问来源与缺口。':'可在对话中问“查看上周周报”或“查看新增证据”。');input.value='';
-  }catch(e){status.textContent='同步或回读未完成：'+(e.message||'请稍后再试')+'。尚不能据此认定Grace已收到全部内容。'}finally{busy(false)}
+   status.textContent=`已同步并回读验证 ${result.receipts.length} 份报告/证据。`+(bundle.documents.some(d=>d.kind==='product')?'可问完整型号的参数，再追问来源与缺口。':'可在对话中问“查看上周周报”或“查看新增证据”。');input.value='';pasted.value='';
+  }catch{status.textContent='同步或回读未完成，请核对知识包格式、256KB/5份上限及当前授权。已保留输入；请先回读已保存知识核对，不要重复写入。尚不能据此认定Grace已收到全部内容。'}finally{busy(false)}
  };
  return box;
 }

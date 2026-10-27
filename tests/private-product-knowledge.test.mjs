@@ -37,6 +37,7 @@ test('saved product receipt/list reads remain compatible without claiming source
  assert.equal(PRIVATE_REPORT_KEY.test(receipt.key),true);assert.equal(privateReportQuestion('来源有哪些',receipt.key),'查看私有知识 '+receipt.key+'，来源有哪些');assert.equal(privateReportQuestion('换成TEST81 Pro',receipt.key),'换成TEST81 Pro');
  const query=privateIntelligenceQuery('查看私有知识 '+receipt.key);assert.equal(query.p_key,receipt.key);assert.equal(query.p_kind,'product');
  const answer=privateIntelligenceAnswer({documents:[r]},'查看私有知识 '+receipt.key);assert.match(answer,/Synthetic supply 8V/);assert.match(answer,/未完成同源现行验证/);assert.match(answer,/知识包SHA-256/);assert.match(answer,/原文发布日期：未知/);
+ assert.ok(answer.includes(r.document.product_evidence.gaps[0]));
 });
 test('parameter response uses original quotes, no commercial score and a query-only context',()=>{
  const turn={model:'TEST80 Pro',edition:'V9',question:'TEST80 Pro V9参数'};

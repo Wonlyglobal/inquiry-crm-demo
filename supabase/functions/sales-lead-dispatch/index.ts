@@ -4,8 +4,9 @@ Deno.serve(async request=>{
  if(request.method!=='POST')return reply(405,{error:'method_not_allowed'});
  const token=Deno.env.get('MAIL_SYNC_WORKER_TOKEN');
  if(!token||request.headers.get('x-mail-sync-token')!==token)return reply(401,{error:'unauthorized'});
- const webhook=Deno.env.get('FEISHU_WEBHOOK_URL')||'';
- if(!webhook)return reply(503,{error:'feishu_not_configured'});
+ // Dedicated division-digest destination; other CRM notifications keep theirs.
+ const webhook=Deno.env.get('SALES_LEAD_FEISHU_WEBHOOK_URL')||Deno.env.get('FEISHU_WEBHOOK_URL')||'';
+ if(!/^https:\/\/open\.feishu\.cn\/open-apis\/bot\/v2\/hook\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(webhook))return reply(503,{error:'feishu_not_configured'});
  let key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';try{key=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}').default||key}catch{}
  const db=createClient(Deno.env.get('SUPABASE_URL')||'',key,{auth:{persistSession:false}});
  const {data,error}=await db.rpc('claim_sales_lead_delivery');if(error)return reply(500,{error:'queue_unavailable'});

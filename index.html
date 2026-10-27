@@ -1840,6 +1840,7 @@
             <div id="module-toolbar" class="module-table-toolbar hidden">
               <div class="module-search-wrap"><i data-lucide="search"></i><input id="module-search" class="module-search" type="search" autocomplete="off" placeholder="搜索当前列表"><button id="module-search-clear" class="module-search-clear hidden" type="button" aria-label="清除搜索">×</button></div>
               <div id="inquiry-filter-group" class="module-filter-group hidden"><select id="inquiry-unread-filter" class="module-filter-select" aria-label="筛选未读更新"><option value="">全部询盘</option><option value="unread">只看未读更新</option></select><select id="inquiry-validity-filter" class="module-filter-select" aria-label="筛选有效性"><option value="">全部有效性</option><option value="pending">待确认</option><option value="valid">有效</option><option value="invalid">无效</option></select><select id="inquiry-source-filter" class="module-filter-select" aria-label="筛选来源"><option value="">全部来源</option></select></div>
+              <div id="member-filter-group" class="module-filter-group hidden"><select id="member-mailbox-filter" class="module-filter-select" aria-label="筛选成员邮箱连接"><option value="">全部连接状态</option><option value="connected">已连接</option><option value="not_connected">未连接</option></select></div>
               <div id="knowledge-filter-group" class="module-filter-group hidden"><select id="knowledge-kind-filter" class="module-filter-select" aria-label="筛选知识形式"><option value="">全部形式</option><option value="material">物料文件</option><option value="article">文字知识</option></select><select id="knowledge-category-filter" class="module-filter-select" aria-label="筛选分类或类型"><option value="">全部分类 / 类型</option></select><select id="knowledge-topic-filter" class="module-filter-select" aria-label="筛选素材分类"><option value="">全部素材分类</option></select><select id="knowledge-folder-filter" class="module-filter-select" aria-label="筛选文件夹"><option value="">全部文件夹</option></select><select id="knowledge-uploader-filter" class="module-filter-select" aria-label="筛选上传人"><option value="">全部上传人</option></select><select id="knowledge-language-filter" class="module-filter-select" aria-label="筛选语言"><option value="">全部语言</option></select></div>
               <span id="module-filter-summary" class="tag hidden"></span>
               <button id="module-reset-filters" class="table-action hidden" type="button">清除筛选</button>
@@ -3272,6 +3273,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const query = $("#module-search").value.trim().toLocaleLowerCase();
         const validity = activeModuleView === "inquiries"&&!activeInquiryArchive ? $("#inquiry-validity-filter").value : "";
         const source = activeModuleView === "inquiries"&&!activeInquiryArchive ? $("#inquiry-source-filter").value : "";
+        const memberMailbox = activeModuleView === "settings" ? $("#member-mailbox-filter").value : "";
         const knowledgeKind=activeModuleView==="knowledge"?$("#knowledge-kind-filter").value:"",knowledgeCategory=activeModuleView==="knowledge"?$("#knowledge-category-filter").value:"",knowledgeUploader=activeModuleView==="knowledge"?$("#knowledge-uploader-filter").value:"",knowledgeLanguage=activeModuleView==="knowledge"?$("#knowledge-language-filter").value:"",knowledgeTopic=activeModuleView==="knowledge"?$("#knowledge-topic-filter").value:"",knowledgeFolder=activeModuleView==="knowledge"?$("#knowledge-folder-filter").value:"";
         $("#module-search-clear").classList.toggle("hidden", !query);
         const filteredRows = moduleRows.filter((row) => {
@@ -3279,9 +3281,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           const matchesStage = activeInquiryArchive || !activeInquiryScope || activeInquiryScope === "all" || (activeInquiryScope === "open" ? row.meta?.validity === "valid" && !["won","lost"].includes(row.meta?.status) : activeInquiryScope === "risk" ? row.meta?.risk : row.meta?.status === activeInquiryScope);
           const matchesTodayCategory = activeModuleView !== "sales-today" || activeTodayCategory === "all" || row.meta?.category === activeTodayCategory;
           const matchesKnowledge=activeModuleView!=="knowledge"||(!knowledgeKind||row.meta?.knowledgeKind===knowledgeKind)&&(!knowledgeCategory||row.meta?.knowledgeCategory===knowledgeCategory)&&(!knowledgeUploader||row.meta?.knowledgeUploader===knowledgeUploader)&&(!knowledgeLanguage||row.meta?.knowledgeLanguage===knowledgeLanguage)&&(!knowledgeTopic||row.meta?.knowledgeTopic===knowledgeTopic)&&(!knowledgeFolder||row.meta?.knowledgeFolder===knowledgeFolder);
-          return (!unreadOnly || inquiryUnreadItems.has(row.id)) && matchesQuery && matchesStage && matchesTodayCategory && matchesKnowledge && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source);
+          return (!unreadOnly || inquiryUnreadItems.has(row.id)) && matchesQuery && matchesStage && matchesTodayCategory && matchesKnowledge && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source) && (!memberMailbox || row.meta?.memberMailbox === memberMailbox);
         });
-        const hasFilter = Boolean(unreadOnly || query || validity || source || knowledgeKind || knowledgeCategory || knowledgeUploader || knowledgeLanguage || knowledgeTopic || knowledgeFolder || (activeInquiryScope && activeInquiryScope !== "all") || (activeModuleView === "sales-today" && activeTodayCategory !== "all"));
+        const hasFilter = Boolean(unreadOnly || query || validity || source || memberMailbox || knowledgeKind || knowledgeCategory || knowledgeUploader || knowledgeLanguage || knowledgeTopic || knowledgeFolder || (activeInquiryScope && activeInquiryScope !== "all") || (activeModuleView === "sales-today" && activeTodayCategory !== "all"));
         renderModuleTable(moduleColumns, filteredRows, moduleRowClick, hasFilter);
         $("#module-filter-summary").classList.toggle("hidden", !hasFilter);
         $("#module-reset-filters").classList.toggle("hidden", !hasFilter);
@@ -4411,6 +4413,10 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       function memberMailboxStatusLabel(status){
         return {connected:"已连接",not_connected:"未连接",error:"连接异常",disabled:"已停用",pending:"连接中"}[status]||"状态未知";
       }
+      function memberMailboxFilterState(status){
+        if(status==="connected")return "connected";
+        return ["not_connected","error","disabled","pending"].includes(status)?"not_connected":"unknown";
+      }
       function personalMailboxSettingsLabel(connection,error){
         if(error)return "我的邮箱 · 状态加载失败";
         if(connection?.status==="connected")return "我的邮箱 · 已连接";
@@ -4500,6 +4506,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           return switchView("dashboard");
         }
         const preserveEmailSearch = view === "email" && activeModuleView === "email";
+        const preserveMemberFilters = view === "settings" && activeModuleView === "settings";
         activeModuleView = view;
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         const loadVersion = ++moduleLoadVersion;
@@ -4510,7 +4517,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#module-title").textContent = config[0];
         $("#module-subtitle").textContent = config[1];
         $("#module-table-title").textContent = config[2];
-        if (!preserveEmailSearch) $("#module-search").value = "";
+        if (!preserveEmailSearch && !preserveMemberFilters) $("#module-search").value = "";
         $("#module-search").placeholder = `搜索${config[2]}`;
         $("#module-toolbar").classList.add("hidden");
         $("#legacy-project-template").classList.toggle("hidden", view !== "legacy-projects");
@@ -4554,6 +4561,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         selectedMailboxMessageIds.clear();$("#mailbox-selected-count").textContent="已选 0 封";
         $("#inquiry-filter-group").classList.toggle("hidden", view !== "inquiries");
         $("#knowledge-filter-group").classList.toggle("hidden",view!=="knowledge");
+        $("#member-filter-group").classList.toggle("hidden",view!=="settings");
+        if(!preserveMemberFilters)$("#member-mailbox-filter").value="";
         $("#inquiry-validity-filter").value = "";
         $("#inquiry-source-filter").innerHTML = '<option value="">全部来源</option>';
         $("#knowledge-kind-filter").value="";$("#knowledge-category-filter").innerHTML='<option value="">全部分类 / 类型</option>';$("#knowledge-uploader-filter").innerHTML='<option value="">全部上传人</option>';$("#knowledge-topic-filter").innerHTML='<option value="">全部素材分类</option>';$("#knowledge-folder-filter").innerHTML='<option value="">全部文件夹</option>';$("#knowledge-language-filter").innerHTML='<option value="">全部语言</option>';
@@ -4858,20 +4867,21 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
             if(loadVersion===moduleLoadVersion&&activeModuleView==="settings")modulePrimary.textContent=label;
             const operationsById=new Map((operations.data||[]).map(item=>[item.profile_id,item]));
             const states=new Map((statuses.data||[]).map(item=>[item.profile_id,item.connection_status]));
-            return {...members,data:(members.data||[]).map(member=>({...member,sync_label:operations.error?"读取失败":operationsById.get(member.id)?.last_synced_at?fmtDate(operationsById.get(member.id).last_synced_at):"尚未同步",test_label:operations.error?"读取失败":operationsById.get(member.id)?.last_tested_at?fmtDate(operationsById.get(member.id).last_tested_at):"尚未测试",mailbox_status_label:statuses.error?"状态加载失败":memberMailboxStatusLabel(states.get(member.id)),own_mailbox_label:member.id===profile.id?label:null}))};
+            return {...members,data:(members.data||[]).map(member=>({...member,sync_label:operations.error?"读取失败":operationsById.get(member.id)?.last_synced_at?fmtDate(operationsById.get(member.id).last_synced_at):"尚未同步",test_label:operations.error?"读取失败":operationsById.get(member.id)?.last_tested_at?fmtDate(operationsById.get(member.id).last_tested_at):"尚未测试",member_mailbox_filter:memberMailboxFilterState(statuses.error?undefined:states.get(member.id)),mailbox_status_label:statuses.error?"状态加载失败":memberMailboxStatusLabel(states.get(member.id)),own_mailbox_label:member.id===profile.id?label:null}))};
           })();
           columns=["姓名","邮箱","职称","部门","CRM 权限角色","负责区域","状态","邮箱连接","最近同步","最近测试","操作"];
-          mapper=x=>({cells:[x.full_name,x.email,x.job_title,x.team,roleNames[x.role]||x.role,x.sales_region,x.active?"启用":"已停用",x.mailbox_status_label,x.sync_label,x.test_label],actions:x.id===profile.id&&x.active?[{label:x.own_mailbox_label||"我的邮箱设置",onClick:()=>openMailboxBinding(profile.id,true)}]:[]});
+          mapper=x=>({meta:{memberMailbox:x.member_mailbox_filter},cells:[x.full_name,x.email,x.job_title,x.team,roleNames[x.role]||x.role,x.sales_region,x.active?"启用":"已停用",x.mailbox_status_label,x.sync_label,x.test_label],actions:x.id===profile.id&&x.active?[{label:x.own_mailbox_label||"我的邮箱设置",onClick:()=>openMailboxBinding(profile.id,true)}]:[]});
           $("#module-table-context").textContent="全部正式成员（含已停用）；账号新增、停用和角色变更由老板管理";
         } else {
-          query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,disabled_reason_type,disabled_reason,disabled_at,mailbox_connections!mailbox_connections_user_id_fkey(status,last_tested_at,last_synced_at,error_message)").order("created_at", { ascending: true });
+          query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,disabled_reason_type,disabled_reason,disabled_at,mailbox_connections!mailbox_connections_user_id_fkey(mailbox_kind,status,last_tested_at,last_synced_at,error_message)").order("created_at", { ascending: true });
           columns = ["姓名", "邮箱", "职称", "部门", "CRM 权限角色", "状态", "邮箱连接", "最后测试", "最近同步", "操作"];
           mapper = (x) => {
-            const mailbox = Array.isArray(x.mailbox_connections) ? x.mailbox_connections[0] : x.mailbox_connections;
+            const mailbox = (Array.isArray(x.mailbox_connections) ? x.mailbox_connections : [x.mailbox_connections]).find(connection=>connection?.mailbox_kind==="personal");
             const connected = mailbox?.status === "connected";
             const mailboxStateHidden = !mailbox && profile.role !== "owner" && x.id !== profile.id;
             return {
-              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : mailbox?.status === "disabled" ? "已停用" : mailboxStateHidden ? "状态仅本人/老板可见" : "未连接", mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—",mailbox?.last_synced_at ? fmtDate(mailbox.last_synced_at) : "尚未同步"],
+              meta:{memberMailbox:memberMailboxFilterState(mailboxStateHidden?undefined:mailbox?.status||"not_connected")},
+              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : mailboxStateHidden ? "状态仅本人/老板可见" : memberMailboxStatusLabel(mailbox?.status||"not_connected"), mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—",mailbox?.last_synced_at ? fmtDate(mailbox.last_synced_at) : "尚未同步"],
               actions: x.active ? [
                 ...(x.role === "sales" ? [{ label: "业务主页", onClick: () => openSalesProfilePage(x.id) }] : []),
                 { label: connected ? "重新连接" : mailboxStateHidden ? "连接 / 更新" : "连接", onClick: () => openMailboxBinding(x.id) },
@@ -4893,6 +4903,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
             renderModuleTable(cached.columns, cached.rows, cached.onRowClick);
             if (view === "inquiries") { if(activeInquiryArchive){$("#inquiry-stage-tabs").classList.add("hidden");$("#module-table-title").textContent="询盘回收站"}else renderInquiryCommand(cached.rows); filterModuleRows(); }
             if(view==="knowledge"){renderKnowledgeFilters(cached.rows);filterModuleRows()}
+            if(view==="settings")filterModuleRows();
             $("#module-stale-text").textContent = `数据服务暂时不可用，显示 ${fmtDate(cached.loadedAt)} 成功加载的数据。`;
             $("#module-stale").classList.remove("hidden");
             $("#module-table-context").textContent = `暂存数据 · 最近成功更新 ${fmtDate(cached.loadedAt)}`;
@@ -4945,6 +4956,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if (view === "email" && $("#module-search").value.trim()) filterModuleRows();
         if (view === "inquiries") { if(activeInquiryArchive){$("#inquiry-stage-tabs").classList.add("hidden");$("#module-table-title").textContent="询盘回收站";$("#module-table-context").textContent="仅老板可见 · 可恢复 · 不执行物理删除"}else renderInquiryCommand(mappedRows); filterModuleRows(); }
         if(view==="knowledge"){renderKnowledgeFilters(mappedRows);filterModuleRows()}
+        if(view==="settings")filterModuleRows();
         if (view === "sales-today" && todayTaskCounts) {
           const categories=[["all","全部任务"],["assigned","主管分配询盘"],["reply","客户新回复"]];
           $("#module-insights").innerHTML=categories.map(([key,label])=>`<button class="module-insight ${activeTodayCategory===key?"active":""}" type="button" data-today-category="${key}"><span>${label}</span><b>${todayTaskCounts[key]||0}</b></button>`).join("");
@@ -4974,6 +4986,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#inquiry-validity-filter").addEventListener("change", filterModuleRows);
       $("#inquiry-unread-filter").addEventListener("change", filterModuleRows);
       $("#inquiry-source-filter").addEventListener("change", filterModuleRows);
+      $("#member-mailbox-filter").addEventListener("change", filterModuleRows);
       $$("#knowledge-filter-group select").forEach(select=>select.addEventListener("change",filterModuleRows));
       $("#module-search-clear").addEventListener("click", () => { $("#module-search").value = ""; $("#module-search").focus(); filterModuleRows(); });
       $("#module-reset-filters").addEventListener("click", () => {
@@ -4981,6 +4994,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#inquiry-validity-filter").value = "";
         $("#inquiry-source-filter").value = "";
         $("#inquiry-unread-filter").value = "";
+        $("#member-mailbox-filter").value = "";
         $("#knowledge-kind-filter").value="";$("#knowledge-category-filter").value="";$("#knowledge-uploader-filter").value="";$("#knowledge-language-filter").value="";$("#knowledge-topic-filter").value="";$("#knowledge-folder-filter").value="";
         activeInquiryScope = activeModuleView === "inquiries" ? "all" : "";
         $$("#inquiry-stage-tabs button").forEach((item) => item.classList.toggle("active", item.dataset.scope === "all"));

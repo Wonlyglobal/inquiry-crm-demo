@@ -53,7 +53,7 @@ export function mountPrivateIntelligence(host,{invoke,isAllowed}){
  refresh.onclick=async()=>{
   if(!isAllowed())return;busy(true);receipts.replaceChildren();status.textContent='正在回读已同步知识…';
   try{const result=await invoke({action:'private-intelligence-list'});await verify(result.receipts);status.textContent=result.receipts.length?`已从私有库回读验证 ${result.receipts.length} 份已同步报告/证据。`:'私有库中暂无已同步报告。'}
-  catch(e){status.textContent='回读未完成：'+(e.message||'请稍后再试')+'。未改变已保存的报告。'}finally{busy(false)}
+  catch{status.textContent='回读未完成，请核对当前授权或稍后重试。未改变已保存的报告。'}finally{busy(false)}
  };
  submit.onclick=async()=>{
   if(!isAllowed())return;const file=input.files?.[0];if(!file&&!pasted.value.trim()){status.textContent='请先选择或粘贴内部知识包。';return}
@@ -66,7 +66,7 @@ export function mountPrivateIntelligence(host,{invoke,isAllowed}){
    if(!Array.isArray(result.receipts)||result.receipts.length!==bundle.documents.length)throw Error('未取得完整同步回执');
    await verify(result.receipts);
    status.textContent=`已同步并回读验证 ${result.receipts.length} 份报告/证据。`+(bundle.documents.some(d=>d.kind==='product')?'可问完整型号的参数，再追问来源与缺口。':'可在对话中问“查看上周周报”或“查看新增证据”。');input.value='';pasted.value='';
-  }catch(e){status.textContent='同步或回读未完成：'+(e.message||'请稍后再试')+'。尚不能据此认定Grace已收到全部内容。'}finally{busy(false)}
+  }catch{status.textContent='同步或回读未完成，请核对知识包格式、256KB/5份上限及当前授权。已保留输入；请先回读已保存知识核对，不要重复写入。尚不能据此认定Grace已收到全部内容。'}finally{busy(false)}
  };
  return box;
 }

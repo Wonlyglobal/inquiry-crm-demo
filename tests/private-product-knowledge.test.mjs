@@ -37,12 +37,19 @@ test('saved product receipt/list reads remain compatible without claiming source
  assert.equal(PRIVATE_REPORT_KEY.test(receipt.key),true);assert.equal(privateReportQuestion('来源有哪些',receipt.key),'查看私有知识 '+receipt.key+'，来源有哪些');assert.equal(privateReportQuestion('换成TEST81 Pro',receipt.key),'换成TEST81 Pro');
  const query=privateIntelligenceQuery('查看私有知识 '+receipt.key);assert.equal(query.p_key,receipt.key);assert.equal(query.p_kind,'product');
  const answer=privateIntelligenceAnswer({documents:[r]},'查看私有知识 '+receipt.key);assert.match(answer,/Synthetic supply 8V/);assert.match(answer,/未完成同源现行验证/);assert.match(answer,/知识包SHA-256/);assert.match(answer,/原文发布日期：未知/);
+ assert.ok(answer.includes(r.document.product_evidence.gaps[0]));
 });
 test('parameter response uses original quotes, no commercial score and a query-only context',()=>{
  const turn={model:'TEST80 Pro',edition:'V9',question:'TEST80 Pro V9参数'};
  const answer=nativeProductAnswer({facts:[],receipts:[],gaps:[],status:'not_found'},turn);
  assert.match(answer.answer,/不借用相邻型号/);assert.match(answer.answer,/不据此给出国家商业匹配评分/);assert.equal(answer.material_question,'私有产品：'+turn.question);
- assert.match(nativeProductAnswer({facts:[],gaps:[]},{...turn,question:'TEST80 Pro 的防水等级是多少'}).answer,/具体参数未在这些原生文字中返回/);
+ assert.match(nativeProductAnswer({facts:[],gaps:[]},{...turn,question:'TEST80 Pro 的防水等级是多少'}).answer,/具体参数未在这些原生文字中/);
+});
+test('compound parameter questions name each missing dimension without borrowing a known value',()=>{
+ const result={facts:[{field:'门厚',value:'Door thickness 40-80mm',ref:'Synthetic page 1',edition:'V9',sha256:'a'.repeat(64),analysis_eligible:true}],receipts:[],gaps:[]};
+ const answer=nativeProductAnswer(result,{model:'TEST80 PRO',edition:'V9',question:'TEST80 PRO；门厚、防水等级和最大承重是多少？'}).answer;
+ assert.match(answer,/门厚：下方同型号原文含相关线索/);assert.match(answer,/防水与防护等级：本次摘录未返回可定位的原文参数，保持未知/);assert.match(answer,/最大承重：本次摘录未返回可定位的原文参数，保持未知/);assert.match(answer,/Door thickness 40-80mm/);
+ const follow=nativeProductTurn('它的原文发布日期呢',['私有产品：TEST80 PRO V9；参数']);assert.equal(follow.model,'TEST80 PRO');assert.equal(follow.edition,'V9');
 });
 test('only source-validated private facts supplement a market report and never establish commercial admission',async()=>{
  const client={rpc:async()=>({data:{documents:[row()]}})},materials={status:'available',assets:[{id:'source',name:'Synthetic source',versionLabel:'V9',isCurrentVersion:true,document:{sha256:'a'.repeat(64),pages:[{page:1,chunks:[],facts:[]}]}}],source_lookups:[{completeness:'complete'}]};

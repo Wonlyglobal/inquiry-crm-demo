@@ -37,7 +37,7 @@ export function privateIntelligenceAnswer(result,question='',now=Date.now(),cont
  for(const row of rows){const d=row.document;
   if(d.kind==='product'){
    const e=d.product_evidence,checked=nativeProductEvidence(d,{model:e.model,edition:e.source_edition,sources:[]});
-   out.push('\n'+nativeProductAnswer({...checked,receipts:[{id:row.id,digest:row.digest,key:d.key}],status:'available'},{model:e.model,edition:e.source_edition,question:''}).answer);continue;
+   out.push('\n'+nativeProductAnswer({...checked,gaps:[...(e.gaps||[]),...checked.gaps],receipts:[{id:row.id,digest:row.digest,key:d.key}],status:'available'},{model:e.model,edition:e.source_edition,question:''}).answer);continue;
   }
   const social=existingVideoIntent(question)?existingVideoAnalysis(d,video,question,now):socialContentIntent(question)?privateSocialContentAnalysis(d,content,now):socialAnalysisIntent(question)?privateSocialAnalysis(d,now):privateSocialDisplay(d,question);
   if(social!==null){out.push('\n'+social,`\n知识编号：${row.id}；版本校验：${row.digest}`);continue}

@@ -5,7 +5,7 @@ import {nativeProductEvidence} from './product-native-evidence.mjs';
 const canonical=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[\s_/.-]+/g,'');
 const editionKey=s=>canonical(materialVersion(s)||s).replace(/^第([一二三四五六七八九十\d]+)版$/,(_,n)=>'V'+({'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10}[n]||n));
 const prefix='私有产品：';
-const parameter=/参数|功能|开锁|解锁|门厚|安装|供电|电池|尺寸|材质|配置|说明|来源|证据|缺口|哪些|如何|多少|支持|介绍|features?|specs?|thickness|battery|unlock|installation|source/i;
+const parameter=/参数|功能|开锁|解锁|门厚|安装|供电|电池|尺寸|材质|配置|说明|来源|日期|版次|版本|证据|缺口|哪些|如何|多少|支持|介绍|features?|specs?|thickness|battery|unlock|installation|source|date|edition|version/i;
 const gapLabels={source_edition_unknown:'原文版次未确认。',source_publication_date_unknown:'原文发布日期未返回。',source_update_date_unknown:'原物料更新时间未返回。',extraction_date_unknown:'提取日期未确认。',recorded_source_gaps:'原件解析保留以下未覆盖项，不能据此宣称完整理解。',signed_source_page_unmatched:'本次授权源未返回同哈希、版次及页码，暂未完成现行同源验证。',source_current_unconfirmed:'来源未确认现行，仅保留候选摘录。',no_accepted_native_regions:'没有通过完整型号及区域归属校验的原生摘录。'};
 export const nativeGapText=g=>gapLabels[g]||(/^[a-z_]+$/.test(g)?'原生区域结构或归属仍有校验缺口，相关字段未用于结论。':g);
 
@@ -48,10 +48,11 @@ export async function loadPrivateProductEvidence(client,{model,edition='',materi
 export function nativeProductAnswer(result,turn){
  const fields=(result.facts||[]),sourceMatched=fields.filter(f=>f.analysis_eligible===true);
  const focus=String(turn.question||'').split('；').at(-1);
- const requested=[[/供电|电池|battery|power/i,/供电|电池|battery|power|mAh|充电/i],[/门厚|thickness/i,/门厚|door\s*thickness|thickness/i],[/防水|IP\d|防护等级/i,/防水|waterproof|IP\d/i],[/安装|锁体|背距|开孔|installation|mortise|backset/i,/安装|锁体|背距|开孔|install|mortise|backset/i]].filter(([q])=>q.test(focus));
+ const requested=[['供电与电池',/供电|电池|battery|power/i,/供电|电池|battery|power|mAh|充电/i],['门厚',/门厚|thickness/i,/门厚|door\s*thickness|thickness/i],['防水与防护等级',/防水|IP\d|防护等级/i,/防水|waterproof|IP\d/i],['安装接口',/安装|锁体|背距|开孔|installation|mortise|backset/i,/安装|锁体|背距|开孔|install|mortise|backset/i],['最大承重',/承重|load.?bearing|maximum\s*(?:load|weight)/i,/承重|load.?bearing|maximum\s*(?:load|weight)/i],['容量与用户数量',/容量|用户数|capacity|users/i,/容量|用户|capacity|users/i],['材质',/材质|material/i,/材质|material|alloy|steel/i],['连接与联网',/联网|蓝牙|网关|远程|连接|wifi|bluetooth|gateway|connect/i,/联网|蓝牙|网关|远程|wifi|bluetooth|gateway|connect/i],['认证范围',/认证|证书|certif/i,/认证|证书|certif/i]].filter(([,q])=>q.test(focus));
  const out=['产品参数｜私有原生页证据',`完整型号：${turn.model}；指定版次：${turn.edition||'未指定'}。`,
  '下列为按原页产品分区提取的原生文字，未经人工产品核验；不表示已理解图片、尺寸箭头、图标、认证或实际现售配置。'];
- if(requested.some(([,quote])=>!fields.some(f=>quote.test(f.value))))out.push('当前追问所需的具体参数未在这些原生文字中返回；该项保持未知。下方保留同型号已有摘录和缺口，不能将其他功能当成该参数。');
+ if(requested.length){out.push('逐项回应：');for(const [label,,quote] of requested)out.push(`${label}：${fields.some(f=>quote.test(f.value))?'下方同型号原文含相关线索；请按其具体数值、条件及范围核对，不把线索等同于参数或实测通过。':'本次摘录未返回可定位的原文参数，保持未知。'}`);}
+ if(requested.some(([,,quote])=>!fields.some(f=>quote.test(f.value))))out.push('当前追问所需的具体参数未在这些原生文字中完整返回；上述未知项不使用其他功能替代。下方保留同型号已有摘录和缺口。');
  if(fields.length)for(const f of fields)out.push(`\n${f.field}：${f.value}\n来源：${f.ref}｜版次：${f.edition}\n原文发布日期：${f.published_at||'未知'}；物料更新时间：${f.date||'未返回'}\n原件SHA-256：${f.sha256}\n归属验证：${f.analysis_eligible===true?'与本次授权源的版次、哈希及页码一致；实际供货状态未核验':'未完成同源现行验证，仅作私有历史/候选摘录'}。`);
  else out.push('\n未取得可归属该完整型号的私有原生参数证据；不借用相邻型号或旧版参数。');
  out.push('\n缺口与适用边界：');

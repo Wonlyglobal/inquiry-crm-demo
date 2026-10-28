@@ -15,7 +15,7 @@ test('sales daily report exposes separate draft and submit actions',()=>{
   assert.match(html,/id="submit-daily"[\s\S]*提交日报/);
   assert.match(html,/createDailyReportController\(\{[^\n]+confirm:appConfirm/);
   assert.match(html,/dailyReportController\.save\(submitReport\)/);
-  assert.match(ui,/if\(submitReport&&!await confirm\('确认提交这份日报/);
+  assert.match(ui,/if\(submitReport&&!await confirm\([`']确认提交这份日报/);
   assert.match(ui,/save_or_submit_daily_report/);
   assert.doesNotMatch(html,/今日跟进次数/);
   assert.doesNotMatch(html,/id="daily-kpi-followups"/);

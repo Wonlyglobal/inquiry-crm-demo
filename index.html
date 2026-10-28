@@ -1338,6 +1338,7 @@
       .ai-compose { display:grid; grid-template-columns:1fr auto; gap:8px; padding:12px; border-top:1px solid var(--line); }
       .ai-compose textarea { width:100%; min-width:0; resize:none; min-height:44px; max-height:100px; }
 
+      .lead-workspace-frame{display:block;width:100%;height:calc(100dvh - 110px);min-height:400px;border:0;border-radius:18px;background:#edf4f0}.rail{z-index:20}
       /* 2026 workspace visual system: airy, card-led and function-preserving. */
       :root{--ink:#16211c;--muted:#77827d;--line:#dce3e4;--paper:rgba(255,255,255,.82);--bg:#eef3f5;--rail:#eff4f4;--brand:#18342b;--green:#18342b;--green-dark:#10271f;--soft:#e1ece7;--danger:#bb5048;--blue:#2862ec;--cyan:#4a9db0;--yellow:#f5e83e;--rose:#efb6b7}
       body{background:radial-gradient(circle at 18% 8%,rgba(208,225,244,.85),transparent 32%),radial-gradient(circle at 88% 12%,rgba(237,242,204,.72),transparent 28%),#eef2f3;letter-spacing:-.01em}
@@ -1575,11 +1576,11 @@
           <i data-lucide="sprout"></i><span>市场培育池</span></button
         ><button class="nav" data-view="public-pool">
           <i data-lucide="users-round"></i><span>客户公海</span></button
-        ><a class="nav" data-view="company-candidates" href="company-candidates.html"><i data-lucide="building-2"></i><span>线索公共池</span></a><button class="nav" data-view="research">
+        ><a class="nav" data-view="company-candidates" href="#view=company-candidates"><i data-lucide="building-2"></i><span>线索公共池</span></a><button class="nav" data-view="research">
           <i data-lucide="scan-search"></i><span>客户背调</span></button
         ><button class="nav" data-view="legacy-projects">
           <i data-lucide="folder-kanban"></i><span>历史工程</span></button
-        ><a class="nav" data-view="sales-leads" href="sales-leads.html#lead-dashboard"><i data-lucide="chart-no-axes-combined"></i><span>客户线索 · 录入/看板</span></a><button id="daily-report-button" class="nav" data-view="daily">
+        ><a class="nav" data-view="sales-leads" href="#view=sales-leads"><i data-lucide="chart-no-axes-combined"></i><span>客户线索 · 录入/看板</span></a><button id="daily-report-button" class="nav" data-view="daily">
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
         ><button class="nav" data-view="performance-360">
           <i data-lucide="badge-check"></i><span>360 评分中心</span></button
@@ -1618,6 +1619,7 @@
           </div>
         </header>
         <section id="agent-world-page" class="hidden"></section>
+        <section id="lead-workspace-page" class="page hidden"><iframe id="company-candidates-frame" title="线索公共池" class="lead-workspace-frame hidden"></iframe><iframe id="sales-leads-frame" title="客户线索录入与看板" class="lead-workspace-frame hidden"></iframe></section>
         <section id="dashboard-page" class="page">
           <div class="heading">
             <div>
@@ -3003,6 +3005,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           await withTimeout(supabase.auth.signOut(), 5000, "账号状态清理超时");
           throw new Error("该成员账号已被管理员禁用");
         }
+        if(profile?.id!==data.id)for(const key of ["company-candidates","sales-leads"]){const frame=$("#"+key+"-frame");frame.removeAttribute("src");}
         profile = data;
         if (data.must_change_password) {
           passwordChangeMode = "initial";
@@ -5527,6 +5530,17 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         $("#sales-profile-page").classList.add("hidden");
         setActiveNavigation(view);
+        const leadWorkspace=["company-candidates","sales-leads"].includes(view);
+        $("#lead-workspace-page").classList.toggle("hidden",!leadWorkspace);
+        if(leadWorkspace){
+          for(const id of ["dashboard-page","exhibition-calendar-page","marketing-center-page","ai-advisor-page","module-page","daily-modal"])$("#"+id).classList.add("hidden");
+          for(const key of ["company-candidates","sales-leads"])$("#"+key+"-frame").classList.toggle("hidden",key!==view);
+          const frame=$("#"+view+"-frame");
+          if(!frame.getAttribute("src"))frame.src=view==="company-candidates"?"company-candidates.html?embed=1":leadWorkspaceHref(profile?.role).replace(".html",".html?embed=1");
+          history.replaceState(null,"",location.pathname+location.search+"#view="+view);
+          return;
+        }
+        if(/^#view=(company-candidates|sales-leads)$/.test(location.hash))history.replaceState(null,"",location.pathname+location.search);
         if (view === "daily") {
           $("#dashboard-page").classList.add("hidden");
           $("#exhibition-calendar-page").classList.add("hidden");
@@ -7396,8 +7410,6 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         item.addEventListener("click", async event => {
           if(["sales-leads","company-candidates"].includes(item.dataset.view))event.preventDefault();
           if(!$("#daily-modal").classList.contains("hidden")&&!await dailyReportController.canLeave())return;
-          if(item.dataset.view==="company-candidates"){location.assign("company-candidates.html");return;}
-          if(item.dataset.view==="sales-leads"){location.assign(leadWorkspaceHref(profile?.role));return;}
           if (location.hash.startsWith("#inquiry/")) {
             history.pushState(null, "", location.pathname + location.search);
             closeInquiryPage();

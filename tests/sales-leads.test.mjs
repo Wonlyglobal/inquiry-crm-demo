@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {dailyState,summarize,localDay,importRows} from '../assets/sales-leads.mjs';
+import {dailyState,summarize,localDay,importRows,leadRequestMessage} from '../assets/sales-leads.mjs';
 test('Shanghai day does not depend on browser timezone',()=>{assert.equal(localDay(new Date('2026-10-25T16:01:00Z')),'2026-10-26')});
 const day={sales_id:'s',day:'2026-10-26',daily_min:1};
 const lead={id:'a',sales_id:'s',recorded_on:day.day,acquired_on:'2026-08-01',inquiry_id:'i',converted_at:'2026-10-26T09:00:00Z'};
@@ -23,4 +23,17 @@ test('new importer pins authoritative current parser and rejects oversized sheet
  const page=readFileSync(new URL('../assets/sales-leads-page.mjs',import.meta.url),'utf8');
  assert.match(page,/cdn\.sheetjs\.com\/xlsx-0\.20\.3\/package\/xlsx\.mjs/);assert.doesNotMatch(page,/xlsx@0\.18/);
  assert.match(page,/sheetRows:202/);assert.match(page,/cellFormula:false/);assert.match(page,/!fullref/);
+});
+
+test('unknown contacts remain blank and do not block real lead entry',()=>{
+ const r={company:'模拟公司',country:'Ghana',email:'—',phone:'暂无',contact:'—',source:'outbound',demand:'待跟进门类需求',acquired_on:'2026-10-28'};
+ const out=importRows([r])[0];assert.equal(out.email,'');assert.equal(out.phone,'');assert.equal(out.contact,'');
+});
+test('import reports exact rows and fields before any submission',()=>{
+ const r={company:'模拟公司',country:'Ghana',email:'a@example.com',phone:'',source:'outbound',demand:'待跟进门类需求',acquired_on:'2026-10-28'};
+ assert.throws(()=>importRows([r,{...r,email:'54'},{...r,email:'a@example.com; b@example.com'},{...r,country:'',acquired_on:'2026-02-31'}]),e=>/第3行：邮箱格式/.test(e.message)&&/第4行：邮箱格式/.test(e.message)&&/第5行：国家未填写/.test(e.message)&&/获取日期/.test(e.message));
+});
+test('transport errors are not presented as field validation or confirmed success',()=>{
+ assert.match(leadRequestMessage(Error('TypeError: Load failed')),/尚未确认保存结果/);
+ assert.match(leadRequestMessage(Error('第15行：国家未填写')),/第15行：国家未填写/);
 });

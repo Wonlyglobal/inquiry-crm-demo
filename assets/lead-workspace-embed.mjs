@@ -6,7 +6,7 @@ if (window.parent !== window && new URLSearchParams(location.search).get('embed'
     const link = event.target.closest('a[href]');
     if (!link || link.target === '_blank') return;
     const url = new URL(link.href, location.href);
-    if (url.origin !== location.origin || !url.pathname.endsWith('/sales-leads.html')) return;
+    if (url.origin !== location.origin || !url.pathname.endsWith('/sales-leads.html') || url.pathname === location.pathname) return;
     event.preventDefault();
     const nav = parent.document.querySelector('.nav[data-view="sales-leads"]');
     nav?.click();

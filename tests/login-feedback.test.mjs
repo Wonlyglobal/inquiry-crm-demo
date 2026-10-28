@@ -28,3 +28,11 @@ test("a transient profile fetch failure preserves the authenticated session", ()
   assert.match(html, /账号档案暂时无法加载，登录状态已保留，请刷新或稍后重试/);
   assert.match(html, /if \(permanentProfileFailure\) await supabase\.auth\.signOut\(\)/);
 });
+
+for (const page of ["index.html", "grace.html"]) {
+  test(`${page} normalizes only the login email, preserving password case`, async () => {
+    const source = await readFile(new URL(`../${page}`, import.meta.url), "utf8");
+    assert.match(source, /email: \$\("#login-email"\)\.value\.trim\(\)\.toLowerCase\(\)/);
+    assert.match(source, /password: \$\("#login-password"\)\.value,/);
+  });
+}

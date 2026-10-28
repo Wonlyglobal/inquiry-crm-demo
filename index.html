@@ -1577,7 +1577,7 @@
           <i data-lucide="scan-search"></i><span>客户背调</span></button
         ><button class="nav" data-view="legacy-projects">
           <i data-lucide="folder-kanban"></i><span>历史工程</span></button
-        ><a class="nav" href="sales-leads.html"><i data-lucide="notebook-pen"></i><span>每日线索与个人商机</span></a><button id="daily-report-button" class="nav" data-view="daily">
+        ><a class="nav" data-view="sales-leads" href="sales-leads.html#lead-dashboard"><i data-lucide="chart-no-axes-combined"></i><span>客户线索看板</span></a><button id="daily-report-button" class="nav" data-view="daily">
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
         ><button class="nav" data-view="performance-360">
           <i data-lucide="badge-check"></i><span>360 评分中心</span></button
@@ -2773,13 +2773,13 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         sales: "销售",
       };
       const roleViewAccess = {
-        owner: new Set(["dashboard","sales-today","follow-calendar","exhibition-calendar","marketing-center","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","risk-review","settings"]),
-        sales_manager: new Set(["dashboard","exhibition-calendar","ai-advisor","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"]),
-        marketing: new Set(["dashboard","exhibition-calendar","marketing-center","ai-advisor","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
-        sales: new Set(["dashboard","sales-today","follow-calendar","exhibition-calendar","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
+        owner: new Set(["sales-leads","dashboard","sales-today","follow-calendar","exhibition-calendar","marketing-center","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","email","communications","assignment","nurture","public-pool","research","legacy-projects","daily","performance-360","risk-review","settings"]),
+        sales_manager: new Set(["sales-leads","dashboard","exhibition-calendar","ai-advisor","inquiries","customers","whatsapp","knowledge","sop","communications","assignment","public-pool","daily","performance-360","risk-review","settings"]),
+        marketing: new Set(["sales-leads","dashboard","exhibition-calendar","marketing-center","ai-advisor","inquiries","customers","knowledge","sop","email","nurture","research","performance-360","settings"]),
+        sales: new Set(["sales-leads","dashboard","sales-today","follow-calendar","exhibition-calendar","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
       const sidebarNavigationGroups = [
-        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","ai-advisor","sales-today","follow-calendar","exhibition-calendar","marketing-center","daily"]},
+        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","sales-leads","ai-advisor","sales-today","follow-calendar","exhibition-calendar","marketing-center","daily"]},
         {key:"customers",label:"客户与商机",icon:"briefcase-business",views:["inquiries","customers","assignment","nurture","public-pool","research"]},
         {key:"communication",label:"沟通协作",icon:"messages-square",views:["mailbox","whatsapp","email","communications"]},
         {key:"sales-support",label:"销售支持",icon:"library-big",views:["templates","knowledge","quotes","fulfillment","legacy-projects"]},
@@ -2804,7 +2804,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         syncSidebarGroupBadges();
       }
       const roleGuideViewNames = {
-        dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","exhibition-calendar":"展会日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
+        "sales-leads":"客户线索看板",dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","exhibition-calendar":"展会日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
         {at:"2026-09-20 10:15",title:"新增风险审查中心第一阶段",detail:"老板可查看全公司、主管可查看本团队业务风险；确定性规则识别无人负责、首响逾期和跟进逾期，处置、解除和关闭均留不可删除事件记录。",roles:["owner","sales_manager"]},
@@ -7389,8 +7389,10 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#daily-date-text").textContent=dailyDateLabel($("#daily-date").value);
       }
       $$(".nav[data-view]").forEach((item) =>
-        item.addEventListener("click", async () => {
+        item.addEventListener("click", async event => {
+          if(item.dataset.view==="sales-leads")event.preventDefault();
           if(!$("#daily-modal").classList.contains("hidden")&&!await dailyReportController.canLeave())return;
+          if(item.dataset.view==="sales-leads"){location.assign("sales-leads.html#lead-dashboard");return;}
           if (location.hash.startsWith("#inquiry/")) {
             history.pushState(null, "", location.pathname + location.search);
             closeInquiryPage();

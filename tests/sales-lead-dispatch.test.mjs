@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import {divisionReportMessage} from '../supabase/functions/_shared/lead-report-card.mjs';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../supabase/functions/sales-lead-dispatch/index.ts',import.meta.url),'utf8')
- .replace(/^import .*\n/,'').replace('status:number,result:unknown','status,result');
+ .replace(/^import .*\n/gm,'').replace('status:number,result:unknown','status,result');
 const oldHook='https://open.feishu.cn/open-apis/bot/v2/hook/00000000-0000-4000-8000-000000000001';
 const newHook='https://open.feishu.cn/open-apis/bot/v2/hook/00000000-0000-4000-8000-000000000002';
 function fixture(env={},provider=0){
  let handler;const requests=[],rpc=[];
- const context={Response,AbortSignal,JSON,Deno:{env:{get:key=>({MAIL_SYNC_WORKER_TOKEN:'synthetic-worker',SUPABASE_URL:'https://example.invalid',SUPABASE_SERVICE_ROLE_KEY:'synthetic-key',...env})[key]},serve:fn=>handler=fn},
+ const context={divisionReportMessage,Response,AbortSignal,JSON,Deno:{env:{get:key=>({MAIL_SYNC_WORKER_TOKEN:'synthetic-worker',SUPABASE_URL:'https://example.invalid',SUPABASE_SERVICE_ROLE_KEY:'synthetic-key',...env})[key]},serve:fn=>handler=fn},
  createClient:()=>({rpc:async(name,args)=>{rpc.push({name,args});return name==='claim_sales_lead_delivery'?{data:[{id:'fixture-1',body:'Synthetic route test only'}],error:null}:{error:null}}}),
  fetch:async(url,options)=>{requests.push({url,options});return Response.json({code:provider})}};
  vm.runInNewContext(source,context);

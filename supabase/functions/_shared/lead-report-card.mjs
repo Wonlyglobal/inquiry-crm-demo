@@ -10,13 +10,13 @@ export function divisionReportMessage(body,metadata){
   if(!m)return {msg_type:'text',content:{text:body}};
   const name=m[2],matches=(metadata?.timeliness||[]).filter(p=>p.full_name===name||name===p.full_name+'（'+(p.team||'')+'）'||(daily&&name.replace(/（[^（）]*）$/,'')===p.full_name));
   const t=matches.length===1?matches[0]:null;
-  rows.push({rank:m[1],person:name,new_leads:weekly?m[4]:m[3],converted:weekly?m[3]:m[4],state:weekly?`跟进${m[5]}次；线索未申报${m[7]}人天`:m[5]==='未提交'?'线索未申报':m[5],on_time:t&&t.expected>0?`${t.on_time}/${t.expected} · ${t.rate}%`:'—',report_state:t?`迟交${t.late} / 缺交${t.missing} / 待截止${t.pending}`:'待核对'});
+  rows.push({rank:m[1],person:name,display_person:t?.full_name||name,new_leads:weekly?m[4]:m[3],converted:weekly?m[3]:m[4],state:weekly?`跟进${m[5]}次；线索未申报${m[7]}人天`:m[5]==='未提交'?'线索未申报':m[5],on_time:t&&t.expected>0?`${t.on_time}/${t.expected} · ${t.rate}%`:'—',report_state:t?`迟交${t.late} / 缺交${t.missing} / 待截止${t.pending}`:'待核对'});
  }
  const total=lines[1]?.match(/^全员(\d+)人/);
  if(!total||Number(total[1])!==rows.length||!rows.length||rows.length>100)return {msg_type:'text',content:{text:body}};
  // Explicit percentages sum to 100%; auto columns otherwise grow beyond the card.
  const columns=[['rank','排名',12],['person','业务员',25],['new_leads','线索数',17],['converted','商机数',17],['on_time','按时提交率',29]].map(([name,display_name,width])=>({name,display_name,data_type:'text',width:width+'%',horizontal_align:name==='person'?'left':'center'}));
- const compactRows=rows.map(row=>({rank:row.rank,person:daily?row.person.replace(/（[^（）]*）$/,''):row.person,new_leads:row.new_leads,converted:row.converted,on_time:row.on_time==='—'?'—':row.on_time.split(' · ')[1]}));
+ const compactRows=rows.map(row=>({rank:row.rank,person:row.display_person,new_leads:row.new_leads,converted:row.converted,on_time:row.on_time==='—'?'—':row.on_time.split(' · ')[1]}));
  const details=rows.map((row,index)=>`第${index+1}行（排名${row.rank}）：${row.state}；按时 ${row.on_time}；${row.report_state}`).join('\n');
  return {msg_type:'interactive',card:{schema:'2.0',config:{update_multi:true},header:{template:'green',title:{tag:'plain_text',content:weekly?'事业部线索与商机周榜':'事业部每日线索排行榜'},subtitle:{tag:'plain_text',content:lines[0].replace(/^【[^】]+】/,'')}},body:{elements:[
  {tag:'markdown',content:lines.slice(1,weekly?2:3).join('\n').replace(/未提交(\d+)人/g,'线索未申报$1人')+`\n口径：线索/商机为${weekly?'本周':'当日'}，按时率为${weekly?'本周':'本月'}。`},

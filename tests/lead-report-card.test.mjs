@@ -34,3 +34,11 @@ test('five compact columns fill the canvas without auto widths and keep rates re
  assert.equal(table.rows[0].person,'合成员0');assert.equal(table.rows[0].on_time,'33.3%');
  assert.equal(table.rows.length,13);assert.match(msg.card.body.elements.find(e=>e.content?.startsWith('补充核对')).content,/按时 1\/3 · 33.3%/);
 });
+
+
+test('verified full names retain parenthetical text while department suffixes stay out of the compact cell',()=>{
+ const full='模拟长姓名（英文名）';
+ const body=daily(1).replace('合成员0（海外业务部）',full+'（海外业务部）');
+ const msg=divisionReportMessage(body,{timeliness:[{full_name:full,expected:1,on_time:1,rate:100,late:0,missing:0,pending:0}]});
+ assert.equal(msg.card.body.elements.find(e=>e.tag==='table').rows[0].person,full);
+});

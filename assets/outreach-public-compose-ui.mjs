@@ -1,4 +1,4 @@
-import {composeRequest,publicEvidenceItem} from './outreach-compose-policy.mjs?v=20261028-auto1';
+import {composeRequest,publicEvidenceItem} from './outreach-compose-policy.mjs?v=20261028-auto2';
 import {revealOutreachPreview} from './outreach-preview.mjs?v=20261024-1';
 let state={inquiryId:null,items:[]};
 function render(ctx){
@@ -86,6 +86,6 @@ export async function generatePublicOutreach(ctx){
   if(!recipient){ctx.quality(result.subject,body);$('#outreach-status').textContent='正文已生成，可编辑；尚无收件人，未保存或发送。';$('#send-outreach').disabled=true;return}
   await ctx.save();if(ctx.getInquiry()?.id!==id)return;
   ctx.quality(result.subject,body);$('#save-outreach').disabled=false;$('#send-outreach').disabled=false;$('#send-outreach').classList.remove('hidden');
-  $('#outreach-status').textContent='已保存并回读 · 依据公司、市场与公开产品主张 · 待人工审核，未发送';ctx.toast('开发信已保存，请核对研究事实、产品主张与沟通目标；未发送');
+  $('#outreach-status').textContent=`已保存并回读 · 公司 ${input.company_facts.length} 条 / 市场 ${input.market_facts.length} 条 / 产品 ${input.product_facts.length} 条 · 待人工审核，未发送`;ctx.toast('开发信已保存，请核对研究事实、产品主张与沟通目标；未发送');
  }catch(e){if(ctx.getInquiry()?.id===id)$('#outreach-status').textContent=`生成或保存未完成：${e.message}；未发送`;ctx.toast(e.message)}finally{button.disabled=false;button.textContent='一键生成开发信'}
 }

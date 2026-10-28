@@ -46,3 +46,11 @@ test('server authenticates original user and reads only inquiry id; service role
  assert.equal(source.includes("from('companies')"),false);
  assert.ok(source.includes('providerJson(CHAT_URL,composeBody(input),key)'));
 });
+test('missing market evidence cannot become a growth assertion or a research-process disclosure',()=>{
+ const payload=body=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify({subject:'Door portfolio discussion',body})}}]});
+ const request={...input,market_facts:[]};
+ for(const body of ['A focus aligned with growing regional demand for durable doors.','Local dynamics are not reflected in our available research.','We offer integrated smart locks.'])assert.throws(()=>checkedComposedLetter(payload(body),request));
+ assert.equal(checkedComposedLetter(payload('Your catalogue lists entrance and interior doors.\n\nWONLY offers steel doors with OEM/ODM manufacturing for distributors.\n\nWould a brief online discussion help clarify your current requirements?'),request).pending_human_review,true);
+ assert.throws(()=>checkedComposedLetter(payload('Rising regional demand creates an opportunity.'),{...request,market_facts:[{...fact,statement:'HEADLINE ONLY: A construction headline'}]}));
+ assert.equal(checkedComposedLetter(payload('Rising regional demand is reported in the reviewed source.'),input).send_allowed,false);
+});

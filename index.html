@@ -8778,14 +8778,14 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         result.isCurrent=()=>selection===snapshot();return result;
       }
       function publicOutreachContext(){return {collect:autoCollectOutreachEvidence,getInquiry:()=>currentInquiry,find:$,toast,confirm:appConfirm,research:assessResearchQuality,lines:researchLines,parse:parseResearchEvidenceLine,recipient:resolveInquiryRecipient,contactName:()=>$("#detail-smart-name").value||currentInquiry?.contact_name,signature:unifiedEnglishSignature,save:saveOutreachDraft,setMode:mode=>{outreachComposeMode=mode},quality:(subject,body)=>evaluateOutreachDraft(subject,body,$("#detail-research-company").value.trim(),$("#detail-research-domain").value.trim()),invoke:(name,options)=>supabase.functions.invoke(name,options),edgeError:edgeFunctionErrorMessage};}
-      $("#outreach-public-prepare").addEventListener('click',async()=>{const {preparePublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261028-auto1');preparePublicOutreachEvidence(publicOutreachContext())});
-      $("#outreach-public-add").addEventListener('click',async()=>{const {addPublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261028-auto1');addPublicOutreachEvidence(publicOutreachContext())});
+      $("#outreach-public-prepare").addEventListener('click',async()=>{const {preparePublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261028-auto2');preparePublicOutreachEvidence(publicOutreachContext())});
+      $("#outreach-public-add").addEventListener('click',async()=>{const {addPublicOutreachEvidence}=await import('./assets/outreach-public-compose-ui.mjs?v=20261028-auto2');addPublicOutreachEvidence(publicOutreachContext())});
       async function generateOutreach() {
         const button=$("#generate-outreach");if(button.dataset.requestActive==='true')return;
         button.dataset.requestActive='true';button.disabled=true;
         try{
         finalizedOutreachCopy=null;
-        const {generatePublicOutreach}=await import('./assets/outreach-public-compose-ui.mjs?v=20261028-auto1');
+        const {generatePublicOutreach}=await import('./assets/outreach-public-compose-ui.mjs?v=20261028-auto2');
         await generatePublicOutreach(publicOutreachContext());
         updateOutreachLanguageSelection();
         }catch(e){toast('生成未完成：'+e.message)}finally{delete button.dataset.requestActive;button.disabled=false;}

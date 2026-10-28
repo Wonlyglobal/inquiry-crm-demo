@@ -1832,6 +1832,7 @@
             <div id="module-toolbar" class="module-table-toolbar hidden">
               <div class="module-search-wrap"><i data-lucide="search"></i><input id="module-search" class="module-search" type="search" autocomplete="off" placeholder="搜索当前列表"><button id="module-search-clear" class="module-search-clear hidden" type="button" aria-label="清除搜索">×</button></div>
               <div id="inquiry-filter-group" class="module-filter-group hidden"><select id="inquiry-unread-filter" class="module-filter-select" aria-label="筛选未读更新"><option value="">全部询盘</option><option value="unread">只看未读更新</option></select><select id="inquiry-validity-filter" class="module-filter-select" aria-label="筛选有效性"><option value="">全部有效性</option><option value="pending">待确认</option><option value="valid">有效</option><option value="invalid">无效</option></select><select id="inquiry-source-filter" class="module-filter-select" aria-label="筛选来源"><option value="">全部来源</option></select></div>
+              <select id="personal-mailbox-filter" class="module-filter-select hidden" aria-label="筛选个人邮箱"><option value="">全部个人邮箱</option></select>
               <div id="member-filter-group" class="module-filter-group hidden"><select id="member-mailbox-filter" class="module-filter-select" aria-label="筛选成员邮箱连接"><option value="">全部连接状态</option><option value="connected">已连接</option><option value="not_connected">未连接</option></select></div>
               <div id="knowledge-filter-group" class="module-filter-group hidden"><select id="knowledge-kind-filter" class="module-filter-select" aria-label="筛选知识形式"><option value="">全部形式</option><option value="material">物料文件</option><option value="article">文字知识</option></select><select id="knowledge-category-filter" class="module-filter-select" aria-label="筛选分类或类型"><option value="">全部分类 / 类型</option></select><select id="knowledge-topic-filter" class="module-filter-select" aria-label="筛选素材分类"><option value="">全部素材分类</option></select><select id="knowledge-folder-filter" class="module-filter-select" aria-label="筛选文件夹"><option value="">全部文件夹</option></select><select id="knowledge-uploader-filter" class="module-filter-select" aria-label="筛选上传人"><option value="">全部上传人</option></select><select id="knowledge-language-filter" class="module-filter-select" aria-label="筛选语言"><option value="">全部语言</option></select></div>
               <span id="module-filter-summary" class="tag hidden"></span>
@@ -1912,6 +1913,7 @@
         <form id="mailbox-form" class="form-body">
           <p class="hint">使用业务员本人生成的阿里邮箱第三方客户端密码。密码仅提交到服务端 Vault，不会在页面中保存或回显。</p>
           <div class="field"><label>成员 *</label><select id="mailbox-user" class="input" required></select></div>
+          <div class="field"><label>已关联邮箱 / 新增邮箱</label><select id="mailbox-existing" class="input"><option value="">新增邮箱（保留已有连接）</option></select></div>
           <div class="field"><label>企业邮箱 *</label><input id="mailbox-email" class="input" type="email" required /></div>
           <div class="field"><label>第三方客户端密码 *</label><input id="mailbox-password" class="input" type="password" autocomplete="new-password" required /></div>
           <div class="form-actions"><button type="button" id="cancel-mailbox" class="ghost">取消</button><button class="primary" type="submit">测试并连接</button></div>
@@ -2165,6 +2167,7 @@
             <div id="mail-fact-check-summary" class="hint">生成 AI 草稿后将自动检查。</div>
             <div id="mail-fact-check-claims" class="quality-checks"></div>
           </div>
+          <div class="field"><label>发件邮箱</label><select id="mail-compose-from" class="input" required></select></div>
           <div class="field"><label>收件人</label><input id="mail-compose-to" class="input" type="email" required placeholder="name@company.com" /></div>
           <div class="field"><label>抄送（多个邮箱用逗号分隔）</label><input id="mail-compose-cc" class="input" placeholder="cc@company.com" /></div>
           <div class="field"><label>主题</label><input id="mail-compose-subject" class="input mail-directional" dir="auto" required /></div>
@@ -2575,6 +2578,7 @@
     <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261019-private3" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
+      import {mailboxState} from './assets/mailbox-multi.mjs?v=20261028';
       import {createDailyReportController} from './assets/daily-report-ui.mjs?v=20261026-ledger1';
       import {submittedDailySalesIds} from './assets/daily-lead-reporting.mjs?v=20261026-ledger1';
       import {marketSummary} from './assets/agent-market-summary.mjs?v=20261012-market';
@@ -3174,14 +3178,14 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(!button||profile?.role!=="sales")return;
         const {data,error}=await supabase.from("mailbox_connections")
           .select("status,last_tested_at,error_message")
-          .eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle();
-        const connected=!error&&data?.status==="connected";
-        button.disabled=connected;
-        button.textContent=connected?"邮箱已连接":"连接我的邮箱";
+          .eq("user_id",profile.id).eq("mailbox_kind","personal");
+        const state=mailboxState(data||[]),connected=!error&&state.connected>0;
+        button.disabled=false;
+        button.textContent=connected?`管理邮箱（已连接 ${state.connected} 个）`:"连接我的邮箱";
         button.title=connected
-          ? `已通过连接测试${data.last_tested_at?` · ${fmtDate(data.last_tested_at)}`:""}`
+          ? `已通过连接测试${state.last_tested_at?` · ${fmtDate(state.last_tested_at)}`:""}`
           : data?.error_message||"连接当前业务员的企业邮箱";
-        button.setAttribute("aria-disabled",connected?"true":"false");
+        button.setAttribute("aria-disabled","false");
       }
       let activeModuleView = "", activeInquiryScope = "", activeInquiryArchive = false, activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, knowledgeCountState = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [], mailAiDraftId = null, mailResponsePlan = null, mailFactCheckState = null, mailFactCheckRunning = false;
       let whatsappRealtimeChannel = null, whatsappRealtimeTimer = null;
@@ -3567,6 +3571,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $$('[data-restore-ai-draft]').forEach(button=>button.onclick=async()=>{const item=drafts.find(row=>row.id===button.dataset.restoreAiDraft);if(!item)return;const responseBody=`${stripExistingSignature(item.body_text)}\n\n${mailboxSignature()}`.trim(),quoted=mailComposerMessage?quotedOriginalMail(mailComposerMessage):"";$("#mail-compose-subject").value=item.subject;$("#mail-compose-body").value=quoted?`${responseBody}\n\n${quoted}`:responseBody;$("#mail-compose-language").value=item.language;syncMailComposerDirection();$("#mail-ai-status").textContent=item.rationale_zh?`已恢复草稿 · 生成说明：${item.rationale_zh}`:"已恢复持久化 AI 草稿";$("#mail-ai-status").classList.remove("hidden");$("#dashboard-modal").classList.add("hidden");mailAiDraftId=item.id;mailResponsePlan=item.response_plan||null;renderMailResponsePlan();mailFactCheckState=null;renderMailFactCheck();toast("AI 草稿已恢复，正在事实检查");await runMailFactCheck()});
       }
       async function openMailComposer(message=null){
+        const {data:sendBoxes,error:sendBoxError}=await supabase.from("mailbox_connections").select("id,email,status").eq("user_id",profile.id).eq("mailbox_kind","personal").eq("status","connected").order("created_at");
+        if(sendBoxError||!sendBoxes?.length)return toast("请先连接本人邮箱");
+        const from=$("#mail-compose-from");from.replaceChildren(...sendBoxes.map(b=>new Option(b.email,b.id)));
+        if(sendBoxes.some(b=>b.id===message?.mailbox_connection_id))from.value=message.mailbox_connection_id;
+
         const replying=Boolean(message);
         const replyingInArabic=/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u.test(`${message?.subject||""}\n${message?.body_text||""}`);
         mailComposerMessage=message;
@@ -4500,6 +4509,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const preserveEmailSearch = view === "email" && activeModuleView === "email";
         const preserveMemberFilters = view === "settings" && activeModuleView === "settings";
         activeModuleView = view;
+        $("#personal-mailbox-filter").classList.toggle("hidden",view!=="mailbox");
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         const loadVersion = ++moduleLoadVersion;
         const refreshButton = $("#module-refresh");
@@ -4804,10 +4814,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           columns=["模板名称","分类","语言","邮件主题","正文预览","最后修改","操作"];
           mapper=(x)=>({id:x.id,cells:[x.name,mailTemplateCategoryNames[x.category]||x.category,x.language,x.subject||"使用时填写",String(x.body_text||"").slice(0,100)+(String(x.body_text||"").length>100?"…":""),fmtDate(x.updated_at||x.created_at)],actions:[{label:"编辑",onClick:()=>openMailTemplateEditor(x)},{label:"删除",onClick:()=>deleteMailTemplate(x)}]});
         } else if (view === "mailbox") {
-          const connectionResult=await runModuleQuery(supabase.from("mailbox_connections").select("id,email,status,last_synced_at,error_message").eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle(),2);
-          const connection=connectionResult.data;
+          const connectionResult=await runModuleQuery(supabase.from("mailbox_connections").select("id,email,status,last_synced_at,error_message").eq("user_id",profile.id).eq("mailbox_kind","personal"),2);
+          const boxes=connectionResult.data||[],connection=mailboxState(boxes);
+          const boxFilter=$("#personal-mailbox-filter"),chosen=boxFilter.value;
+          boxFilter.replaceChildren(new Option("全部个人邮箱",""),...boxes.map(b=>new Option(`${b.email} · ${memberMailboxStatusLabel(b.status)}`,b.id)));
+          if(boxes.some(b=>b.id===chosen))boxFilter.value=chosen;
+          $("#module-subtitle").textContent=`关联 ${boxes.length} 个个人邮箱，已连接 ${connection.connected} 个；按邮箱独立同步，看板按人去重汇总`;
+
           if(connectionResult.error)query=Promise.resolve(connectionResult);
-          else if(!connection||connection.status!=="connected"){
+          else if(!boxes.length){
             query=Promise.resolve({data:[],error:null});
             $("#module-subtitle").textContent="请先连接你的阿里邮箱，连接后可在这里收件、写信和回复客户";
             modulePrimary.textContent="连接我的邮箱";
@@ -4817,7 +4832,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
               query=loadModuleRowsPaged((from,to)=>supabase.from("mail_outbox").select("id,inquiry_id,recipient_email,cc_emails,subject,body_text,status,next_attempt_at,sent_at,last_error,created_at,delivery_mode,inquiries(inquiry_no,title)").eq("sender_user_id",profile.id).eq("delivery_mode","scheduled").order("next_attempt_at",{ascending:false}).range(from,to));
             }else{
               const [messagesResult,readsResult,remindersResult]=await Promise.all([
-                loadAllMailboxMessages(connection.id),
+                loadAllMailboxMessages(boxes.filter(b=>!boxFilter.value||b.id===boxFilter.value).map(b=>b.id)),
                 loadAllMailboxReads(profile.id),
                 loadAllOpenReplyReminders(profile.id),
               ]);
@@ -4851,11 +4866,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           query=(async()=>{
             const [members,mailbox,statuses,operations]=await Promise.all([
               supabase.rpc("get_crm_member_directory"),
-              supabase.from("mailbox_connections").select("status").eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle(),
+              supabase.from("mailbox_connections").select("status").eq("user_id",profile.id).eq("mailbox_kind","personal"),
               supabase.rpc("get_crm_member_mailbox_status"),
               supabase.rpc("get_crm_operational_settings")
             ]);
-            const label=personalMailboxSettingsLabel(mailbox.data,mailbox.error);
+            const label=personalMailboxSettingsLabel(mailboxState(mailbox.data||[]),mailbox.error);
             if(loadVersion===moduleLoadVersion&&activeModuleView==="settings")modulePrimary.textContent=label;
             const operationsById=new Map((operations.data||[]).map(item=>[item.profile_id,item]));
             const states=new Map((statuses.data||[]).map(item=>[item.profile_id,item.connection_status]));
@@ -4868,15 +4883,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           query = supabase.from("profiles").select("id,full_name,email,role,team,job_title,active,must_change_password,disabled_reason_type,disabled_reason,disabled_at,mailbox_connections!mailbox_connections_user_id_fkey(mailbox_kind,status,last_tested_at,last_synced_at,error_message)").order("created_at", { ascending: true });
           columns = ["姓名", "邮箱", "职称", "部门", "CRM 权限角色", "状态", "邮箱连接", "最后测试", "最近同步", "操作"];
           mapper = (x) => {
-            const mailbox = (Array.isArray(x.mailbox_connections) ? x.mailbox_connections : [x.mailbox_connections]).find(connection=>connection?.mailbox_kind==="personal");
+            const mailbox = mailboxState((Array.isArray(x.mailbox_connections) ? x.mailbox_connections : [x.mailbox_connections]).filter(connection=>connection?.mailbox_kind==="personal"));
             const connected = mailbox?.status === "connected";
-            const mailboxStateHidden = !mailbox && profile.role !== "owner" && x.id !== profile.id;
+            const mailboxStateHidden = !mailbox.count && profile.role !== "owner" && x.id !== profile.id;
             return {
               meta:{memberMailbox:memberMailboxFilterState(mailboxStateHidden?undefined:mailbox?.status||"not_connected")},
-              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? "已连接" : mailbox?.status === "error" ? "连接失败" : mailboxStateHidden ? "状态仅本人/老板可见" : memberMailboxStatusLabel(mailbox?.status||"not_connected"), mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—",mailbox?.last_synced_at ? fmtDate(mailbox.last_synced_at) : "尚未同步"],
+              cells: [x.full_name, x.email, x.job_title, x.team, roleNames[x.role] || x.role, x.active ? "启用" : `已禁用 · ${x.disabled_reason_type === "departed" ? "离职" : x.disabled_reason || "其他原因"}`, connected ? `已连接 ${mailbox.connected}/${mailbox.count} 个` : mailbox?.status === "error" ? "连接失败" : mailboxStateHidden ? "状态仅本人/老板可见" : memberMailboxStatusLabel(mailbox?.status||"not_connected"), mailbox?.last_tested_at ? fmtDate(mailbox.last_tested_at) : "—",mailbox?.last_synced_at ? fmtDate(mailbox.last_synced_at) : "尚未同步"],
               actions: x.active ? [
                 ...(x.role === "sales" ? [{ label: "业务主页", onClick: () => openSalesProfilePage(x.id) }] : []),
-                { label: connected ? "重新连接" : mailboxStateHidden ? "连接 / 更新" : "连接", onClick: () => openMailboxBinding(x.id) },
+                { label: connected ? "管理邮箱 / 新增" : mailboxStateHidden ? "连接 / 更新" : "连接", onClick: () => openMailboxBinding(x.id) },
                 ...(profile.role === "owner" ? [{ label: "禁用", onClick: () => openDisableMember(x) }] : []),
               ] : profile.role === "owner" ? [{ label: "恢复", onClick: () => enableMember(x) }] : [],
             };
@@ -4978,6 +4993,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#inquiry-validity-filter").addEventListener("change", filterModuleRows);
       $("#inquiry-unread-filter").addEventListener("change", filterModuleRows);
       $("#inquiry-source-filter").addEventListener("change", filterModuleRows);
+      $("#personal-mailbox-filter").addEventListener("change",()=>loadModule("mailbox"));
       $("#member-mailbox-filter").addEventListener("change", filterModuleRows);
       $$("#knowledge-filter-group select").forEach(select=>select.addEventListener("change",filterModuleRows));
       $("#module-search-clear").addEventListener("click", () => { $("#module-search").value = ""; $("#module-search").focus(); filterModuleRows(); });
@@ -6954,7 +6970,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       async function loadAllMailboxMessages(connectionId) {
         const pageSize = 500, all = [];
         for (let from = 0; ; from += pageSize) {
-          const result = await supabase.from("email_messages").select("id,inquiry_id,message_id,direction,sender_email,recipient_emails,cc_emails,subject,body_text,sent_at,received_at,created_at,attachment_count,association_status,association_method,inquiries(inquiry_no,title)").eq("mailbox_connection_id", connectionId).order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+          const result = await supabase.from("email_messages").select("id,mailbox_connection_id,inquiry_id,message_id,direction,sender_email,recipient_emails,cc_emails,subject,body_text,sent_at,received_at,created_at,attachment_count,association_status,association_method,inquiries(inquiry_no,title)").in("mailbox_connection_id", Array.isArray(connectionId)?connectionId:[connectionId]).order("created_at", { ascending: false }).range(from, from + pageSize - 1);
           if (result.error) return { data: null, error: result.error };
           all.push(...(result.data || []));
           if ((result.data || []).length < pageSize) break;
@@ -8927,11 +8943,12 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const recipient = $("#outreach-recipient").value.trim();
         if (!recipient) return toast("询盘没有可用的客户邮箱");
         const isReply=outreachComposeMode==="reply";
+        const senderId=await chooseSenderMailbox();if(!senderId)return;
         if (!await appConfirm(`确认使用你已连接的业务员邮箱，${isReply?"回复询盘给":"发送开发邮件给"} ${recipient}？`,{title:isReply?"回复询盘":"发送开发邮件",confirmText:"确认发送"})) return;
         const button = $("#send-outreach"); button.disabled = true; button.textContent = "发送中…";
         try {
           const draft = await saveOutreachDraft();
-          const { data, error } = await supabase.functions.invoke("mailbox-send", { body: { inquiry_id: currentInquiry.id, draft_id: draft.id, subject: draft.subject, body: draft.body, message_kind: isReply?"reply":"outreach" } });
+          const { data, error } = await supabase.functions.invoke("mailbox-send", { body: { mailbox_connection_id:senderId,inquiry_id: currentInquiry.id, draft_id: draft.id, subject: draft.subject, body: draft.body, message_kind: isReply?"reply":"outreach" } });
           if (error) throw error;
           if (data?.sent) {
             $("#outreach-status").textContent = `已发送 · ${fmtDate(data.sent_at || data.queued_at)}`;
@@ -9094,6 +9111,26 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(currentInquiry?.id===inquiryId)await loadTimeline(inquiryId);
       }
       $("#refresh-follow-assistant").addEventListener("click",()=>currentInquiry&&refreshFollowAssistant(currentInquiry.id));
+      async function chooseSenderMailbox(){
+        const {data,error}=await supabase.from("mailbox_connections").select("id,email,status").eq("user_id",profile.id).eq("mailbox_kind","personal").eq("status","connected").order("created_at");
+        if(error||!data?.length){toast("请先连接本人邮箱");return null;}
+        if(data.length===1)return data[0].id;
+        return new Promise(resolve=>{
+          openDashboardModal("选择发件邮箱",`<div class="field"><label>本次使用的邮箱</label><select id="sender-choice" class="input">${data.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.email)}</option>`).join("")}</select></div><div class="form-actions"><button class="ghost" id="sender-cancel">取消</button><button class="primary" id="sender-confirm">使用此邮箱</button></div>`);
+          $("#sender-confirm").onclick=()=>{const id=$("#sender-choice").value;$("#dashboard-modal").classList.add("hidden");resolve(id);};
+          $("#sender-cancel").onclick=()=>{$("#dashboard-modal").classList.add("hidden");resolve(null);};
+        });
+      }
+      async function refreshBindingMailboxes(){
+        const selected=$("#mailbox-user").value,control=$("#mailbox-existing");
+        control.replaceChildren(new Option("新增邮箱（保留已有连接）",""));
+        if(!selected||mailboxBindingKind==="shared_inquiry")return;
+        const {data,error}=await supabase.from("mailbox_connections").select("id,email,status").eq("user_id",selected).eq("mailbox_kind","personal").order("created_at");
+        if($("#mailbox-user").value!==selected)return;
+        if(error){toast("已关联邮箱读取失败，请刷新后重试");return;}
+        (data||[]).forEach(b=>control.add(new Option(`${b.email} · ${memberMailboxStatusLabel(b.status)}`,b.email)));
+      }
+      $("#mailbox-existing").onchange=()=>{$("#mailbox-email").value=$("#mailbox-existing").value;$("#mailbox-password").value="";};
       let mailboxBindingKind = "personal";
       async function openMailboxBinding(selectedUserId = "", selfOnly = false, sharedInquiry = false) {
         const { data, error } = selfOnly
@@ -9111,7 +9148,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         select.value = selectedUserId || (selfOnly ? profile.id : "");
         select.disabled = selfOnly;
         mailboxBindingKind = sharedInquiry ? "shared_inquiry" : "personal";
-        $("#mailbox-email").readOnly = selfOnly || sharedInquiry;
+        $("#mailbox-email").readOnly = sharedInquiry;
         $("#mailbox-modal-title").textContent = sharedInquiry ? "连接公共询盘邮箱" : selfOnly ? "连接我的邮箱" : "连接业务员邮箱";
         const targetUserId = selectedUserId || (selfOnly ? profile.id : select.value);
         const selectedMember = (data || []).find((member) => member.id === targetUserId)
@@ -9124,6 +9161,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#mailbox-email").value = mailboxEmailValue;
         $("#mailbox-password").value = "";
         $("#mailbox-modal").classList.remove("hidden");
+        await refreshBindingMailboxes();
         requestAnimationFrame(() => {
           const value = sharedInquiry ? "inquiry@wonlyglobal.com" : (select.selectedOptions[0]?.dataset.email || selectedMemberEmail);
           $("#mailbox-email").defaultValue = value;
@@ -9142,15 +9180,16 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(activeModuleView==="knowledge")return openKnowledgeEditor();
         if(activeModuleView==="templates")return openMailTemplateEditor();
         if(activeModuleView==="mailbox"){
-          const {data:connection}=await supabase.from("mailbox_connections").select("id,status").eq("user_id",profile.id).eq("mailbox_kind","personal").maybeSingle();
-          return connection?.status==="connected"?openMailComposer():openMailboxBinding(profile.id,true);
+          const {data:connections}=await supabase.from("mailbox_connections").select("id,status").eq("user_id",profile.id).eq("mailbox_kind","personal");
+          return connections?.some(b=>b.status==="connected")?openMailComposer():openMailboxBinding(profile.id,true);
         }
         if(activeModuleView==="whatsapp") return; // Handled by the module's direct onclick binding.
         if(activeModuleView==="settings")return profile.role==="owner"?openMailboxBinding():openMailboxBinding(profile.id,true);
         if(activeModuleView!=="communications")return; // Other modules own their primary action; never fall through to mailbox setup.
+        const senderId=await chooseSenderMailbox();if(!senderId)return;
         if(!await appConfirm("确认从当前登录业务员的已连接邮箱发送内部测试邮件到 inquiry@wonlyglobal.com？该邮件只用于验证收发和同步。",{title:"测试邮箱收发",confirmText:"确认发送"}))return;
         const button=$("#module-primary");button.disabled=true;button.textContent="正在发送测试邮件…";
-        const {data,error}=await supabase.functions.invoke("mailbox-test-send",{body:{}});
+        const {data,error}=await supabase.functions.invoke("mailbox-test-send",{body:{mailbox_connection_id:senderId}});
         button.disabled=false;button.textContent="测试我的邮箱收发";
         if(error||data?.error)return toast("测试邮件发送失败："+(data?.error||error?.message));
         toast("测试邮件已发送，等待 inquiry 邮箱同步");setTimeout(()=>loadModule("communications"),5000);
@@ -9203,12 +9242,12 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const button=$("#send-mail-compose");button.disabled=true;button.textContent="发送中…";
         if(scheduledAt){
           const ccList=$("#mail-compose-cc").value.split(/[,;，；]/).map(value=>value.trim().toLowerCase()).filter(Boolean);
-          const {error}=await supabase.rpc("schedule_mailbox_message",{target_inquiry_id:$("#mail-compose-inquiry").value||null,recipient_email:to,cc_list:ccList,mail_subject:subject,mail_body:body,reply_message_id:$("#mail-compose-reply-id").value||null,scheduled_for:scheduledAt.toISOString(),target_quotation_id:$("#mail-compose-quotation").value||null});
+          const {error}=await supabase.rpc("schedule_mailbox_message_from",{target_connection_id:$("#mail-compose-from").value,target_inquiry_id:$("#mail-compose-inquiry").value||null,recipient_email:to,cc_list:ccList,mail_subject:subject,mail_body:body,reply_message_id:$("#mail-compose-reply-id").value||null,scheduled_for:scheduledAt.toISOString(),target_quotation_id:$("#mail-compose-quotation").value||null});
           button.disabled=false;button.textContent="发送";if(error)return toast("定时发送失败："+error.message);
           $("#mail-compose-modal").classList.add("hidden");mailboxFolder="scheduled";$$('#mailbox-folder-tabs [data-mailbox-folder]').forEach(item=>item.classList.toggle("active",item.dataset.mailboxFolder==="scheduled"));toast("定时邮件已保存，发送前可在“定时发送”中取消");return loadModule("mailbox");
         }
         let attachments=[];try{attachments=await Promise.all(files.map(async file=>({name:file.name,type:file.type,base64:await attachmentBase64(file)})))}catch(readError){button.disabled=false;button.textContent="发送";return toast("附件准备失败："+(readError.message||readError))}
-        const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,quotation_id:$("#mail-compose-quotation").value||null,in_reply_to:$("#mail-compose-reply-id").value||null,ai_draft_id:mailAiDraftId,fact_check_id:mailFactCheckState?.suggestionId||null,attachments,material_asset_ids:selectedMaterialAttachments.map(item=>item.id)}});
+        const {data,error}=await supabase.functions.invoke("mailbox-compose-send",{body:{mailbox_connection_id:$("#mail-compose-from").value,to,cc:$("#mail-compose-cc").value.trim(),subject,body,inquiry_id:$("#mail-compose-inquiry").value||null,quotation_id:$("#mail-compose-quotation").value||null,in_reply_to:$("#mail-compose-reply-id").value||null,ai_draft_id:mailAiDraftId,fact_check_id:mailFactCheckState?.suggestionId||null,attachments,material_asset_ids:selectedMaterialAttachments.map(item=>item.id)}});
         button.disabled=false;button.textContent="发送";
         if(error||data?.error)return toast("邮件发送失败："+(data?.error||error?.message));
         $("#mail-compose-modal").classList.add("hidden");toast(data?.warnings?.length?`邮件已发送；${data.warnings.join("；")}`:"邮件已发送，正在同步到已发送和客户沟通记录");setTimeout(()=>loadModule(activeModuleView==="quotes"?"quotes":"mailbox"),5000);
@@ -9286,8 +9325,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         toast("成员账号已创建，临时密码仅显示一次");
         await loadModule("settings");
       });
-      $("#mailbox-user").addEventListener("change", (event) => {
+      $("#mailbox-user").addEventListener("change", async (event) => {
         $("#mailbox-email").value = event.target.options[event.target.selectedIndex]?.dataset.email || "";
+        await refreshBindingMailboxes();
       });
       ["#close-mailbox", "#cancel-mailbox"].forEach((selector) => $(selector).addEventListener("click", () => {
         $("#mailbox-modal").classList.add("hidden");

@@ -9,7 +9,7 @@ const direct=html.match(/modulePrimary\.onclick = [^\n]+/)[0];
 async function click(view,role="owner"){
  const calls=[];let listener;
  const button={addEventListener:(_,fn)=>listener=fn};
- const context={activeModuleView:view,view,profile:{id:"me",role},modulePrimary:button,$:()=>button,
+ const context={chooseSenderMailbox:async()=>"synthetic-mailbox",activeModuleView:view,view,profile:{id:"me",role},modulePrimary:button,$:()=>button,
  openMailboxBinding:(id,self)=>calls.push(self?'own-mailbox':'mailbox'),runRiskScan:()=>calls.push('scan'),
  openSales360CycleForm:()=>calls.push('cycle'),openWhatsAppConnectionForm:()=>calls.push('whatsapp'),
  openDailyPlanEditor:()=>calls.push('daily'),openKnowledgeEditor:()=>calls.push('knowledge'),

@@ -26,6 +26,7 @@ const reject=async fn=>{await assert.rejects(fn);checks++};const ok=x=>{assert.o
 await db.exec(await readFile(new URL('../supabase/migrations/20261028170000_sales_lead_pending_contact.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20261028183000_company_candidate_pool.sql',import.meta.url),'utf8'));
 
+ok((await db.query("select private.candidate_public_url('https://xn--80anfggddm2b8e.xn--p1ai/') valid")).rows[0].valid);
 const today=(await db.query("select (clock_timestamp() at time zone 'Asia/Shanghai')::date::text d")).rows[0].d;
 const candidate=(n=1)=>({lead_id:'synthetic-'+n,company_candidate:'Synthetic Door Company '+n,country_candidate:'Ghana',country_code:'GH',region_candidate:'Africa',city_candidate:'Accra',category_candidate:'Entrance doors',website_candidate:'https://synthetic'+n+'.example/',source_url:'https://synthetic'+n+'.example/company',source_kind:'company_site_candidate',review_status:'verified',current_status:'已核实',source_snapshot_date:'2026-07-28'});
 const imp=async(rows,batch=crypto.randomUUID())=>call('import_company_candidates',[JSON.stringify(rows),batch,'isolated fixture']);

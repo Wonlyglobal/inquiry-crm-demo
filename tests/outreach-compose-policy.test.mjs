@@ -44,7 +44,7 @@ test('server authenticates original user and reads only inquiry id; service role
  assert.ok(source.includes('OUTREACH_COMPOSE_POLICY'));
  assert.equal(source.includes("admin.from('inquiries')"),false);
  assert.equal(source.includes("from('companies')"),false);
- assert.ok(source.includes('providerJson(CHAT_URL,composeBody(input),key)'));
+ assert.ok(source.includes('composeValidatedLetter(input,body=>providerJson(CHAT_URL,body,key))'));
 });
 test('missing market evidence cannot become a growth assertion or a research-process disclosure',()=>{
  const payload=body=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify({subject:'Door portfolio discussion',body})}}]});
@@ -53,4 +53,17 @@ test('missing market evidence cannot become a growth assertion or a research-pro
  assert.equal(checkedComposedLetter(payload('Your catalogue lists entrance and interior doors.\n\nWONLY offers steel doors with OEM/ODM manufacturing for distributors.\n\nWould a brief online discussion help clarify your current requirements?'),request).pending_human_review,true);
  assert.throws(()=>checkedComposedLetter(payload('Rising regional demand creates an opportunity.'),{...request,market_facts:[{...fact,statement:'HEADLINE ONLY: A construction headline'}]}));
  assert.equal(checkedComposedLetter(payload('Rising regional demand is reported in the reviewed source.'),input).send_allowed,false);
+});
+
+test('one factual correction retries the same public projection without rejected copy and never loops',async()=>{
+ const {composeValidatedLetter}=await import('../assets/outreach-compose-policy.mjs');
+ const request=composeRequest({...input,market_facts:[]});
+ const result=body=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify({subject:'A door discussion',body})}}]});
+ const bodies=[];const good='Your catalogue lists entry doors.\n\nWONLY offers steel doors.\n\nCould we discuss your requirements in a brief online meeting?';
+ const composed=await composeValidatedLetter(request,async body=>{bodies.push(body);return result(bodies.length===1?'Growing regional demand creates an opportunity.':good)});
+ assert.equal(composed.attempts,2);assert.equal(composed.letter.body,good);
+ assert.equal(bodies[0].messages[1].content,bodies[1].messages[1].content);
+ assert.doesNotMatch(JSON.stringify(bodies[1]),/creates an opportunity/);
+ let calls=0;await assert.rejects(composeValidatedLetter(request,async()=>{calls++;return result('Growing regional demand creates an opportunity.')}));assert.equal(calls,2);
+ calls=0;await assert.rejects(composeValidatedLetter(request,async()=>{calls++;throw Error('provider unavailable')}));assert.equal(calls,1);
 });

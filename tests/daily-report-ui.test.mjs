@@ -85,7 +85,7 @@ test('report-read failure keeps existing narrative locked and cannot overwrite i
  const h=setup(t);await h.controller.open(day);h.$('#daily-progress').value='尚未保存的原有文字';
  h.state.reportError=new Error('report unavailable');await h.controller.open(day);
  assert.equal(h.$('#daily-progress').value,'尚未保存的原有文字');assert.equal(h.$('#daily-progress').disabled,true);assert.equal(h.$('#save-daily-draft').disabled,true);assert.match(h.$('#daily-save-state').textContent,/加载失败/);
- await h.controller.save(false);await h.controller.save(true);assert.equal(h.saves().length,0);assert.equal(h.confirmations.length,0);
+ await h.controller.save(false);await h.controller.save(true);assert.equal(h.saves().length,0);assert.equal(h.confirmations.length,1);
 });
 
 test('refreshing ledger counts preserves all unsaved report fields and makes no report writes',async t=>{
@@ -158,4 +158,30 @@ test('both CRM entrypoints use the shared controller and canonical ledger entry 
   assert.doesNotMatch(daily,/from\("inquiries"\)|\$\("#new-inquiry"\)\.click/);
   assert.match(html,/dailyReportsError\?"待核对":missingReports\.length/);
  }
+});
+
+
+test('unsaved text cancels date changes and remains available without writing a draft',async t=>{
+ const h=setup(t);await h.controller.open(day);
+ h.$('#daily-progress').value='尚未保存的工作';h.controller.changed();
+ assert.equal(h.controller.hasUnsavedChanges(),true);
+ assert.match(h.$('#daily-save-state').textContent,/未保存修改/);
+ h.state.confirm=false;h.$('#daily-date').value='2026-10-25';
+ assert.equal(await h.controller.open('2026-10-25'),false);
+ assert.equal(h.$('#daily-date').value,day);
+ assert.equal(h.$('#daily-progress').value,'尚未保存的工作');
+ assert.equal(h.reads.length,1);assert.equal(h.saves().length,0);
+ assert.equal(await h.controller.canLeave(),false);
+ await h.controller.save(false);
+ assert.equal(h.controller.hasUnsavedChanges(),false);
+ assert.equal(h.state.reports.get(`s:${day}`).status,'draft');
+});
+
+test('explicit discard permits leaving; saving errors preserve dirty text and retry remains possible',async t=>{
+ const h=setup(t);await h.controller.open(day);h.$('#daily-plan').value='明日计划';
+ h.state.saveError=new Error('暂时离线');await h.controller.save(false);
+ assert.equal(h.controller.hasUnsavedChanges(),true);
+ assert.equal(h.$('#daily-plan').value,'明日计划');assert.equal(h.$('#save-daily-draft').disabled,false);
+ h.state.confirm=true;assert.equal(await h.controller.canLeave(),true);
+ assert.equal(h.controller.hasUnsavedChanges(),false);
 });

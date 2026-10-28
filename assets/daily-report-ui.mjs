@@ -8,6 +8,17 @@ const entryLabel=row=>row.method==='excel'?'Excel导入':'手动录入';
 // report narrative sharing, implicit submission, or outbound notification is added.
 export function createDailyReportController({supabase,getProfile,$,today,fmtDate,displayCountry,openInquiryDetail,toast,confirm}){
   let openVersion=0,historyVersion=0,currentDate=null,report=null,ready=false,saving=false;
+  let savedText=null;
+  const narrative=()=>['#daily-progress','#daily-blockers','#daily-plan'].map(id=>$(id).value);
+  const hasUnsavedChanges=()=>ready&&savedText!==null&&JSON.stringify(narrative())!==savedText;
+  async function canLeave(){
+    if(saving){toast('正在保存日报，请稍候');return false;}
+    if(!hasUnsavedChanges())return true;
+    const discard=await confirm('日报有尚未保存的修改。离开将丢失这些修改，请先取消并保存草稿。',{title:'未保存的日报',confirmText:'放弃修改并离开'});
+    if(discard)savedText=JSON.stringify(narrative());
+    return discard;
+  }
+  function changed(){if(hasUnsavedChanges())text('#daily-save-state','有未保存修改 · 请保存草稿');}
   const controls=['#daily-progress','#daily-blockers','#daily-plan','#save-daily-draft','#submit-daily'];
   const text=(id,value)=>{$(id).textContent=value;};
   const lock=value=>controls.forEach(id=>{$(id).disabled=value;});
@@ -40,7 +51,8 @@ export function createDailyReportController({supabase,getProfile,$,today,fmtDate
     try{const data=await workspace(date,date);if(version===openVersion)showLive(data,date);}catch(error){if(version===openVersion)text('#daily-metric-asof',`实时线索加载失败：${error.message}，不是 0 条。`);toast('线索刷新失败：'+error.message);}finally{button.disabled=false;}
   }
   async function open(date){
-    const version=++openVersion;currentDate=date;ready=false;report=null;lock(true);
+    if(!await canLeave()){ $('#daily-date').value=currentDate;return false;}
+    const version=++openVersion;currentDate=date;ready=false;report=null;savedText=null;lock(true);
     text('#daily-save-state','正在加载');
     text('#daily-snapshot','正在核对日报快照');text('#daily-metric-asof','正在读取实时账本');
     const profile=getProfile();
@@ -63,6 +75,8 @@ export function createDailyReportController({supabase,getProfile,$,today,fmtDate
         const metric=summarizeDailyLedger({...data,leads:data.leads.filter(row=>allowed.has(row.sales_id))},date);
         text('#daily-kpi-total',people.length);text('#daily-kpi-submitted',ids.size);text('#daily-kpi-leads',metric.newCount);text('#daily-kpi-converted',metric.convertedCount);
         text('#daily-summary',`${ids.size}/${people.length} 正式提交 · 实时账本截至 ${fmtDate(metric.asOf)}`);
+        const pending=people.filter(person=>!ids.has(person.id));
+        text('#daily-pending-summary',pending.length?`尚未正式提交 ${pending.length} 人：${pending.map(person=>person.full_name||'未命名成员').join('、')}。仅表示当前所选日期的提交状态；草稿、无新增申报不算正式日报。`:'当前范围成员均已正式提交日报。');
         const body=$('#daily-report-body');
         reports.forEach(row=>{const tr=document.createElement('tr');[row.profiles?.full_name||people.find(p=>p.id===row.sales_id)?.full_name||'—',row.is_simulated?'模拟数据':'正式日报',row.new_leads_count,row.metric_basis==='ledger_recorded_v1'?row.converted_count:'—',basisLabel(row)+(row.metrics_as_of?` · ${fmtDate(row.metrics_as_of)}`:''),row.key_progress||'—',row.blockers||'—',row.tomorrow_plan||'—',fmtDate(row.submitted_at)].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td);});body.append(tr);});
         $('#daily-empty').classList.toggle('hidden',Boolean(reports.length));
@@ -78,6 +92,7 @@ export function createDailyReportController({supabase,getProfile,$,today,fmtDate
       if(version!==openVersion)return;
       report=result.data;showLive(data,date);
       $('#daily-progress').value=report?.key_progress||'';$('#daily-blockers').value=report?.blockers||'';$('#daily-plan').value=report?.tomorrow_plan||'';
+      savedText=JSON.stringify(narrative());
       const submitted=isSubmittedDailyReport(report,date);
       // Even malformed submitted legacy rows stay locked, and never count as formal submissions.
       const locked=report?.status==='submitted'||Boolean(report?.submitted_at)||Boolean(report?.is_simulated)||date>today();
@@ -86,7 +101,7 @@ export function createDailyReportController({supabase,getProfile,$,today,fmtDate
     }catch(error){
       if(version!==openVersion)return;
       ready=false;lock(true);text('#daily-save-state','加载失败 · 请重新打开');
-      text('#daily-summary','数据加载失败，尚未完成核对');text('#daily-lead-count','待核对');
+      text('#daily-pending-summary','提交进度加载失败，不能判定成员未提交');text('#daily-summary','数据加载失败，尚未完成核对');text('#daily-lead-count','待核对');
       text('#daily-snapshot','快照未完成核对');text('#daily-metric-asof','实时账本未完成核对，不能按 0 条解读');
       toast('日报加载失败：'+error.message);
     }
@@ -117,15 +132,15 @@ export function createDailyReportController({supabase,getProfile,$,today,fmtDate
   async function save(submitReport){
     if(!ready||saving||currentDate!==$('#daily-date').value)return;
     const date=currentDate,version=openVersion;
-    if(submitReport&&!await confirm('确认提交这份日报？\n\n提交时按服务器实际录入日核算新增线索和当日转化；提交后不能再修改。',{title:'提交日报',confirmText:'确认提交'}))return;
+    if(submitReport&&!await confirm(`确认提交这份日报？\n\n日期：${date}（北京时间）\n当前核对：${$('#daily-lead-count').textContent}\n\n提交时由服务器重新核算；草稿不算正式提交，无新增申报也不代替日报。提交后不能再修改。`,{title:'提交日报',confirmText:'确认提交'}))return;
     if(!ready||saving||version!==openVersion||date!==currentDate||date!==$('#daily-date').value)return;
-    saving=true;lock(true);
+    saving=true;lock(true);text('#daily-save-state',submitReport?'正在正式提交…':'正在保存草稿…');
     try{
       const {error}=await supabase.rpc('save_or_submit_daily_report',{target_date:date,key_progress_text:$('#daily-progress').value.trim()||null,blockers_text:$('#daily-blockers').value.trim()||null,tomorrow_plan_text:$('#daily-plan').value.trim()||null,submit_report:submitReport});
       if(error)throw error;
       toast(submitReport?'日报已正式提交':'日报草稿已保存，尚未提交');
-      if(version===openVersion)await open(date);
-    }catch(error){toast((submitReport?'日报提交失败：':'草稿保存失败：')+error.message);if(version===openVersion)lock(!ready);}finally{saving=false;}
+      if(version===openVersion){savedText=JSON.stringify(narrative());saving=false;await open(date);}
+    }catch(error){toast((submitReport?'日报提交失败：':'草稿保存失败：')+error.message);if(version===openVersion){text('#daily-save-state','保存失败 · 文字已保留，请重试');lock(!ready);}}finally{saving=false;}
   }
-  return {open,loadHistory,refreshLeads,save};
+  return {open,loadHistory,refreshLeads,save,canLeave,hasUnsavedChanges,changed};
 }

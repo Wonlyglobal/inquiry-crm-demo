@@ -897,6 +897,11 @@
       .daily-summary-kpis .card { padding:15px; }
       .daily-summary-kpis span { display:block; color:var(--muted); font-size:11px; margin-bottom:8px; }
       .daily-summary-kpis b { font-size:24px; }
+      .daily-workflow { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;list-style:none;padding:0;margin:0 0 16px; }
+      .daily-workflow li { padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--soft); }
+      .daily-workflow b,.daily-workflow span { display:block; }
+      .daily-workflow span { margin-top:7px;color:var(--muted);font-size:12px;line-height:1.6; }
+      #daily-report-panel .form-actions { position:sticky;bottom:12px;z-index:4;padding:14px;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:16px;flex-wrap:wrap; }
       .daily-content-card { padding:20px; }
       .daily-section-tabs { display:flex; gap:8px; margin:0 0 14px; padding:7px; border:1px solid var(--line); border-radius:14px; background:var(--soft); }
       .daily-section-tab { padding:10px 16px; border:0; border-radius:10px; background:transparent; color:var(--muted); font-weight:800; cursor:pointer; }
@@ -2078,6 +2083,7 @@
           <div id="sales-daily-form">
             <div class="daily-section-tabs"><button type="button" class="daily-section-tab active" data-daily-section="report">今日工作日报</button><button type="button" class="daily-section-tab" data-daily-section="history">历史客户线索看板</button></div>
             <div id="daily-report-panel">
+            <ol class="daily-workflow" aria-label="日报填写流程"><li><b>1 · 登记线索</b><span>手动录入或 Excel 导入，按实际录入日计数</span></li><li><b>2 · 记录工作</b><span>填写进展、困难和明日计划，可先存草稿</span></li><li><b>3 · 核对并提交</b><span>正式提交后锁定，草稿不计已提交</span></li></ol>
             <section class="card daily-content-card"><p class="hint">日报与每日线索看板共用线索账本：按服务器实际录入日统计，不按获取日期回填；转化商机单独计数。文字进展不会增加线索数量。</p>
             <input id="daily-new-leads" type="hidden" value="0" />
             <div class="daily-lead-section">
@@ -2096,18 +2102,18 @@
             </div>
             <div class="field">
               <label>关键进展</label
-              ><textarea id="daily-progress" class="input" rows="3"></textarea>
+              ><textarea id="daily-progress" class="input" rows="3" placeholder="今天推进了哪些客户？完成了什么，下一步是什么？"></textarea>
             </div>
             <div class="field">
               <label>困难与需要支持</label
-              ><textarea id="daily-blockers" class="input" rows="2"></textarea>
+              ><textarea id="daily-blockers" class="input" rows="2" placeholder="需要谁提供什么支持？暂无困难可留空。"></textarea>
             </div>
             <div class="field">
               <label>明日计划</label
-              ><textarea id="daily-plan" class="input" rows="2"></textarea>
+              ><textarea id="daily-plan" class="input" rows="2" placeholder="明天优先跟进谁，计划完成什么？"></textarea>
             </div>
             <div class="form-actions">
-              <span id="daily-save-state" class="tag" style="margin-right:auto">未保存</span>
+              <span id="daily-save-state" role="status" aria-live="polite" class="tag" style="margin-right:auto">未保存</span>
               <button id="save-daily-draft" class="ghost" type="button">保存草稿</button>
               <button id="submit-daily" class="primary" type="button">提交日报</button>
             </div>
@@ -2121,6 +2127,7 @@
             </div>
           </div>
           <div id="manager-daily-view" class="hidden">
+            <p id="daily-pending-summary" role="status" aria-live="polite" class="hint">正在核对提交进度</p>
             <div class="daily-summary-kpis"><div class="card"><span>应提交成员</span><b id="daily-kpi-total">0</b></div><div class="card"><span>已提交</span><b id="daily-kpi-submitted">0</b></div><div class="card"><span>实际新增线索（实时）</span><b id="daily-kpi-leads">0</b></div><div class="card"><span>当日转化商机（实时）</span><b id="daily-kpi-converted">0</b></div></div><p class="hint">实时数量包含尚未提交日报的成员。下表数字为提交时快照；草稿与模拟日报不计入已提交。无新增申报不等于提交日报。</p>
             <div class="table-wrap daily-report-table">
               <div class="table-head">
@@ -7374,15 +7381,16 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       async function openDailyReport() {
         $("#daily-modal").classList.remove("hidden");
         if (!$("#daily-date").value) $("#daily-date").value = chinaDate();
-        $("#daily-date-text").textContent=dailyDateLabel($("#daily-date").value);
         const isManager = ["owner", "sales_manager"].includes(profile.role);
         $("#sales-daily-form").classList.toggle("hidden",profile.role!=="sales");
         $("#manager-daily-view").classList.toggle("hidden",!isManager);
         $("#daily-date-toolbar").classList.toggle("hidden",profile.role==="sales"&&dailySection==="history");
         await dailyReportController.open($("#daily-date").value);
+        $("#daily-date-text").textContent=dailyDateLabel($("#daily-date").value);
       }
       $$(".nav[data-view]").forEach((item) =>
-        item.addEventListener("click", () => {
+        item.addEventListener("click", async () => {
+          if(!$("#daily-modal").classList.contains("hidden")&&!await dailyReportController.canLeave())return;
           if (location.hash.startsWith("#inquiry/")) {
             history.pushState(null, "", location.pathname + location.search);
             closeInquiryPage();
@@ -7390,7 +7398,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           switchView(item.dataset.view);
         }),
       );
-      $("#close-daily").addEventListener("click", () => switchView("dashboard"));
+      $("#close-daily").addEventListener("click", async () => {if(await dailyReportController.canLeave())switchView("dashboard");});
+      ['#daily-progress','#daily-blockers','#daily-plan'].forEach(id=>$(id).addEventListener('input',()=>dailyReportController.changed()));
+      window.addEventListener('beforeunload',event=>{if(dailyReportController.hasUnsavedChanges()){event.preventDefault();event.returnValue='';}});
       $("#daily-date").addEventListener("change",openDailyReport);
       $$('[data-daily-section]').forEach(button=>button.addEventListener("click",()=>setDailySection(button.dataset.dailySection)));
       $("#daily-history-period").addEventListener("change",loadDailyHistory);

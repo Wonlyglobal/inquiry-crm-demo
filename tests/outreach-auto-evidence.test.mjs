@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {collectOutreachEvidence} from '../assets/outreach-auto-evidence.mjs';
+import {collectOutreachEvidence,publicProductPageMatches} from '../assets/outreach-auto-evidence.mjs';
 import {publicMarketCode,publicMarketQuery} from '../assets/outreach-research-plan.mjs';
 const plan={inquiryId:'12345678-1234-1234-1234-123456789abc',company:'Example',domain:'example.com',country:'Belarus',categories:['steel_door']};
 test('market search uses fixed country and product terms only',()=>{
@@ -41,4 +41,12 @@ test('mail provider and absent category never cause guessed company or product r
  let calls=0;
  const result=await collectOutreachEvidence({...plan,domain:'gmail.com',categories:[],invoke:async()=>{calls++;return {data:{}}}});
  assert.equal(calls,0);assert.equal(result.items.length,0);assert.ok(result.gaps.length>=2);
+});
+
+test('public security-door category recognizes current WONLY steel-door description without cross-category inference',()=>{
+ const publicText='Explore WONLY’s steel doors, wooden doors, smart doors and smart locks, with OEM/ODM manufacturing for distributors and project buyers worldwide.';
+ assert.equal(publicProductPageMatches(['security_door'],publicText),true);
+ assert.equal(publicProductPageMatches(['fire_door'],publicText),false);
+ assert.equal(publicProductPageMatches(['medical_door'],publicText),false);
+ assert.equal(publicProductPageMatches(['unknown'],publicText),false);
 });

@@ -15,6 +15,7 @@ test('weekly customer table contains five bounded count columns and excludes pri
  assert.match(elements[0].content,/17:00/);
 });
 test('invalid frozen metrics never become invented completion rows',()=>{
+ assert.equal(weeklyCustomerElements({deadline_at:'2026-10-30T09:00Z',people:[]}).some(e=>e.tag==='table'),false);
  for(const p of [{total:0,reviewed:0,pending:0,unknown_fields:0,rate:0},{total:1,reviewed:2,pending:0,unknown_fields:0,rate:200}])assert.equal(weeklyCustomerElements({deadline_at:'2026-10-30T09:00Z',people:[{sales_id:'a',full_name:'模拟',...p}]}).some(e=>e.tag==='table'),false);
 });
 test('division weekly message stays a single card while adding the frozen customer table',()=>{

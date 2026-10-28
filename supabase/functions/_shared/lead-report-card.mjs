@@ -3,7 +3,7 @@
 export function weeklyCustomerElements(snapshot){
  if(!snapshot)return [];
  const unavailable=()=>[{tag:'markdown',content:'客户周核对快照暂不可用，请在 CRM 核对；不填造完成率。'}];
- if(!Array.isArray(snapshot.people)||snapshot.people.length>100||!snapshot.deadline_at||!Number.isFinite(Date.parse(snapshot.deadline_at)))return unavailable();
+ if(!Array.isArray(snapshot.people)||!snapshot.people.length||snapshot.people.length>100||!snapshot.deadline_at||!Number.isFinite(Date.parse(snapshot.deadline_at)))return unavailable();
  const rows=[],ids=new Set();
  for(const p of snapshot.people){
   if(typeof p.sales_id!=='string'||ids.has(p.sales_id)||typeof p.full_name!=='string'||!p.full_name.trim()||p.full_name.length>100||/[\x00-\x1f]/.test(p.full_name)||!['total','reviewed','pending','unknown_fields'].every(k=>Number.isSafeInteger(p[k])&&p[k]>=0&&p[k]<=1000000)||p.reviewed>p.total||p.pending!==p.total-p.reviewed)return unavailable();

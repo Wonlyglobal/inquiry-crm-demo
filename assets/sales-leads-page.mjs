@@ -13,15 +13,21 @@ const labels={complete:'已达标',missing:'未提交',short:'不足目标',no_n
 async function load(){
  status('正在核对服务器数据…');const selected=$('#sales').value;
  data=await rpc('sales_lead_workspace',{from_day:$('#from').value,to_day:$('#to').value});
+ data.timeliness=await rpc('daily_report_timeliness',{from_day:$('#from').value,to_day:$('#to').value});
  data.weekly=await rpc('sales_lead_weekly_reports',{from_day:$('#from').value,to_day:$('#to').value});
  const options=data.people.map(p=>`<option value="${esc(p.id)}">${esc(p.full_name)} · ${esc(p.team)}</option>`).join('');
  $('#sales').innerHTML='<option value="">全部可见成员</option>'+options;$('#sales').value=selected;
  $('#exempt-form [name=sales_id]').innerHTML=options;
  $('#entry').hidden=data.actor.role!=='sales';$('#settings').hidden=!['owner','marketing'].includes(data.actor.role);
  $('#rules').textContent=data.rules.map(r=>`${r.effective_on}起：工作日${r.daily_min}条，${r.remind_at}提醒，周${r.weekly_day} ${r.weekly_at}统计；${r.reason}`).join('\n');
+ $('#report-deadline-rules').textContent=data.timeliness.rules.map(r=>`${r.effective_on}起：${r.deadline}截止`).join('；');
  render();status(`核对时间：${stamp(data.as_of)}（北京时间）；仅展示当前权限范围，未来尚未发生日期不记未提交。`);
 }
 function render(){
+ const selectedPerson=$('#sales').value,stats=data.timeliness;
+ $('#timeliness-basis').textContent=`服务器核对截至 ${stamp(stats.as_of)}；尚未到期不计入分母。`;
+ $('#timeliness-rows').innerHTML=stats.people.filter(p=>!selectedPerson||p.sales_id===selectedPerson).map(p=>`<tr><td>${esc(p.full_name)}</td><td>${p.expected}</td><td>${p.on_time}</td><td>${p.late}</td><td>${p.missing}</td><td>${p.pending}</td><td>${p.rate===null?'—':p.rate+'%'}</td></tr>`).join('')||'<tr><td colspan="7">当前范围暂无统计</td></tr>';
+
  const sales=$('#sales').value,from=$('#from').value,to=$('#to').value,names=Object.fromEntries(data.people.map(p=>[p.id,p.full_name])),s=summarize(data,sales,from,to);
  $('#kpis').innerHTML=[['实际新增线索',s.leads],['本周期转为商机',s.periodConversions],['无新增申报/人天',s.no_new],['未提交/人天',s.missing]].map(([k,v])=>`<article>${k}<b>${v}</b></article>`).join('');
  $('#ranking').innerHTML=data.people.filter(p=>!sales||p.id===sales).map(p=>{const x=summarize(data,p.id,from,to);return `<tr><td>${esc(p.full_name)}</td>${[x.leads,x.no_new,x.missing,x.short,x.converted,x.conversionRate===null?'—':x.conversionRate+'%',x.periodConversions].map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`}).join('');
@@ -36,6 +42,7 @@ $('#no-new').onclick=()=>action(async()=>{const reason=prompt('请说明今天�
 $('#refresh').onclick=()=>action(load);$('#sales').onchange=()=>render();
 $('#from').onchange=$('#to').onchange=()=>action(load);
 $('#rules-form').onsubmit=e=>{e.preventDefault();action(async()=>{const r=Object.fromEntries(new FormData(e.target));r.daily_min=Number(r.daily_min);r.weekly_day=Number(r.weekly_day);await rpc('configure_sales_leads',r);await load()})};
+$('#report-deadline-form').onsubmit=e=>{e.preventDefault();action(async()=>{await rpc('configure_daily_report_deadline',Object.fromEntries(new FormData(e.target)));await load()})};
 $('#exempt-form').onsubmit=e=>{e.preventDefault();action(async()=>{await rpc('exempt_sales_lead_day',Object.fromEntries(new FormData(e.target)));await load()})};
 async function xlsx(){return import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs')}
 $('#template').onclick=()=>action(async()=>{const X=await xlsx(),book=X.utils.book_new();X.utils.book_append_sheet(book,X.utils.aoa_to_sheet([['客户名称','联系人','国家','邮箱','电话','来源','需求简述','获取日期']]),'每日客户线索');X.writeFile(book,'WONLY-每日客户线索模板.xlsx')});

@@ -19,7 +19,7 @@ test('unknown, malformed, count-mismatched snapshots use compatible original tex
 test('sidebar includes direct grouped route and deadline inputs use separate scoped RPC',()=>{
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  assert.match(html,/data-view="sales-leads" href="sales-leads.html#lead-dashboard"/);assert.match(html,/views:\["dashboard","sales-leads"/);
- const page=readFileSync(new URL('../sales-leads.html',import.meta.url),'utf8');assert.match(page,/id="lead-dashboard"/);assert.match(page,/id="report-deadline-form"/);assert.match(page,/sales-leads-page.mjs\?v=20261028-report-timeliness-1/);assert.match(html,/daily-report-ui.mjs\?v=20261028-flow1/);
+ const page=readFileSync(new URL('../sales-leads.html',import.meta.url),'utf8');assert.match(page,/id="lead-dashboard"/);assert.match(page,/id="report-deadline-form"/);assert.match(page,/sales-leads-page.mjs\?v=20261028-weekly-check-1/);assert.match(html,/daily-report-ui.mjs\?v=20261028-flow1/);
 });
 
 

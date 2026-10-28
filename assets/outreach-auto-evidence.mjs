@@ -1,6 +1,13 @@
 import {publicEvidenceItem} from './outreach-compose-policy.mjs';
 import {researchCompanyDomain} from './business-public-research.mjs';
 import {PUBLIC_PRODUCT_TERMS,publicMarketCode} from './outreach-research-plan.mjs';
+// Category synonyms only identify a publicly described range; never infer
+// configuration, certification or performance from a category match.
+export function publicProductPageMatches(categories,text){
+ const aliases={security_door:['security door','steel door','metal door'],steel_door:['steel door','metal door'],wooden_door:['wooden door','wood door']};
+ const normalized=String(text||'').toLowerCase();
+ return categories.some(category=>(aliases[category]||[PUBLIC_PRODUCT_TERMS[category]?.replace(/s$/,'')]).filter(Boolean).some(term=>normalized.includes(term)));
+}
 // Internal retrieval and public page candidates stay separate. Catalogue quotes
 // are never converted into external-model input or public claims automatically.
 export async function collectOutreachEvidence({inquiryId,company,domain,country,categories,invoke,isCurrent,progress=()=>{}}){
@@ -29,7 +36,7 @@ export async function collectOutreachEvidence({inquiryId,company,domain,country,
    const data=await call('company-website-images',{inquiry_id:inquiryId,website:'https://www.wonlyglobal.com/',company_name:'WONLY',focus_category:chosen[0]});
    for(const page of data.website_evidence||[]){
     const text=[page.title,page.description].filter(Boolean).join(' · ');
-    if(chosen.some(c=>text.toLowerCase().includes(PUBLIC_PRODUCT_TERMS[c].replace(/s$/,'')))&&page.description)add('product_facts','WONLY public product page description: '+page.description.slice(0,460),page.url,'Accessed '+day);
+    if(publicProductPageMatches(chosen,text)&&page.description)add('product_facts','WONLY public product page description: '+page.description.slice(0,460),page.url,'Accessed '+day);
    }
   }catch(e){if(!current())throw e;gaps.push('公开产品检索：'+e.message)}
  }

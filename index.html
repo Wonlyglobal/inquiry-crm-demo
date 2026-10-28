@@ -8771,7 +8771,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       async function autoCollectOutreachEvidence(progress){
         const snapshot=()=>JSON.stringify({id:currentInquiry?.id,company:$("#detail-research-company").value.trim(),domain:$("#detail-research-domain").value.trim(),country:$("#detail-smart-country").value.trim(),categories:[...$("#grace-outreach-categories").querySelectorAll('input:checked')].map(box=>box.value)});
         const selection=snapshot(),plan=JSON.parse(selection);
-        const {collectOutreachEvidence}=await import('./assets/outreach-auto-evidence.mjs?v=20261028-1');
+        const {collectOutreachEvidence}=await import('./assets/outreach-auto-evidence.mjs?v=20261028-2');
         const result=await collectOutreachEvidence({inquiryId:plan.id,...plan,invoke:(name,options)=>supabase.functions.invoke(name,options),isCurrent:()=>selection===snapshot(),progress});
         if(selection!==snapshot())throw Error('询盘或选型已变化，请重新生成');
         if(result.internal.catalogue){const {renderCatalogueEvidence}=await import('./assets/outreach-product-selection.mjs?v=20261024-4');if(selection!==snapshot())throw Error('选型已变化');renderCatalogueEvidence($("#grace-outreach-catalogue-evidence"),result.internal.catalogue);$("#grace-outreach-catalogue-status").textContent='自动读取的内部画册页，仅供产品核对；未自动外发或转为公开主张。';}

@@ -1,8 +1,10 @@
+import {mountWeeklyCustomerReview} from './weekly-customer-review.mjs?v=20261028-1';
 import {sources,localDay,dailyState,summarize,importRows} from './sales-leads.mjs';
 import {renderLeadFileState,bindLeadFilePicker} from './sales-lead-import-ui.mjs';
 import {leadStageLabel,formatStageSummary} from './sales-lead-stages.mjs';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=t=>$('#status').textContent=t,stamp=t=>t?new Date(t).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
+let weeklyReview;
 let db,data,pendingRows=[],requestId=crypto.randomUUID(),busy=false;
 const fileNodes={name:$('#file-name'),state:$('#file-state')};
 bindLeadFilePicker($('#select-file'),$('#excel'));
@@ -18,9 +20,12 @@ async function load(){
  const options=data.people.map(p=>`<option value="${esc(p.id)}">${esc(p.full_name)} · ${esc(p.team)}</option>`).join('');
  $('#sales').innerHTML='<option value="">全部可见成员</option>'+options;$('#sales').value=selected;
  $('#exempt-form [name=sales_id]').innerHTML=options;
- $('#entry').hidden=data.actor.role!=='sales';$('#settings').hidden=!['owner','marketing'].includes(data.actor.role);
+ $('#entry').hidden=data.actor.role!=='sales';$('#entry-shortcut').hidden=data.actor.role!=='sales';$('#settings').hidden=!['owner','marketing'].includes(data.actor.role);
  $('#rules').textContent=data.rules.map(r=>`${r.effective_on}起：工作日${r.daily_min}条，${r.remind_at}提醒，周${r.weekly_day} ${r.weekly_at}统计；${r.reason}`).join('\n');
  $('#report-deadline-rules').textContent=data.timeliness.rules.map(r=>`${r.effective_on}起：${r.deadline}截止`).join('；');
+ weeklyReview ||= mountWeeklyCustomerReview($('#weekly-customer'),{rpc});
+ const weekly=await weeklyReview.refresh({sales:$('#sales').value});
+ if(weekly)$('#customer-deadline-rules').textContent=weekly.rules.map(r=>`${r.effective_on}起：每周客户核对 ${r.due_at} 截止`).join('；');
  render();status(`核对时间：${stamp(data.as_of)}（北京时间）；仅展示当前权限范围，未来尚未发生日期不记未提交。`);
 }
 function render(){
@@ -39,9 +44,9 @@ function render(){
 }
 $('#lead-form').onsubmit=e=>{e.preventDefault();action(async()=>{const row=Object.fromEntries(new FormData(e.target));await rpc('record_sales_leads',{rows:[{...row,request_id:requestId}],entry_method:'manual'});requestId=crypto.randomUUID();e.target.reset();e.target.elements.acquired_on.value=localDay();await load()})};
 $('#no-new').onclick=()=>action(async()=>{const reason=prompt('请说明今天无新增客户线索的原因（至少4字）');if(reason===null)return;await rpc('declare_no_sales_leads',{target_day:localDay(),reason});await load()});
-$('#refresh').onclick=()=>action(load);$('#sales').onchange=()=>render();
+$('#refresh').onclick=()=>action(load);$('#sales').onchange=()=>{render();weeklyReview?.refresh({sales:$('#sales').value})};
 $('#from').onchange=$('#to').onchange=()=>action(load);
-$('#rules-form').onsubmit=e=>{e.preventDefault();action(async()=>{const r=Object.fromEntries(new FormData(e.target));r.daily_min=Number(r.daily_min);r.weekly_day=Number(r.weekly_day);await rpc('configure_sales_leads',r);await load()})};
+$('#rules-form').onsubmit=e=>{e.preventDefault();action(async()=>{const r=Object.fromEntries(new FormData(e.target));r.daily_min=Number(r.daily_min);r.weekly_day=Number(r.weekly_day);await rpc('configure_weekly_customer_rules',r);await load()})};
 $('#report-deadline-form').onsubmit=e=>{e.preventDefault();action(async()=>{await rpc('configure_daily_report_deadline',Object.fromEntries(new FormData(e.target)));await load()})};
 $('#exempt-form').onsubmit=e=>{e.preventDefault();action(async()=>{await rpc('exempt_sales_lead_day',Object.fromEntries(new FormData(e.target)));await load()})};
 async function xlsx(){return import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs')}
@@ -60,4 +65,5 @@ try{
  const {data:{user},error}=await db.auth.getUser();if(error||!user)throw Error('请先返回CRM登录，再打开此工作台');
  $('#to').value=localDay();$('#from').value=$('#to').value.slice(0,8)+'01';$('#lead-form [name=acquired_on]').value=localDay();$('#lead-form [name=source]').innerHTML=Object.entries(sources).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
  await load();
+ const destination=location.hash==='#entry'&&!$('#entry').hidden?$('#entry'):location.hash==='#lead-dashboard'?$('#lead-dashboard'):null;destination?.scrollIntoView({block:'start'});
 }catch(e){status(e.message)}

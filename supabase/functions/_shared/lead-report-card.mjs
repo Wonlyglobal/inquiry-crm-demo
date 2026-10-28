@@ -1,3 +1,22 @@
+// Frozen customer-check metrics only. Never serialize customer titles, amounts,
+// contact details or private follow-up summaries into the group card.
+export function weeklyCustomerElements(snapshot){
+ if(!snapshot)return [];
+ const unavailable=()=>[{tag:'markdown',content:'客户周核对快照暂不可用，请在 CRM 核对；不填造完成率。'}];
+ if(!Array.isArray(snapshot.people)||!snapshot.people.length||snapshot.people.length>100||!snapshot.deadline_at||!Number.isFinite(Date.parse(snapshot.deadline_at)))return unavailable();
+ const rows=[],ids=new Set();
+ for(const p of snapshot.people){
+  if(typeof p.sales_id!=='string'||ids.has(p.sales_id)||typeof p.full_name!=='string'||!p.full_name.trim()||p.full_name.length>100||/[\x00-\x1f]/.test(p.full_name)||!['total','reviewed','pending','unknown_fields'].every(k=>Number.isSafeInteger(p[k])&&p[k]>=0&&p[k]<=1000000)||p.reviewed>p.total||p.pending!==p.total-p.reviewed)return unavailable();
+  if(p.total===0?p.rate!==null:typeof p.rate!=='number'||!Number.isFinite(p.rate)||Math.abs(p.rate-100*p.reviewed/p.total)>0.051)return unavailable();
+  ids.add(p.sales_id);rows.push({person:p.full_name,total:String(p.total),reviewed:String(p.reviewed),unknown:String(p.unknown_fields),rate:p.rate===null?'—':p.rate+'%',sort:p.rate??-1});
+ }
+ rows.sort((a,b)=>b.sort-a.sort||Number(b.reviewed)-Number(a.reviewed)||a.person.localeCompare(b.person));
+ const columns=[['person','业务员',28],['total','应核对',18],['reviewed','已核对',18],['unknown','待确认项',18],['rate','核对率',18]].map(([name,display_name,width])=>({name,display_name,data_type:'text',width:width+'%',horizontal_align:name==='person'?'left':'center'}));
+ const deadline=new Date(snapshot.deadline_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});
+ return [{tag:'markdown',content:'客户与商机周核对 · 截止 '+deadline+'（北京时间）'},
+ {tag:'table',page_size:10,row_height:'auto',row_max_height:'96px',header_style:{lines:2,text_size:'normal'},columns,rows:rows.map(({sort,...row})=>row)},
+ {tag:'markdown',content:'按核对率、已核对数排序；责任范围按汇总时当前未关闭商机，核对记录按截止时间冻结。待确认项为已核对记录中的信息缺口，不等于已解决；无应核对事项显示—。与每日线索、18:00日报按时率分别统计。'}];
+}
 // Format only the existing division snapshot. No additional database/client reads.
 const url='https://crm.foreverdoodle.com/sales-leads.html#lead-dashboard';
 export function divisionReportMessage(body,metadata){
@@ -24,6 +43,7 @@ export function divisionReportMessage(body,metadata){
  {tag:'markdown',content:'补充核对（对应主表行序）\n'+details},
  {tag:'markdown',content:weekly?'按本周转商机、新增依次排名，同量同名次；日报仅统计截止时已到期人天。':'按当日新增排名，同量同名次；日报按时率按本月已到期人天计算。'},
  {tag:'markdown',content:'日报截止按已生效规则（默认18:00）；草稿不算正式提交，周末/登记豁免排除。—表示尚无应提交人天或旧快照无数据，不代表0%。不含客户资料或日报正文。'},
+ ...weekly?weeklyCustomerElements(metadata?.customer_updates):[],
  {tag:'markdown',content:`[打开客户线索看板](${url})`}
  ]}}};
 }

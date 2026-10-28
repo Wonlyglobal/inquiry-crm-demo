@@ -190,6 +190,8 @@
         place-items: center;
       }
       .nav {
+        font-family:inherit;
+        text-decoration:none;
         border: 0;
         background: transparent;
         color: #bac6be;
@@ -1577,7 +1579,7 @@
           <i data-lucide="scan-search"></i><span>客户背调</span></button
         ><button class="nav" data-view="legacy-projects">
           <i data-lucide="folder-kanban"></i><span>历史工程</span></button
-        ><a class="nav" data-view="sales-leads" href="sales-leads.html#lead-dashboard"><i data-lucide="chart-no-axes-combined"></i><span>客户线索看板</span></a><button id="daily-report-button" class="nav" data-view="daily">
+        ><a class="nav" data-view="sales-leads" href="sales-leads.html#lead-dashboard"><i data-lucide="chart-no-axes-combined"></i><span>客户线索 · 录入/看板</span></a><button id="daily-report-button" class="nav" data-view="daily">
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
         ><button class="nav" data-view="performance-360">
           <i data-lucide="badge-check"></i><span>360 评分中心</span></button
@@ -2593,6 +2595,7 @@
     <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261019-private3" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
+      import {leadWorkspaceHref} from "./assets/lead-workspace-route.mjs?v=20261028-1";
       import {mailboxState} from './assets/mailbox-multi.mjs?v=20261028';
       import {createDailyReportController} from './assets/daily-report-ui.mjs?v=20261028-flow1';
       import {submittedDailySalesIds} from './assets/daily-lead-reporting.mjs?v=20261026-ledger1';
@@ -2804,7 +2807,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         syncSidebarGroupBadges();
       }
       const roleGuideViewNames = {
-        "sales-leads":"客户线索看板",dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","exhibition-calendar":"展会日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
+        "sales-leads":"客户线索录入与看板",dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","exhibition-calendar":"展会日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
         {at:"2026-09-20 10:15",title:"新增风险审查中心第一阶段",detail:"老板可查看全公司、主管可查看本团队业务风险；确定性规则识别无人负责、首响逾期和跟进逾期，处置、解除和关闭均留不可删除事件记录。",roles:["owner","sales_manager"]},
@@ -3058,6 +3061,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         setMemberAvatar($("#avatar"), profile, "王");
         const role = profile.role;
         $$(".nav[data-view]").forEach(nav => nav.classList.toggle("hidden", !canAccessView(nav.dataset.view, role)));
+        $('.nav[data-view="sales-leads"]').href=leadWorkspaceHref(role);
         initializeSidebarNavigation();
         $("#world-switch").classList.toggle("hidden",!canUseAgentWorld(profile,currentAuthUser));
         if(canUseAgentWorld(profile,currentAuthUser))$('.nav[data-view="ai-advisor"]')?.classList.add("hidden");
@@ -7392,7 +7396,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         item.addEventListener("click", async event => {
           if(item.dataset.view==="sales-leads")event.preventDefault();
           if(!$("#daily-modal").classList.contains("hidden")&&!await dailyReportController.canLeave())return;
-          if(item.dataset.view==="sales-leads"){location.assign("sales-leads.html#lead-dashboard");return;}
+          if(item.dataset.view==="sales-leads"){location.assign(leadWorkspaceHref(profile?.role));return;}
           if (location.hash.startsWith("#inquiry/")) {
             history.pushState(null, "", location.pathname + location.search);
             closeInquiryPage();

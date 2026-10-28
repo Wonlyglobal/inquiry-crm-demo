@@ -14,6 +14,6 @@ test('imports require a matching receipt before marking a batch complete',()=>{
  const id=crypto.randomUUID();assert.throws(()=>candidateReceipt({batch_id:id,processed:200,added:199,deduplicated:0,recorded_at:'now'},id,200));assert.throws(()=>candidateReceipt(null,id,200));assert.equal(candidateReceipt({batch_id:id,processed:200,added:190,deduplicated:10,recorded_at:'now'},id,200).added,190);
 });
 test('both navigation surfaces expose the separate pool without using the existing inquiry pool',()=>{
- for(const file of ['index.html','grace.html']){const html=readFileSync(new URL('../'+file,import.meta.url),'utf8');assert.match(html,/data-view="company-candidates" href="company-candidates.html"/);assert.match(html,/location.assign\("company-candidates.html"\)/)}
+ for(const file of ['index.html','grace.html']){const html=readFileSync(new URL('../'+file,import.meta.url),'utf8');assert.match(html,/data-view="company-candidates" href="#view=company-candidates"/);assert.match(html,/company-candidates.html\?embed=1/)}
  const page=readFileSync(new URL('../assets/company-candidates-page.mjs',import.meta.url),'utf8');assert.doesNotMatch(page,/localStorage|sessionStorage|record_sales_leads/);assert.match(page,/promote_company_candidate/);assert.match(page,/candidateReceipt/);
 });

@@ -12,13 +12,37 @@ export function summarize(data,salesId,from,to){
  counts.conversionRate=counts.leads?Math.round(1000*counts.converted/counts.leads)/10:null;
  return counts;
 }
+export function emptyLeadValue(value){
+ const text=String(value??'').trim();return /^(?:[-—–]+|无|暂无|未知|待确认|待补充|n\/a|null)$/i.test(text)?'':text;
+}
+export function leadIssues(row){
+ const issues=[];
+ if(!row.company&&!row.contact)issues.push('客户名称或联系人至少填写一项');
+ if(!row.country)issues.push('国家未填写');
+ if(row.email&&!/^[^\s@;；,，<>]+@[^\s@;；,，<>]+\.[^\s@;；,，<>]+$/.test(row.email))issues.push('邮箱格式不正确（每格只填一个邮箱；未知请留空）');
+ if(!sources[row.source])issues.push('来源不正确');
+ if(row.demand.length<4)issues.push('需求简述至少4字，可填写待跟进方向');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(row.acquired_on)||Number.isNaN(Date.parse(row.acquired_on+'T00:00:00Z'))||new Date(row.acquired_on+'T00:00:00Z').toISOString().slice(0,10)!==row.acquired_on)issues.push('获取日期应为YYYY-MM-DD');
+ return issues;
+}
+export function normalizeLead(row){
+ return Object.fromEntries(['company','contact','country','email','phone','source','demand','acquired_on'].map(k=>[k,emptyLeadValue(row[k])]));
+}
 export function importRows(rows){
  if(!Array.isArray(rows)||!rows.length||rows.length>200)throw Error('每批导入1—200行');
  const keys={company:'客户名称',contact:'联系人',country:'国家',email:'邮箱',phone:'电话',source:'来源',demand:'需求简述',acquired_on:'获取日期'};
- return rows.map((r,i)=>{const out={request_id:crypto.randomUUID()};for(const [k,label] of Object.entries(keys))out[k]=String(r[label]??r[k]??'').trim();
-  if(!out.source)out.source='outbound';
+ const errors=[];
+ const result=rows.map((r,i)=>{const raw={};for(const [k,label] of Object.entries(keys))raw[k]=r[label]??r[k]??'';
+  const out=normalizeLead(raw);if(!out.source)out.source='outbound';
   out.source=Object.entries(sources).find(([k,v])=>out.source===k||out.source===v)?.[0]||out.source;
-  if((!out.company&&!out.contact)||!out.country||(!out.email&&!out.phone)||out.demand.length<4||!/^\d{4}-\d{2}-\d{2}$/.test(out.acquired_on)||!sources[out.source])throw Error(`第${i+2}行信息不完整：需客户/联系人、国家、联系方式、来源、需求和YYYY-MM-DD获取日期`);
-  return out;
+  const issues=leadIssues(out);if(issues.length)errors.push(`第${Number.isInteger(r.__rowNum__)?r.__rowNum__+1:i+2}行：${issues.join('；')}`);
+  return {...out,request_id:crypto.randomUUID()};
  });
+ if(errors.length)throw Error(errors.join('\n'));
+ return result;
+}
+export function leadRequestMessage(error){
+ const message=String(error?.message||error||'未知错误');
+ if(/load failed|failed to fetch|network|fetch failed|timeout|timed out/i.test(message))return '网络连接中断，尚未确认保存结果。内容已保留；请先刷新数据核对，再重试原操作，系统会去重。';
+ return message;
 }

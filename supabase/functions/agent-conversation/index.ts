@@ -62,6 +62,7 @@ import {answerIssues,correctionMessage,safeMarketingFallback} from './answer-qua
 import {loadSocial,loadSocialPosts,loadSocialLibrary,requestedPostPage,loadSocialMetrics} from './social.mjs';
 import {loadSeo} from './seo.mjs';
 import {loadResearch} from './research.mjs';
+import {researchProfileTurn,researchProfileReport} from './research-profile.mjs';
 import socialBusinessContext from './social-business-context.json' with {type:'json'};
 import marketingLearning from './marketing-learning.json' with {type:'json'};
 import marketPlaybooks from './market-playbooks.json' with {type:'json'};
@@ -283,6 +284,13 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
    // Verify the original signed transcript first. Canonical spelling is used only for routing.
    input.question=normalizeProductInput(input.question);
+   const researchTurn=researchProfileTurn(input.question,input.materialHistory||[]);
+   if(researchTurn){
+    if(guest)return json({answer:'背调画像仅供已授权本人在公司系统内查询。',provider:'internal',model:'research-profile',context:{route:'research_profile',status:'denied'}});
+    const report=researchProfileReport(researchTurn,await loadResearch());
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'research_sample_profile',persona:input.persona,provider:'internal',status:report.status,source_date:report.as_of,country_groups:report.country_groups,category_groups:report.category_groups},reason:'仅使用既有至少5条背调汇总形成样本画像和核验计划，不读取身份或正文、不发送外部模型'});if(error)return json({error:'调用审计失败'},503);
+    return json({answer:report.answer,provider:'internal',model:'research-profile',context:{route:'research_profile',status:report.status,source_date:report.as_of,freshness:report.freshness,countries:report.countries,material_question:report.material_question},ticket:await ticket({user:user.id,persona:input.persona,text:'背调样本画像、核验建议和数据缺口已放在窗口里，不代表已确认的采购需求。',expires:Date.now()+300000},key)});
+   }
    const marketTurn=productMarketTurn(input.question,input.materialHistory||[]);
    const marketClarification=marketFollowupClarification(input.question,input.materialHistory||[]);
    const plan=nested||guest||marketTurn||marketClarification?{parts:[],overflow:false}:questionPlan(input.question);

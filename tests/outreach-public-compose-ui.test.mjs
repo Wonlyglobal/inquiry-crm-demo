@@ -50,3 +50,22 @@ test('empty evidence first click generates immediately without a redundant confi
 test('cancelled first-click scope confirmation performs no model call or save',async()=>{
  const h=harness();preparePublicOutreachEvidence(h.ctx);h.created.find(n=>n.dataset.publicEvidenceIndex==='0').checked=true;h.ctx.confirm=async()=>false;await generatePublicOutreach(h.ctx);assert.equal(h.calls.length,0);
 });
+test('one-click collects before composition and confirms actual public candidates only',async()=>{
+ const h=harness(),order=[];
+ h.ctx.collect=async progress=>{order.push('collect');progress('检索中');return {items:[{kind:'product_facts',statement:'Public entrance door range.',source:'https://example.org/product',date:'2026-10-28'}],counts:{company_facts:0,market_facts:0,product_facts:1},gaps:['Market source unavailable'],internal:{catalogue:{quote:'INTERNAL ONLY'}}}};
+ h.ctx.confirm=async message=>{order.push('confirm');assert.match(message,/Public entrance/);assert.doesNotMatch(message,/INTERNAL ONLY/);return true};
+ await generatePublicOutreach(h.ctx);
+ assert.deepEqual(order,['collect','confirm']);assert.equal(h.calls[0].name,'outreach-compose');
+ assert.equal(h.calls[0].payload.product_facts.length,1);assert.equal(h.calls[1].saved,true);
+});
+test('auto retrieval cancellation and scope changes never call model or save',async()=>{
+ for(const changed of [false,true]){
+ const h=harness();h.ctx.collect=async()=>({items:[{kind:'product_facts',statement:'Public door range.',source:'https://example.org/product',date:'2026-10-28'}],counts:{product_facts:1},gaps:[],isCurrent:()=>!changed});h.ctx.confirm=async()=>changed;
+ await generatePublicOutreach(h.ctx);assert.equal(h.calls.length,0);
+ }
+});
+test('retrieval exception preserves edited draft and avoids provider calls',async()=>{
+ const h=harness();h.find('#outreach-body').value='My unsaved edited letter';h.ctx.collect=async()=>{throw Error('Connection interrupted')};
+ await generatePublicOutreach(h.ctx);assert.equal(h.find('#outreach-body').value,'My unsaved edited letter');assert.equal(h.calls.length,0);
+ assert.match(h.find('#outreach-status').textContent,/Connection interrupted/);
+});

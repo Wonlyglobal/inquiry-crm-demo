@@ -1,4 +1,5 @@
 import { withReadOnlyGuard } from "../_shared/read-only.ts";
+import {publicMarketQuery,PUBLIC_PRODUCT_TERMS} from "../../../assets/outreach-research-plan.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors = {
@@ -153,6 +154,8 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     const input = await req.json();
     const inquiryId = clean(input.inquiry_id, 100);
     const companyName = clean(input.company_name, 300);
+    const focus=Object.hasOwn(PUBLIC_PRODUCT_TERMS,input.focus_category||"")?PUBLIC_PRODUCT_TERMS[input.focus_category]:"";
+    const marketQuery=publicMarketQuery(input.market_code,input.focus_category);
     const website = safeWebsite(input.website);
     const [{ data: profile }, { data: inquiry, error: inquiryError }] = await Promise.all([
       client.from("profiles").select("id,active").eq("id", user.id).single(),
@@ -190,7 +193,9 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     const internalLinks = [...html.matchAll(/<a[^>]+href=["']([^"'#]+)["'][^>]*>/gi)].map((match) => absoluteUrl(clean(match[1], 1500), website)).filter((url) => {
       try { const parsed = new URL(url); return parsed.hostname === website.hostname && /product|catalog|solution|project|about|company|empresa|producto|puerta|door|lock/i.test(parsed.pathname); } catch { return false; }
     });
-    for (const pageUrl of [...new Set(internalLinks)].slice(0, 4)) {
+    const focusWords=focus.split(" ").filter(w=>w.length>3).map(w=>w.replace(/s$/, ""));
+    const rankedLinks=[...new Set(internalLinks)].sort((a,b)=>focusWords.filter(w=>b.toLowerCase().includes(w)).length-focusWords.filter(w=>a.toLowerCase().includes(w)).length);
+    for (const pageUrl of rankedLinks.slice(0, 4)) {
       try {
         const pageResponse = await fetch(pageUrl, { redirect: "error", headers: { "User-Agent": "WONLY-CRM-Research/1.0", Accept: "text/html" }, signal: AbortSignal.timeout(6000) });
         if (!pageResponse.ok || !(pageResponse.headers.get("content-type") || "").includes("text/html")) continue;
@@ -227,7 +232,16 @@ Deno.serve(withReadOnlyGuard(async (req) => {
         }
       } catch { /* news is optional; website intelligence still succeeds */ }
     }
+    const marketHeadlines: Array<{title:string,date:string,source_url:string}> = [];
+    if(marketQuery){try{
+      const response=await fetch("https://news.google.com/rss/search?q="+encodeURIComponent(marketQuery)+"&hl=en&gl=US&ceid=US:en",{redirect:"error",signal:AbortSignal.timeout(8000)});
+      if(response.ok){const xml=(await response.text()).slice(0,500000);for(const item of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)){
+       const title=plainText(/<title>([\s\S]*?)<\/title>/i.exec(item[1])?.[1]||"",400),source_url=plainText(/<link>([\s\S]*?)<\/link>/i.exec(item[1])?.[1]||"",1000),date=plainText(/<pubDate>([\s\S]*?)<\/pubDate>/i.exec(item[1])?.[1]||"",120);
+       if(title&&source_url)marketHeadlines.push({title,date,source_url});if(marketHeadlines.length>=4)break;
+      }}
+    }catch{/* Headlines remain unavailable, never replaced with invented market claims. */}}
     return new Response(JSON.stringify({
+      market_headlines:marketHeadlines,market_limits:"标题线索，未读取原始报道全文；不证明客户需求或市场结论",
       website: website.toString(), candidates: candidates.slice(0, 6),
       website_profile: { title, description, keywords, headings },
       website_evidence: pageEvidence,

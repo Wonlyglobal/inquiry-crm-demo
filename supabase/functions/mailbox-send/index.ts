@@ -1,3 +1,4 @@
+import { selectPersonalMailbox } from "../_shared/mailbox-selection.ts";
 import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import nodemailer from "npm:nodemailer@7.0.6";
@@ -88,9 +89,7 @@ Deno.serve(withReadOnlyGuard(async (req) => {
       if (!contactPolicy?.allowed) return new Response(JSON.stringify({ error: `触达规则拦截：${clean(contactPolicy?.reason, 500) || "当前不允许主动联系客户"}` }), { status: 409, headers: cors });
     }
 
-    const { data: connection, error: connectionError } = await admin.from("mailbox_connections")
-      .select("id,email,smtp_host,smtp_port,status").eq("user_id", user.id).eq("status", "connected").single();
-    if (connectionError || !connection) return new Response(JSON.stringify({ error: "请先连接当前业务员自己的企业邮箱" }), { status: 400, headers: cors });
+    const connection=await selectPersonalMailbox(admin,user.id,clean(body.mailbox_connection_id,100));
     const { data: password, error: secretError } = await admin.rpc("read_mailbox_secret", { target_connection_id: connection.id });
     if (secretError || !password) throw secretError || new Error("邮箱凭据不可用，请重新连接邮箱");
 
@@ -112,7 +111,7 @@ Deno.serve(withReadOnlyGuard(async (req) => {
         const recorded = await userClient.rpc("record_inquiry_marketing_contact", { target_inquiry_id: inquiryId, contact_reason: "CRM 开发信已发送" });
         policyRecorded = !recorded.error;
       }
-      await admin.from("audit_logs").insert({ actor_id: user.id, entity_type: "inquiry", entity_id: inquiryId, action: messageKind === "reply" ? "inquiry_reply_email_sent" : "outreach_email_sent", after_data: { draft_id: draftId, recipient, message_id: sent.messageId || null, message_kind: messageKind, contact_policy_recorded: policyRecorded }, reason: messageKind === "reply" ? "业务员从 CRM 回复客户询盘" : "业务员从 CRM 发送开发信" });
+      await admin.from("audit_logs").insert({ actor_id: user.id, entity_type: "inquiry", entity_id: inquiryId, action: messageKind === "reply" ? "inquiry_reply_email_sent" : "outreach_email_sent", after_data: { mailbox_connection_id:connection.id,sender_email:connection.email,draft_id: draftId, recipient, message_id: sent.messageId || null, message_kind: messageKind, contact_policy_recorded: policyRecorded }, reason: messageKind === "reply" ? "业务员从 CRM 回复客户询盘" : "业务员从 CRM 发送开发信" });
       return new Response(JSON.stringify({ sent: true, recipient, message_id: sent.messageId || null, sent_at: sentAt, contact_policy_recorded: policyRecorded }), { headers: cors });
     } catch (error) {
       await admin.from("outreach_drafts").update({ status: "failed", last_error: errorText(error), updated_at: new Date().toISOString() }).eq("id", draftId);

@@ -146,13 +146,19 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     if (!userId || !email || !password) return new Response(JSON.stringify({ error: "成员、邮箱和客户端密码均为必填" }), { status: 400, headers: cors });
     const canManageOthers = caller.role === "owner" || mailboxAdministrators.has(callerEmail);
     const canSelfConnect = ["sales", "sales_manager", "marketing"].includes(String(caller.role || ""));
-    if (!canManageOthers && (!canSelfConnect || userId !== user.id || email !== callerEmail)) {
+    if (!canManageOthers && (!canSelfConnect || userId !== user.id)) {
       return new Response(JSON.stringify({ error: "成员只能连接自己的企业邮箱" }), { status: 403, headers: cors });
     }
     if (mailboxKind === "shared_inquiry" && (!canManageOthers || email !== "inquiry@wonlyglobal.com")) {
       return new Response(JSON.stringify({ error: "公共询盘邮箱只能由授权管理员配置" }), { status: 403, headers: cors });
     }
 
+    if (!["personal","shared_inquiry"].includes(mailboxKind)) throw new Error("邮箱类型无效");
+    const {data:target,error:targetError}=await admin.from("profiles").select("id,active,is_test_data,data_environment").eq("id",userId).single();
+    if(targetError||!target?.active||target.is_test_data||target.data_environment!=="production")throw new Error("成员不可用");
+    const {data:owned,error:ownedError}=await admin.from("mailbox_connections").select("id,user_id,mailbox_kind").eq("email",email).maybeSingle();
+    if(ownedError)throw ownedError;
+    if(owned && (owned.mailbox_kind!==mailboxKind || (mailboxKind==="personal" && owned.user_id!==userId)))throw new Error("邮箱已关联其他成员或公共邮箱，不能覆盖归属");
     const endpoint = await testMailbox(email, password);
 
     const isSharedInquiry = mailboxKind === "shared_inquiry";
@@ -172,12 +178,11 @@ Deno.serve(withReadOnlyGuard(async (req) => {
         ? admin.from("mailbox_connections").update(connectionPayload).eq("id", existing.id)
         : admin.from("mailbox_connections").insert(connectionPayload);
     } else {
-      // `user_id` is protected by a partial unique index for personal mailboxes.
-      // PostgREST cannot use a partial index as an ON CONFLICT target, so resolve
-      // the existing row explicitly and then update or insert it.
+      // Reconnect this exact mailbox; adding another email never replaces the old row.
       const { data: existing, error: existingError } = await admin.from("mailbox_connections")
         .select("id")
         .eq("user_id", userId)
+        .eq("email", email)
         .eq("mailbox_kind", "personal")
         .maybeSingle();
       if (existingError) throw existingError;

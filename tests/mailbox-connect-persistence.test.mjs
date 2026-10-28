@@ -18,17 +18,17 @@ test("Ali mailbox 526 authentication failures are translated into actionable gui
   assert.match(source, /不要使用网页登录密码/);
 });
 
-test("an already connected salesperson mailbox disables the connection entry", () => {
+test("connected salesperson can manage additional mailboxes", () => {
   assert.match(html, /function refreshPersonalMailboxEntry/);
-  assert.match(html, /button\.disabled=connected/);
-  assert.match(html, /button\.textContent=connected\?"邮箱已连接":"连接我的邮箱"/);
+  assert.match(html, /button\.disabled=false/);
+  assert.match(html, /管理邮箱（已连接/);
   assert.match(html, /await refreshPersonalMailboxEntry\(\)/);
 });
 
 test("personal mailbox reads all messages with bounded pagination", () => {
   assert.match(html, /async function loadAllMailboxMessages\(connectionId\)/);
-  assert.match(html, /\.eq\("mailbox_connection_id", connectionId\).*\.range\(from, from \+ pageSize - 1\)/s);
-  assert.match(html, /loadAllMailboxMessages\(connection\.id\)/);
+  assert.match(html, /\.in\("mailbox_connection_id", Array.isArray\(connectionId\)\?connectionId:\[connectionId\]\).*\.range\(from, from \+ pageSize - 1\)/s);
+  assert.match(html, /loadAllMailboxMessages\(boxes.filter/);
   assert.match(html, /async function loadAllMailboxReads\(userId\)/);
   assert.match(html, /async function loadAllOpenReplyReminders\(userId\)/);
   assert.match(html, /loadAllMailboxReads\(profile\.id\)/);

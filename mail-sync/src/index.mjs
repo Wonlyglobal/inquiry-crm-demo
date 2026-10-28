@@ -1,3 +1,4 @@
+import { selectPersonalMailbox } from './mailbox-selection.mjs';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import nodemailer from 'nodemailer';
@@ -149,7 +150,7 @@ async function processOutbox(){
       const {sender,messageKind}=await validateOutboxSend(job);
       const intakePromise=job.inquiry_id?db.from('email_intake').select('message_id').eq('inquiry_id',job.inquiry_id).order('created_at',{ascending:false}).limit(1).maybeSingle():Promise.resolve({data:null,error:null});
       const [{data:connection,error:connectionError},{data:intake,error:intakeError}]=await Promise.all([
-        db.from('mailbox_connections').select('*').eq('user_id',job.sender_user_id).eq('status','connected').single(),
+        selectPersonalMailbox(db,job.sender_user_id,job.mailbox_connection_id||'').then(data=>({data,error:null})),
         intakePromise,
       ]);
       if(connectionError||!connection)throw connectionError||new Error('业务员邮箱未连接');

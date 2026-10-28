@@ -1,3 +1,4 @@
+import { selectPersonalMailbox } from "../_shared/mailbox-selection.ts";
 import { withReadOnlyGuard } from "../_shared/read-only.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import nodemailer from "npm:nodemailer@7.0.6";
@@ -77,14 +78,13 @@ Deno.serve(withReadOnlyGuard(async req=>{if(req.method==="OPTIONS")return new Re
     if(quote.status!=="approved")throw new Error("只有主管批准后的报价才能发送");
     if(clean(customer?.sender_email,320).toLowerCase()!==to)throw new Error("报价必须发送到该询盘登记的客户邮箱");
   }
-  const {data:connection,error:connectionError}=await admin.from("mailbox_connections").select("id,email,smtp_host,smtp_port,status").eq("user_id",user.id).eq("mailbox_kind","personal").eq("status","connected").single();
-  if(connectionError||!connection)throw new Error("请先连接当前业务员自己的企业邮箱");
+  const connection=await selectPersonalMailbox(admin,user.id,clean(input.mailbox_connection_id,100));
   const {data:password,error:secretError}=await admin.rpc("read_mailbox_secret",{target_connection_id:connection.id});if(secretError||!password)throw new Error("邮箱凭据不可用，请重新连接");
   const transport=nodemailer.createTransport({host:connection.smtp_host,port:connection.smtp_port,secure:Number(connection.smtp_port)===465,auth:{user:connection.email,pass:password},connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000});
   const sent=await transport.sendMail({from:`"${caller.full_name||connection.email}" <${connection.email}>`,to,cc:cc.length?cc:undefined,subject,text:body,html:emailHtml(body),attachments,...(inReplyTo?{inReplyTo,references:[inReplyTo]}:{})});
   const sentAt=new Date().toISOString();let contactPolicyRecorded=messageKind!=="outreach",quotationRecorded=!quotationId;const warnings:string[]=[];
   if(messageKind==="outreach"){const result=await userClient.rpc("record_inquiry_marketing_contact",{target_inquiry_id:inquiryId,contact_reason:"CRM 邮箱主动邮件已发送"});contactPolicyRecorded=!result.error;if(result.error)warnings.push(`触达记录更新失败：${result.error.message}`)}
   if(quotationId){const result=await userClient.rpc("mark_quotation_sent",{target_quotation_id:quotationId,target_message_id:null});quotationRecorded=!result.error;if(result.error)warnings.push(`报价状态更新失败：${result.error.message}`)}
-  await admin.from("audit_logs").insert({actor_id:user.id,entity_type:quotationId?"quotation":inquiryId?"inquiry":"profile",entity_id:quotationId||inquiryId||user.id,action:quotationId?"quotation_email_sent":"mailbox_message_sent",after_data:{recipient:to,cc,subject,message_id:sent.messageId||null,inquiry_id:inquiryId,quotation_id:quotationId,message_kind:messageKind,ai_draft_id:aiDraftId,fact_check_id:factCheckId,contact_policy_recorded:contactPolicyRecorded,quotation_recorded:quotationRecorded,attachment_count:attachments.length,material_asset_ids:materialAssetIds,warnings},reason:quotationId?"报价已通过 CRM 邮箱发送":"业务员从 CRM 邮箱页面发送邮件"});
+  await admin.from("audit_logs").insert({actor_id:user.id,entity_type:quotationId?"quotation":inquiryId?"inquiry":"profile",entity_id:quotationId||inquiryId||user.id,action:quotationId?"quotation_email_sent":"mailbox_message_sent",after_data:{mailbox_connection_id:connection.id,sender_email:connection.email,recipient:to,cc,subject,message_id:sent.messageId||null,inquiry_id:inquiryId,quotation_id:quotationId,message_kind:messageKind,ai_draft_id:aiDraftId,fact_check_id:factCheckId,contact_policy_recorded:contactPolicyRecorded,quotation_recorded:quotationRecorded,attachment_count:attachments.length,material_asset_ids:materialAssetIds,warnings},reason:quotationId?"报价已通过 CRM 邮箱发送":"业务员从 CRM 邮箱页面发送邮件"});
   return new Response(JSON.stringify({sent:true,recipient:to,message_id:sent.messageId||null,sent_at:sentAt,contact_policy_recorded:contactPolicyRecorded,quotation_recorded:quotationRecorded,warnings}),{headers:cors});
 }catch(error){return new Response(JSON.stringify({error:errorText(error)}),{status:400,headers:cors})}}));

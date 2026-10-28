@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import {mailboxState} from '../assets/mailbox-multi.mjs';
 import {readFileSync} from 'node:fs';
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const stateSource=html.slice(html.indexOf('      function memberMailboxFilterState('),html.indexOf('      function personalMailboxSettingsLabel('));
@@ -36,7 +37,7 @@ test('owner mapper uses personal mailbox, never a shared inbox, and preserves un
  const start=html.indexOf('          mapper = (x) => {\n            const mailbox =');
  const body=html.slice(start,html.indexOf('        }\n        const moduleResult',start));
  const labels=vm.runInNewContext(html.slice(html.indexOf('      function memberMailboxStatusLabel('),html.indexOf('      function memberMailboxFilterState('))+';memberMailboxStatusLabel');
- const ctx={profile:{id:'owner',role:'owner'},roleNames:{sales:'业务员'},fmtDate:value=>value,memberMailboxFilterState:state,memberMailboxStatusLabel:labels};
+ const ctx={mailboxState,profile:{id:'owner',role:'owner'},roleNames:{sales:'业务员'},fmtDate:value=>value,memberMailboxFilterState:state,memberMailboxStatusLabel:labels};
  vm.createContext(ctx);vm.runInContext(body,ctx);
  const member={id:'a',full_name:'模拟甲',role:'sales',active:true};
  const mapped=ctx.mapper({...member,mailbox_connections:[{mailbox_kind:'shared_inquiry',status:'connected'},{mailbox_kind:'personal',status:'error'}]});

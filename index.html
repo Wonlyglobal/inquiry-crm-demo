@@ -7174,7 +7174,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         let data;
         try {
           const result = await supabase.auth.signInWithPassword({
-            email: $("#login-email").value.trim(),
+            email: $("#login-email").value.trim().toLowerCase(),
             password: $("#login-password").value,
           });
           if (result.error) {

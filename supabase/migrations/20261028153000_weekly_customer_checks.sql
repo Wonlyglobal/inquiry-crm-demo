@@ -58,9 +58,9 @@ begin
  select * into i from public.inquiries where id=target and owner_id=a.id and status::text not in('won','lost') and validity::text is distinct from 'invalid' and created_at<=stamp and not coalesce(excluded_from_dashboard,false) and not coalesce(is_test_data,false) and data_environment='production' for share;
  if i.id is null then raise exception '非本人未关闭商机，不能核对';end if;
  if i.estimated_amount is null then unknown:=array_append(unknown,'estimated_amount');elsif nullif(btrim(i.currency),'') is null then unknown:=array_append(unknown,'currency');end if;if i.expected_close_date is null then unknown:=array_append(unknown,'expected_close_date');end if;
- source:=private.weekly_customer_source(i);
- insert into private.weekly_customer_checks(inquiry_id,sales_id,week_start,last_contact_on,followup_result,next_action,unknown_fields,source_snapshot,source_fingerprint)
- values(i.id,a.id,date_trunc('week',today)::date,contact_day,result_text,action_text,unknown,source,md5(source::text)) returning * into c;
+ source:=private.weekly_customer_source(i);stamp:=clock_timestamp();today:=(stamp at time zone 'Asia/Shanghai')::date;
+ insert into private.weekly_customer_checks(inquiry_id,sales_id,week_start,recorded_at,last_contact_on,followup_result,next_action,unknown_fields,source_snapshot,source_fingerprint)
+ values(i.id,a.id,date_trunc('week',today)::date,stamp,contact_day,result_text,action_text,unknown,source,md5(source::text)) returning * into c;
  insert into private.sales_lead_events(actor_id,target_id,action,details) values(a.id,c.id,'weekly_customer_checked',jsonb_build_object('inquiry_id',i.id,'week_start',c.week_start,'recorded_at',c.recorded_at,'unknown_fields',unknown,'source_fingerprint',c.source_fingerprint));
  return jsonb_build_object('id',c.id,'week_start',c.week_start,'recorded_at',c.recorded_at,'unknown_fields',unknown);
 end $$;

@@ -4,12 +4,12 @@ import test from "node:test";
 
 const source = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
-test("follow calendar includes the festival banner and month grid", () => {
+test("exhibition calendar includes the festival banner and month grid", () => {
   assert.match(source, /id="festival-calendar"/);
   assert.match(source, /function renderFestivalCalendar\(activityRows=\[\]\)/);
   assert.match(source, /近期节日一览/);
   assert.match(source, /仅展示节日日期与适用地区/);
-  assert.match(source, /if\(view==="follow-calendar"\)renderFestivalCalendar\(sourceRows\)/);
+  assert.match(source, /renderFestivalCalendar\(\[\]\)/);
 });
 
 test("festival dates include fixed, rule-based and dated events", () => {

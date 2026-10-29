@@ -1828,6 +1828,10 @@
           <div class="exhibition-list-head"><h2>按月份查看</h2><div class="exhibition-legend"><i class="verified"></i>官网已确认　 <i class="planned"></i>待官网确认</div></div>
           <div id="exhibition-months"></div><div id="exhibition-empty" class="exhibition-empty hidden">没有符合当前筛选条件的展会</div>
           <p class="exhibition-footnote">此页面仅展示公开展会信息。主办方可能调整日期、地点或场次，最终安排以官网为准。</p>
+          <section id="festival-calendar" class="festival-calendar hidden" aria-label="世界节日与营销节点">
+            <div id="festival-banner" class="festival-banner"></div>
+            <div id="festival-month" class="festival-month"></div>
+          </section>
         </section>
         <section id="marketing-center-page" class="page hidden">
           <div class="heading"><div><h1>市场任务中心</h1><p>官方询盘邮箱 inquiry@wonlyglobal.com · 从邮件接收、人工分拣、有效性判断、客户背调到提交主管分配</p></div></div>
@@ -1874,10 +1878,7 @@
           </section>
           <section id="role-guide-live" class="role-guide-live hidden" aria-label="角色指南实时更新"></section>
           <div id="module-insights" class="module-insights hidden"></div>
-          <section id="festival-calendar" class="festival-calendar hidden" aria-label="世界节日与营销节点">
-            <div id="festival-banner" class="festival-banner"></div>
-            <div id="festival-month" class="festival-month"></div>
-          </section>
+
           <section id="sales360-framework" class="card hidden" style="padding:20px;margin-bottom:20px" aria-label="360评价体系">
             <details><summary style="cursor:pointer"><strong>360评价体系 · 选择题 + 简答题</strong><p class="hint">每月评价、季度汇总；从任务或成员姓名进入对应问卷。</p></summary>
               <p>CRM客观数据60% + 多方评价40%。评价关注工作行为、具体事例和改进计划。</p>
@@ -4641,8 +4642,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         knowledgeCountState = null;
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
-        $("#festival-calendar").classList.toggle("hidden",view!=="follow-calendar");
-        if(view==="follow-calendar")renderFestivalCalendar([]);
+        $("#festival-calendar").classList.toggle("hidden",view!=="exhibition-calendar");
         $("#operations-settings").classList.toggle("hidden",view!=="settings");
         $("#followup-settings").classList.toggle("hidden",view!=="settings");
         $("#sales360-quarter-panel").classList.add("hidden");
@@ -5059,7 +5059,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           $("#email-mark-warmup").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
         }
         if(view==="templates")sourceRows=sortMailTemplates(sourceRows);
-        if(view==="follow-calendar")renderFestivalCalendar(sourceRows);
+
         const mailboxBulkSelectable=view==="mailbox"&&mailboxFolder==="inbox"&&!mailboxTemplateView&&!mailboxScheduledView;
         if(mailboxBulkSelectable)columns.unshift("选择");
         const mappedRows = sourceRows.map(mapper);
@@ -5644,7 +5644,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#marketing-center-page").classList.toggle("hidden",!marketingCenter);
         $("#ai-advisor-page").classList.toggle("hidden",!advisor);
         $("#module-page").classList.toggle("hidden",dashboard||exhibitionCalendar||marketingCenter||advisor);
-        if(exhibitionCalendar){exhibitionCalendarController??=mountExhibitionCalendar($("#exhibition-calendar-page"),{notify:toast,loadParticipation:async()=>{const {data,error}=await supabase.rpc("get_exhibition_participation_context");if(error)throw error;return data},saveParticipation:async item=>{const {data,error}=await supabase.rpc("save_exhibition_participation_plan",{target_event_key:item.event_key,target_event_name:item.event_name,target_status:item.status,target_owner_id:item.owner_id,change_reason:item.reason});if(error)throw error;return data},saveBudget:async item=>{const {data,error}=await supabase.rpc("save_exhibition_budget",{target_event_key:item.event_key,target_budget_amount:item.budget_amount,target_budget_currency:item.budget_currency,target_booth_price:item.booth_price,target_booth_price_currency:item.booth_price_currency,target_booth_price_unit:item.booth_price_unit,target_booth_price_source_url:item.source_url,target_booth_price_checked_on:item.checked_on,change_reason:item.reason});if(error)throw error;return data},saveAudience:async item=>{const {data,error}=await supabase.rpc("save_exhibition_target_audience",{target_event_key:item.event_key,target_customer_segments:item.customer_segments,target_regions:item.regions,target_buyer_roles:item.buyer_roles,target_customer_note:item.note,change_reason:item.reason});if(error)throw error;return data},saveHistory:async item=>{const {data,error}=await supabase.rpc("save_exhibition_historical_results",{target_event_key:item.event_key,target_event_year:item.event_year,target_leads_count:item.leads_count,target_qualified_count:item.qualified_count,target_quoted_count:item.quoted_count,target_deals_count:item.deals_count,target_effect_note:item.note,change_reason:item.reason});if(error)throw error;return data},saveMilestones:async item=>{const {data,error}=await supabase.rpc("save_exhibition_milestones",{target_event_key:item.event_key,target_milestones:item.milestones,change_reason:item.reason});if(error)throw error;return data}});exhibitionCalendarController.render();exhibitionCalendarController.refreshParticipation();return}
+        if(exhibitionCalendar){$("#festival-calendar").classList.remove("hidden");renderFestivalCalendar([]);exhibitionCalendarController??=mountExhibitionCalendar($("#exhibition-calendar-page"),{notify:toast,loadParticipation:async()=>{const {data,error}=await supabase.rpc("get_exhibition_participation_context");if(error)throw error;return data},saveParticipation:async item=>{const {data,error}=await supabase.rpc("save_exhibition_participation_plan",{target_event_key:item.event_key,target_event_name:item.event_name,target_status:item.status,target_owner_id:item.owner_id,change_reason:item.reason});if(error)throw error;return data},saveBudget:async item=>{const {data,error}=await supabase.rpc("save_exhibition_budget",{target_event_key:item.event_key,target_budget_amount:item.budget_amount,target_budget_currency:item.budget_currency,target_booth_price:item.booth_price,target_booth_price_currency:item.booth_price_currency,target_booth_price_unit:item.booth_price_unit,target_booth_price_source_url:item.source_url,target_booth_price_checked_on:item.checked_on,change_reason:item.reason});if(error)throw error;return data},saveAudience:async item=>{const {data,error}=await supabase.rpc("save_exhibition_target_audience",{target_event_key:item.event_key,target_customer_segments:item.customer_segments,target_regions:item.regions,target_buyer_roles:item.buyer_roles,target_customer_note:item.note,change_reason:item.reason});if(error)throw error;return data},saveHistory:async item=>{const {data,error}=await supabase.rpc("save_exhibition_historical_results",{target_event_key:item.event_key,target_event_year:item.event_year,target_leads_count:item.leads_count,target_qualified_count:item.qualified_count,target_quoted_count:item.quoted_count,target_deals_count:item.deals_count,target_effect_note:item.note,change_reason:item.reason});if(error)throw error;return data},saveMilestones:async item=>{const {data,error}=await supabase.rpc("save_exhibition_milestones",{target_event_key:item.event_key,target_milestones:item.milestones,change_reason:item.reason});if(error)throw error;return data}});exhibitionCalendarController.render();exhibitionCalendarController.refreshParticipation();return}
         if(marketingCenter){renderMarketingWorkbench(dashboardState.rows);return}
         if(advisor){renderAdvisor();return}
         if (!dashboard) await loadModule(view, options);

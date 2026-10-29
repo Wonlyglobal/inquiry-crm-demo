@@ -40,3 +40,15 @@ test('actual festival logic handles date boundaries and only displays holidays',
  assert.equal((nodes['#festival-month'].innerHTML.match(/class="festival-day /g)||[]).length,42);
  assert.equal((nodes['#festival-banner'].innerHTML.match(/class="festival-card"/g)||[]).length,3);
 });
+
+
+test('international calendar tabs switch panels without changing exhibition data',()=>{
+ const start=source.indexOf('      let internationalCalendarTab=');
+ const end=source.indexOf('      function festivalsOfYear(',start);
+ const panels=Object.fromEntries(['#international-exhibitions','#festival-calendar','#exhibition-calendar-page .exhibition-note'].map(id=>[id,{hidden:false,classList:{toggle(name,value){panels[id].hidden=value}}}]));
+ const buttons=['exhibitions','holidays'].map(tab=>({dataset:{internationalTab:tab},classList:{toggle(){}},setAttribute(name,value){this[name]=value}}));
+ let renders=0;
+ const select=new Function('$','$$','renderFestivalCalendar',source.slice(start,end)+';return setInternationalCalendarTab;')(id=>panels[id],()=>buttons,()=>renders++);
+ select('holidays');assert.equal(panels['#international-exhibitions'].hidden,true);assert.equal(panels['#festival-calendar'].hidden,false);assert.equal(buttons[1]['aria-selected'],'true');assert.equal(renders,1);
+ select('exhibitions');assert.equal(panels['#international-exhibitions'].hidden,false);assert.equal(panels['#festival-calendar'].hidden,true);assert.equal(buttons[0]['aria-selected'],'true');assert.equal(renders,1);
+});

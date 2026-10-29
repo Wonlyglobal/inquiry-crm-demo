@@ -67,3 +67,10 @@ test('short real demand retains its exact words and satisfies the server minimum
  const {rows,warnings}=normalizeCustomerImports([{...base,demand:'门锁'}]);
  assert.equal(rows[0].demand,'需求记录：门锁');assert.equal(warnings.length,1);
 });
+test('daily template is accepted by the customer parser and acquisition date stays distinct from purchase date',async()=>{
+ const {readFile}=await import('node:fs/promises');const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+ const start=html.indexOf('      const customerImportKeys='),end=html.indexOf('      function downloadCustomerImportTemplate',start);
+ const parse=new Function(html.slice(start,end)+';return parseCustomerCsv;')();
+ const parsed=parse('客户名称,联系人,国家,邮箱,电话,来源,需求简述,获取日期\n示例公司,示例联系人,示例地区,a@example.com,,电话,联系了解需求,2026-10-01');
+ const row=normalizeCustomerImports(parsed).rows[0];assert.equal(row.company,'示例公司');assert.equal(row.source,'phone');assert.match(row.source_detail,/原线索获取日期：2026-10-01/);assert.equal(row.expected_purchase_date,undefined);
+});

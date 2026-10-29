@@ -1,18 +1,20 @@
+import {decodeCustomerCsv} from './customer-csv-reader.mjs?v=20261029-encoding1';
 import {leadWorksheetRecords} from './lead-worksheet-rows.mjs?v=20261029-1';
 import {mountWeeklyCustomerReview} from './weekly-customer-review.mjs?v=20261028-1';
-import {sources,localDay,dailyState,summarize,importRows,normalizeLead,leadIssues,leadRequestMessage} from './sales-leads.mjs?v=20261028-contact-1';
+import {sources,localDay,dailyState,summarize,importRows,normalizeLead,leadIssues,leadRequestMessage} from './sales-leads.mjs?v=20261029-cross1';
 import {renderLeadFileState,bindLeadFilePicker,clearLeadImportSelection} from './sales-lead-import-ui.mjs?v=20261029-remove-file1';
 import {leadStageLabel,formatStageSummary} from './sales-lead-stages.mjs';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=t=>$('#status').textContent=t,stamp=t=>t?new Date(t).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
 let weeklyReview,contactTarget;
+let selectedImportFile=null,importRecords=[];
 let db,data,pendingRows=[],requestId=crypto.randomUUID(),busy=false;
 const fileNodes={name:$('#file-name'),state:$('#file-state'),remove:$('#remove-import-file')};
-$('#remove-import-file').onclick=()=>{if(busy)return;clearLeadImportSelection({input:$('#excel'),preview:$('#import-preview'),confirm:$('#import'),nodes:fileNodes},()=>{pendingRows=[]});status('已移除待导入文件和预览，未删除已保存线索。可以重新选择文件。');$('#select-file').focus()};
+$('#remove-import-file').onclick=()=>{if(busy)return;clearLeadImportSelection({input:$('#excel'),preview:$('#import-preview'),confirm:$('#import'),nodes:fileNodes},()=>{pendingRows=[];importRecords=[];selectedImportFile=null;$('#import-acquired-on').value=''});status('已移除待导入文件和预览，未删除已保存线索。可以重新选择文件。');$('#select-file').focus()};
 bindLeadFilePicker($('#select-file'),$('#excel'));
 renderLeadFileState(fileNodes);
 async function rpc(name,args){const {data,error}=await db.rpc(name,args);if(error)throw Error(leadRequestMessage(error));return data}
-async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button,#from,#to,#sales,#excel').forEach(b=>b.disabled=true);try{await fn()}catch(e){status('未完成：'+leadRequestMessage(e))}finally{busy=false;document.querySelectorAll('button,#from,#to,#sales,#excel').forEach(b=>b.disabled=false);$('#import').disabled=!pendingRows.length}}
+async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button,#from,#to,#sales,#excel,#import-acquired-on').forEach(b=>b.disabled=true);try{await fn()}catch(e){status('未完成：'+leadRequestMessage(e))}finally{busy=false;document.querySelectorAll('button,#from,#to,#sales,#excel,#import-acquired-on').forEach(b=>b.disabled=false);$('#import').disabled=!pendingRows.length}}
 const labels={complete:'已达标',missing:'未提交',short:'不足目标',no_new:'已申报无新增',exempt:'豁免',weekend:'周末免录'};
 async function load(){
  status('正在核对服务器数据…');const selected=$('#sales').value;
@@ -56,15 +58,23 @@ $('#report-deadline-form').onsubmit=e=>{e.preventDefault();action(async()=>{awai
 $('#exempt-form').onsubmit=e=>{e.preventDefault();action(async()=>{await rpc('exempt_sales_lead_day',Object.fromEntries(new FormData(e.target)));await load()})};
 async function xlsx(){return import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs')}
 $('#template').onclick=()=>action(async()=>{const X=await xlsx(),book=X.utils.book_new();X.utils.book_append_sheet(book,X.utils.aoa_to_sheet([['客户名称','联系人','国家','邮箱','电话','来源','需求简述','获取日期']]),'每日客户线索');X.writeFile(book,'WONLY-每日客户线索模板.xlsx')});
+function previewLeadRecords(){
+ pendingRows=[];
+ const rows=importRows(importRecords,{acquiredOn:$('#import-acquired-on').value});
+ pendingRows=rows;
+ $('#import-preview').textContent=`待导入 ${rows.length} 条，请逐条核对（统一获取日期只补文件中空白的获取日期；预计采购日期不会替代获取日期）：\n`+rows.map((r,i)=>`${i+1}. ${r.company||r.contact}｜${r.country}｜${r.acquired_on}｜${sources[r.source]||r.source}｜${r.email||r.phone||'联系方式待补充'}｜${r.demand}`).join('\n');
+ $('#import-preview').hidden=false;renderLeadFileState(fileNodes,{state:'ready',file:selectedImportFile,rowCount:rows.length});status('预览就绪，确认后才写入。历史补录按实际录入日统计，不回填打卡；已在客户管理导入的客户请勿重复计为每日新增。');
+}
+$('#import-acquired-on').onchange=()=>{if(!importRecords.length)return;action(async()=>{try{previewLeadRecords()}catch(error){$('#import-preview').hidden=true;renderLeadFileState(fileNodes,{state:'error',file:selectedImportFile,error:error.message});throw error}})};
 $('#excel').onchange=()=>{const f=$('#excel').files[0];if(!f)return;action(async()=>{
- pendingRows=[];$('#import-preview').textContent='';$('#import-preview').hidden=true;renderLeadFileState(fileNodes,{state:'loading',file:f});
+ selectedImportFile=f;importRecords=[];pendingRows=[];$('#import-preview').textContent='';$('#import-preview').hidden=true;renderLeadFileState(fileNodes,{state:'loading',file:f});
  try{
-  if(f.size>2*1024*1024)throw Error('文件不得超过2MB');const X=await xlsx(),book=X.read(await f.arrayBuffer(),{type:'array',cellDates:false,cellFormula:false,bookVBA:false});if(book.SheetNames.length!==1)throw Error('请使用单工作表模板，避免漏导其他工作表');pendingRows=importRows(leadWorksheetRecords(X,book.Sheets[book.SheetNames[0]]));
-  $('#import-preview').textContent=`待导入 ${pendingRows.length} 条，请逐条核对：\n`+pendingRows.map((r,i)=>`${i+1}. ${r.company||r.contact}｜${r.country}｜${r.acquired_on}｜${r.email||r.phone||'联系方式待补充'}｜${r.demand}`).join('\n');$('#import-preview').hidden=false;renderLeadFileState(fileNodes,{state:'ready',file:f,rowCount:pendingRows.length});status('预览就绪，确认后才写入。重复记录由服务器去重。');
+  if(f.size>2*1024*1024)throw Error('文件不得超过2MB');const X=await xlsx(),bytes=await f.arrayBuffer(),book=/\.csv$/i.test(f.name)?X.read(decodeCustomerCsv(bytes),{type:'string',raw:true,cellDates:false,cellFormula:false,bookVBA:false}):X.read(bytes,{type:'array',cellDates:false,cellFormula:false,bookVBA:false});if(book.SheetNames.length!==1)throw Error('请使用单工作表模板，避免漏导其他工作表');importRecords=leadWorksheetRecords(X,book.Sheets[book.SheetNames[0]]);
+  previewLeadRecords();
  }catch(error){renderLeadFileState(fileNodes,{state:'error',file:f,error:error.message});throw error}
  finally{$('#excel').value=''}
 })};
-$('#import').onclick=()=>action(async()=>{if(!pendingRows.length||!confirm(`确认导入${pendingRows.length}条本人线索？`))return;await rpc('record_sales_leads',{rows:pendingRows,entry_method:'excel'});pendingRows=[];$('#excel').value='';$('#import-preview').textContent='';$('#import-preview').hidden=true;renderLeadFileState(fileNodes,{state:'done'});try{await load()}catch(error){status('导入已保存，但列表刷新失败。请点击刷新数据重试：'+error.message)}});
+$('#import').onclick=()=>action(async()=>{if(!pendingRows.length||!confirm(`确认导入${pendingRows.length}条本人线索？`))return;await rpc('record_sales_leads',{rows:pendingRows,entry_method:'excel'});pendingRows=[];importRecords=[];selectedImportFile=null;$('#import-acquired-on').value='';$('#excel').value='';$('#import-preview').textContent='';$('#import-preview').hidden=true;renderLeadFileState(fileNodes,{state:'done'});try{await load()}catch(error){status('导入已保存，但列表刷新失败。请点击刷新数据重试：'+error.message)}});
 try{
  const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm');db=createClient('https://plhverjihjilnuhlhlxi.supabase.co','sb_publishable_uDiOI4MTIoHbsQDAqHsH1A_4Db3Hmmw');
  const {data:{user},error}=await db.auth.getUser();if(error||!user)throw Error('请先返回CRM登录，再打开此工作台');

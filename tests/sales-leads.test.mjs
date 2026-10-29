@@ -37,3 +37,20 @@ test('transport errors are not presented as field validation or confirmed succes
  assert.match(leadRequestMessage(Error('TypeError: Load failed')),/尚未确认保存结果/);
  assert.match(leadRequestMessage(Error('第15行：国家未填写')),/第15行：国家未填写/);
 });
+test('customer template maps to daily leads, preserves extra information and requires a real acquisition date',()=>{
+ const r={'公司名称':'合成客户','联系人':'测试人','国家/地区':'测试地区','客户邮箱':'a@example.com','WhatsApp':'+12345','来源渠道':'表格导入','需求摘要':'门锁','产品品类':'智能锁','预计采购日期':'2026-12-01'};
+ assert.throws(()=>importRows([r]),/获取日期/);
+ const out=importRows([r],{acquiredOn:'2026-10-28'})[0];
+ assert.equal(out.company,'合成客户');assert.equal(out.country,'测试地区');assert.equal(out.phone,'+12345');assert.equal(out.source,'other');assert.equal(out.acquired_on,'2026-10-28');
+ assert.match(out.demand,/原获客渠道：表格导入/);assert.match(out.demand,/需求记录：门锁/);assert.match(out.demand,/预计采购日期（原文件）：2026-12-01/);
+ assert.equal(importRows([{...r,'获取日期':'2026-10-01'}],{acquiredOn:'2026-10-28'})[0].acquired_on,'2026-10-01');
+ assert.equal(r['需求摘要'],'门锁');assert.ok(!Object.hasOwn(r,'获取日期'));
+ assert.throws(()=>importRows([r],{acquiredOn:'2026-02-31'}),/获取日期/);
+});
+test('date completion revalidates the retained file and never submits automatically',()=>{
+ const page=readFileSync(new URL('../assets/sales-leads-page.mjs',import.meta.url),'utf8');
+ const handler=page.slice(page.indexOf("$('#import-acquired-on').onchange"),page.indexOf("$('#excel').onchange"));
+ assert.match(handler,/previewLeadRecords/);assert.doesNotMatch(handler,/rpc\(/);
+ assert.match(page,/decodeCustomerCsv\(bytes\)/);assert.match(page,/importRecords=\[\]/);
+ const html=readFileSync(new URL('../sales-leads.html',import.meta.url),'utf8');assert.match(html,/id="import-acquired-on" type="date"/);assert.doesNotMatch(html,/id="import-acquired-on"[^>]*value=/);
+});

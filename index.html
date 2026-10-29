@@ -5541,9 +5541,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           const frame=$("#"+workspaceRoute.key+"-frame");
           if(!frame.getAttribute("src"))frame.src=workspaceRoute.href;
           else if(frame.dataset.workspaceView!==view&&workspaceRoute.anchor){
-            frame.dataset.workspaceAnchor=workspaceRoute.anchor;
-            const locate=()=>{frame.contentWindow.location.hash=frame.dataset.workspaceAnchor;};
-            if(frame.contentDocument?.readyState==="complete")locate();else frame.addEventListener("load",locate,{once:true});
+            // Navigate the canonical URL fragment, including while the initial document is loading.
+            // Same-document fragment navigation preserves the existing form and filter state.
+            frame.src=workspaceRoute.href;
           }
           frame.dataset.workspaceView=view;
           history.replaceState(null,"",location.pathname+location.search+"#view="+view);

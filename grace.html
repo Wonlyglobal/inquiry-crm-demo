@@ -1828,6 +1828,12 @@
           </div>
           <section id="festival-calendar" class="festival-calendar hidden" role="tabpanel" aria-labelledby="international-holidays-tab">
             <div id="festival-banner" class="festival-banner"></div>
+            <div class="festival-month-controls" role="group" aria-label="选择节日月份" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+              <button type="button" class="ghost" id="festival-prev">上个月</button>
+              <input type="month" class="input" id="festival-month-picker" aria-label="节日月份" min="1900-01" max="2100-12" style="width:auto;min-width:170px">
+              <button type="button" class="ghost" id="festival-next">下个月</button>
+              <button type="button" class="ghost" id="festival-today">回到本月</button>
+            </div>
             <div id="festival-month" class="festival-month"></div>
           </section>
         </section>
@@ -3272,6 +3278,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       }
       let activeModuleView = "", activeInquiryScope = "", activeInquiryArchive = false, activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, knowledgeCountState = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [], mailAiDraftId = null, mailResponsePlan = null, mailFactCheckState = null, mailFactCheckRunning = false;
       $$("[data-international-tab]").forEach(button=>button.addEventListener("click",()=>setInternationalCalendarTab(button.dataset.internationalTab)));
+      $("#festival-prev").addEventListener("click",()=>changeFestivalMonth(-1));
+      $("#festival-next").addEventListener("click",()=>changeFestivalMonth(1));
+      $("#festival-today").addEventListener("click",()=>{festivalDisplayedMonth=null;renderFestivalCalendar()});
+      $("#festival-month-picker").addEventListener("change",event=>{
+        if(!/^\d{4}-\d{2}$/.test(event.target.value))return;
+        const [year,month]=event.target.value.split("-").map(Number);
+        if(year<1900||year>2100||month<1||month>12)return;
+        festivalDisplayedMonth=new Date(year,month-1,1);renderFestivalCalendar();
+      });
       const FESTIVAL_FIXED=[
         [1,1,"元旦","New Year's Day","holiday","全球","新年目标 / 新品预告"],[2,14,"情人节","Valentine's Day","holiday","全球","礼品内容建议提前 2 周预热"],[3,8,"国际妇女节","International Women's Day","awareness","全球","女性用户故事 / 安全话题"],[3,17,"圣帕特里克节","St. Patrick's Day","holiday","美国·爱尔兰",""],[4,1,"愚人节","April Fools' Day","holiday","全球","品牌趣味互动"],[4,22,"世界地球日","Earth Day","awareness","全球","环保 / 低功耗卖点"],[6,5,"世界环境日","World Environment Day","awareness","全球",""],[7,1,"加拿大国庆日","Canada Day","holiday","加拿大",""],[7,4,"美国独立日","Independence Day","holiday","美国","夏季促销节点"],[10,31,"万圣节","Halloween","holiday","欧美","提前 3 周准备节日沟通"],[11,11,"双十一 / 退伍军人节","Singles' Day / Veterans Day","shopping","全球·美国","独立站折扣与客户触达"],[12,24,"平安夜","Christmas Eve","holiday","全球",""],[12,25,"圣诞节","Christmas Day","holiday","全球","礼品季主战场，物流截单要提前"],[12,26,"节礼日","Boxing Day","shopping","英·加·澳","年末清仓促销"],[12,31,"跨年夜","New Year's Eve","holiday","全球",""]
       ];
@@ -3298,11 +3313,19 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       function festivalsOn(date){const stamp=new Date(date.getFullYear(),date.getMonth(),date.getDate()).getTime();return festivalsOfYear(date.getFullYear()).filter(item=>item.end?stamp>=item.date.getTime()&&stamp<=item.end.getTime():stamp===item.date.getTime())}
       function upcomingFestivals(from=new Date(),count=3){const today=new Date(from.getFullYear(),from.getMonth(),from.getDate());return [...festivalsOfYear(today.getFullYear()),...festivalsOfYear(today.getFullYear()+1)].filter(item=>(item.end||item.date)>=today).slice(0,count).map(item=>({...item,ongoing:item.date<today,daysLeft:Math.max(0,Math.round((item.date-today)/86400000))}))}
       function festivalCountdown(item){return item.ongoing?"进行中":item.daysLeft===0?"今天":item.daysLeft===1?"明天":`${item.daysLeft} 天后`}
+      let festivalDisplayedMonth=null;
+      function changeFestivalMonth(offset){
+        const current=festivalDisplayedMonth||new Date();
+        const next=new Date(current.getFullYear(),current.getMonth()+offset,1);
+        if(next.getFullYear()<1900||next.getFullYear()>2100)return;
+        festivalDisplayedMonth=next;renderFestivalCalendar();
+      }
       function renderFestivalCalendar(activityRows=[]){
         const root=$("#festival-calendar"),banner=$("#festival-banner"),month=$("#festival-month");if(!root||!banner||!month)return;
         const upcoming=upcomingFestivals(),weekdays=["日","一","二","三","四","五","六"],typeNames={shopping:"电商大促",holiday:"节日",awareness:"国际主题日"};
         banner.innerHTML=`<div class="festival-banner-head"><i data-lucide="party-popper"></i><b>近期节日一览</b><small>· 查看日期与适用地区</small></div><div class="festival-upcoming">${upcoming.map(item=>`<article class="festival-card"><div class="festival-date"><small>${item.date.getMonth()+1}月</small><b>${item.date.getDate()}</b><span>周${weekdays[item.date.getDay()]}</span></div><div class="festival-card-copy"><div class="festival-card-title"><b title="${esc(item.name)}">${esc(item.name)}</b><span class="festival-countdown">${festivalCountdown(item)}</span></div><p title="${esc(item.en)}">${esc(item.en)}</p><div class="festival-card-meta"><span class="festival-chip ${item.type}">${typeNames[item.type]}</span><span>· ${esc(item.region)}</span></div></div></article>`).join("")}</div>`;
-        const now=new Date(),year=now.getFullYear(),monthIndex=now.getMonth(),first=new Date(year,monthIndex,1),start=new Date(first);start.setDate(1-first.getDay());
+        const now=new Date(),displayed=festivalDisplayedMonth||now,year=displayed.getFullYear(),monthIndex=displayed.getMonth(),first=new Date(year,monthIndex,1),start=new Date(first);start.setDate(1-first.getDay());
+        const picker=$("#festival-month-picker");if(picker)picker.value=`${year}-${String(monthIndex+1).padStart(2,"0")}`;
         const cells=Array.from({length:42},(_,index)=>{const date=new Date(start);date.setDate(start.getDate()+index);return date}),key=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
         month.innerHTML=`<div class="festival-month-head"><div><b>${year}年${monthIndex+1}月 节日日历</b><p>仅展示节日日期与适用地区，具体日期以当地公告为准</p></div><div class="festival-legend"><span><i style="background:#e26058"></i>电商大促</span><span><i style="background:#d7a52d"></i>节日</span><span><i style="background:#4e9870"></i>国际主题日</span></div></div><div class="festival-weekdays">${weekdays.map(day=>`<span>周${day}</span>`).join("")}</div><div class="festival-grid">${cells.map(date=>{const inMonth=date.getMonth()===monthIndex,isToday=date.toDateString()===now.toDateString(),events=festivalsOn(date);return `<div class="festival-day ${inMonth?"":"outside"} ${isToday?"today":""}"><span class="festival-day-number">${date.getDate()}</span><div class="festival-day-events">${events.map(item=>`<span class="festival-day-event ${item.type}" title="${esc(item.en)} · ${esc(item.region)}">${esc(item.name)}</span>`).join("")}</div></div>`}).join("")}</div>`;
         root.classList.remove("hidden");icons();

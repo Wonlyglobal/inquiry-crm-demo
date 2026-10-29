@@ -30,8 +30,20 @@ test('actual festival logic handles date boundaries and only displays holidays',
  const nodes=Object.fromEntries(['#festival-calendar','#festival-banner','#festival-month'].map(key=>[key,{innerHTML:'',classList:{remove(){}}}]));
  const clock=new Date(2026,9,29,12);
  class FixedDate extends Date{constructor(...args){super(...(args.length?args:[clock.getTime()]))}}
- const logic=new Function('Date','$','esc','icons',source.slice(begin,end)+';return {festivalsOfYear,upcomingFestivals,renderFestivalCalendar,changeFestivalMonth};')(FixedDate,key=>nodes[key],v=>String(v),()=>{});
+ const logic=new Function('Date','$','esc','icons',source.slice(begin,end)+';return {festivalsOfYear,upcomingFestivals,renderFestivalCalendar,changeFestivalMonth,festivalAudience};')(FixedDate,key=>nodes[key],v=>String(v),()=>{});
  const blackFriday=logic.festivalsOfYear(2026).find(x=>x.en==='Black Friday');
+ const industry=logic.festivalsOfYear(2026).filter(x=>x.relevance);
+ assert.equal(industry.length,5);assert.ok(industry.every(x=>x.source.startsWith('https://')));
+ const architecture=industry.find(x=>x.en==='World Architecture Day');assert.equal(architecture.date.getMonth(),9);assert.equal(architecture.date.getDate(),5);
+ assert.equal(logic.festivalAudience(architecture).importance,'行业重点关注');
+ assert.match(logic.festivalAudience(architecture).scope,/非法定/);
+
+ assert.equal(logic.festivalAudience(blackFriday).importance,'重点关注');
+ assert.match(logic.festivalAudience(blackFriday).scope,/商业活动/);
+ const earth=logic.festivalsOfYear(2026).find(x=>x.en==='Earth Day');
+ assert.match(logic.festivalAudience(earth).scope,/不代表各国统一休假/);
+ assert.match(logic.festivalAudience({region:'印度·海外印裔',en:'Diwali',type:'holiday'}).countries,/印度/);
+
  assert.equal(blackFriday.date.getMonth(),10);assert.equal(blackFriday.date.getDate(),27);
  assert.equal(logic.upcomingFestivals(new Date(2027,0,1),1)[0].date.getFullYear(),2027);
  logic.renderFestivalCalendar([{day:'2026-10-29',total_sent:2,total_received:3},{day:'2026-10-29',total_sent:4,total_received:1}]);

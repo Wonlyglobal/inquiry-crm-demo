@@ -12,15 +12,16 @@ try{
  await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
  create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('app_metadata',jsonb_build_object('crm_read_only',coalesce(current_setting('test.read_only',true),'false')))$$;
- create table profiles(id uuid primary key,active boolean,role text);
- create table inquiries(id uuid primary key,owner_id uuid,validity text,excluded_from_dashboard boolean,status text,invalid_review_status text,assigned_at timestamptz,first_valid_contact_at timestamptz,updated_by uuid,updated_at timestamptz,last_change_reason text);
+ create table profiles(id uuid primary key,active boolean,role text,is_test_data boolean default false,data_environment text default 'production');
+ create table inquiries(id uuid primary key,owner_id uuid,validity text,excluded_from_dashboard boolean,status text,invalid_review_status text,assigned_at timestamptz,first_valid_contact_at timestamptz,updated_by uuid,updated_at timestamptz,last_change_reason text,archived_at timestamptz,is_test_data boolean default false,data_environment text default 'production');
  create table follow_ups(id uuid primary key,inquiry_id uuid,author_id uuid,method text,content text,is_first_valid_contact boolean default false,created_at timestamptz default now());
  create table audit_logs(actor_id uuid,entity_type text,entity_id uuid,action text,before_data jsonb,after_data jsonb,reason text);
- insert into profiles values('${a}',true,'sales'),('${b}',true,'sales');
- insert into inquiries values('${i}','${a}','valid',false,'received',null,'2026-10-10T00:00Z',null,null,null,null),('${j}','${b}','valid',false,'received',null,'2026-10-10T00:00Z',null,null,null,null);
+ insert into profiles(id,active,role) values('${a}',true,'sales'),('${b}',true,'sales');
+ insert into inquiries(id,owner_id,validity,excluded_from_dashboard,status,invalid_review_status,assigned_at,first_valid_contact_at,updated_by,updated_at,last_change_reason) values('${i}','${a}','valid',false,'received',null,'2026-10-10T00:00Z',null,null,null,null),('${j}','${b}','valid',false,'received',null,'2026-10-10T00:00Z',null,null,null,null);
  insert into follow_ups(id,inquiry_id,author_id,method,content) values('${f}','${j}','${b}','phone','synthetic contact');
  select set_config('test.uid','${a}',false);`);
  await db.exec(await readFile(new URL('../supabase/migrations/20261029180000_confirm_assignment_contact.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../supabase/migrations/20261029181000_confirm_contact_isolation.sql',import.meta.url),'utf8'));
  const call=(id=i,evidence=null,at='2026-10-10T02:00:00Z',note='业务员模拟确认实际联系')=>db.query('select confirm_assignment_first_contact($1,$2,$3,$4) result',[id,evidence,at,note]);
  await reject(()=>call(j),/本人/);
  await reject(()=>call(i,f),/本人/);
@@ -31,7 +32,7 @@ try{
  await db.exec("select set_config('test.read_only','false',false);update profiles set role='sales_manager'");await reject(()=>call(),/负责业务员/);
  await db.exec("update profiles set role='sales';update profiles set active=false");await reject(()=>call(),/负责业务员/);
  await db.exec("update profiles set active=true");
- for(const patch of ["status='won'","status='lost'","excluded_from_dashboard=true","validity='invalid'","invalid_review_status='pending'"]){
+ for(const patch of ["status='won'","status='lost'","excluded_from_dashboard=true","validity='invalid'","invalid_review_status='pending'","archived_at=now()","is_test_data=true","data_environment='test'"]){
   await db.exec('begin;update inquiries set '+patch+` where id='${i}'`);await reject(()=>call(),/当前询盘/);await db.exec('rollback');
  }
  equal((await db.query('select count(*)::int n from audit_logs')).rows[0].n,0);

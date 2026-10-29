@@ -18,7 +18,7 @@ export function normalizeCustomerImports(input){
    row.source='other';notes.push('实际获客渠道待确认（原文件未填写）');
    warnings.push(`第${n}行：获客渠道未填写，暂记其他（待确认）`);
   }else if(normalized)row.source=normalized;
-  else if(/^(?:谷歌|google|谷歌搜索|google搜索|特易|特易资讯|特易海关数据)$/i.test(source)){
+  else if(/^(?:谷歌|google|谷歌搜索|google搜索|特易|特易资讯|特易海关数据|表格导入|Excel导入)$/i.test(source)){
    row.source='other';notes.push(`原获客渠道：${source}；具体渠道待确认`);
    warnings.push(`第${n}行：原渠道“${source}”已保留，暂记其他（待确认），不推定为广告或官网询盘`);
   }else if(customerType.test(source)){
@@ -33,6 +33,7 @@ export function normalizeCustomerImports(input){
    row.demand=`需求记录：${String(row.demand).trim()}`;
    warnings.push(`第${n}行：简短需求保留原文并加“需求记录：”标签`);
   }
+  if(String(row.acquired_on||'').trim())notes.push(`原线索获取日期：${String(row.acquired_on).trim()}（非采购日期）`);
   if(String(row.company_type||'').trim())notes.push(`客户类型（选填，原文件）：${String(row.company_type).trim()}`);
   const raw=String(row.email||'').trim();
   if(raw){

@@ -30,7 +30,7 @@ test('actual festival logic handles date boundaries and only displays holidays',
  const nodes=Object.fromEntries(['#festival-calendar','#festival-banner','#festival-month'].map(key=>[key,{innerHTML:'',classList:{remove(){}}}]));
  const clock=new Date(2026,9,29,12);
  class FixedDate extends Date{constructor(...args){super(...(args.length?args:[clock.getTime()]))}}
- const logic=new Function('Date','$','esc','icons',source.slice(begin,end)+';return {festivalsOfYear,upcomingFestivals,renderFestivalCalendar};')(FixedDate,key=>nodes[key],v=>String(v),()=>{});
+ const logic=new Function('Date','$','esc','icons',source.slice(begin,end)+';return {festivalsOfYear,upcomingFestivals,renderFestivalCalendar,changeFestivalMonth};')(FixedDate,key=>nodes[key],v=>String(v),()=>{});
  const blackFriday=logic.festivalsOfYear(2026).find(x=>x.en==='Black Friday');
  assert.equal(blackFriday.date.getMonth(),10);assert.equal(blackFriday.date.getDate(),27);
  assert.equal(logic.upcomingFestivals(new Date(2027,0,1),1)[0].date.getFullYear(),2027);
@@ -39,6 +39,10 @@ test('actual festival logic handles date boundaries and only displays holidays',
  assert.doesNotMatch(nodes['#festival-banner'].innerHTML,/客户触达|预热|提前 3 周/);
  assert.equal((nodes['#festival-month'].innerHTML.match(/class="festival-day /g)||[]).length,42);
  assert.equal((nodes['#festival-banner'].innerHTML.match(/class="festival-card"/g)||[]).length,3);
+ logic.changeFestivalMonth(2);assert.match(nodes['#festival-month'].innerHTML,/2026年12月/);
+ logic.changeFestivalMonth(1);assert.match(nodes['#festival-month'].innerHTML,/2027年1月/);assert.match(nodes['#festival-month'].innerHTML,/元旦/);
+ logic.changeFestivalMonth(-1);assert.match(nodes['#festival-month'].innerHTML,/2026年12月/);
+
 });
 
 

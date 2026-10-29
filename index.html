@@ -681,6 +681,50 @@
       button.module-insight.active { border-color:var(--green); background:var(--soft); box-shadow:inset 0 0 0 1px var(--green); }
       .module-insight span { display:block; margin-bottom:8px; color:var(--muted); font-size:11px; }
       .module-insight b { font-size:21px; }
+      .festival-calendar { display:grid; gap:14px; margin-bottom:14px; }
+      .festival-banner { overflow:hidden; padding:18px; border-radius:22px; color:#fff; background:linear-gradient(120deg,#18342b,#315f49 52%,#5d7d6c); box-shadow:0 14px 36px rgba(24,52,43,.16); }
+      .festival-banner-head { display:flex; align-items:center; gap:9px; margin-bottom:13px; }
+      .festival-banner-head svg { width:19px; height:19px; }
+      .festival-banner-head b { font-size:15px; }
+      .festival-banner-head small { color:rgba(255,255,255,.7); }
+      .festival-upcoming { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+      .festival-card { display:flex; min-width:0; gap:11px; padding:12px; border-radius:15px; background:rgba(255,255,255,.11); }
+      .festival-card:first-child { background:#fff; color:var(--ink); }
+      .festival-date { width:52px; flex:0 0 52px; display:grid; place-content:center; text-align:center; border-radius:11px; background:rgba(255,255,255,.13); }
+      .festival-card:first-child .festival-date { background:var(--soft); color:var(--brand); }
+      .festival-date small,.festival-date span { display:block; font-size:10px; opacity:.78; }
+      .festival-date b { display:block; font-size:22px; line-height:1.05; }
+      .festival-card-copy { min-width:0; flex:1; }
+      .festival-card-title { display:flex; align-items:center; justify-content:space-between; gap:7px; }
+      .festival-card-title b,.festival-card-copy p { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .festival-card-title b { font-size:13px; }
+      .festival-countdown { flex:0 0 auto; padding:3px 7px; border-radius:999px; background:rgba(255,255,255,.16); font-size:10px; font-weight:800; }
+      .festival-card:first-child .festival-countdown { background:#e26058; color:#fff; }
+      .festival-card-copy p { margin:4px 0 0; color:rgba(255,255,255,.7); font-size:10px; }
+      .festival-card:first-child .festival-card-copy p { color:var(--muted); }
+      .festival-card-meta { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; font-size:9px; }
+      .festival-chip { padding:3px 6px; border-radius:6px; background:rgba(255,255,255,.14); }
+      .festival-card:first-child .festival-chip.shopping { background:#fff0ef; color:#b5463f; }
+      .festival-card:first-child .festival-chip.holiday { background:#fff6dc; color:#8d6814; }
+      .festival-card:first-child .festival-chip.awareness { background:#e9f5ed; color:#2e714a; }
+      .festival-month { padding:16px; border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.84); box-shadow:0 12px 32px rgba(42,66,60,.05); }
+      .festival-month-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+      .festival-month-head p { margin:4px 0 0; color:var(--muted); font-size:11px; }
+      .festival-legend { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; color:var(--muted); font-size:10px; }
+      .festival-legend i { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:4px; }
+      .festival-weekdays,.festival-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+      .festival-weekdays span { padding:7px; color:var(--muted); text-align:center; font-size:10px; }
+      .festival-day { min-width:0; min-height:88px; padding:7px; border-top:1px solid #edf0ed; border-right:1px solid #edf0ed; }
+      .festival-day:nth-child(7n) { border-right:0; }
+      .festival-day.outside { background:#f8faf9; color:#aeb8b3; }
+      .festival-day-number { display:inline-grid; width:25px; height:25px; place-items:center; border-radius:50%; font-size:11px; }
+      .festival-day.today .festival-day-number { background:var(--brand); color:#fff; font-weight:800; }
+      .festival-day-events { display:grid; gap:4px; margin-top:4px; }
+      .festival-day-event { overflow:hidden; padding:3px 5px; border-radius:5px; text-overflow:ellipsis; white-space:nowrap; font-size:9px; }
+      .festival-day-event.shopping { background:#fff0ef; color:#b5463f; }
+      .festival-day-event.holiday { background:#fff6dc; color:#8d6814; }
+      .festival-day-event.awareness { background:#e9f5ed; color:#2e714a; }
+      .festival-day-activity { color:#315f49; background:#e7f1e9; }
       .role-guide-live { display:grid; grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr); gap:14px; margin-bottom:14px; }
       .role-guide-card { padding:18px; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.82); box-shadow:0 10px 30px rgba(42,66,60,.05); }
       .role-guide-card h3 { margin:0; font-size:17px; }
@@ -1445,6 +1489,13 @@
         .module-search-wrap { max-width:none; }
         #module-filter-summary { align-self:flex-start; }
         .module-insights { grid-template-columns:1fr 1fr; }
+        .festival-upcoming { grid-template-columns:1fr; }
+        .festival-card:not(:first-child) { display:none; }
+        .festival-banner-head small { display:none; }
+        .festival-month { padding:11px; overflow:auto; }
+        .festival-month-head { align-items:flex-start; flex-direction:column; }
+        .festival-legend { justify-content:flex-start; }
+        .festival-weekdays,.festival-grid { min-width:700px; }
         .inquiry-command-head { flex-direction:column; }
         .inquiry-stage-tabs { grid-template-columns:1fr 1fr; }
         .module-filter-group { display:grid; grid-template-columns:1fr 1fr; }
@@ -1823,6 +1874,10 @@
           </section>
           <section id="role-guide-live" class="role-guide-live hidden" aria-label="角色指南实时更新"></section>
           <div id="module-insights" class="module-insights hidden"></div>
+          <section id="festival-calendar" class="festival-calendar hidden" aria-label="世界节日与营销节点">
+            <div id="festival-banner" class="festival-banner"></div>
+            <div id="festival-month" class="festival-month"></div>
+          </section>
           <section id="sales360-framework" class="card hidden" style="padding:20px;margin-bottom:20px" aria-label="360评价体系">
             <details><summary style="cursor:pointer"><strong>360评价体系 · 选择题 + 简答题</strong><p class="hint">每月评价、季度汇总；从任务或成员姓名进入对应问卷。</p></summary>
               <p>CRM客观数据60% + 多方评价40%。评价关注工作行为、具体事例和改进计划。</p>
@@ -3217,6 +3272,28 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         button.setAttribute("aria-disabled","false");
       }
       let activeModuleView = "", activeInquiryScope = "", activeInquiryArchive = false, activeTodayCategory = "all", emailTriageFilter = "pending", mailboxFolder = "inbox", followCalendarRange = "week", moduleLoadVersion = 0, moduleRows = [], moduleColumns = [], moduleRowClick = null, knowledgeCountState = null, mailTemplateItems = new Map(), mailComposerMessage = null, selectedMaterialAttachments = [], mailAiDraftId = null, mailResponsePlan = null, mailFactCheckState = null, mailFactCheckRunning = false;
+      const FESTIVAL_FIXED=[
+        [1,1,"元旦","New Year's Day","holiday","全球","新年目标 / 新品预告"],[2,14,"情人节","Valentine's Day","holiday","全球","礼品内容建议提前 2 周预热"],[3,8,"国际妇女节","International Women's Day","awareness","全球","女性用户故事 / 安全话题"],[3,17,"圣帕特里克节","St. Patrick's Day","holiday","美国·爱尔兰",""],[4,1,"愚人节","April Fools' Day","holiday","全球","品牌趣味互动"],[4,22,"世界地球日","Earth Day","awareness","全球","环保 / 低功耗卖点"],[6,5,"世界环境日","World Environment Day","awareness","全球",""],[7,1,"加拿大国庆日","Canada Day","holiday","加拿大",""],[7,4,"美国独立日","Independence Day","holiday","美国","夏季促销节点"],[10,31,"万圣节","Halloween","holiday","欧美","提前 3 周准备节日沟通"],[11,11,"双十一 / 退伍军人节","Singles' Day / Veterans Day","shopping","全球·美国","独立站折扣与客户触达"],[12,24,"平安夜","Christmas Eve","holiday","全球",""],[12,25,"圣诞节","Christmas Day","holiday","全球","礼品季主战场，物流截单要提前"],[12,26,"节礼日","Boxing Day","shopping","英·加·澳","年末清仓促销"],[12,31,"跨年夜","New Year's Eve","holiday","全球",""]
+      ];
+      const FESTIVAL_DATED=[
+        ["2026-10-06","2026-10-07","亚马逊秋季会员日","Prime Big Deal Days","shopping","亚马逊多站点","站外引流和优惠策略提前准备"],["2026-11-08","","排灯节","Diwali","holiday","印度·海外印裔",""],["2027-02-06","","春节","Lunar New Year","holiday","全球华人·东南亚","海外华人市场沟通"],["2027-03-10","","开斋节（约）","Eid al-Fitr","holiday","中东·东南亚","以当地公告为准"],["2027-09-15","","中秋节","Mid-Autumn Festival","holiday","全球华人",""],["2027-10-29","","排灯节","Diwali","holiday","印度·海外印裔",""],["2028-01-26","","春节","Lunar New Year","holiday","全球华人·东南亚","海外华人市场沟通"]
+      ];
+      function festivalNthWeekday(year,month,weekday,n){if(n>0){const first=new Date(year,month-1,1),offset=(weekday-first.getDay()+7)%7;return new Date(year,month-1,1+offset+(n-1)*7)}const last=new Date(year,month,0),offset=(last.getDay()-weekday+7)%7;return new Date(year,month-1,last.getDate()-offset)}
+      function festivalEaster(year){const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=(h+l-7*m+114)%31+1;return new Date(year,month-1,day)}
+      const festivalAddDays=(date,n)=>new Date(date.getFullYear(),date.getMonth(),date.getDate()+n),festivalDate=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+      function festivalsOfYear(year){const thanksgiving=festivalNthWeekday(year,11,4,4),easter=festivalEaster(year),rules=[[festivalNthWeekday(year,2,0,2),"超级碗","Super Bowl (约)","holiday","美国","以 NFL 官方公布为准"],[festivalAddDays(easter,-2),"耶稣受难日","Good Friday","holiday","欧美",""],[easter,"复活节","Easter","holiday","欧美","春季家庭场景沟通"],[festivalNthWeekday(year,5,0,2),"母亲节","Mother's Day","holiday","美·加·澳","提前 2–3 周触达"],[festivalNthWeekday(year,5,1,-1),"阵亡将士纪念日","Memorial Day","shopping","美国","夏季大促节点"],[festivalNthWeekday(year,6,0,3),"父亲节","Father's Day","holiday","美·加","智能硬件礼品节点"],[festivalNthWeekday(year,9,1,1),"美国劳动节","Labor Day","shopping","美国","返校季尾声促销"],[thanksgiving,"感恩节","Thanksgiving","holiday","美国",""],[festivalAddDays(thanksgiving,1),"黑色星期五","Black Friday","shopping","全球","全年大促，提前 4–6 周准备"],[festivalAddDays(thanksgiving,4),"网络星期一","Cyber Monday","shopping","全球","线上促销续航"]];const fixed=FESTIVAL_FIXED.map(([month,day,name,en,type,region,tip])=>({date:new Date(year,month-1,day),name,en,type,region,tip})),dated=FESTIVAL_DATED.filter(([start])=>start.startsWith(String(year))).map(([start,end,name,en,type,region,tip])=>({date:festivalDate(start),end:end?festivalDate(end):null,name,en,type,region,tip}));return [...fixed,...rules.map(([date,name,en,type,region,tip])=>({date,name,en,type,region,tip})),...dated].sort((a,b)=>a.date-b.date)}
+      function festivalsOn(date){const stamp=new Date(date.getFullYear(),date.getMonth(),date.getDate()).getTime();return festivalsOfYear(date.getFullYear()).filter(item=>item.end?stamp>=item.date.getTime()&&stamp<=item.end.getTime():stamp===item.date.getTime())}
+      function upcomingFestivals(from=new Date(),count=3){const today=new Date(from.getFullYear(),from.getMonth(),from.getDate());return [...festivalsOfYear(today.getFullYear()),...festivalsOfYear(today.getFullYear()+1)].filter(item=>(item.end||item.date)>=today).slice(0,count).map(item=>({...item,ongoing:item.date<today,daysLeft:Math.max(0,Math.round((item.date-today)/86400000))}))}
+      function festivalCountdown(item){return item.ongoing?"进行中":item.daysLeft===0?"今天":item.daysLeft===1?"明天":`${item.daysLeft} 天后`}
+      function renderFestivalCalendar(activityRows=[]){
+        const root=$("#festival-calendar"),banner=$("#festival-banner"),month=$("#festival-month");if(!root||!banner||!month)return;
+        const upcoming=upcomingFestivals(),weekdays=["日","一","二","三","四","五","六"],typeNames={shopping:"电商大促",holiday:"节日",awareness:"国际主题日"};
+        banner.innerHTML=`<div class="festival-banner-head"><i data-lucide="party-popper"></i><b>近期节日一览</b><small>· 查看日期与适用地区</small></div><div class="festival-upcoming">${upcoming.map(item=>`<article class="festival-card"><div class="festival-date"><small>${item.date.getMonth()+1}月</small><b>${item.date.getDate()}</b><span>周${weekdays[item.date.getDay()]}</span></div><div class="festival-card-copy"><div class="festival-card-title"><b title="${esc(item.name)}">${esc(item.name)}</b><span class="festival-countdown">${festivalCountdown(item)}</span></div><p title="${esc(item.en)}">${esc(item.en)}</p><div class="festival-card-meta"><span class="festival-chip ${item.type}">${typeNames[item.type]}</span><span>· ${esc(item.region)}</span></div></div></article>`).join("")}</div>`;
+        const now=new Date(),year=now.getFullYear(),monthIndex=now.getMonth(),first=new Date(year,monthIndex,1),start=new Date(first);start.setDate(1-first.getDay());
+        const cells=Array.from({length:42},(_,index)=>{const date=new Date(start);date.setDate(start.getDate()+index);return date}),key=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+        month.innerHTML=`<div class="festival-month-head"><div><b>${year}年${monthIndex+1}月 节日日历</b><p>仅展示节日日期与适用地区，具体日期以当地公告为准</p></div><div class="festival-legend"><span><i style="background:#e26058"></i>电商大促</span><span><i style="background:#d7a52d"></i>节日</span><span><i style="background:#4e9870"></i>国际主题日</span></div></div><div class="festival-weekdays">${weekdays.map(day=>`<span>周${day}</span>`).join("")}</div><div class="festival-grid">${cells.map(date=>{const inMonth=date.getMonth()===monthIndex,isToday=date.toDateString()===now.toDateString(),events=festivalsOn(date);return `<div class="festival-day ${inMonth?"":"outside"} ${isToday?"today":""}"><span class="festival-day-number">${date.getDate()}</span><div class="festival-day-events">${events.map(item=>`<span class="festival-day-event ${item.type}" title="${esc(item.en)} · ${esc(item.region)}">${esc(item.name)}</span>`).join("")}</div></div>`}).join("")}</div>`;
+        root.classList.remove("hidden");icons();
+      }
       let whatsappRealtimeChannel = null, whatsappRealtimeTimer = null;
       const whatsappWorkspaceState = { connection:null, messages:[], inquiries:[], contacts:[], selectedPhone:"", selectedInquiryId:null, search:"", newChat:false, sending:false };
       const builtinMailTemplates = [
@@ -4564,6 +4641,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         knowledgeCountState = null;
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
+        $("#festival-calendar").classList.toggle("hidden",view!=="follow-calendar");
+        if(view==="follow-calendar")renderFestivalCalendar([]);
         $("#operations-settings").classList.toggle("hidden",view!=="settings");
         $("#followup-settings").classList.toggle("hidden",view!=="settings");
         $("#sales360-quarter-panel").classList.add("hidden");
@@ -4980,6 +5059,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           $("#email-mark-warmup").classList.toggle("hidden",emailTriageFilter==="trash"||emailTriageFilter==="warmup");
         }
         if(view==="templates")sourceRows=sortMailTemplates(sourceRows);
+        if(view==="follow-calendar")renderFestivalCalendar(sourceRows);
         const mailboxBulkSelectable=view==="mailbox"&&mailboxFolder==="inbox"&&!mailboxTemplateView&&!mailboxScheduledView;
         if(mailboxBulkSelectable)columns.unshift("选择");
         const mappedRows = sourceRows.map(mapper);

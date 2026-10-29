@@ -20,3 +20,22 @@ test('entry groups primary actions and import separately with keyboard-accessibl
  assert.match(html,/id="excel"[^>]+hidden/);assert.match(html,/id="no-new"[^>]+type="button"/);assert.match(html,/id="import"[^>]+type="button"[^>]+disabled/);
  const page=readFileSync(new URL('../assets/sales-leads-page.mjs',import.meta.url),'utf8');assert.match(page,/#from,#to,#sales,#excel/);assert.match(page,/finally\{\$\('#excel'\)\.value=''/);assert.match(page,/导入已保存，但列表刷新失败/);
 });
+test('remove selected file clears pending rows and preview without a CRM request',async()=>{
+ const {clearLeadImportSelection}=await import('../assets/sales-lead-import-ui.mjs');
+ let pending=[{company:'Synthetic'}];
+ const n={...nodes(),remove:{hidden:false}};
+ const controls={input:{value:'file.xlsx'},preview:{textContent:'待导入1条',hidden:false},confirm:{disabled:false},nodes:n};
+ clearLeadImportSelection(controls,()=>{pending=[]});
+ assert.equal(pending.length,0);assert.equal(controls.input.value,'');assert.equal(controls.preview.textContent,'');
+ assert.equal(controls.preview.hidden,true);assert.equal(controls.confirm.disabled,true);assert.equal(n.remove.hidden,true);
+ assert.match(n.name.textContent,/尚未选择/);
+ for(const state of ['ready','error']){renderLeadFileState(n,{state,file:{name:'new.xlsx'}});assert.equal(n.remove.hidden,false)}
+ renderLeadFileState(n,{state:'done'});assert.equal(n.remove.hidden,true);
+});
+test('remove action is guarded while file processing is busy and cannot delete stored records',()=>{
+ const page=readFileSync(new URL('../assets/sales-leads-page.mjs',import.meta.url),'utf8');
+ const handler=page.slice(page.indexOf("$('#remove-import-file').onclick="),page.indexOf('bindLeadFilePicker('));
+ assert.match(handler,/if\(busy\)return/);assert.match(handler,/pendingRows=\[\]/);assert.doesNotMatch(handler,/rpc\(|fetch\(|\.delete\(/);
+ const html=readFileSync(new URL('../sales-leads.html',import.meta.url),'utf8');
+ assert.match(html,/id="remove-import-file"[^>]+type="button"[^>]+hidden/);
+});

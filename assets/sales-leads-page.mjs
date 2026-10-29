@@ -1,12 +1,14 @@
+import {leadWorksheetRecords} from './lead-worksheet-rows.mjs?v=20261029-1';
 import {mountWeeklyCustomerReview} from './weekly-customer-review.mjs?v=20261028-1';
 import {sources,localDay,dailyState,summarize,importRows,normalizeLead,leadIssues,leadRequestMessage} from './sales-leads.mjs?v=20261028-contact-1';
-import {renderLeadFileState,bindLeadFilePicker} from './sales-lead-import-ui.mjs';
+import {renderLeadFileState,bindLeadFilePicker,clearLeadImportSelection} from './sales-lead-import-ui.mjs?v=20261029-remove-file1';
 import {leadStageLabel,formatStageSummary} from './sales-lead-stages.mjs';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=t=>$('#status').textContent=t,stamp=t=>t?new Date(t).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
 let weeklyReview,contactTarget;
 let db,data,pendingRows=[],requestId=crypto.randomUUID(),busy=false;
-const fileNodes={name:$('#file-name'),state:$('#file-state')};
+const fileNodes={name:$('#file-name'),state:$('#file-state'),remove:$('#remove-import-file')};
+$('#remove-import-file').onclick=()=>{if(busy)return;clearLeadImportSelection({input:$('#excel'),preview:$('#import-preview'),confirm:$('#import'),nodes:fileNodes},()=>{pendingRows=[]});status('已移除待导入文件和预览，未删除已保存线索。可以重新选择文件。');$('#select-file').focus()};
 bindLeadFilePicker($('#select-file'),$('#excel'));
 renderLeadFileState(fileNodes);
 async function rpc(name,args){const {data,error}=await db.rpc(name,args);if(error)throw Error(leadRequestMessage(error));return data}
@@ -57,7 +59,7 @@ $('#template').onclick=()=>action(async()=>{const X=await xlsx(),book=X.utils.bo
 $('#excel').onchange=()=>{const f=$('#excel').files[0];if(!f)return;action(async()=>{
  pendingRows=[];$('#import-preview').textContent='';$('#import-preview').hidden=true;renderLeadFileState(fileNodes,{state:'loading',file:f});
  try{
-  if(f.size>2*1024*1024)throw Error('文件不得超过2MB');const X=await xlsx(),book=X.read(await f.arrayBuffer(),{type:'array',cellDates:false,sheetRows:202,cellFormula:false,bookVBA:false});if(book.SheetNames.length!==1)throw Error('请使用单工作表模板，避免漏导其他工作表');if(X.utils.decode_range(book.Sheets[book.SheetNames[0]]['!fullref']||book.Sheets[book.SheetNames[0]]['!ref']||'A1').e.r>200)throw Error('每批最多200条数据，请拆分文件');pendingRows=importRows(X.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{defval:'',raw:false}));
+  if(f.size>2*1024*1024)throw Error('文件不得超过2MB');const X=await xlsx(),book=X.read(await f.arrayBuffer(),{type:'array',cellDates:false,cellFormula:false,bookVBA:false});if(book.SheetNames.length!==1)throw Error('请使用单工作表模板，避免漏导其他工作表');pendingRows=importRows(leadWorksheetRecords(X,book.Sheets[book.SheetNames[0]]));
   $('#import-preview').textContent=`待导入 ${pendingRows.length} 条，请逐条核对：\n`+pendingRows.map((r,i)=>`${i+1}. ${r.company||r.contact}｜${r.country}｜${r.acquired_on}｜${r.email||r.phone||'联系方式待补充'}｜${r.demand}`).join('\n');$('#import-preview').hidden=false;renderLeadFileState(fileNodes,{state:'ready',file:f,rowCount:pendingRows.length});status('预览就绪，确认后才写入。重复记录由服务器去重。');
  }catch(error){renderLeadFileState(fileNodes,{state:'error',file:f,error:error.message});throw error}
  finally{$('#excel').value=''}

@@ -22,7 +22,7 @@ test('Excel input is explicit, bounded and requires acquisition date',()=>{
 test('new importer pins authoritative current parser and rejects oversized sheets without formula parsing',()=>{
  const page=readFileSync(new URL('../assets/sales-leads-page.mjs',import.meta.url),'utf8');
  assert.match(page,/cdn\.sheetjs\.com\/xlsx-0\.20\.3\/package\/xlsx\.mjs/);assert.doesNotMatch(page,/xlsx@0\.18/);
- assert.match(page,/sheetRows:202/);assert.match(page,/cellFormula:false/);assert.match(page,/!fullref/);
+ assert.doesNotMatch(page,/sheetRows:202/);assert.match(page,/cellFormula:false/);assert.match(page,/leadWorksheetRecords\(X,book.Sheets/);
 });
 
 test('unknown contacts remain blank and do not block real lead entry',()=>{

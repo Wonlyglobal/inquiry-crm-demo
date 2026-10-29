@@ -25,6 +25,7 @@ const call=async(name,args)=>{const placeholders=args.map((_,i)=>'$'+(i+1)).join
 const reject=async fn=>{await assert.rejects(fn);checks++};const ok=x=>{assert.ok(x);checks++};
 await db.exec(await readFile(new URL('../supabase/migrations/20261028170000_sales_lead_pending_contact.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20261028183000_company_candidate_pool.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20261029160000_candidate_research_filters.sql',import.meta.url),'utf8'));
 
 ok((await db.query("select private.candidate_public_url('https://xn--80anfggddm2b8e.xn--p1ai/') valid")).rows[0].valid);
 const today=(await db.query("select (clock_timestamp() at time zone 'Asia/Shanghai')::date::text d")).rows[0].d;
@@ -75,4 +76,12 @@ await as('o');
 let added=0;for(let i=0;i<1766;i+=200)added+=(await imp(Array.from({length:Math.min(200,1766-i)},(_,j)=>candidate(i+j+100)))).added;
 ok(added===1766);const page=await workspace();ok(page.items.length===50&&page.total===1769);ok((await workspace('', 'all',50)).items.length===50);
 await db.exec('reset role');ok((await db.query('select count(*)::int n from private.sales_leads')).rows[0].n===2);ok((await db.query('select count(*)::int n from public.inquiries')).rows[0].n===1);
+await as('o');
+const filtered=await call('filter_company_candidates',['','all',0,'Ghana','Entrance','company_site_candidate']);ok(filtered.total>=1766);ok(filtered.items.length===50);
+ok((await call('filter_company_candidates',['','all',0,'Unknown Country','',''])).total===0);
+ok((await call('filter_company_candidates',['','all',0,'','unknown category',''])).total===0);
+await reject(()=>call('filter_company_candidates',['','all',0,'','','invalid']));
+await as('s');ok((await call('filter_company_candidates',['Existing Company','all',0,'Ghana','',''])).total===0);
+await as();await reject(()=>call('filter_company_candidates',['','all',0,'','','']));
+await db.exec('reset role');await db.exec('set role service_role');await reject(()=>call('filter_company_candidates',['','all',0,'','','']));
 await db.close();console.log(JSON.stringify({checks,synthetic:true,candidateImports:1766,productionWrites:false}));

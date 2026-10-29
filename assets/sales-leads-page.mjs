@@ -68,5 +68,5 @@ try{
  const {data:{user},error}=await db.auth.getUser();if(error||!user)throw Error('请先返回CRM登录，再打开此工作台');
  $('#to').value=localDay();$('#from').value=$('#to').value.slice(0,8)+'01';$('#lead-form [name=acquired_on]').value=localDay();$('#lead-form [name=source]').innerHTML=Object.entries(sources).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
  await load();
- const destination=location.hash==='#entry'&&!$('#entry').hidden?$('#entry'):location.hash==='#lead-dashboard'?$('#lead-dashboard'):null;destination?.scrollIntoView({block:'start'});
+ const destination=location.hash==='#entry'&&!$('#entry').hidden?$('#entry'):location.hash==='#lead-dashboard'?$('#lead-dashboard'):location.hash==='#weekly-customer'&&!$('#weekly-customer').hidden?$('#weekly-customer'):null;destination?.scrollIntoView({block:'start'});
 }catch(e){status(leadRequestMessage(e))}

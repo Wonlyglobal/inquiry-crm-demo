@@ -1568,11 +1568,11 @@
           <i data-lucide="sprout"></i><span>市场培育池</span></button
         ><button class="nav" data-view="public-pool">
           <i data-lucide="users-round"></i><span>客户公海</span></button
-        ><a class="nav" data-view="company-candidates" href="#view=company-candidates"><i data-lucide="building-2"></i><span>线索公共池</span></a><button class="nav" data-view="research">
+        ><a class="nav" data-view="company-candidates" href="#view=company-candidates"><i data-lucide="building-2"></i><span>待开发线索池</span></a><button class="nav" data-view="research">
           <i data-lucide="scan-search"></i><span>客户背调</span></button
         ><button class="nav" data-view="legacy-projects">
           <i data-lucide="folder-kanban"></i><span>历史工程</span></button
-        ><a class="nav" data-view="sales-leads" href="#view=sales-leads"><i data-lucide="chart-no-axes-combined"></i><span>客户线索 · 录入/看板</span></a><button id="daily-report-button" class="nav" data-view="daily">
+        ><a class="nav" data-view="sales-lead-entry" href="#view=sales-lead-entry"><i data-lucide="square-pen"></i><span>线索录入</span></a><a class="nav" data-view="weekly-customers" href="#view=weekly-customers"><i data-lucide="list-checks"></i><span>每周客户核对</span></a><a class="nav" data-view="sales-leads" href="#view=sales-leads"><i data-lucide="chart-no-axes-combined"></i><span>线索看板</span></a><button id="daily-report-button" class="nav" data-view="daily">
           <i data-lucide="clipboard-list"></i><span>销售日报</span></button
         ><button class="nav" data-view="performance-360">
           <i data-lucide="badge-check"></i><span>360 评分中心</span></button
@@ -1611,7 +1611,7 @@
           </div>
         </header>
         <section id="agent-world-page" class="hidden"></section>
-        <section id="lead-workspace-page" class="page hidden"><iframe id="company-candidates-frame" title="线索公共池" class="lead-workspace-frame hidden"></iframe><iframe id="sales-leads-frame" title="客户线索录入与看板" class="lead-workspace-frame hidden"></iframe></section>
+        <section id="lead-workspace-page" class="page hidden"><iframe id="company-candidates-frame" title="待开发线索池" class="lead-workspace-frame hidden"></iframe><iframe id="sales-leads-frame" title="客户线索录入与看板" class="lead-workspace-frame hidden"></iframe></section>
         <section id="dashboard-page" class="page">
           <div class="heading">
             <div>
@@ -2589,7 +2589,7 @@
     <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261019-private3" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
-      import {leadWorkspaceHref} from "./assets/lead-workspace-route.mjs?v=20261028-1";
+      import {leadWorkspaceRoute} from "./assets/lead-workspace-route.mjs?v=20261028-sidebar2";
       import {mailboxState} from './assets/mailbox-multi.mjs?v=20261028';
       import {createDailyReportController} from './assets/daily-report-ui.mjs?v=20261028-flow1';
       import {submittedDailySalesIds} from './assets/daily-lead-reporting.mjs?v=20261026-ledger1';
@@ -2776,13 +2776,14 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         sales: new Set(["company-candidates","sales-leads","dashboard","sales-today","follow-calendar","exhibition-calendar","ai-advisor","inquiries","customers","mailbox","whatsapp","templates","knowledge","sop","quotes","fulfillment","public-pool","daily","performance-360"]),
       };
       const sidebarNavigationGroups = [
-        {key:"work",label:"工作台",icon:"layout-grid",views:["dashboard","sales-leads","ai-advisor","sales-today","follow-calendar","exhibition-calendar","marketing-center","daily"]},
-        {key:"customers",label:"客户与商机",icon:"briefcase-business",views:["inquiries","customers","company-candidates","assignment","nurture","public-pool","research"]},
+        {key:"work",label:"日常工作",icon:"layout-grid",views:["sales-today","sales-lead-entry","daily","follow-calendar","weekly-customers"]},
+        {key:"acquisition",label:"线索与获客",icon:"sprout",views:["company-candidates","assignment","nurture","research","marketing-center","exhibition-calendar"]},
+        {key:"customers",label:"客户与商机",icon:"briefcase-business",views:["customers","inquiries","public-pool"]},
         {key:"communication",label:"沟通协作",icon:"messages-square",views:["mailbox","whatsapp","email","communications"]},
-        {key:"sales-support",label:"销售支持",icon:"library-big",views:["templates","knowledge","quotes","fulfillment","legacy-projects"]},
-        {key:"management",label:"管理治理",icon:"settings-2",views:["performance-360","risk-review","settings"]},
+        {key:"sales-support",label:"产品与成交支持",icon:"library-big",views:["knowledge","templates","ai-advisor","quotes","fulfillment","legacy-projects"]},
+        {key:"management",label:"数据与管理",icon:"chart-no-axes-combined",views:["dashboard","sales-leads","performance-360","risk-review","settings"]},
       ];
-      function sidebarGroupStorageKey(){return `wonly_sidebar_groups_v1_${profile?.id||"anonymous"}`}
+      function sidebarGroupStorageKey(){return `wonly_sidebar_groups_v2_${profile?.id||"anonymous"}`}
       function syncSidebarGroupBadges(){
         $$(".nav-group").forEach(group=>{const total=[...group.querySelectorAll(".nav-update-badge:not(.hidden)")].reduce((sum,badge)=>sum+(badge.textContent==="99+"?100:Number(badge.textContent)||0),0),badge=group.querySelector(".nav-group-count");if(!badge)return;badge.textContent=total>99?"99+":String(total);badge.classList.toggle("visible",total>0);badge.setAttribute("aria-label",`${total} 条待处理更新`)})
       }
@@ -2801,7 +2802,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         syncSidebarGroupBadges();
       }
       const roleGuideViewNames = {
-        "company-candidates":"线索公共池","sales-leads":"客户线索录入与看板",dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","exhibition-calendar":"展会日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
+        "company-candidates":"待开发线索池","sales-leads":"线索看板","sales-lead-entry":"线索录入","weekly-customers":"每周客户核对",dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","exhibition-calendar":"展会日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
         {at:"2026-09-20 10:15",title:"新增风险审查中心第一阶段",detail:"老板可查看全公司、主管可查看本团队业务风险；确定性规则识别无人负责、首响逾期和跟进逾期，处置、解除和关闭均留不可删除事件记录。",roles:["owner","sales_manager"]},
@@ -2817,12 +2818,14 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       ];
       function canAccessView(view, role = profile?.role) {
         if(view==="agent-world")return canUseAgentWorld(profile,currentAuthUser);
+        if(view==="sales-lead-entry")return role==="sales"&&Boolean(roleViewAccess[role]?.has("sales-leads"));
+        if(view==="weekly-customers")return Boolean(roleViewAccess[role]?.has("sales-leads"));
         return Boolean(role && roleViewAccess[role]?.has(view));
       }
       function renderRoleGuideLive(){
         const role=profile?.role,box=$("#role-guide-live");
         if(!role||!box)return;
-        const modules=[...(roleViewAccess[role]||[])].filter(view=>view!=="sop").map(view=>roleGuideViewNames[view]||view);
+        const modules=[...(roleViewAccess[role]||[]),...["sales-lead-entry","weekly-customers"].filter(view=>canAccessView(view,role))].filter(view=>view!=="sop").map(view=>roleGuideViewNames[view]||view);
         const updates=roleGuideUpdates.filter(item=>item.roles.includes(role));
         box.innerHTML=`<article class="role-guide-card"><h3>${esc(roleNames[role]||role)}·当前权限指南</h3><p>与当前生产角色权限矩阵实时同步；角色或菜单改变后，重新打开本页即会更新。</p><div class="role-guide-status">已同步当前生产权限 · ${esc(new Date().toLocaleString("zh-CN",{hour12:false}))}</div><div class="role-guide-modules">${modules.map(name=>`<span class="role-guide-module">${esc(name)}</span>`).join("")}</div></article><article class="role-guide-card"><h3>最近更新</h3><p>按生产发布和权限验收时间倒序排列。</p><div class="role-guide-update-list">${updates.map(item=>`<div class="role-guide-update"><time>${esc(item.at)}</time><div><b>${esc(item.title)}</b><span>${esc(item.detail)}</span></div></div>`).join("")}</div></article>`;
       }
@@ -3056,7 +3059,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         setMemberAvatar($("#avatar"), profile, "王");
         const role = profile.role;
         $$(".nav[data-view]").forEach(nav => nav.classList.toggle("hidden", !canAccessView(nav.dataset.view, role)));
-        $('.nav[data-view="sales-leads"]').href=leadWorkspaceHref(role);
+        $('.nav[data-view="sales-leads"]').href='#view=sales-leads';
         initializeSidebarNavigation();
         $("#world-switch").classList.toggle("hidden",!canUseAgentWorld(profile,currentAuthUser));
         if(canUseAgentWorld(profile,currentAuthUser))$('.nav[data-view="ai-advisor"]')?.classList.add("hidden");
@@ -5522,17 +5525,23 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
         $("#sales-profile-page").classList.add("hidden");
         setActiveNavigation(view);
-        const leadWorkspace=["company-candidates","sales-leads"].includes(view);
+        const workspaceRoute=leadWorkspaceRoute(view,profile?.role),leadWorkspace=Boolean(workspaceRoute);
         $("#lead-workspace-page").classList.toggle("hidden",!leadWorkspace);
         if(leadWorkspace){
           for(const id of ["dashboard-page","exhibition-calendar-page","marketing-center-page","ai-advisor-page","module-page","daily-modal"])$("#"+id).classList.add("hidden");
-          for(const key of ["company-candidates","sales-leads"])$("#"+key+"-frame").classList.toggle("hidden",key!==view);
-          const frame=$("#"+view+"-frame");
-          if(!frame.getAttribute("src"))frame.src=view==="company-candidates"?"company-candidates.html?embed=1":leadWorkspaceHref(profile?.role).replace(".html",".html?embed=1");
+          for(const key of ["company-candidates","sales-leads"])$("#"+key+"-frame").classList.toggle("hidden",key!==workspaceRoute.key);
+          const frame=$("#"+workspaceRoute.key+"-frame");
+          if(!frame.getAttribute("src"))frame.src=workspaceRoute.href;
+          else if(frame.dataset.workspaceView!==view&&workspaceRoute.anchor){
+            frame.dataset.workspaceAnchor=workspaceRoute.anchor;
+            const locate=()=>{frame.contentWindow.location.hash=frame.dataset.workspaceAnchor;};
+            if(frame.contentDocument?.readyState==="complete")locate();else frame.addEventListener("load",locate,{once:true});
+          }
+          frame.dataset.workspaceView=view;
           history.replaceState(null,"",location.pathname+location.search+"#view="+view);
           return;
         }
-        if(/^#view=(company-candidates|sales-leads)$/.test(location.hash))history.replaceState(null,"",location.pathname+location.search);
+        if(/^#view=(company-candidates|sales-leads|sales-lead-entry|weekly-customers)$/.test(location.hash))history.replaceState(null,"",location.pathname+location.search);
         if (view === "daily") {
           $("#dashboard-page").classList.add("hidden");
           $("#exhibition-calendar-page").classList.add("hidden");
@@ -7400,7 +7409,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       }
       $$(".nav[data-view]").forEach((item) =>
         item.addEventListener("click", async event => {
-          if(["sales-leads","company-candidates"].includes(item.dataset.view))event.preventDefault();
+          if(["sales-leads","company-candidates","sales-lead-entry","weekly-customers"].includes(item.dataset.view))event.preventDefault();
           if(!$("#daily-modal").classList.contains("hidden")&&!await dailyReportController.canLeave())return;
           if (location.hash.startsWith("#inquiry/")) {
             history.pushState(null, "", location.pathname + location.search);

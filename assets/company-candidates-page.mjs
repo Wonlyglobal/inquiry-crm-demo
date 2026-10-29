@@ -1,15 +1,30 @@
+import {candidateResearchDetail} from './candidate-research-detail.mjs?v=20261029-1';
 import {candidateLabels,candidateSourceLabels,candidateImportRows,candidateBatches,candidateReceipt,candidateColumns} from './company-candidates.mjs?v=20261028-1';
 import {localDay,leadRequestMessage} from './sales-leads.mjs?v=20261028-contact-1';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+$('#open-business-workspace').onclick=()=>{
+ const panel=$('#business-workspace'),frame=$('#business-research-frame');
+ if(!frame.getAttribute('src'))frame.src='https://business.foreverdoodle.com/';
+ panel.hidden=false;panel.scrollIntoView({block:'start'});
+};
+$('#close-business-workspace').onclick=()=>{$('#business-workspace').hidden=true;$('#open-business-workspace').focus()};
 let db,view,offset=0,busy=false,chunks=[],done=0,imported=0,deduped=0,target=null;
 const status=t=>$('#status').textContent=t,stamp=t=>t?new Date(t).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
 async function rpc(name,args){const result=await db.rpc(name,args);if(result.error)throw Error(leadRequestMessage(result.error));return result.data}
 async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button,#file').forEach(b=>b.disabled=true);try{await fn()}catch(error){status('未完成：'+leadRequestMessage(error))}finally{busy=false;document.querySelectorAll('button,#file').forEach(b=>b.disabled=false);$('#import').disabled=!chunks.length||done===chunks.length;$('#previous').disabled=offset===0;$('#next').disabled=!view||offset+50>=view.total}}
 async function load(){
+ $('#candidate-research-detail').hidden=true;$('#candidate-research-detail').replaceChildren();
  view=await rpc('company_candidate_workspace',{search_text:$('#search').value.trim(),state_filter:$('#filter').value,page_offset:offset});
  $('#import-panel').hidden=!['owner','marketing'].includes(view.actor.role);
  $('#counts').textContent=`符合筛选 ${view.total} 家 · 待核实 ${view.pending} 家 · 可领取 ${view.verified} 家`;
- $('#candidate-list').innerHTML=view.items.map(item=>item.masked?`<article class="candidate-card masked"><h3>公司信息已遮蔽</h3><p>负责人：${esc(item.responsible_name)}</p><span>${esc(candidateLabels[item.state])}</span></article>`:`<article class="candidate-card"><h3>${esc(item.company)}</h3><div class="meta">${esc(item.country)} · ${esc(item.category||'品类待核实')} · ${esc(candidateLabels[item.state])}</div><p>官网候选：${item.website?`<a href="${esc(item.website)}" target="_blank" rel="noopener noreferrer">${esc(item.website)}</a>`:'待补充'}</p><p><a href="${esc(item.source_url)}" target="_blank" rel="noopener noreferrer">查看公开来源</a> · ${esc(candidateSourceLabels[item.source_kind])}<small>来源快照：${esc(item.snapshot_date)}（不代表资料当前已核实）</small></p>${item.reviewed_at?`<p>核验时间：${esc(stamp(item.reviewed_at))}<br>${esc(item.review_note||'')}</p>`:''}<div class="button-group">${item.can_review?`<button data-review="${esc(item.id)}" class="button-secondary">核对官网与公司身份</button>`:''}${item.can_claim?`<button data-claim="${esc(item.id)}">本人领取</button>`:''}${item.mine&&!item.lead_id?`<button data-promote="${esc(item.id)}">补充需求转个人线索</button>`:''}${item.lead_id?'<a href="sales-leads.html#lead-dashboard">打开个人线索工作台</a>':''}${item.existing?'<small>已有客户或线索，不能再次转入计数。</small>':''}</div></article>`).join('');
+ $('#candidate-list').innerHTML=view.items.map(item=>item.masked?`<article class="candidate-card masked"><h3>公司信息已遮蔽</h3><p>负责人：${esc(item.responsible_name)}</p><span>${esc(candidateLabels[item.state])}</span></article>`:`<article class="candidate-card"><h3>${esc(item.company)}</h3><div class="meta">${esc(item.country)} · ${esc(item.category||'品类待核实')} · ${esc(candidateLabels[item.state])}</div><p>官网候选：${item.website?`<a href="${esc(item.website)}" target="_blank" rel="noopener noreferrer">${esc(item.website)}</a>`:'待补充'}</p><p><a href="${esc(item.source_url)}" target="_blank" rel="noopener noreferrer">查看公开来源</a> · ${esc(candidateSourceLabels[item.source_kind])}<small>来源快照：${esc(item.snapshot_date)}（不代表资料当前已核实）</small></p>${item.reviewed_at?`<p>核验时间：${esc(stamp(item.reviewed_at))}<br>${esc(item.review_note||'')}</p>`:''}<div class="button-group"><button data-research="${esc(item.id)}" class="button-secondary">查看公司研究档案</button>${item.can_review?`<button data-review="${esc(item.id)}" class="button-secondary">核对官网与公司身份</button>`:''}${item.can_claim?`<button data-claim="${esc(item.id)}">本人领取</button>`:''}${item.mine&&!item.lead_id?`<button data-promote="${esc(item.id)}">补充需求转个人线索</button>`:''}${item.lead_id?'<a href="sales-leads.html#lead-dashboard">打开个人线索工作台</a>':''}${item.existing?'<small>已有客户或线索，不能再次转入计数。</small>':''}</div></article>`).join('');
+ $('#candidate-list').querySelectorAll('[data-research]').forEach(button=>button.onclick=()=>{
+  const item=view.items.find(row=>row.id===button.dataset.research);if(!item||item.masked)return;
+  const panel=$('#candidate-research-detail');panel.innerHTML=candidateResearchDetail(item);panel.hidden=false;
+  $('#close-candidate-detail').onclick=()=>{panel.hidden=true;button.focus()};
+  if($('#detail-review-candidate'))$('#detail-review-candidate').onclick=()=>button.closest('.candidate-card').querySelector('[data-review]')?.click();
+  panel.scrollIntoView({block:'start'});
+ });
  $('#page').textContent=view.total?`${offset+1}—${Math.min(offset+50,view.total)} / ${view.total}`:'0 条';
  for(const kind of ['review','claim','promote'])$('#candidate-list').querySelectorAll(`[data-${kind}]`).forEach(button=>button.onclick=()=>{target=view.items.find(item=>item.id===button.dataset[kind]);for(const other of ['review','claim','promote'])$('#'+other+'-panel').hidden=other!==kind;$('#'+kind+'-company').textContent=target.company;if(kind==='review'){$('#review-form').reset();$('#review-form [name=official_url]').value=target.official_url||target.website||''}if(kind==='promote'){$('#promote-form').reset();$('#promote-form [name=acquired_on]').value=localDay()}$('#'+kind+'-panel').scrollIntoView({block:'center'})});
  status(`服务器回读 ${stamp(view.as_of)}（北京时间）。候选导入与领取不计入个人线索。`);

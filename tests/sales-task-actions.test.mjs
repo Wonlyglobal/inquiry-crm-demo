@@ -25,3 +25,18 @@ test('action path uses controlled workflows and never generates AI or sends on o
  assert.doesNotMatch(source,/functions\.invoke|\.insert\(|\.update\(|mailbox-compose-send/);
  assert.match(source,/eq\("owner_id",profile.id\)/);assert.match(source,/eq\("inquiry_id",inquiry.id\).eq\("author_id",profile.id\)/);
 });
+test('salesperson can explicitly complete assignment without a pre-existing message and refresh counts',async()=>{
+ const elements=new Map();let rpcCalls=0,list=1,badge=1;
+ const button={disabled:false,textContent:''};
+ const node=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',classList:{add(){}},insertAdjacentHTML(){},querySelector(selector){return selector==='button[type="submit"]'?button:node(selector)},reportValidity:()=>true});return elements.get(id)};
+ node('#task-contact-time').value='2026-10-10T02:00:00Z';node('#task-contact-note').value='已实际电话联系';
+ const inquiry={id:'x',owner_id:'seller',status:'received',validity:'valid',assigned_at:'2026-10-10T00:00:00Z',inquiry_no:82,title:'synthetic'};
+ const query={select(){return this},eq(){return this},in(){return this},order(){return this},limit(){return this},single:async()=>({data:inquiry}),maybeSingle:async()=>({data:null}),then(resolve){return Promise.resolve({data:[]}).then(resolve)}};
+ const ctx=setup({$:node,esc:String,fmtDate:String,displayCountry:String,localDateTimeInputValue:String,openDashboardModal(){},toast(){},appConfirm:async()=>true,moduleMemoryCache:new Map(),activeModuleView:'sales-today',
+  supabase:{from:()=>query,rpc:async(name,payload)=>{rpcCalls++;assert.equal(name,'confirm_assignment_first_contact');assert.equal(payload.evidence_follow_up_id,null);assert.equal(payload.actual_contact_at,'2026-10-10T02:00:00.000Z');return {data:{confirmed:true}}}},
+  loadModule:async view=>{assert.equal(view,'sales-today');list=0},refreshSidebarBadges:async()=>{badge=0}});
+ await ctx.openSalesTask({id:'x',category:'assigned'});
+ await node('#task-contact-confirm').onsubmit({preventDefault(){}});
+ assert.equal(rpcCalls,1);assert.equal(list,0);assert.equal(badge,0);assert.equal(button.disabled,true);
+ await node('#task-contact-confirm').onsubmit({preventDefault(){}});assert.equal(rpcCalls,1);
+});

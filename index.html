@@ -3834,7 +3834,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(!task?.id)return toast("任务不存在，请刷新列表");
         const version=++salesTaskPanelVersion;
         try{
-          const {data:inquiry,error}=await supabase.from("inquiries").select("id,inquiry_no,title,owner_id,status,validity,excluded_from_dashboard,invalid_review_status,target_country,contact_name,product_category,quantity,demand_summary,companies(name)").eq("id",task.id).eq("owner_id",profile.id).single();
+          const {data:inquiry,error}=await supabase.from("inquiries").select("id,inquiry_no,title,owner_id,status,validity,excluded_from_dashboard,invalid_review_status,assigned_at,first_valid_contact_at,target_country,contact_name,product_category,quantity,demand_summary,companies(name)").eq("id",task.id).eq("owner_id",profile.id).single();
           if(version!==salesTaskPanelVersion)return;
           if(error||!inquiry)throw new Error("任务已不可访问，请刷新任务列表");
           if(inquiry.excluded_from_dashboard||inquiry.validity!=="valid"||["won","lost"].includes(inquiry.status))throw new Error("商机状态已变化，请刷新后查看");
@@ -3842,6 +3842,31 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           if(version!==salesTaskPanelVersion)return;
           const canRecord=inquiry.invalid_review_status!=="pending";
           openDashboardModal(`处理任务 · #${String(inquiry.inquiry_no||"").padStart(6,"0")}`,`<div class="task-action-context"><h3>${esc(inquiry.title)}</h3><p>${esc([inquiry.companies?.name,inquiry.contact_name,displayCountry(inquiry.target_country)].filter(Boolean).join(" · "))}</p><p><b>为什么处理：</b>${esc(task.reason||"核对当前商机进展")}</p><p><b>建议下一步：</b>${esc(salesTaskAdvice(task))}</p><p><b>采购需求：</b>${esc(inquiry.demand_summary||[inquiry.product_category,inquiry.quantity].filter(Boolean).join(" · ")||"尚未记录，需向客户核实")}</p><p><b>最近跟进：</b>${esc(recentError?"暂时无法加载，可稍后重试":recent?`${fmtDate(recent.created_at)} · ${recent.content}${recent.customer_feedback?`；客户反馈：${recent.customer_feedback}`:""}`:"暂无跟进记录")}</p></div><div class="task-action-buttons"><button type="button" class="ghost" id="task-open-source">查看沟通原文</button>${task.messageId?'<button type="button" class="ghost" id="task-reply-mail">回复这封邮件</button>':""}${task.followupId?'<button type="button" class="ghost" id="task-complete-original">确认原跟进已完成</button>':""}<button type="button" class="ghost" id="task-open-quote">处理报价</button><button type="button" class="ghost" id="task-open-detail">完整询盘 / 保留申请</button></div>${canRecord?`<form id="task-follow-form"><h4>记录实际跟进</h4><p class="hint">这里只登记已经发生的沟通；邮件和 WhatsApp 仍从原沟通入口发送。保存不会自动完成其他待办，也不会自动计为首次有效联系。</p><div class="detail-grid"><div class="field"><label for="task-follow-method">跟进方式</label><select id="task-follow-method" class="input"><option value="phone">电话</option><option value="meeting">会议 / 拜访</option><option value="email">邮件</option><option value="whatsapp">WhatsApp</option><option value="other">其他</option></select></div><div class="field"><label for="task-follow-next">下次跟进时间 *</label><input id="task-follow-next" class="input" type="datetime-local" required /></div></div><div class="field"><label for="task-follow-content">本次实际结果 *</label><textarea id="task-follow-content" class="input" rows="3" maxlength="5000" required placeholder="例如：已电话核对数量，客户将在周五提供规格"></textarea></div><div class="field"><label for="task-follow-feedback">客户反馈</label><textarea id="task-follow-feedback" class="input" rows="2" maxlength="5000" placeholder="没有反馈时留空"></textarea></div><p id="task-follow-status" class="hint" role="status" aria-live="polite"></p><div class="form-actions"><button class="primary" type="submit">保存跟进与下次计划</button></div></form>`:'<p class="hint">此询盘有待审无效申请，暂不可新增跟进。</p>'}`);
+          if(canRecord&&task.category==="assigned"&&inquiry.assigned_at&&!inquiry.first_valid_contact_at){
+            const {data:evidenceRows,error:evidenceError}=await supabase.from("follow_ups").select("id,method,content,created_at").eq("inquiry_id",inquiry.id).eq("author_id",profile.id).in("method",["phone","meeting","email","whatsapp"]).order("created_at",{ascending:false}).limit(20);
+            if(version!==salesTaskPanelVersion)return;
+            const evidence=evidenceRows||[];
+            $("#task-follow-form")?.insertAdjacentHTML("beforebegin",`<form id="task-contact-confirm" class="card" style="padding:16px;margin:16px 0"><h4>标记已联系，完成分配待办</h4><p class="hint">以业务员确认的实际联系为准。填写实际首次联系时间与简短说明即可完成；原沟通记录可选。此操作影响首响统计，不完成其他待办，不发送消息。</p>${evidenceError?'<p class="hint">原沟通记录暂时无法读取，仍可按实际情况主动标记。</p>':""}<label>关联原沟通记录（可选）<select id="task-contact-evidence" class="input"><option value="">不关联，以本人实际联系说明为准</option>${evidence.map(row=>`<option value="${esc(row.id)}">${esc(fmtDate(row.created_at))}（记录时间） · ${esc(row.method)} · ${esc(row.content.slice(0,100))}</option>`).join("")}</select></label><label>实际首次联系时间<input type="datetime-local" id="task-contact-time" class="input" required min="${localDateTimeInputValue(inquiry.assigned_at)}" max="${localDateTimeInputValue(new Date().toISOString())}"></label><label>核对说明<textarea id="task-contact-note" class="input" required maxlength="1000" placeholder="例如：已通过WhatsApp联系，客户确认收到资料"></textarea></label><label class="checkline"><input type="checkbox" id="task-contact-verified" required>我确认上述联系已实际发生，时间填写准确</label><button class="primary" type="submit">确认已联系并完成待办</button><p id="task-contact-status" role="status" class="hint"></p></form>`);
+            const confirmation=$("#task-contact-confirm");let confirming=false,confirmed=false;
+            confirmation.onsubmit=async event=>{
+              event.preventDefault();if(confirming||confirmed||!confirmation.reportValidity())return;
+              const status=$("#task-contact-status"),button=confirmation.querySelector('button[type="submit"]');
+              if(!button)return;
+              const at=new Date($("#task-contact-time").value);
+              if(!Number.isFinite(at.getTime())||at<new Date(inquiry.assigned_at)||at>new Date())return status.textContent="请核对实际联系时间，须在本次分配后且不晚于现在";
+              if(!await appConfirm("确认已实际联系客户且时间准确？将记录本人标记并解除本次分配待办，不完成其他任务。",{title:"确认首次联系",confirmText:"确认完成"}))return;
+              confirming=true;button.disabled=true;status.textContent="正在确认…";
+              try{
+                const {data,error}=await supabase.rpc("confirm_assignment_first_contact",{target_inquiry_id:inquiry.id,evidence_follow_up_id:$("#task-contact-evidence").value||null,actual_contact_at:at.toISOString(),confirmation_note:$("#task-contact-note").value.trim()});
+                if(error)throw error;if(!data?.confirmed)throw new Error("服务端未确认，请刷新核对");
+                confirmed=true;button.textContent="分配待办已完成";status.textContent="已确认首次联系；正在刷新待办与数量…";
+                moduleMemoryCache.delete("sales-today");moduleMemoryCache.delete("follow-calendar");
+                await loadModule("sales-today");await refreshSidebarBadges();
+                status.textContent="分配待办已完成，列表与数量已刷新。其他客户回复待办仍需分别处理。";
+              }catch(error){status.textContent=(confirmed?"已确认，刷新失败，请手动刷新：":"未确认完成，请核对后重试：")+(error?.message||error)}
+              finally{confirming=false;button.disabled=confirmed}
+            };
+          }
           const openTab=async tab=>{$("#dashboard-modal").classList.add("hidden");await openInquiryDetail(inquiry.id);if(currentInquiry?.id===inquiry.id)setDetailTab(tab)};
           $("#task-open-source").onclick=()=>openTab("summary");
           $("#task-reply-mail")?.addEventListener("click",async event=>{

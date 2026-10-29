@@ -1759,7 +1759,7 @@
           </div>
           <div class="kpis dashboard-kpis current-dashboard-block" data-dashboard-widget="core-kpis">
             <div class="card">
-              <div class="kpi-label">新增询盘 <button class="metric-help" data-metric="new_inquiries">?</button></div>
+              <div class="kpi-label">新增官方询盘 <button class="metric-help" data-metric="new_inquiries">?</button></div>
               <div class="kpi-value" id="kpi-total">0</div>
             </div>
             <div class="card">
@@ -2694,6 +2694,7 @@
         card.querySelector('button[type="submit"]').textContent='登录 Grace';
         document.querySelector('#boot').textContent='Grace 正在准备…';
       }
+      import {officialInquiryRows} from './assets/official-inquiries.mjs?v=20261029-origin1';
       import {createRealtimeClient} from './assets/agent-realtime-client.mjs?v=20261019-connect3';
       import { mountConversation } from './assets/agent-conversation.mjs?v=20261027-private-input1';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261023-existing-video-release';
@@ -3253,8 +3254,12 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           if (profile?.id !== userId || profile?.role !== role) return;
           // Preserve the last known state on errors instead of reporting a false zero.
           if (results.some(result=>result.error)) return;
-          inquiryUnreadItems = groupInquiryUpdates(results[0].data || []);
-          const counts = sidebarUnreadCounts(results[0].data || []);
+          const updates=results[0].data||[],officialUpdates=await officialInquiryRows(updates.filter(item=>item.inquiry_id).map(item=>({id:item.inquiry_id})),(name,args)=>supabase.rpc(name,args));
+          if(profile?.id!==userId||profile?.role!==role)return;
+          const officialIds=new Set(officialUpdates.map(item=>item.id));
+          inquiryUnreadItems = groupInquiryUpdates(updates.filter(item=>officialIds.has(item.inquiry_id)));
+          const counts = sidebarUnreadCounts(updates);
+          counts.inquiries=inquiryUnreadItems.size;
           views.forEach((view,index)=>{ counts[view] = results[index+1].count || 0; });
           const actionable=results[actionableIndex].data||{};
           counts.mailbox=Number(actionable.mailbox_unread)||0;
@@ -3481,7 +3486,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           if (row.meta?.validity === "valid" && !["won", "lost"].includes(row.meta?.status)) counts.open += 1;
           if (row.meta?.risk) counts.risk += 1;
         });
-        const items = [["all","全部询盘"],["pending_assignment","待主管分配"],["open","进行中"],["risk","无效 / 已丢单"]];
+        const items = [["all","官方渠道询盘"],["pending_assignment","待主管分配"],["open","进行中"],["risk","无效 / 已丢单"]];
         $("#inquiry-stage-tabs").innerHTML = items.map(([key,label]) => `<button class="inquiry-stage-tab ${(activeInquiryScope || "all") === key ? "active" : ""}" type="button" data-scope="${key}"><span>${label}</span><b>${counts[key]}</b></button>`).join("");
         $("#inquiry-stage-tabs").querySelectorAll("button").forEach((button) => button.addEventListener("click", () => {
           activeInquiryScope = button.dataset.scope;
@@ -4677,7 +4682,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryArchive")) activeInquiryArchive = Boolean(options.inquiryArchive);
         const config = {
-          inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
+          inquiries: ["询盘商机", "仅展示公司官方渠道询盘；业务员导入和自主登记请到客户管理查看", "官方渠道询盘"],
           customers: profile.role === "sales"
             ? ["客户管理", "统一管理本人负责的公司、联系人、商机和全部渠道跟进", "本人客户"]
             : ["客户管理", "按权限统一查看公司、联系人、商机及跨渠道客户记录", "可见客户"],
@@ -4964,6 +4969,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
             return q;
           };
           query = view==="inquiries"&&activeInquiryArchive ? supabase.rpc("list_archived_inquiries") : publicPoolRequestError && view==="public-pool" ? Promise.resolve({data:null,error:publicPoolRequestError}) : loadModuleRowsPaged(inquiryQueryFactory);
+        if(view==="inquiries"&&!activeInquiryArchive)query=Promise.resolve(query).then(async result=>{
+          if(result.error)return result;
+          try{return {...result,data:await officialInquiryRows(result.data,(name,args)=>supabase.rpc(name,args))}}
+          catch(error){return {data:null,error}}
+        });
           if (view === "inquiries" && !activeInquiryArchive && activeInquiryScope === "open") {
             $("#module-table-title").textContent = "进行中询盘";
             $("#module-filter-summary").textContent = "已筛选：未成交、未丢单的进行中询盘";
@@ -5805,7 +5815,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         });
       }
       const dashboardMetricDefinitions = {
-        new_inquiries:["新增询盘","统计期内创建且未被排除的询盘数。","按询盘创建时间；排除垃圾、测试、未分配撤销及系统托管记录。"],
+        new_inquiries:["新增官方询盘","统计期内创建的官方渠道询盘数，不含业务员导入、自主登记及来源待确认记录。","按系统创建时间；按实际进入方式核对，导入时标注官网来源不会被当成官网自然询盘。"],
         pending_assignment:["待分配","当前仍处于待分配阶段的询盘数。","这是当前存量，不受统计期起止限制。"],
         overdue_response:["超时未响应","分配后超过 30 分钟仍未完成首次有效联系。","首次有效联系必须由业务员明确记录；旧数据不推断。"],
         valid_rate:["有效询盘率","有效询盘数 ÷ 已完成有效性判断的询盘数。","分母为有效+无效，不含待确认。"],
@@ -6626,7 +6636,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       async function loadInquiriesUnsafe() {
         const { data, error } = await loadAllDashboardInquiries();
         if (error) throw new Error("询盘数据加载失败：" + error.message);
-        const rows = data || [];
+        const rows = await officialInquiryRows(data || [],(name,args)=>supabase.rpc(name,args));
         // Optional dashboard columns are loaded separately so the UI remains
         // usable while a newly deployed migration is being applied.
         const { data: dashboardFields } = await loadAllDashboardInquiryFields();

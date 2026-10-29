@@ -2598,6 +2598,7 @@
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
       import {leadWorkspaceRoute} from "./assets/lead-workspace-route.mjs?v=20261028-sidebar2";
+      import {openLeadWorkspaceFrame} from "./assets/lead-workspace-frame.mjs?v=20261029-1";
       import {mailboxState} from './assets/mailbox-multi.mjs?v=20261028';
       import {createDailyReportController} from './assets/daily-report-ui.mjs?v=20261028-flow1';
       import {submittedDailySalesIds} from './assets/daily-lead-reporting.mjs?v=20261026-ledger1';
@@ -5539,13 +5540,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           for(const id of ["dashboard-page","exhibition-calendar-page","marketing-center-page","ai-advisor-page","module-page","daily-modal"])$("#"+id).classList.add("hidden");
           for(const key of ["company-candidates","sales-leads"])$("#"+key+"-frame").classList.toggle("hidden",key!==workspaceRoute.key);
           const frame=$("#"+workspaceRoute.key+"-frame");
-          if(!frame.getAttribute("src"))frame.src=workspaceRoute.href;
-          else if(frame.dataset.workspaceView!==view&&workspaceRoute.anchor){
-            // Navigate the canonical URL fragment, including while the initial document is loading.
-            // Same-document fragment navigation preserves the existing form and filter state.
-            frame.src=workspaceRoute.href;
-          }
-          frame.dataset.workspaceView=view;
+          openLeadWorkspaceFrame(frame,{...workspaceRoute,view});
           history.replaceState(null,"",location.pathname+location.search+"#view="+view);
           return;
         }

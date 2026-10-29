@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeCustomerImports,importEmailCandidates} from '../assets/customer-import-normalize.mjs';
-const base={row_number:2,company:'Example',source:'outbound',email:'a@example.com',source_detail:'展会原备注'};
+const base={row_number:2,company:'Example',demand:'门锁采购需求',source:'outbound',email:'a@example.com',source_detail:'展会原备注'};
 test('Chinese channel names map without losing original customer data',()=>{
  const input={...base,source:'展会'};const {rows,warnings}=normalizeCustomerImports([input]);
  assert.equal(rows[0].source,'exhibition');assert.equal(warnings.length,0);assert.equal(input.source,'展会');
@@ -43,4 +43,27 @@ test('customer type is optional and missing acquisition channels remain explicit
  const hasType=normalizeCustomerImports([{...base,company_type:'代理商'}]);
  assert.match(hasType.rows[0].source_detail,/客户类型（选填，原文件）：代理商/);
  assert.equal(hasType.rows[0].source,'outbound');
+});
+test('prospecting tool and Google labels retain their meaning without fabricating an official channel',()=>{
+ for(const source of ['谷歌','特易','特易资讯','Google']){
+  const input={...base,source,demand:'门锁需求'};
+  const {rows,warnings}=normalizeCustomerImports([input]);
+  assert.equal(rows[0].source,'other');assert.ok(rows[0].source_detail.includes(source));
+  assert.match(rows[0].source_detail,/待确认/);assert.equal(warnings.length,1);
+  assert.equal(input.source,source);
+ }
+ const {rows}=normalizeCustomerImports([{...base,source:'官网',demand:'门锁需求'}]);
+ assert.equal(rows[0].source,'website');
+});
+test('blank demand is explicitly unconfirmed and surfaced before import, never invented',()=>{
+ const input={...base,demand:'  '};
+ const {rows,warnings}=normalizeCustomerImports([input]);
+ assert.equal(rows[0].demand,'需求待确认');assert.match(rows[0].source_detail,/原文件需求为空/);
+ assert.match(warnings.join('\n'),/第2行：需求未填写/);assert.equal(input.demand,'  ');
+ const provided=normalizeCustomerImports([{...base,demand:'客户原需求'}]);
+ assert.equal(provided.rows[0].demand,'客户原需求');
+});
+test('short real demand retains its exact words and satisfies the server minimum without invention',()=>{
+ const {rows,warnings}=normalizeCustomerImports([{...base,demand:'门锁'}]);
+ assert.equal(rows[0].demand,'需求记录：门锁');assert.equal(warnings.length,1);
 });

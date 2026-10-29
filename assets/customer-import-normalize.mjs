@@ -1,4 +1,4 @@
-const channels={whatsapp:'whatsapp',微信:'wechat',电话:'phone',展会:'exhibition',官网表单:'website',企业邮箱:'email',社媒:'social_media',线下拜访:'offline_visit',经销商转介绍:'dealer_referral',客户转介绍:'customer_referral','部门 / 团队转介绍':'internal_referral',销售自主开发:'outbound',其他:'other'};
+const channels={whatsapp:'whatsapp',微信:'wechat',电话:'phone',展会:'exhibition',官网:'website',官网表单:'website',企业邮箱:'email',社媒:'social_media',线下拜访:'offline_visit',经销商转介绍:'dealer_referral',客户转介绍:'customer_referral','部门 / 团队转介绍':'internal_referral',销售自主开发:'outbound',其他:'other'};
 const codes=new Set(['whatsapp','wechat','phone','exhibition','website','email','social_media','offline_visit','dealer_referral','customer_referral','internal_referral','outbound','other']);
 const customerType=/^(?:建筑承包商|代理商|制造商|批发商|经销商|进口商|分销商|贸易商|品牌区域分销|子公司)(?:\s*[\/／]\s*(?:代理商|制造商|批发商|经销商|进口商|分销商|贸易商|子公司))*$/;
 // Known suffix boundaries recover concatenated email cells; original text is always retained.
@@ -18,10 +18,21 @@ export function normalizeCustomerImports(input){
    row.source='other';notes.push('实际获客渠道待确认（原文件未填写）');
    warnings.push(`第${n}行：获客渠道未填写，暂记其他（待确认）`);
   }else if(normalized)row.source=normalized;
-  else if(customerType.test(source)){
+  else if(/^(?:谷歌|google|谷歌搜索|google搜索|特易|特易资讯|特易海关数据)$/i.test(source)){
+   row.source='other';notes.push(`原获客渠道：${source}；具体渠道待确认`);
+   warnings.push(`第${n}行：原渠道“${source}”已保留，暂记其他（待确认），不推定为广告或官网询盘`);
+  }else if(customerType.test(source)){
    row.source='other';notes.push(`客户类型（原来源渠道）：${source}；实际获客渠道待确认`);
    warnings.push(`第${n}行：客户类型“${source}”保留在渠道明细，获客渠道设为其他（待确认）`);
   }else throw new Error(`第${n}行：来源渠道无法识别，请填写实际获客渠道或已知客户类型`);
+  if(!String(row.demand||'').trim()){
+   row.demand='需求待确认';notes.push('原文件需求为空，待业务员补充');
+   warnings.push(`第${n}行：需求未填写，暂记“需求待确认”，请后续补充`);
+  }
+  else if(String(row.demand).trim().length<4){
+   row.demand=`需求记录：${String(row.demand).trim()}`;
+   warnings.push(`第${n}行：简短需求保留原文并加“需求记录：”标签`);
+  }
   if(String(row.company_type||'').trim())notes.push(`客户类型（选填，原文件）：${String(row.company_type).trim()}`);
   const raw=String(row.email||'').trim();
   if(raw){

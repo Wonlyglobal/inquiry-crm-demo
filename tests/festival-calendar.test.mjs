@@ -48,6 +48,7 @@ test('actual festival logic handles date boundaries and only displays holidays',
  assert.equal(logic.upcomingFestivals(new Date(2027,0,1),1)[0].date.getFullYear(),2027);
  logic.renderFestivalCalendar([{day:'2026-10-29',total_sent:2,total_received:3},{day:'2026-10-29',total_sent:4,total_received:1}]);
  assert.doesNotMatch(nodes['#festival-month'].innerHTML,/收 4 · 发 6|邮件活动/);
+ assert.match(nodes['#festival-month'].innerHTML,/<div class="festival-event-countries">适用国家\/地区：美国、加拿大及欧洲部分国家\/地区<\/div>/);
  assert.doesNotMatch(nodes['#festival-banner'].innerHTML,/客户触达|预热|提前 3 周/);
  assert.equal((nodes['#festival-month'].innerHTML.match(/class="festival-day /g)||[]).length,42);
  assert.equal((nodes['#festival-banner'].innerHTML.match(/class="festival-card"/g)||[]).length,3);

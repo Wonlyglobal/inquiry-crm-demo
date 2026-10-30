@@ -13,7 +13,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 final class GraceViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
-    private let home = URL(string: "https://crm.foreverdoodle.com/grace.html")!
+    private let home = URL(string: "https://crm.foreverdoodle.com/grace-app.html")!
+    private let allowedPages: Set<String> = ["/grace-app.html", "/grace.html", "/grace-privacy.html", "/grace-terms.html", "/grace-support.html"]
     private var web: WKWebView!
     private let retry = UIButton(type: .system)
     private let privacy = UIView()
@@ -27,8 +28,9 @@ final class GraceViewController: UIViewController, WKNavigationDelegate, WKUIDel
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-        // Session-only WebKit storage avoids a persistent customer cache on shared devices.
-        config.websiteDataStore = .nonPersistent()
+        // Preserve the user's approved login across app restarts.
+        // The server still verifies account status on every protected request.
+        config.websiteDataStore = .default()
         web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self; web.uiDelegate = self
         web.isOpaque = false; web.backgroundColor = view.backgroundColor
@@ -67,7 +69,7 @@ final class GraceViewController: UIViewController, WKNavigationDelegate, WKUIDel
             decisionHandler(url.scheme == "https" || url.scheme == "blob" || url.absoluteString == "about:blank" ? .allow : .cancel); return
         }
         if trusted(url) {
-            if url.path != home.path { decisionHandler(.cancel); webView.load(URLRequest(url: home)); return }
+            if !allowedPages.contains(url.path) { decisionHandler(.cancel); webView.load(URLRequest(url: home)); return }
             decisionHandler(.allow); return
         }
         if navigationAction.navigationType == .linkActivated && url.scheme == "https" && url.user == nil && url.password == nil { UIApplication.shared.open(url) }

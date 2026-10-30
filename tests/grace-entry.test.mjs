@@ -27,6 +27,9 @@ test('unauthorized account stays on Grace login and does not mount the applicati
 });
 test('native platforms use dedicated Grace entry',()=>{
  for(const name of ['ios/Grace/AppDelegate.swift','android/app/src/main/java/com/wonly/grace/MainActivity.java']){
- const native=readFileSync(new URL('../apps/grace/'+name,import.meta.url),'utf8');assert.match(native,/https:\/\/crm.foreverdoodle.com\/grace.html/);assert.doesNotMatch(native,/https:\/\/crm.foreverdoodle.com\/\?app=grace/);
+ const native=readFileSync(new URL('../apps/grace/'+name,import.meta.url),'utf8');
+ const expected=name.startsWith('ios/')?/https:\/\/crm\.foreverdoodle\.com\/grace-app\.html/:/https:\/\/crm\.foreverdoodle\.com\/grace\.html/;
+ assert.match(native,expected);assert.doesNotMatch(native,/https:\/\/crm.foreverdoodle.com\/\?app=grace/);
+ if(name.startsWith('ios/')){assert.match(native,/allowedPages.contains\(url.path\)/);assert.match(native,/websiteDataStore = \.default\(\)/)}
  }
 });

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <script>if(location.pathname==='/grace.html'||new URLSearchParams(location.search).get('app')==='grace'){document.documentElement.dataset.graceApp='true';document.documentElement.dataset.graceEntry='true'}</script>
-    <link rel="stylesheet" href="./assets/grace-entry.css?v=20261015-1" />
+    <link rel="stylesheet" href="./assets/grace-entry.css?v=20261030-layout1" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>王力 · 全球询盘 CRM</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -2669,7 +2669,7 @@
       <div class="ai-suggestions"><button data-ai-question="生成今日销售日报">今日销售日报</button><button data-ai-question="生成本周销售周报">本周销售周报</button><button data-ai-question="总结当前经营情况">总结经营情况</button><button data-ai-question="业务员销售额排名">销售额排名</button><button data-ai-question="有哪些超时和风险询盘">风险询盘</button><button data-ai-question="分析当前商机漏斗">商机漏斗</button></div>
       <form id="ai-assistant-form" class="ai-compose"><textarea id="ai-assistant-input" class="input" rows="1" placeholder="例如：本月谁的成交额最高？"></textarea><button class="primary" type="submit">提问</button></form>
     </aside>
-    <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261019-private3" />
+    <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261030-layout1" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
     <script type="module">
       import {bindResearchGenerateEntry} from "./assets/research-generate-entry.mjs?v=20261029-1";
@@ -2681,8 +2681,8 @@
       import {marketSummary} from './assets/agent-market-summary.mjs?v=20261012-market';
       import {mountExhibitionCalendar} from './assets/exhibition-calendar.mjs?v=20261013-11';
       let exhibitionCalendarController=null;
-      import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow,currentQuestionWindow,restoreHistoryQuestion} from './assets/agent-question-windows.mjs?v=20261026-turn1';
-      import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261019-private1';
+      import {appendQuestionMessage,appendQuestionMaterials,openQuestionWindow,currentQuestionWindow,restoreHistoryQuestion} from './assets/agent-question-windows.mjs?v=20261030-mobile1';
+      import {isGraceApp,mountGraceMobile} from './assets/grace-mobile.mjs?v=20261030-layout1';
       let graceMobile=null;
       if(isGraceApp()){
         document.title='Grace · 王力随身 AI';
@@ -2695,7 +2695,7 @@
         document.querySelector('#boot').textContent='Grace 正在准备…';
       }
       import {createRealtimeClient} from './assets/agent-realtime-client.mjs?v=20261019-connect3';
-      import { mountConversation } from './assets/agent-conversation.mjs?v=20261027-private-input1';
+      import { mountConversation } from './assets/agent-conversation.mjs?v=20261030-mobile1';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261023-existing-video-release';
       import { lastWeekRange } from './assets/agent-answers.mjs?v=20260923-1';
       import {mailboxRankingRows,renderMailboxRankings} from './assets/sales-mailbox-rankings.mjs?v=20261023-1';

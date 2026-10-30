@@ -36,7 +36,7 @@ final class GraceViewController: UIViewController, WKNavigationDelegate, WKUIDel
         web.isOpaque = false; web.backgroundColor = view.backgroundColor
         web.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(web)
-        NSLayoutConstraint.activate([web.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),web.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),web.leadingAnchor.constraint(equalTo: view.leadingAnchor),web.trailingAnchor.constraint(equalTo: view.trailingAnchor)])
+        NSLayoutConstraint.activate([web.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),web.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),web.leadingAnchor.constraint(equalTo: view.leadingAnchor),web.trailingAnchor.constraint(equalTo: view.trailingAnchor)])
         retry.setTitle("无法连接 Grace · 点击重试", for: .normal)
         retry.addTarget(self, action: #selector(reload), for: .touchUpInside)
         retry.backgroundColor = view.backgroundColor; retry.isHidden = true

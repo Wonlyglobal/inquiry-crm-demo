@@ -71,3 +71,16 @@ test('both entry pages and model controller import one shared version of questio
  for(const source of sources.slice(0,2))assert.match(source,/onMessage:\(role,text,options\)=>\{addAiMessage\(role,text,options\)/);
  assert.match(sources[2],/onMessage\('user',question,\{card:currentQuestionWindow/);
 });
+
+test('mobile keeps both turns readable without changing the active reply destination',t=>{
+ const host=fixture(t);host.closest=selector=>selector==='#grace-mobile'?{}:null;
+ const first=user(host,'手机首问');assistant(host,'首轮长回答');
+ const second=user(host,'手机追问');assistant(host,'第二轮回答');
+ assert.equal(first.open,true);assert.equal(second.open,true);
+ assert.equal(first.hidden,false);assert.equal(second.hidden,false);
+ assert.equal(host.parentElement.querySelector('.question-history'),null);
+ assert.equal(currentQuestionWindow(host),second);
+ openQuestionWindow(host,first,{viewOnly:true});
+ assert.equal(currentQuestionWindow(host),second);
+ assert.equal(second.open,true);
+});

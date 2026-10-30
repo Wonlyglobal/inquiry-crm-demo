@@ -1,3 +1,5 @@
+import { fitGraceViewport } from './grace-viewport.mjs';
+fitGraceViewport(document.body);
 import { publicConfig } from './grace-public-config.mjs';
 import { createPublicRegistration, mountPublicRegistration } from './grace-registration.mjs';
 const $=selector=>document.querySelector(selector);

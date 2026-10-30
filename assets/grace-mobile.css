@@ -210,3 +210,19 @@ html[data-grace-app],html[data-grace-app] body {margin:0;overflow:hidden;overscr
 .private-report-actions{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0;max-width:100%}
 .private-report-actions button{min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
 #grace-mobile .private-report-actions button{background:#e3e9dc!important;color:#293e2d!important;border:1px solid #b9c6b0!important;border-radius:12px;padding:9px 12px!important;font-size:13px!important}
+
+/* Phone chat uses natural document height, never nested clipped message panes. */
+#grace-mobile .grace-sheet{min-width:0}
+#grace-mobile .grace-chat,#grace-mobile #ai-assistant-messages{height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important;flex:none!important}
+#grace-mobile #ai-assistant-messages{display:block!important}
+#grace-mobile .question-window{height:auto!important;max-height:none!important;overflow:visible!important;flex:none!important;border:0;background:transparent;margin:0 0 24px}
+#grace-mobile .question-window-body{height:auto!important;max-height:none!important;overflow:visible!important;padding:0;min-width:0}
+#grace-mobile .question-window[open]>summary{display:none}
+#grace-mobile .question-window .ai-message{max-width:100%;height:auto;max-height:none;overflow:visible;white-space:pre-wrap}
+#grace-mobile .question-new{display:block;background:#ddd9cf;color:#34392f;border-radius:18px;padding:8px 16px;margin:0 0 20px;font-size:14px}
+#grace-mobile .question-history{max-width:100%;font-size:16px;padding:10px;border-radius:12px;margin-bottom:16px;color-scheme:light}
+#grace-mobile .grace-feedback{clear:both;position:static;flex:none}
+#grace-mobile .grace-mode-label{display:block;font-size:11px;letter-spacing:0;color:#aaa99e;font-weight:400}
+#grace-mobile input,#grace-mobile select{font-size:16px}
+
+#grace-mobile .grace-public-return{display:inline-block;color:#354e3e;padding:12px 0;font-size:14px}

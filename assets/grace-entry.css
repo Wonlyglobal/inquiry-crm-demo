@@ -17,5 +17,5 @@ html[data-grace-entry] #login-form .password-visibility {color:#c6c1b9}
 html[data-grace-entry] #boot {background:#222321;color:#eeeadf}
 html[data-grace-entry] #app>.main {margin:0;padding:0}
 html[data-grace-entry] .error {color:#f3b8ac}
-html[data-grace-entry] #grace-mobile {min-height:100dvh}
+html[data-grace-entry] #grace-mobile {min-height:0}
 html[data-grace-entry] #password-modal .card,html[data-grace-entry] #forgot-password-modal .card {color-scheme:light}

@@ -5,7 +5,7 @@ import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=2026
 import {createPhoneSession} from './agent-phone.mjs?v=20261015-stable-call1';
 import {preparePhoneInput,capturePhoneTurn} from './agent-phone-input.mjs?v=20261015-stable-call1';
 import {modelChoiceButtons,clarificationButtons,clarificationChoices} from './agent-model-choices.mjs?v=20261012-feedback';
-import {currentQuestionWindow} from './agent-question-windows.mjs?v=20261026-turn1';
+import {currentQuestionWindow} from './agent-question-windows.mjs?v=20261030-mobile1';
 // Keeps the latest turns within the server limits (20 messages, 40,000 characters; each message ≤6,000).
 export function fitHistory(list,maxChars=38000){const out=[];let n=0;for(const m of [...list].reverse().slice(0,20)){const c=String(m.content).slice(0,6000);if(n+c.length>maxChars)break;n+=c.length;out.unshift({role:m.role,content:c})}if(out[0]?.role==='assistant')out.shift();return out}
 // "Open it for me" actions from the agent: CRM pages, competitors' official pages, keyword searches.

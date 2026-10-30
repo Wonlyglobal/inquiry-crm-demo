@@ -2,3 +2,10 @@
 
 /* Keep iOS input focus from zooming and cropping the app viewport. */
 input,textarea{font-size:16px}
+
+/* One viewport, one scroll area, composer in its own non-shrinking row. */
+html{height:100%;overflow:hidden}body{position:fixed;inset:var(--grace-viewport-top,0px) 0 auto;height:var(--grace-viewport-height,100dvh);min-height:0;overflow:hidden}
+header{flex:none;padding:12px 24px}main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 24px 24px;width:min(100%,740px);scroll-padding-bottom:20px}
+#composer{position:static;transform:none;flex:none;margin:0 auto;padding:10px 20px max(10px,env(safe-area-inset-bottom))}
+body.keyboard-open #welcome{padding-top:0}body.keyboard-open #welcome .grace-orb{display:none}
+dialog{max-height:calc(var(--grace-viewport-height,100dvh) - 24px);color-scheme:dark}

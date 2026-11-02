@@ -1,9 +1,11 @@
 import { withReadOnlyGuard } from "../_shared/read-only.ts";
-import {publicMarketQuery,PUBLIC_PRODUCT_TERMS} from "../../../assets/outreach-research-plan.mjs";
+import {publicMarketQuery,PUBLIC_PRODUCT_TERMS} from "../_shared/outreach-research-plan.mjs";
+import {websiteEvidence,generateWebsiteSummary} from "../_shared/website-english-policy.mjs";
+import {providerJson,CHAT_URL} from "../agent-conversation/bailian.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const cors = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://crm.foreverdoodle.com",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
   "Content-Type": "application/json",
 };
@@ -142,6 +144,7 @@ function errorText(error: unknown) {
 
 Deno.serve(withReadOnlyGuard(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if(req.method!=="POST")return new Response(JSON.stringify({error:"不支持的方法"}),{status:405,headers:cors});
   try {
     const authorization = req.headers.get("Authorization") || "";
     const client = createClient(
@@ -158,10 +161,10 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     const marketQuery=publicMarketQuery(input.market_code,input.focus_category);
     const website = safeWebsite(input.website);
     const [{ data: profile }, { data: inquiry, error: inquiryError }] = await Promise.all([
-      client.from("profiles").select("id,active").eq("id", user.id).single(),
+      client.from("profiles").select("id,active,is_test_data,data_environment").eq("id", user.id).single(),
       client.from("inquiries").select("id").eq("id", inquiryId).single(),
     ]);
-    if (!profile?.active) throw new Error("账号不可用");
+    if (!profile?.active || profile.is_test_data || profile.data_environment!=="production") throw new Error("账号不可用");
     if (inquiryError || !inquiry) throw inquiryError || new Error("无权查看该询盘");
 
     const response = await fetch(website, {
@@ -207,7 +210,17 @@ Deno.serve(withReadOnlyGuard(async (req) => {
       } catch { /* optional supporting page */ }
     }
     const seoFocus = [...new Set([...keywords, ...pageEvidence.flatMap((page) => [page.title, page.description, ...page.headings])].filter(Boolean))].slice(0, 24);
-    const categorySignals = categoryJudgement(seoFocus.join(" "));
+    const evidence=websiteEvidence(pageEvidence,website.toString(),new Date().toISOString());
+    const admin=createClient(Deno.env.get("SUPABASE_URL")||"",envKey("SUPABASE_SECRET_KEYS","SUPABASE_SERVICE_ROLE_KEY"),{auth:{persistSession:false}});
+    const englishSummary=await generateWebsiteSummary({
+      evidence,policy:Deno.env.get("WEBSITE_ENGLISH_SUMMARY_POLICY"),key:Deno.env.get("DASHSCOPE_API_KEY"),
+      provider:(body:unknown,key:string)=>providerJson(CHAT_URL,body,key),
+      hash:async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value))),v=>v.toString(16).padStart(2,"0")).join(""),
+      limited:async()=>{const {count,error}=await admin.from("audit_logs").select("id",{count:"exact",head:true}).eq("actor_id",user.id).eq("action","website_english_summary_requested").gte("created_at",new Date(Date.now()-60000).toISOString());if(error||count===null)throw Error("limit_unavailable");return count>=3},
+      audit:async(action:string,details:unknown)=>{const result=await admin.from("audit_logs").insert({actor_id:user.id,entity_type:"inquiry",entity_id:inquiry.id,action,after_data:details,reason:"负责人批准：仅少量公开官网片段生成英文品类/项目信号建议；不含原邮件、联系人、内部资料，不自动发信或判定采购需求"});if(result.error)throw Error("audit_unavailable")},
+    });
+    const englishFields={english_summary:englishSummary,seo_focus_categories:(englishSummary.seo||[]).map((item:any)=>item.name),project_category_signals:(englishSummary.projects||[]).map((item:any)=>item.display)};
+    if(input.summary_only===true)return new Response(JSON.stringify({...englishFields,website:website.toString(),website_evidence:pageEvidence}),{headers:cors});
 
     const news: Array<{ title: string; date: string; source_url: string; display: string }> = [];
     const newsQuery = [companyName || title, website.hostname.replace(/^www\./, "")].filter(Boolean).join(" ");
@@ -245,8 +258,7 @@ Deno.serve(withReadOnlyGuard(async (req) => {
       website: website.toString(), candidates: candidates.slice(0, 6),
       website_profile: { title, description, keywords, headings },
       website_evidence: pageEvidence,
-      seo_focus_categories: seoFocus,
-      project_category_signals: categorySignals,
+      ...englishFields,
       news_signals: news,
       chinese_summary: chineseSeoSummary(seoFocus, news.length),
       official_address: officialAddress.address,

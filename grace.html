@@ -2408,8 +2408,9 @@
           <div class="form-actions"><a id="open-company-map" class="table-action" target="_blank" rel="noopener noreferrer">Google Maps 查看 ↗</a><a id="open-company-osm" class="table-action" target="_blank" rel="noopener noreferrer">OpenStreetMap 查看 ↗</a></div>
           <div class="field"><label>中文智能总结</label><textarea id="detail-research-chinese-summary" class="input" rows="4" readonly placeholder="智能体正在生成中文总结…"></textarea></div>
           <div class="field"><label>相关新闻与项目线索（标题｜日期｜项目/品类判断｜来源网址）</label><textarea id="detail-research-news" class="input" rows="6" readonly placeholder="智能体正在自动检索…"></textarea></div>
-          <div class="field"><label>官网 SEO 重点品类（每行一项）</label><textarea id="detail-research-seo-focus" class="input" rows="5" readonly placeholder="智能体正在自动分析官网…"></textarea></div>
-          <div class="field"><label>项目与品类指向信号（每行一项）</label><textarea id="detail-research-project-categories" class="input" rows="5" readonly placeholder="智能体正在自动归纳…"></textarea></div>
+          <div class="field"><label>官网重点品类 · 英文摘要</label><textarea id="detail-research-seo-focus" class="input" rows="4" readonly placeholder="English product-category summaries will appear here…"></textarea></div>
+          <div class="field"><label>项目与应用信号 · 英文摘要</label><textarea id="detail-research-project-categories" class="input" rows="4" readonly placeholder="English project/application signals will appear here…"></textarea></div>
+          <div class="field"><button id="refresh-website-english" class="ghost" type="button">重新生成英文摘要</button> <button id="save-website-english" class="ghost" type="button">保存这两项摘要</button><p id="website-english-status" class="hint" role="status">仅根据公开官网原文生成建议，不代表已核实采购计划；生成后自动保存这两项摘要与出处。</p><div id="website-english-evidence"></div></div>
           <div id="map-candidate-wrap" class="field hidden"><label>地址候选（采用前请人工确认公司名称、国家与官网）</label><select id="detail-map-candidate" class="input"></select></div>
           <div class="detail-grid"><div class="field"><label>公司地址 <button class="metric-help" data-metric="company_verified_address" type="button">?</button></label><input id="detail-research-map-address" class="input" readonly placeholder="地址暂留空；有可靠证据后再人工选择" /></div><div class="field"><label>Google Maps 链接</label><input id="detail-research-map-url" class="input" readonly /></div></div>
           <div class="form-actions"><button id="clear-company-address" class="ghost" type="button">清空地址</button><button id="find-company-address" class="ghost" type="button">查找地址候选</button></div>
@@ -2686,6 +2687,7 @@
         card.querySelector('button[type="submit"]').textContent='登录 Grace';
         document.querySelector('#boot').textContent='Grace 正在准备…';
       }
+      import {savedWebsiteSignals,signalFieldText,signalSaveFields,generatedWebsiteSignals,renderWebsiteSignalEvidence} from './assets/website-english-signals.mjs?v=20261102-en1';
       import {officialInquiryRows} from './assets/official-inquiries.mjs?v=20261102-origin1';
       import {createRealtimeClient} from './assets/agent-realtime-client.mjs?v=20261019-connect3';
       import { mountConversation } from './assets/agent-conversation.mjs?v=20261030-mobile1';
@@ -4908,7 +4910,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           let inquiryQuery=(from,to)=>{let q=supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,estimated_amount,currency,won_amount,won_currency,created_at,updated_at,companies(name)").eq("validity","valid").not("status","in","(lost)").eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).range(from,to);if(profile.role==="sales")q=q.eq("owner_id",profile.id);return q};
           const inquiryResult=await loadModuleRowsPaged(inquiryQuery);if(inquiryResult.error)query=Promise.resolve(inquiryResult);else{const inquiries=inquiryResult.data||[],ids=inquiries.map(item=>item.id),[samplesResult,ordersResult]=ids.length?await Promise.all([loadModuleRowsPaged((from,to)=>supabase.from("sample_shipments").select("id,inquiry_id,status,updated_at").in("inquiry_id",ids).range(from,to)),loadModuleRowsPaged((from,to)=>supabase.from("sales_orders").select("id,inquiry_id,status,total_amount,currency,expected_delivery_at,updated_at").in("inquiry_id",ids).range(from,to))]):[{data:[],error:null},{data:[],error:null}];const relatedError=samplesResult.error||ordersResult.error;if(relatedError)query=Promise.resolve({data:null,error:relatedError});else{const samples=samplesResult.data||[],orders=ordersResult.data||[];query=Promise.resolve({data:inquiries.map(item=>({...item,samples:samples.filter(row=>row.inquiry_id===item.id),orders:orders.filter(row=>row.inquiry_id===item.id)})),error:null});columns=["询盘","客户","国家/地区","商机阶段","样品","订单","当前履约状态","预计交付","操作"];mapper=item=>{const company=Array.isArray(item.companies)?item.companies[0]:item.companies,activeOrder=item.orders.find(order=>!["completed","cancelled"].includes(order.status))||item.orders[0],sampleStatus=item.samples[0]?.status,fulfillmentStatus=activeOrder?orderStatusNames[activeOrder.status]||activeOrder.status:sampleStatus?sampleStatusNames[sampleStatus]||sampleStatus:"待登记";return{id:item.id,fulfillmentInquiry:item,meta:{risk:activeOrder?.expected_delivery_at&&new Date(activeOrder.expected_delivery_at)<new Date()&&!['delivered','completed'].includes(activeOrder.status)},cells:[`#${String(item.inquiry_no||"").padStart(6,"0")} · ${item.title}`,company?.name||"—",displayCountry(item.target_country),displayInquiryStage(item),`${item.samples.length} 条`,`${item.orders.length} 条`,fulfillmentStatus,activeOrder?.expected_delivery_at?fmtDate(activeOrder.expected_delivery_at):"—"],actions:[{label:"管理履约",onClick:()=>openFulfillmentManager(item)}]}};clickable=true;}}
         } else if(view==="customers"){
-          const inquiryResult=await loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,company_id,target_country,product_category,created_at,updated_at,won_amount,won_currency,won_at,companies(id,name,domain,country,company_type,main_business,value_grade,purchase_likelihood,risk_level)").not("company_id","is",null).eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).range(from,to));
+          const inquiryResult=await loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,company_id,target_country,product_category,created_at,updated_at,won_amount,won_currency,won_at,companies(id,name,domain,updated_at,country,company_type,main_business,value_grade,purchase_likelihood,risk_level)").not("company_id","is",null).eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).range(from,to));
           if(inquiryResult.error)query=Promise.resolve(inquiryResult);else{
             const inquiries=inquiryResult.data||[],companyIds=[...new Set(inquiries.map(item=>item.company_id).filter(Boolean))],contactResult=companyIds.length?await loadModuleRowsPaged((from,to)=>supabase.from("contacts").select("id,company_id,full_name,email,phone,whatsapp,created_at,updated_at").in("company_id",companyIds).range(from,to)):({data:[],error:null});
             if(contactResult.error)query=Promise.resolve(contactResult);else{
@@ -6963,8 +6965,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#detail-research-sources").value = lineText(company.research_evidence_sources, ["url", "source_url", "text"]);
         $("#detail-research-news").value = lineText(company.news_signals, ["display", "title", "text"]);
         $("#detail-research-chinese-summary").value = "智能体正在根据官网、新闻与品类信号生成中文总结…";
-        $("#detail-research-seo-focus").value = lineText(company.seo_focus_categories, ["name", "text"]);
-        $("#detail-research-project-categories").value = lineText(company.project_category_signals, ["display", "signal", "text"]);
+        currentInquiry.websiteEnglishSignals=savedWebsiteSignals(company);
+        if(currentInquiry.websiteEnglishSignals.status!=="ready"&&$("#detail-research-domain").value.trim())queueMicrotask(()=>{if(currentInquiry?.id===id)refreshEnglishWebsiteSummary()});
+        renderEnglishWebsiteSignals(currentInquiry.websiteEnglishSignals,{legacy:[lineText(company.seo_focus_categories,["name","text"]),lineText(company.project_category_signals,["display","signal","text"])].filter(Boolean)});
         $("#detail-research-map-address").value = company.map_address || "";
         $("#detail-research-map-url").value = company.google_maps_url || "";
         $("#detail-research-osm-url").value = company.openstreetmap_url || "";
@@ -8425,6 +8428,44 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           grid.append(card);
         });
       }
+      function renderEnglishWebsiteSignals(state,options={}){
+        $("#detail-research-seo-focus").value=signalFieldText(state?.seo||[],"seo");
+        $("#detail-research-project-categories").value=signalFieldText(state?.projects||[],"projects");
+        renderWebsiteSignalEvidence($("#website-english-evidence"),state,options);
+        $("#website-english-status").textContent=state?.status==="ready"?"已生成英文建议；可展开核对原文、来源和日期。英文建议仍需核对，不代表采购计划已核实。":"尚无可核对的英文摘要；点击重新生成。历史原文保留在下方，不自动当作品类或项目信号。";
+      }
+      async function saveEnglishWebsiteSignals(){
+        if(!currentInquiry||currentInquiry.websiteEnglishSignals?.status!=="ready")return false;
+        const inquiryId=currentInquiry.id,companyId=currentInquiry.company_id,before=currentInquiry.companies;
+        if(!companyId){$("#website-english-status").textContent="已生成英文建议；请先关联公司后保存摘要。";return false}
+        const fields=signalSaveFields(currentInquiry.websiteEnglishSignals,before,$("#detail-research-domain").value.trim());
+        if(fields.seo_focus_categories!==currentInquiry.websiteEnglishSignals.seo){$("#website-english-status").textContent="官网已改变，请重新生成摘要后保存。";return false}
+        const {data,error}=await supabase.rpc("save_website_english_signals",{target_inquiry:inquiryId,expected_company:companyId,expected_updated_at:before?.updated_at||null,seo:fields.seo_focus_categories,projects:fields.project_category_signals});
+        if(currentInquiry?.id!==inquiryId)return false;
+        if(error){$("#website-english-status").textContent="英文建议已生成但尚未保存："+error.message;return false}
+        currentInquiry.companies={...currentInquiry.companies,...data};
+        $("#website-english-status").textContent="英文摘要及原文出处已保存；仅更新这两项，建议仍需核对。";return true;
+      }
+      $("#save-website-english").addEventListener("click",saveEnglishWebsiteSignals);
+      async function applyEnglishWebsiteSignals(data){
+        const next=generatedWebsiteSignals(data?.english_summary);
+        if(next){currentInquiry.websiteEnglishSignals=next;renderEnglishWebsiteSignals(next);await saveEnglishWebsiteSignals();return true}
+        $("#website-english-status").textContent="英文摘要暂未生成成功，请稍后重试；已保存的摘要及原文出处保留。";
+        return false;
+      }
+      async function refreshEnglishWebsiteSummary(){
+        if(!currentInquiry)return;
+        const inquiryId=currentInquiry.id,domain=$("#detail-research-domain").value.trim(),button=$("#refresh-website-english");
+        if(!domain)return toast("请先填写并核对公司官网");
+        button.disabled=true;$("#website-english-status").textContent="正在读取公开官网片段并生成英文摘要…";
+        try{
+          const {data,error}=await supabase.functions.invoke("company-website-images",{body:{inquiry_id:inquiryId,website:domain,summary_only:true}});
+          if(currentInquiry?.id!==inquiryId||$("#detail-research-domain").value.trim()!==domain)return;
+          if(error)throw error;await applyEnglishWebsiteSignals(data);
+        }catch{if(currentInquiry?.id===inquiryId)$("#website-english-status").textContent="官网或英文生成暂不可用；已有摘要与出处保留，请稍后重试。"}
+        finally{button.disabled=false}
+      }
+      $("#refresh-website-english").addEventListener("click",refreshEnglishWebsiteSummary);
       async function loadCompanyImages() {
         const researchInquiryId = currentInquiry?.id;
         const website = $("#detail-research-domain").value.trim();
@@ -8432,7 +8473,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         try {
           const { data, error } = await supabase.functions.invoke("company-website-images", { body: { inquiry_id: currentInquiry.id, website, company_name: $("#detail-research-company").value.trim() } });
           if (error) throw error;
-          if (currentInquiry?.id !== researchInquiryId) return;
+          if (currentInquiry?.id !== researchInquiryId || $("#detail-research-domain").value.trim() !== website) return;
           currentInquiry.publicWebsiteResearch = { data, inquiryId: researchInquiryId, accessedAt: new Date().toISOString().slice(0,10) };
           const candidates = data?.candidates || [];
           renderCompanyImages(candidates);
@@ -8448,9 +8489,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           }
           $("#detail-research-chinese-summary").value = data?.chinese_summary || "暂未生成中文总结";
           $("#detail-research-news").value = news.join("\n") || "未检索到与该公司唯一匹配的近期公开新闻";
-          $("#detail-research-seo-focus").value = (data?.seo_focus_categories || []).join("\n") || "官网未公开可可靠识别的重点品类";
+          await applyEnglishWebsiteSignals(data);
           const profile = data?.website_profile || {};
-          $("#detail-research-project-categories").value = (data?.project_category_signals || []).join("\n") || [profile.title, profile.description, ...(profile.keywords || [])].filter(Boolean).join("\n") || "未检索到明确的项目与品类指向信号";
           const discoveredSources = (data?.website_evidence || []).map((item) => safeExternalUrl(item.url)).filter(Boolean);
           const existingSources = researchSourceUrls();
           $("#detail-research-sources").value = [...new Set([...existingSources, ...discoveredSources])].join("\n");
@@ -8479,8 +8519,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           renderCompanyImages([]);
           if (!$("#detail-research-chinese-summary").value.trim()) $("#detail-research-chinese-summary").value = "中文总结暂时生成失败，智能体将在下次打开时重试";
           if (!$("#detail-research-news").value.trim()) $("#detail-research-news").value = "自动检索暂时失败，智能体将在下次打开时重试";
-          if (!$("#detail-research-seo-focus").value.trim()) $("#detail-research-seo-focus").value = "官网暂时无法读取，智能体将在下次打开时重试";
-          if (!$("#detail-research-project-categories").value.trim()) $("#detail-research-project-categories").value = "暂无可信的项目与品类指向信号";
+          $("#website-english-status").textContent="官网暂时无法读取；已有英文摘要与原文出处保留，请稍后重试。";
         }
       }
       function applyMapCandidate(candidate) {
@@ -9228,8 +9267,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           research_sales_brief: { ...(before?.research_sales_brief || {}), domain_aliases: $("#detail-research-domain-aliases").value.split(/\n+/).map((domain) => domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "")).filter(Boolean), why_now: $("#detail-research-why-now").value.trim(), decision_summary: $("#detail-research-chinese-summary").value.trim(), recommended_angle: $("#detail-recommended-strategy").value.trim(), questions_to_ask: $("#detail-research-questions").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), materials_to_prepare: $("#detail-research-materials").value.split(/\n+/).map((text) => text.trim()).filter(Boolean), next_best_action: $("#detail-research-next-action").value.trim(), company_events: currentCompanyEvents.filter((event) => event.origin !== "system") },
           research_evidence_sources: $("#detail-research-sources").value.split(/\n+/).map((url) => safeExternalUrl(url.trim())).filter(Boolean).map((url) => ({ url, captured_at: new Date().toISOString() })),
           news_signals: $("#detail-research-news").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
-          seo_focus_categories: $("#detail-research-seo-focus").value.split(/\n+/).map((name) => name.trim()).filter(Boolean).map((name) => ({ name })),
-          project_category_signals: $("#detail-research-project-categories").value.split(/\n+/).map((display) => display.trim()).filter(Boolean).map((display) => ({ display })),
+          ...signalSaveFields(currentInquiry.websiteEnglishSignals,before,$("#detail-research-domain").value.trim()),
           ...researchAddressPatch(before, {
             map_address: $("#detail-research-map-address").value,
             google_maps_url: safeExternalUrl($("#detail-research-map-url").value.trim()),

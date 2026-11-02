@@ -5391,8 +5391,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const registered=await supabase.rpc("register_inquiry_for_assignment",{target_inquiry_id:id});
         if(registered.error)throw registered.error;
         const notice=await supabase.functions.invoke("group-notify",{body:{inquiry_id:id,action:"registered"}});
-        if(notice.error)toast("已提交主管，但群通知发送失败："+notice.error.message);
-        else toast("已提交销售主管分配，并发送群通知");
+        if(notice.error)toast("已提交主管，但群提醒状态确认失败："+notice.error.message);
+        else toast("已提交销售主管分配，群提醒已提交");
         await loadNotifications();
         await openInquiryDetail(id);
       }
@@ -5430,7 +5430,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(!inquiry.owner_id)renderRecommendation();
         else $("#assignment-recommendation").innerHTML='<b>重新分配</b><p class="hint">请选择新的业务员并填写原因；原负责人、分配历史和跟进记录会保留。</p>';
         $("#quick-assignment-reason").value="";
-        $("#quick-assignment-submit").onclick=async()=>{const owner=$("#quick-assignment-owner").value,reason=$("#quick-assignment-reason").value.trim(),button=$("#quick-assignment-submit");if(!owner)return toast("请选择业务员");if(owner===inquiry.owner_id)return toast("该业务员已经是当前负责人");if(!reason)return toast("请填写分配原因");const territoryMatch=assignmentSuggestion?.proposed_data?.candidate_territories?.find(item=>item.sales_id===owner);if(!territoryMatch||territoryMatch.rank===0){const confirmed=await appConfirm("所选人员的负责区域未匹配或尚未确认，请核对分配原因后继续。",{title:"区域匹配确认",confirmText:"确认人工分配"});if(!confirmed)return;}button.disabled=true;button.textContent="分配中…";const assigned=await supabase.rpc("assign_inquiry_to_sales",{target_inquiry_id:id,target_sales_id:owner,change_reason:reason});if(assigned.error){button.disabled=false;button.textContent="确认分配并转发邮件";return toast("分配失败："+assigned.error.message)}if(assignmentSuggestion?.id){const recommended=assignmentSuggestion.proposed_data?.recommended_sales_id,decision=owner===recommended?"accepted":"modified",selected=sales?.find(x=>x.id===owner);await supabase.rpc("review_ai_suggestion",{target_suggestion_id:assignmentSuggestion.id,target_decision:decision,target_applied_data:decision==="modified"?{selected_sales_id:owner,selected_sales_name:selected?.full_name||""}:null,target_review_note:reason})}let forwardError=null;if(["email","website"].includes(inquiry.source)){const queued=await supabase.rpc("request_original_email_forward",{target_inquiry_id:id});if(queued.error&&!/转发队列|已经转发/.test(queued.error.message||""))forwardError=queued.error;else if(!queued.error){const delivered=await supabase.functions.invoke("email-forward",{body:{inquiry_id:id}});forwardError=delivered.error}}const notice=await supabase.functions.invoke("group-notify",{body:{inquiry_id:id,action:"assigned"}});$("#dashboard-modal").classList.add("hidden");toast(forwardError?"已分配，但原邮件转发失败："+forwardError.message:notice.error?"已分配并转发邮件，但群通知失败："+notice.error.message:"已分配，原邮件已转发给业务员，并发送群通知");await Promise.all([loadInquiries(),loadNotifications()]);if(currentInquiry?.id===id&&!$("#detail-modal").classList.contains("hidden"))await openInquiryDetail(id);if(["assignment","inquiries"].includes(activeModuleView))await loadModule(activeModuleView);};
+        $("#quick-assignment-submit").onclick=async()=>{const owner=$("#quick-assignment-owner").value,reason=$("#quick-assignment-reason").value.trim(),button=$("#quick-assignment-submit");if(!owner)return toast("请选择业务员");if(owner===inquiry.owner_id)return toast("该业务员已经是当前负责人");if(!reason)return toast("请填写分配原因");const territoryMatch=assignmentSuggestion?.proposed_data?.candidate_territories?.find(item=>item.sales_id===owner);if(!territoryMatch||territoryMatch.rank===0){const confirmed=await appConfirm("所选人员的负责区域未匹配或尚未确认，请核对分配原因后继续。",{title:"区域匹配确认",confirmText:"确认人工分配"});if(!confirmed)return;}button.disabled=true;button.textContent="分配中…";const assigned=await supabase.rpc("assign_inquiry_to_sales",{target_inquiry_id:id,target_sales_id:owner,change_reason:reason});if(assigned.error){button.disabled=false;button.textContent="确认分配并转发邮件";return toast("分配失败："+assigned.error.message)}if(assignmentSuggestion?.id){const recommended=assignmentSuggestion.proposed_data?.recommended_sales_id,decision=owner===recommended?"accepted":"modified",selected=sales?.find(x=>x.id===owner);await supabase.rpc("review_ai_suggestion",{target_suggestion_id:assignmentSuggestion.id,target_decision:decision,target_applied_data:decision==="modified"?{selected_sales_id:owner,selected_sales_name:selected?.full_name||""}:null,target_review_note:reason})}let forwardError=null;if(["email","website"].includes(inquiry.source)){const queued=await supabase.rpc("request_original_email_forward",{target_inquiry_id:id});if(queued.error&&!/转发队列|已经转发/.test(queued.error.message||""))forwardError=queued.error;else if(!queued.error){const delivered=await supabase.functions.invoke("email-forward",{body:{inquiry_id:id}});forwardError=delivered.error}}const notice=await supabase.functions.invoke("group-notify",{body:{inquiry_id:id,action:"assigned"}});$("#dashboard-modal").classList.add("hidden");toast(forwardError?"已分配，但原邮件转发失败："+forwardError.message:notice.error?"已分配并转发邮件，但群通知失败："+notice.error.message:"已分配，原邮件已转发给业务员，群提醒已提交");await Promise.all([loadInquiries(),loadNotifications()]);if(currentInquiry?.id===id&&!$("#detail-modal").classList.contains("hidden"))await openInquiryDetail(id);if(["assignment","inquiries"].includes(activeModuleView))await loadModule(activeModuleView);};
       }
       function setActiveNavigation(view) {
         refreshSidebarBadges();
@@ -6764,7 +6764,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
                 );
                 if (assignmentError) throw assignmentError;
                 const { error: groupNotifyError } = await supabase.functions.invoke("group-notify", { body: { inquiry_id: x.id, action: "registered" } });
-                if (groupNotifyError) toast("询盘已登记，但群通知发送失败：" + groupNotifyError.message);
+                if (groupNotifyError) toast("询盘已登记，但群提醒状态确认失败：" + groupNotifyError.message);
                 toast("已提交销售主管分配");
                 await Promise.all([loadInquiries(), loadNotifications()]);
               } catch (error) {
@@ -7784,8 +7784,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           postCreateAutomationInquiryId=created.id;
           const creationMessage=profile.role==="sales"?"客户与商机已创建，正在自动背调并准备开发信草稿":"客户与商机已提交主管分配，正在自动背调并准备开发信草稿";
           if(groupNotification?.error)toast("商机已创建，但群提醒接口异常、飞书送达未确认："+groupNotification.error.message);
-          else if(groupNotification&&!groupNotification.data?.sent?.includes("feishu"))toast("商机已创建，但未确认飞书提醒已发送；请检查飞书机器人配置和通知审计");
-          else if(groupNotification)toast("商机已提交主管分配，飞书群提醒已发送");
+          else if(groupNotification&&!groupNotification.data?.queued&&!groupNotification.data?.excluded&&!groupNotification.data?.sent?.includes("feishu"))toast("商机已创建，飞书提醒状态尚未确认；请检查通知队列和审计");
+          else if(groupNotification?.data?.excluded)toast("商机已保存，按排除规则不发送群提醒");
+          else if(groupNotification)toast("商机已提交主管分配，飞书群提醒已提交");
           else toast(creationMessage);
           if(returnToDailyAfterLeadCreate){returnToDailyAfterLeadCreate=false;await openDailyReport();}
           await loadInquiries();
@@ -8196,7 +8197,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         currentInquiry.owner_id = update.owner_id ?? currentInquiry.owner_id;
         if (isAssignment) {
           const { error: groupNotifyError } = await supabase.functions.invoke("group-notify", { body: { inquiry_id: currentInquiry.id, action: "assigned" } });
-          if (groupNotifyError) toast("分配已保存，但群通知发送失败：" + groupNotifyError.message);
+          if (groupNotifyError) toast("分配已保存，但群提醒状态确认失败：" + groupNotifyError.message);
         }
         $("#detail-reason").value = "";
         await Promise.all([loadTimeline(currentInquiry.id), loadInquiries()]);
@@ -8227,7 +8228,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         button.disabled = false;
         if (error) return toast("登记提交失败：" + error.message);
         const { error: groupNotifyError } = await supabase.functions.invoke("group-notify", { body: { inquiry_id: currentInquiry.id, action: "registered" } });
-        if (groupNotifyError) return toast("询盘已登记，但群通知发送失败：" + groupNotifyError.message);
+        if (groupNotifyError) return toast("询盘已登记，但群提醒状态确认失败：" + groupNotifyError.message);
         toast("已登记，主管分配提醒已创建");
         await Promise.all([openInquiryDetail(currentInquiry.id), loadNotifications(), loadInquiries()]);
       });

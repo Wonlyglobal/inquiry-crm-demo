@@ -28,17 +28,24 @@ Deno.serve(withReadOnlyGuard(async request=>{
     if(callerError||!caller?.active||!["owner","sales_manager","marketing"].includes(caller.role))throw new Error("当前角色无权发送群通知");
     const body=await request.json(),inquiryId=text(body.inquiry_id,80),action=text(body.action,40);
     if(!inquiryId||!actionNames[action])throw new Error("通知参数不完整");
+    let pipelineReceipt:any=null;
+    if(Deno.env.get("CRM_PIPELINE_FEISHU_ENABLED")==="true"){
+      const receipt=await userClient.rpc("pipeline_feishu_receipt",{target:inquiryId});
+      if(receipt.error||!receipt.data?.enabled)throw new Error("流水线提醒队列暂不可确认，请查看通知审计；业务已保存");
+      pipelineReceipt=receipt.data;
+      if(!Deno.env.get("DINGTALK_WEBHOOK_URL"))return new Response(JSON.stringify({sent:[],queued:!pipelineReceipt.excluded&&pipelineReceipt.queued,excluded:pipelineReceipt.excluded,configured:["feishu_pipeline"]}),{headers:cors});
+    }
     const {data:inquiry,error:inquiryError}=await admin.from("inquiries").select("id,inquiry_no,title,status,owner_id,target_country,product_category").eq("id",inquiryId).single();
     if(inquiryError||!inquiry)throw new Error("询盘不存在");
     const {data:ownerProfile}=inquiry.owner_id?await admin.from("profiles").select("full_name").eq("id",inquiry.owner_id).maybeSingle():{data:null};const owner=ownerProfile?.full_name;
     const content=[`【WONLY CRM】${actionNames[action]}`,`询盘：#${String(inquiry.inquiry_no||"").padStart(6,"0")} ${inquiry.title||"未命名询盘"}`,`负责人：${owner||"待分配"}`,`国家/地区：${inquiry.target_country||"待补充"}`,`产品：${inquiry.product_category||"待补充"}`,`操作人：${caller.full_name||"CRM 成员"}`,`详情：http://crm.foreverdoodle.com/#inquiry/${inquiry.id}`].join("\n");
     const channels=[
-      {provider:"feishu",url:text(Deno.env.get("FEISHU_WEBHOOK_URL"),1000),send:postFeishu},
+      {provider:"feishu",url:pipelineReceipt?"":text(Deno.env.get("FEISHU_WEBHOOK_URL"),1000),send:postFeishu},
       {provider:"dingtalk",url:text(Deno.env.get("DINGTALK_WEBHOOK_URL"),1000),send:postDingTalk},
     ].filter(channel=>channel.url);
     const results=await Promise.all(channels.map(async channel=>{try{await channel.send(channel.url,content);return{provider:channel.provider,sent:true}}catch(error){return{provider:channel.provider,sent:false,error:error instanceof Error?error.message:String(error)}}}));
     await admin.from("audit_logs").insert({actor_id:user.id,entity_type:"inquiry",entity_id:inquiry.id,action:"group_notification",after_data:{action,channels:results},reason:"询盘业务事件同步到已配置的群机器人"});
     const failed=results.filter(result=>!result.sent);if(failed.length)throw new Error(failed.map(result=>`${result.provider}: ${result.error}`).join("；"));
-    return new Response(JSON.stringify({sent:results.filter(result=>result.sent).map(result=>result.provider),configured:channels.map(channel=>channel.provider)}),{headers:cors});
+    return new Response(JSON.stringify({sent:results.filter(result=>result.sent).map(result=>result.provider),configured:channels.map(channel=>channel.provider),queued:pipelineReceipt?!pipelineReceipt.excluded&&pipelineReceipt.queued:false,excluded:pipelineReceipt?.excluded||false}),{headers:cors});
   }catch(error){return new Response(JSON.stringify({error:error instanceof Error?error.message:String(error)}),{status:400,headers:cors})}
 }));

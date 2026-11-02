@@ -469,3 +469,6 @@ verify_jwt = false
 [functions.outreach-compose]
 # Active actor, original inquiry RLS, explicit reviewed public projection and policy gate.
 verify_jwt = false
+
+[functions.pipeline-feishu-dispatch]
+verify_jwt = false

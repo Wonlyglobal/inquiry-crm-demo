@@ -15,7 +15,7 @@ test('new opportunities open immediately and start the research-to-draft workflo
   assert.match(html,/await generateOutreach\(\)/);
 });
 
-test('new manager-assignment opportunities send one Feishu notification and report delivery separately from creation',()=>{
+test('new manager-assignment opportunities request one transactional Feishu receipt and distinguish queued from delivered',()=>{
   const flow=html.slice(html.indexOf('$("#manual-form").addEventListener("submit"'),html.indexOf('      function parseMail('));
   assert.match(flow,/const notifyManager=profile\.role!=="sales"&&fd\.get\("notify"\)==="on"/);
   assert.match(flow,/notify: notifyManager/);
@@ -23,7 +23,9 @@ test('new manager-assignment opportunities send one Feishu notification and repo
   assert.match(flow,/functions\.invoke\("group-notify",\{body:\{inquiry_id:created\.id,action:"registered"\}\}\)/);
   assert.match(flow,/商机已创建，但群提醒接口异常、飞书送达未确认：/);
   assert.match(flow,/!groupNotification\.data\?\.sent\?\.includes\("feishu"\)/);
-  assert.match(flow,/飞书群提醒已发送/);
+  assert.match(flow,/飞书群提醒已提交/);
+  assert.match(flow,/groupNotification\.data\?\.queued/);
+  assert.doesNotMatch(flow,/飞书群提醒已发送/);
 });
 
 test('automatic outreach remains a human-review draft and blocks missing email or evidence',()=>{

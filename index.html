@@ -1608,7 +1608,7 @@
         ><button class="nav" data-view="ai-advisor">
           <i data-lucide="sparkles"></i><span>AI 智能体</span></button
         ><button class="nav" data-view="inquiries">
-          <i data-lucide="contact-round"></i><span>询盘商机</span></button
+          <i data-lucide="contact-round"></i><span>官方询盘</span></button
         ><button class="nav" data-view="customers">
           <i data-lucide="building-2"></i><span>客户管理</span></button
         ><button class="nav" data-view="mailbox">
@@ -1624,7 +1624,7 @@
         ><button class="nav" data-view="fulfillment">
           <i data-lucide="package-check"></i><span>履约跟踪</span></button
         ><button class="nav" data-view="email">
-          <i data-lucide="mail-plus"></i><span>邮件分拣</span></button
+          <i data-lucide="mail-plus"></i><span>询盘待分拣</span></button
         ><button class="nav" data-view="communications">
           <i data-lucide="messages-square"></i><span>客户沟通记录</span></button
         ><button class="nav" data-view="assignment">
@@ -1759,7 +1759,7 @@
           </div>
           <div class="kpis dashboard-kpis current-dashboard-block" data-dashboard-widget="core-kpis">
             <div class="card">
-              <div class="kpi-label">新增询盘 <button class="metric-help" data-metric="new_inquiries">?</button></div>
+              <div class="kpi-label">新增官方询盘 <button class="metric-help" data-metric="new_inquiries">?</button></div>
               <div class="kpi-value" id="kpi-total">0</div>
             </div>
             <div class="card">
@@ -1930,7 +1930,7 @@
               <button id="module-reset-filters" class="table-action hidden" type="button">清除筛选</button>
               <button id="module-refresh" class="table-action module-refresh" type="button" title="刷新当前列表"><i data-lucide="refresh-cw"></i><span>刷新</span></button>
             </div>
-            <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="ghost" type="button" disabled>一键转为询盘商机</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><button id="email-trash-selected" class="email-mark-warmup" type="button">移入垃圾箱</button><button id="email-restore-selected" class="ghost hidden" type="button">恢复所选</button><button id="email-delete-selected" class="email-mark-warmup hidden" type="button">彻底删除</button><span id="email-selected-count" class="tag">已选 0 条</span><button id="email-sync-now" class="primary" type="button" title="请求邮件服务立即拉取公共询盘邮箱">手动拉取公共邮箱</button><span id="email-sync-status" class="hint" role="status" aria-live="polite">手动拉取仅读取新邮件，不会修改阿里邮箱原件。</span></div>
+            <div id="email-triage-actions" class="email-triage-actions hidden"><button id="email-select-all" class="ghost" type="button">全选当前邮件</button><button id="email-convert-inquiry" class="ghost" type="button" disabled>一键转为官方询盘</button><button id="email-mark-warmup" class="email-mark-warmup" type="button">标记养号邮件</button><button id="email-trash-selected" class="email-mark-warmup" type="button">移入垃圾箱</button><button id="email-restore-selected" class="ghost hidden" type="button">恢复所选</button><button id="email-delete-selected" class="email-mark-warmup hidden" type="button">彻底删除</button><span id="email-selected-count" class="tag">已选 0 条</span><button id="email-sync-now" class="primary" type="button" title="请求邮件服务立即拉取公共询盘邮箱">手动拉取公共邮箱</button><span id="email-sync-status" class="hint" role="status" aria-live="polite">手动拉取仅读取新邮件，不会修改阿里邮箱原件。</span></div>
             <div id="email-class-tabs" class="email-class-tabs hidden" aria-label="邮件分类"></div>
             <div id="mailbox-folder-tabs" class="email-class-tabs hidden" aria-label="邮箱文件夹"><button class="email-class-tab active" type="button" data-mailbox-folder="inbox">收件箱</button><button class="email-class-tab" type="button" data-mailbox-folder="sent">已发送</button><button class="email-class-tab" type="button" data-mailbox-folder="scheduled">定时发送</button><button class="email-class-tab" type="button" data-mailbox-folder="all">全部邮件</button></div>
             <div id="mailbox-bulk-actions" class="email-triage-actions hidden" aria-label="CRM 邮件批量操作"><button id="mailbox-select-all" class="ghost" type="button">全选未读邮件（最多 200 封）</button><button id="mailbox-mark-read" class="primary" type="button">在 CRM 标记已读</button><span id="mailbox-selected-count" class="tag">已选 0 封</span><small class="hint">只更新 CRM 中本人的已读状态，不更改阿里邮箱原件。</small></div>
@@ -2694,6 +2694,7 @@
         card.querySelector('button[type="submit"]').textContent='登录 Grace';
         document.querySelector('#boot').textContent='Grace 正在准备…';
       }
+      import {officialInquiryRows} from './assets/official-inquiries.mjs?v=20261102-origin1';
       import {createRealtimeClient} from './assets/agent-realtime-client.mjs?v=20261019-connect3';
       import { mountConversation } from './assets/agent-conversation.mjs?v=20261030-mobile1';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261023-existing-video-release';
@@ -2862,9 +2863,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       };
       const sidebarNavigationGroups = [
         {key:"work",label:"日常工作",icon:"layout-grid",views:["sales-today","sales-lead-entry","daily","follow-calendar","weekly-customers"]},
-        {key:"acquisition",label:"线索与获客",icon:"sprout",views:["company-candidates","assignment","nurture","research","marketing-center","exhibition-calendar"]},
+        {key:"acquisition",label:"线索与获客",icon:"sprout",views:["email","company-candidates","assignment","nurture","research","marketing-center","exhibition-calendar"]},
         {key:"customers",label:"客户与商机",icon:"briefcase-business",views:["customers","inquiries","public-pool"]},
-        {key:"communication",label:"沟通协作",icon:"messages-square",views:["mailbox","whatsapp","email","communications"]},
+        {key:"communication",label:"沟通协作",icon:"messages-square",views:["mailbox","whatsapp","communications"]},
         {key:"sales-support",label:"产品与成交支持",icon:"library-big",views:["knowledge","templates","ai-advisor","quotes","fulfillment","legacy-projects"]},
         {key:"management",label:"数据与管理",icon:"chart-no-axes-combined",views:["dashboard","sales-leads","performance-360","risk-review","settings"]},
       ];
@@ -2887,7 +2888,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         syncSidebarGroupBadges();
       }
       const roleGuideViewNames = {
-        "company-candidates":"待开发线索池","sales-leads":"线索看板","sales-lead-entry":"线索录入","weekly-customers":"每周客户核对",dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","exhibition-calendar":"国际日历","marketing-center":"市场任务中心",inquiries:"询盘商机",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
+        "company-candidates":"待开发线索池","sales-leads":"线索看板","sales-lead-entry":"线索录入","weekly-customers":"每周客户核对",dashboard:"经营看板","ai-advisor":"AI 智能体","sales-today":"今日工作台","follow-calendar":"跟进日历","exhibition-calendar":"国际日历","marketing-center":"市场任务中心",inquiries:"官方询盘",customers:"客户管理",mailbox:"我的邮箱",whatsapp:"WhatsApp Business",templates:"我的模板",knowledge:"销售知识库",quotes:"报价管理",fulfillment:"履约跟踪",email:"邮件分拣",communications:"客户沟通记录",assignment:"待分配池",nurture:"市场培育池","public-pool":"客户公海",research:"客户背调","legacy-projects":"历史工程",daily:"销售日报","performance-360":"360 评分中心","risk-review":"风险审查中心",settings:"系统设置",sop:"角色操作指南"
       };
       const roleGuideUpdates = [
         {at:"2026-09-20 10:15",title:"新增风险审查中心第一阶段",detail:"老板可查看全公司、主管可查看本团队业务风险；确定性规则识别无人负责、首响逾期和跟进逾期，处置、解除和关闭均留不可删除事件记录。",roles:["owner","sales_manager"]},
@@ -3253,8 +3254,12 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           if (profile?.id !== userId || profile?.role !== role) return;
           // Preserve the last known state on errors instead of reporting a false zero.
           if (results.some(result=>result.error)) return;
-          inquiryUnreadItems = groupInquiryUpdates(results[0].data || []);
-          const counts = sidebarUnreadCounts(results[0].data || []);
+          const updates=results[0].data||[],officialUpdates=await officialInquiryRows(updates.filter(item=>item.inquiry_id).map(item=>({id:item.inquiry_id})),(name,args)=>supabase.rpc(name,args));
+          if(profile?.id!==userId||profile?.role!==role)return;
+          const officialIds=new Set(officialUpdates.map(item=>item.id));
+          inquiryUnreadItems = groupInquiryUpdates(updates.filter(item=>officialIds.has(item.inquiry_id)));
+          const counts = sidebarUnreadCounts(updates);
+          counts.inquiries=inquiryUnreadItems.size;
           views.forEach((view,index)=>{ counts[view] = results[index+1].count || 0; });
           const actionable=results[actionableIndex].data||{};
           counts.mailbox=Number(actionable.mailbox_unread)||0;
@@ -3481,7 +3486,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           if (row.meta?.validity === "valid" && !["won", "lost"].includes(row.meta?.status)) counts.open += 1;
           if (row.meta?.risk) counts.risk += 1;
         });
-        const items = [["all","全部询盘"],["pending_assignment","待主管分配"],["open","进行中"],["risk","无效 / 已丢单"]];
+        const items = [["all","官方渠道询盘"],["pending_assignment","待主管分配"],["open","进行中"],["risk","无效 / 已丢单"]];
         $("#inquiry-stage-tabs").innerHTML = items.map(([key,label]) => `<button class="inquiry-stage-tab ${(activeInquiryScope || "all") === key ? "active" : ""}" type="button" data-scope="${key}"><span>${label}</span><b>${counts[key]}</b></button>`).join("");
         $("#inquiry-stage-tabs").querySelectorAll("button").forEach((button) => button.addEventListener("click", () => {
           activeInquiryScope = button.dataset.scope;
@@ -4677,13 +4682,13 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryScope")) activeInquiryScope = options.inquiryScope || "";
         if (view === "inquiries" && Object.prototype.hasOwnProperty.call(options, "inquiryArchive")) activeInquiryArchive = Boolean(options.inquiryArchive);
         const config = {
-          inquiries: ["询盘商机", "查看公司—联系人—询盘的完整商机记录", "全部询盘"],
+          inquiries: ["官方询盘", "官方渠道进入、由市场部整理并提交分配的询盘；业务员导入请到客户管理或个人商机查看", "官方渠道询盘"],
           customers: profile.role === "sales"
             ? ["客户管理", "统一管理本人负责的公司、联系人、商机和全部渠道跟进", "本人客户"]
             : ["客户管理", "按权限统一查看公司、联系人、商机及跨渠道客户记录", "可见客户"],
           "sales-today": ["今日工作台", "仅展示主管分配的询盘，以及已关联询盘的真实客户新回复", "销售任务"],
           "follow-calendar": ["跟进日历", "按天查看每位业务员的开发信、客户来信和邮件回复情况", "每日邮件跟进"],
-          email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为询盘商机", "待分拣邮件"],
+          email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为官方询盘", "待分拣邮件"],
           communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
           mailbox: ["我的邮箱", "与个人阿里邮箱双向同步；可直接收件、写信、查看已发送并回复客户", "邮件列表"],
           whatsapp: ["WhatsApp Business", "在 CRM 内实时接收客户消息、查看会话并通过官方 Cloud API 直接回复", "客户会话"],
@@ -4964,6 +4969,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
             return q;
           };
           query = view==="inquiries"&&activeInquiryArchive ? supabase.rpc("list_archived_inquiries") : publicPoolRequestError && view==="public-pool" ? Promise.resolve({data:null,error:publicPoolRequestError}) : loadModuleRowsPaged(inquiryQueryFactory);
+        if(view==="inquiries"&&!activeInquiryArchive)query=Promise.resolve(query).then(async result=>{
+          if(result.error)return result;
+          try{return {...result,data:await officialInquiryRows(result.data,(name,args)=>supabase.rpc(name,args))}}
+          catch(error){return {data:null,error}}
+        });
           if (view === "inquiries" && !activeInquiryArchive && activeInquiryScope === "open") {
             $("#module-table-title").textContent = "进行中询盘";
             $("#module-filter-summary").textContent = "已筛选：未成交、未丢单的进行中询盘";
@@ -5260,8 +5270,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         finally{button.disabled=false;button.textContent=label}
       }
       $("#email-sync-now").addEventListener("click",manuallyPullSharedMailbox);
-      async function markSelectedEmails(label){const ids=[...selectedEmailIntakeIds];if(!ids.length)return toast("请先勾选邮件");if(label==="warmup"&&!await appConfirm(`确认将所选 ${ids.length} 封邮件标记为养号邮件？\n\n这些邮件将退出待分拣队列，且不能转为询盘商机。`,{title:"标记养号邮件",confirmText:"确认标记"}))return;const button=$("#email-mark-warmup");button.disabled=true;const result=await supabase.rpc("triage_email_intakes",{target_ids:ids,target_label:label});button.disabled=false;if(result.error)return toast("邮件标记失败："+result.error.message);toast("已标记 "+result.data+" 条"+(label==="warmup"?"养号邮件":"真实邮件"));selectedEmailIntakeIds.clear();await loadModule("email")}
-      async function convertEmailIntakes(ids,openAfter=false){if(!ids.length)return toast("请先勾选邮件");const button=$("#email-convert-inquiry");button.disabled=true;button.textContent="正在生成…";try{const result=await supabase.rpc("convert_email_intakes_to_inquiries",{target_ids:ids});if(result.error)return toast("转为询盘失败："+result.error.message);const converted=result.data||[];const inquiryIds=[...new Set(converted.map(item=>item.result_inquiry_id).filter(Boolean))];await Promise.allSettled(inquiryIds.map(inquiry_id=>supabase.functions.invoke("email-communication-ai",{body:{inquiry_id,trigger:"mail_sync"}})));toast(`已处理 ${converted.length} 封邮件，询盘商机已生成`);selectedEmailIntakeIds.clear();await loadModule("email");if(openAfter&&converted[0]?.result_inquiry_id)await openInquiryDetail(converted[0].result_inquiry_id)}finally{button.textContent="一键转为询盘商机";syncEmailSelectionState()}}
+      async function markSelectedEmails(label){const ids=[...selectedEmailIntakeIds];if(!ids.length)return toast("请先勾选邮件");if(label==="warmup"&&!await appConfirm(`确认将所选 ${ids.length} 封邮件标记为养号邮件？\n\n这些邮件将退出待分拣队列，且不能转为官方询盘。`,{title:"标记养号邮件",confirmText:"确认标记"}))return;const button=$("#email-mark-warmup");button.disabled=true;const result=await supabase.rpc("triage_email_intakes",{target_ids:ids,target_label:label});button.disabled=false;if(result.error)return toast("邮件标记失败："+result.error.message);toast("已标记 "+result.data+" 条"+(label==="warmup"?"养号邮件":"真实邮件"));selectedEmailIntakeIds.clear();await loadModule("email")}
+      async function convertEmailIntakes(ids,openAfter=false){if(!ids.length)return toast("请先勾选邮件");const button=$("#email-convert-inquiry");button.disabled=true;button.textContent="正在生成…";try{const result=await supabase.rpc("convert_email_intakes_to_inquiries",{target_ids:ids});if(result.error)return toast("转为询盘失败："+result.error.message);const converted=result.data||[];const inquiryIds=[...new Set(converted.map(item=>item.result_inquiry_id).filter(Boolean))];await Promise.allSettled(inquiryIds.map(inquiry_id=>supabase.functions.invoke("email-communication-ai",{body:{inquiry_id,trigger:"mail_sync"}})));toast(`已处理 ${converted.length} 封邮件，官方询盘已生成`);selectedEmailIntakeIds.clear();await loadModule("email");if(openAfter&&converted[0]?.result_inquiry_id)await openInquiryDetail(converted[0].result_inquiry_id)}finally{button.textContent="一键转为官方询盘";syncEmailSelectionState()}}
       $("#email-convert-inquiry").addEventListener("click",()=>convertEmailIntakes([...selectedEmailIntakeIds]));
       $("#email-mark-warmup").addEventListener("click",()=>markSelectedEmails("warmup"));
       async function manageSelectedEmails(action){const ids=[...selectedEmailIntakeIds];if(!ids.length)return toast("请先勾选邮件");const config={trash:{rpc:"trash_email_intakes",title:"移入垃圾箱",message:`确认将所选 ${ids.length} 封邮件移入垃圾箱？`,confirm:"确认移入",success:"已移入垃圾箱"},restore:{rpc:"restore_email_intakes",title:"恢复邮件",message:`确认恢复所选 ${ids.length} 封邮件？`,confirm:"确认恢复",success:"已恢复"},delete:{rpc:"delete_trashed_email_intakes",title:"彻底删除邮件",message:`确认彻底删除所选 ${ids.length} 封邮件？\n\n此操作不可恢复，仅老板角色可以执行。`,confirm:"彻底删除",success:"已彻底删除"}}[action];if(!await appConfirm(config.message,{title:config.title,confirmText:config.confirm}))return;const result=await supabase.rpc(config.rpc,{target_ids:ids});if(result.error)return toast(config.title+"失败："+result.error.message);toast(`${config.success} ${result.data} 封邮件`);selectedEmailIntakeIds.clear();await loadModule("email")}
@@ -5344,15 +5354,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           ? '<button id="email-detail-restore" class="ghost" type="button">恢复邮件</button>'
           : email.inquiry_id
             ? '<button id="email-detail-open-inquiry" class="primary" type="button">打开关联询盘</button>'
-            : '<button id="email-detail-trash" class="ghost" type="button">移入垃圾箱</button><button id="email-detail-warmup" class="ghost" type="button">标记养号邮件</button><button id="email-detail-convert" class="primary" type="button">转为询盘商机</button>';
+            : '<button id="email-detail-trash" class="ghost" type="button">移入垃圾箱</button><button id="email-detail-warmup" class="ghost" type="button">标记养号邮件</button><button id="email-detail-convert" class="primary" type="button">转为官方询盘</button>';
         openDashboardModal("邮件详情 · "+(email.subject||"无主题"),`<div class="email-detail-meta"><div><span>发件人</span><b>${esc([email.sender_name,email.sender_email].filter(Boolean).join(" · ")||"—")}</b></div><div><span>收件人</span><b>${esc(email.recipient_email||"—")}</b></div><div><span>收件时间</span><b>${esc(fmtDate(email.received_at||email.created_at))}</b></div><div><span>当前判断</span><b>${esc(triageName+" · "+processingName)}</b></div></div>${email.trashed_at?"":emailLocalEvidenceCard(email)+(suggestion?aiTriageCard(suggestion):"")}<p class="hint">请核对原文中的公司、联系人和需求，再由人工决定业务处理。</p>${renderEmailReadableBody(email.body_text)}<div class="email-detail-actions">${actions}</div>`);
         const close=()=>$("#dashboard-modal").classList.add("hidden");
         $("#email-ai-analyze")?.addEventListener("click",async event=>{const button=event.currentTarget,original=button.textContent;button.disabled=true;button.textContent="AI 分析中…";const result=await supabase.functions.invoke("email-intake-ai",{body:{email_intake_id:email.id}});let message=result.data?.error||result.error?.message;if(result.error?.context)try{message=(await result.error.context.clone().json())?.error||message}catch{}button.disabled=false;button.textContent=original;if(message)return toast("AI 分拣分析失败："+message);toast(result.data?.cached?"已读取现有 AI 分拣建议":"AI 分拣建议已生成");await openEmailIntakeDetail(email.id)});
         $$('[data-ai-triage-review]').forEach(button=>button.addEventListener("click",()=>reviewEmailTriageSuggestion(suggestion,button.dataset.aiTriageReview)));
         $$('[data-duplicate-inquiry]').forEach(button=>button.addEventListener("click",async()=>{close();await openInquiryDetail(button.dataset.duplicateInquiry)}));
         $("#email-detail-open-inquiry")?.addEventListener("click",()=>{close();openInquiryDetail(email.inquiry_id)});
-        $("#email-detail-convert")?.addEventListener("click",async()=>{if(!await appConfirm("确认将这封邮件转为询盘商机？",{title:"转为询盘商机",confirmText:"确认转换"}))return;close();await convertEmailIntakes([email.id],true)});
-        $("#email-detail-warmup")?.addEventListener("click",async()=>{if(!await appConfirm("确认将这封邮件标记为养号邮件？\n\n标记后将退出待分拣队列，且不能转为询盘商机。",{title:"标记养号邮件",confirmText:"确认标记"}))return;const result=await supabase.rpc("triage_email_intakes",{target_ids:[email.id],target_label:"warmup"});if(result.error)return toast("邮件标记失败："+result.error.message);close();toast("已标记为养号邮件");await loadModule("email")});
+        $("#email-detail-convert")?.addEventListener("click",async()=>{if(!await appConfirm("确认将这封邮件转为官方询盘？",{title:"转为官方询盘",confirmText:"确认转换"}))return;close();await convertEmailIntakes([email.id],true)});
+        $("#email-detail-warmup")?.addEventListener("click",async()=>{if(!await appConfirm("确认将这封邮件标记为养号邮件？\n\n标记后将退出待分拣队列，且不能转为官方询盘。",{title:"标记养号邮件",confirmText:"确认标记"}))return;const result=await supabase.rpc("triage_email_intakes",{target_ids:[email.id],target_label:"warmup"});if(result.error)return toast("邮件标记失败："+result.error.message);close();toast("已标记为养号邮件");await loadModule("email")});
         $("#email-detail-trash")?.addEventListener("click",async()=>{if(!await appConfirm("确认将这封邮件移入垃圾箱？",{title:"移入垃圾箱",confirmText:"确认移入"}))return;const result=await supabase.rpc("trash_email_intakes",{target_ids:[email.id]});if(result.error)return toast("移入垃圾箱失败："+result.error.message);close();toast("已移入垃圾箱");await loadModule("email")});
         $("#email-detail-restore")?.addEventListener("click",async()=>{const result=await supabase.rpc("restore_email_intakes",{target_ids:[email.id]});if(result.error)return toast("恢复邮件失败："+result.error.message);close();toast("已恢复邮件");await loadModule("email")});
       }
@@ -5536,7 +5546,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const c=advisorScopedContext(),role=profile?.role||"sales",valid=c.created.filter(x=>x.validity!=="pending"),validCount=valid.filter(x=>x.validity==="valid").length,quoted=c.created.filter(x=>["quoted","sample_sent","negotiating","won"].includes(x.status)),recommendations=[];
         const add=(id,domain,priority,title,conclusion,evidence,logic,benefit,risk,actionView,actionLabel)=>recommendations.push({id,domain,priority,title,conclusion,evidence,logic,benefit,risk,actionView,actionLabel,confidence:evidence.includes("0 条")?"中":"高"});
         if(c.overdue.length)add("response-overdue","sales","immediate","优先处理首次响应超时",`当前有 ${c.overdue.length} 条已分配询盘超过 30 分钟仍未形成首次有效联系。`,`${c.start.toLocaleDateString("zh-CN")}—${c.end.toLocaleDateString("zh-CN")}；当前账号可见范围；超时 ${c.overdue.length} 条。`,`首次响应是销售漏斗最前端的可控环节，应先于一般跟进处理。`,`降低客户流失并改善首次响应率。`,`数量由系统字段判定，仍需负责人核实客户是否已通过线下渠道联系。`,"sales-today","查看待办");
-        if(c.risky.length)add("pipeline-risk","sales","today","复核高风险与逾期商机",`识别到 ${c.risky.length} 条风险或逾期商机，建议逐条补齐下一步与日期。`,`风险标记、预计成交日或下次跟进日命中规则，共 ${c.risky.length} 条。`,`缺少明确下一步的活跃商机会持续老化。`,`提升跟进完整率与报价后推进率。`,`风险标记是提醒，不代表客户必然流失。`,"inquiries","进入询盘商机");
+        if(c.risky.length)add("pipeline-risk","sales","today","复核高风险与逾期商机",`识别到 ${c.risky.length} 条风险或逾期商机，建议逐条补齐下一步与日期。`,`风险标记、预计成交日或下次跟进日命中规则，共 ${c.risky.length} 条。`,`缺少明确下一步的活跃商机会持续老化。`,`提升跟进完整率与报价后推进率。`,`风险标记是提醒，不代表客户必然流失。`,"inquiries","进入官方询盘");
         if(["owner","marketing"].includes(role)){
           add("valid-rate","marketing",valid.length&&validCount/valid.length<.5?"today":"week","检查有效询盘率",valid.length?`已核验询盘有效率 ${pct(validCount,valid.length)}，建议按来源复核低质量流量。`:"当前周期暂无已完成人工核验的询盘，暂不能判断有效率。",`已核验 ${valid.length} 条，其中有效 ${validCount} 条；待核验不进入分母。`,`渠道投入调整必须建立在人工有效性结论和足够样本上。`,`减少低质量流量并改善市场投入效率。`,`样本不足时不得据此暂停渠道；市场部仍需人工确认每条有效性。`,"marketing-center","进入市场任务中心");
           const top=c.sources[0];add("channel-mix","marketing","week","复核渠道投入结构",top?`${top.name} 当前带来 ${top.count} 条新增询盘；结合有效、报价、成交与成本后再决定增投、维持、减投或暂停。`:"当前周期缺少可归因渠道数据，先补齐主来源与 UTM。",`可见新增询盘 ${c.created.length} 条；${c.sources.map(x=>`${x.name} ${x.count}条`).join("，")||"无来源数据"}。`,`询盘量不能单独代表渠道价值，需与质量、报价、成交和成本联合判断。`,`让预算建议由完整漏斗证据支撑。`,`本阶段不自动调整预算；成本或归因缺失会降低结论置信度。`,"dashboard","查看渠道看板");
@@ -5805,7 +5815,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         });
       }
       const dashboardMetricDefinitions = {
-        new_inquiries:["新增询盘","统计期内创建且未被排除的询盘数。","按询盘创建时间；排除垃圾、测试、未分配撤销及系统托管记录。"],
+        new_inquiries:["新增官方询盘","统计期内创建的官方渠道询盘数，不含业务员导入、自主登记及来源待确认记录。","按系统创建时间；按实际进入方式核对，导入时标注官网来源不会被当成官网自然询盘。"],
         pending_assignment:["待分配","当前仍处于待分配阶段的询盘数。","这是当前存量，不受统计期起止限制。"],
         overdue_response:["超时未响应","分配后超过 30 分钟仍未完成首次有效联系。","首次有效联系必须由业务员明确记录；旧数据不推断。"],
         valid_rate:["有效询盘率","有效询盘数 ÷ 已完成有效性判断的询盘数。","分母为有效+无效，不含待确认。"],
@@ -6626,7 +6636,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       async function loadInquiriesUnsafe() {
         const { data, error } = await loadAllDashboardInquiries();
         if (error) throw new Error("询盘数据加载失败：" + error.message);
-        const rows = data || [];
+        const rows = await officialInquiryRows(data || [],(name,args)=>supabase.rpc(name,args));
         // Optional dashboard columns are loaded separately so the UI remains
         // usable while a newly deployed migration is being applied.
         const { data: dashboardFields } = await loadAllDashboardInquiryFields();
@@ -7074,7 +7084,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         }
         $("#detail-reason").value = "";
         await loadModule("inquiries");
-        // Inquiry detail is a child route of 询盘商机. Apply this after all
+        // Inquiry detail is a child route of 官方询盘. Apply this after all
         // asynchronous list loading so startup/dashboard work cannot overwrite it.
         setActiveNavigation("inquiries");
         $("#dashboard-page").classList.add("hidden");

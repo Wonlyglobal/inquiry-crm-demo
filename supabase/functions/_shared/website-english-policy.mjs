@@ -39,13 +39,16 @@ export function checkedWebsiteSummary(payload,evidence,{inputHash,generatedAt}){
  };
  return {schema:WEBSITE_SIGNALS_SCHEMA,status:'ready',seo:read('seo',6),projects:read('projects',4),input_hash:inputHash};
 }
-export async function generateWebsiteSummary({evidence,policy,key,provider,audit,limited,hash,now=()=>new Date().toISOString()}){
+export async function generateWebsiteSummary({evidence,policy,key,provider,audit,limited,hash,cachedCompany,now=()=>new Date().toISOString()}){
  const unavailable=reason=>({schema:WEBSITE_SIGNALS_SCHEMA,status:'unavailable',reason,seo:[],projects:[]});
  if(policy!==WEBSITE_SIGNALS_POLICY||!key)return unavailable('not_configured');
  if(!evidence.length)return unavailable('no_safe_public_evidence');
  try{
+  const inputHash=await hash(JSON.stringify(evidence.map(({id,quote,source_url})=>({id,quote,source_url}))));
+  const cachedSeo=cachedCompany?.seo_focus_categories,cachedProjects=cachedCompany?.project_category_signals;
+  const validCache=(items,max)=>Array.isArray(items)&&items.length>0&&items.length<=max&&items.every(e=>e.schema===WEBSITE_SIGNALS_SCHEMA&&e.policy===WEBSITE_SIGNALS_POLICY&&e.input_hash===inputHash&&e.language==='en'&&isEnglishSummary(e.name||e.display)&&e.review_status==='pending_human_review'&&Array.isArray(e.evidence)&&e.evidence.length>0&&e.evidence.every(p=>evidence.some(current=>current.id===p.id&&current.quote===p.quote&&current.source_url===p.source_url)));
+  if(validCache(cachedSeo,6)&&validCache(cachedProjects,4))return {schema:WEBSITE_SIGNALS_SCHEMA,status:'ready',seo:cachedSeo,projects:cachedProjects,input_hash:inputHash,cached:true};
   if(await limited())return unavailable('rate_limited');
-  const inputHash=await hash(JSON.stringify(evidence));
   await audit('website_english_summary_requested',{policy:WEBSITE_SIGNALS_POLICY,input_hash:inputHash,evidence_count:evidence.length,model:'qwen-plus'});
   try{const result=checkedWebsiteSummary(await provider(websiteSummaryBody(evidence),key),evidence,{inputHash,generatedAt:now()});
    await audit('website_english_summary_generated',{policy:WEBSITE_SIGNALS_POLICY,input_hash:inputHash,seo_count:result.seo.length,project_count:result.projects.length,review_status:'pending_human_review'});return result;

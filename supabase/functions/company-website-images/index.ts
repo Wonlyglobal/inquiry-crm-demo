@@ -162,7 +162,7 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     const website = safeWebsite(input.website);
     const [{ data: profile }, { data: inquiry, error: inquiryError }] = await Promise.all([
       client.from("profiles").select("id,active,is_test_data,data_environment").eq("id", user.id).single(),
-      client.from("inquiries").select("id").eq("id", inquiryId).single(),
+      client.from("inquiries").select("id,companies(seo_focus_categories,project_category_signals)").eq("id", inquiryId).single(),
     ]);
     if (!profile?.active || profile.is_test_data || profile.data_environment!=="production") throw new Error("账号不可用");
     if (inquiryError || !inquiry) throw inquiryError || new Error("无权查看该询盘");
@@ -213,7 +213,7 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     const evidence=websiteEvidence(pageEvidence,website.toString(),new Date().toISOString());
     const admin=createClient(Deno.env.get("SUPABASE_URL")||"",envKey("SUPABASE_SECRET_KEYS","SUPABASE_SERVICE_ROLE_KEY"),{auth:{persistSession:false}});
     const englishSummary=await generateWebsiteSummary({
-      evidence,policy:Deno.env.get("WEBSITE_ENGLISH_SUMMARY_POLICY"),key:Deno.env.get("DASHSCOPE_API_KEY"),
+      evidence,cachedCompany:Array.isArray(inquiry.companies)?inquiry.companies[0]:inquiry.companies,policy:Deno.env.get("WEBSITE_ENGLISH_SUMMARY_POLICY"),key:Deno.env.get("DASHSCOPE_API_KEY"),
       provider:(body:unknown,key:string)=>providerJson(CHAT_URL,body,key),
       hash:async(value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value))),v=>v.toString(16).padStart(2,"0")).join(""),
       limited:async()=>{const {count,error}=await admin.from("audit_logs").select("id",{count:"exact",head:true}).eq("actor_id",user.id).eq("action","website_english_summary_requested").gte("created_at",new Date(Date.now()-60000).toISOString());if(error||count===null)throw Error("limit_unavailable");return count>=3},

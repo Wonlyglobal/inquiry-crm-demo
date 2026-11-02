@@ -6966,7 +6966,6 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#detail-research-news").value = lineText(company.news_signals, ["display", "title", "text"]);
         $("#detail-research-chinese-summary").value = "智能体正在根据官网、新闻与品类信号生成中文总结…";
         currentInquiry.websiteEnglishSignals=savedWebsiteSignals(company);
-        if(currentInquiry.websiteEnglishSignals.status!=="ready"&&$("#detail-research-domain").value.trim())queueMicrotask(()=>{if(currentInquiry?.id===id)refreshEnglishWebsiteSummary()});
         renderEnglishWebsiteSignals(currentInquiry.websiteEnglishSignals,{legacy:[lineText(company.seo_focus_categories,["name","text"]),lineText(company.project_category_signals,["display","signal","text"])].filter(Boolean)});
         $("#detail-research-map-address").value = company.map_address || "";
         $("#detail-research-map-url").value = company.google_maps_url || "";
@@ -7100,6 +7099,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const researchAge = company.researched_at ? Date.now() - new Date(company.researched_at).getTime() : Infinity;
         const hasUsableResearch = Boolean(company.ai_summary && (company.confirmed_facts?.length || company.demand_signals?.length));
         const shouldRefreshResearch = !hasUsableResearch || researchAge > 24 * 60 * 60 * 1000;
+        if(!shouldRefreshResearch&&currentInquiry.websiteEnglishSignals.status!=="ready"&&$("#detail-research-domain").value.trim())queueMicrotask(()=>{if(currentInquiry?.id===id)refreshEnglishWebsiteSummary()});
         if (shouldRefreshResearch) setTimeout(() => {
           if (currentInquiry?.id === id && autonomousResearchInquiryId !== id && !$("#run-business-research").disabled) {
             $("#run-business-research").click();

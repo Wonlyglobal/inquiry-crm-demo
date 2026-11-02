@@ -6,17 +6,29 @@ for(const code of COUNTRY_CODES){const zh=new Intl.DisplayNames(['zh-CN'],{type:
 for(const [alias,code] of Object.entries({'阿联酋':'AE','美国':'US','英国':'GB',uk:'GB',usa:'US',uae:'AE',prc:'CN','united states of america':'US','south korea':'KR','russia':'RU','vietnam':'VN','turkey':'TR','中国香港':'HK','中国台湾':'TW'}))countries.set(alias,countries.get(normalize(code)));
 const products=new Map();
 for(const [label,aliases] of [
- ['木门',['wooden_door','wooden door','wood doors','木门']],['智能锁',['smart_lock','smart lock','smart locks','智能锁']],
- ['防盗门',['security_door','security door','security doors','防盗门']],['医用门',['medical_door','medical door','hospital door','医用门']],
+ ['木门',['wooden_door','wooden door','wooden doors','wood doors','木门']],['智能锁',['smart_lock','smart lock','smart locks','智能锁']],
+ ['防盗门',['security_door','security door','security doors','防盗门']],['医用门',['medical_door','medical door','medical doors','hospital door','医用门']],
+ ['钢质防火门',['steel fire doors','steel fire door','钢质防火门']],
  ['防火门',['fire_door','fire door','fire doors','防火门']],['钢质门',['steel_door','steel door','steel doors','钢质门']],
- ['装甲门',['armored_door','armored door','装甲门']],['铸铝门',['cast_aluminum_door','cast aluminum door','铸铝门']],
- ['铜门',['copper_door','copper door','铜门']],['铝合金门窗',['aluminum_windows','aluminum windows','铝合金门窗']],
- ['铝木门窗',['aluminum_wood_windows','铝木门窗']],['机械锁及五金',['mechanical_hardware','hardware','机械锁及五金']],
+ ['装甲门',['armored_door','armored door','armored doors','装甲门']],['铸铝门',['cast_aluminum_door','cast aluminum door','cast aluminum doors','铸铝门']],
+ ['铜门',['copper_door','copper door','copper doors','铜门']],['铝合金门窗',['aluminum_windows','aluminum windows','铝合金门窗']],
+ ['铝木门窗',['aluminum_wood_windows','铝木门窗']],['机械锁及五金',['mechanical_hardware','hardware','door hardware','机械锁及五金']],
  ['门',['door','doors','门']],['门窗',['doors and windows','门窗']],['锁具',['lock','locks','锁具']]
 ])for(const alias of aliases)products.set(normalize(alias),label);
-export const safeProduct=value=>products.get(normalize(value))||'产品待核实';
+export function safeProduct(value){const parts=normalize(value).split(/\s*[;；]\s*/);if(parts.length>4)return '产品待核实';const labels=parts.map(v=>products.get(v));return labels.every(Boolean)?[...new Set(labels)].join('、'):'产品待核实'}
 export const safeCountry=value=>countries.get(normalize(value))||'国家/地区待核实';
-export function safeQuantity(value){const text=normalize(value);return /^(?:[1-9]\d{0,6}|0)(?:\s*[-~–至]\s*[1-9]\d{0,6})?\s*(?:套|樘|扇|把|件|个|pcs?|pieces?|sets?|units?)?$/.test(text)?text:'数量待核实'}
+export function safeQuantity(value){
+ const text=normalize(value).replace(/\s+/g,' '),number='(?:[1-9]\\d{0,6}|0|[1-9]\\d{0,2}(?:,\\d{3})+)';
+ const pattern=new RegExp('^(?:(?:approx\\.?|approximately|about|约|~) ?)?'+number+'(?: ?[-~–至] ?'+number+')? ?(?:套|樘|扇|把|件|个|pcs?|pieces?|sets?|units?|doors?|locks?)?$');
+ return pattern.test(text)?text:'数量待核实';
+}
+const projectLabels={Residential:'住宅项目',Hotel:'酒店项目',Hospital:'医院项目',School:'学校项目',Commercial:'商业项目',Industrial:'工业项目'};
+export function emailNeedsSummary(p){
+ const f=p.email_needs;if(!f||f.rule_version!=='email-needs-rules-v1'||f.review_status!=='pending_human_review')return null;
+ for(const [fact,raw] of [['product_category','raw_product'],['target_country','raw_country'],['quantity','raw_quantity']])if(String(f[fact]||'')!==String(p[raw]||''))return null;
+ const type=String(f.project_type||'').split(', ').filter(Boolean);if(type.some(v=>!projectLabels[v]))return null;
+ return [safeProduct(f.product_category),safeQuantity(f.quantity),safeCountry(f.target_country),...type.map(v=>projectLabels[v]),'自动提取，待人工核对'].join('；');
+}
 // Employee display names only; never allow markup, mention syntax, URLs or multiline instructions.
 const person=value=>typeof value==='string'&&/^[\p{L}\p{M} .·'-]{1,60}$/u.test(value.trim())?value.trim():null;
 const stage=value=>STAGES[value]||'待核对';
@@ -53,7 +65,7 @@ export function pipelineMessage(item){
  const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
  const no=/^\d{1,12}$/.test(String(p.inquiry_no??''))?`#${String(p.inquiry_no).padStart(6,'0')}`:'待登记';
  const lines=[`【WONLY CRM】${eventTitle(p)}`,`询盘：${no}`];
- if(item.mode==='basic_demand')lines.push(`基本需求：${safeProduct(p.raw_product)} / ${safeCountry(p.raw_country)} / ${safeQuantity(p.raw_quantity)}`);
+ if(item.mode==='basic_demand'){lines.push(`基本需求：${safeProduct(p.raw_product)} / ${safeCountry(p.raw_country)} / ${safeQuantity(p.raw_quantity)}`);const summary=emailNeedsSummary(p);if(summary)lines.push(`需求摘要：${summary}`)}
  lines.push(`当前进度：${p.kind==='intake'&&!p.inquiry_id?'邮件分拣/登记':p.validity==='invalid'?'已关闭（无效）':p.validity!=='valid'?'待确认有效性':stage(p.status)}`,`下一步：${nextStep(p)}`);
  if(p.nurture_status==='nurturing'&&p.nurture_next_at)lines.push(`计划培育：${time(p.nurture_next_at)}`);
  if(p.next_follow_up_at)lines.push(`计划跟进：${time(p.next_follow_up_at)}`);

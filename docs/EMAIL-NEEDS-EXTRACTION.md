@@ -1,0 +1,17 @@
+# Original-email basic demand extraction
+
+User authorized extraction, approved internal Feishu basic-demand visibility, and release after verification on 2026-11-02. Original customer emails remain inside CRM: this feature uses bounded local PostgreSQL rules, not an external AI provider. The earlier public-website model authorization is not extended.
+
+New email conversions fill product_category, target_country, quantity and demand_summary before the transaction's merged pipeline event. Opening an existing formal email inquiry checks the same RPC once per source hash and rule version. Explicit recheck is available. Existing nonempty fields are preserved, uncertainty stays blank, original text remains untouched, and results require human review. There is no bulk historical backfill, attachment parsing, automatic validity decision, owner reassignment, or email sending.
+
+Product terms are a finite English/Chinese dictionary. Quantities require units or explicit quantity labels; approximation and ranges remain visible, conflicts are left unresolved. Countries require explicit country, destination or project-location context; signatures, sender domains and shipping origins are excluded. Project type is a finite classification. Generated English summaries contain these canonical facts only, without original prose, contacts, amounts or project identifiers. Unsupported languages/phrasing require manual completion.
+
+The extraction RPC is SECURITY INVOKER and retains original inquiry and audit RLS. Active production actors only; readonly actors are rejected. Filling fields and immutable provenance audit are transactional. Same source/version is deduplicated; explicit requests are actor-rate limited. Source hash, evidence rules, unresolved fields, preserved fields and rule version are audited. No new data-table grants or RLS changes.
+
+Feishu receives the existing bounded product/country/quantity projection and a closed structured demand summary with a pending-review label. A helper recomputes and matches canonical facts before capture. Worker ignores arbitrary demand_summary and only formats allowlisted products/countries/quantities/project types. Original email, contacts and monetary data are never added to the queue. Existing approved destination, token authentication, retry/audit controls and cron remain unchanged.
+
+Verification: offline Node regressions, browser syntax, synthetic PGlite migration/parser/RLS/audit-failure rollback/conversion/event tests. Production acceptance must separately record deployed versions, actual #000320 values, refresh deduplication, original-data integrity and Feishu delivery. Passing offline checks alone is not deployment evidence.
+
+Release order: deploy backward-compatible pipeline formatter; apply guarded migration; publish frontend through normal PR checks/main/Pages; verify live UI and provider receipt. Migration rejects source drift in existing conversion/capture functions.
+
+Rollback: revert frontend and pipeline formatter through normal release, restore backed-up original conversion and capture functions after current-source verification, and revoke authenticated execution of the extraction RPC. Preserve filled business values, source text, provenance and delivery audits. Do not delete audit/history or replay historical reminders. Further rollback of genuine extracted fields requires a separately reviewed targeted change.

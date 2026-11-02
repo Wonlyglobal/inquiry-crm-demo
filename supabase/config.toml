@@ -455,6 +455,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.mail-sync-worker]
+import_map = "./functions/mail-sync-worker/deno.json"
 # The handler validates a dedicated random Vault-backed token before mailbox access.
 verify_jwt = false
 

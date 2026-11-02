@@ -1,3 +1,4 @@
+import { classifySystemNotice } from './system-notices.mjs';
 import { selectPersonalMailbox } from './mailbox-selection.mjs';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
@@ -361,10 +362,11 @@ async function syncFolder(connection,password,folder,{edge=false,maxMessages=Inf
         const references=Array.isArray(parsed.references)?parsed.references:(parsed.references?[parsed.references]:[]);
         const record={mailbox_connection_id:connection.id,folder,uid:msg.uid,message_id:headerId(parsed.messageId),in_reply_to:headerId(parsed.inReplyTo),reference_ids:references.map(headerId),direction:sent?'outbound':'inbound',sender_email:cleanEmail(parsed.from?.value?.[0]?.address),recipient_emails:addrList(parsed.to),cc_emails:addrList(parsed.cc),subject:parsed.subject||'',body_text:parsed.text||'',body_html:typeof parsed.html==='string'?parsed.html:'',sent_at:sent?(parsed.date||new Date()).toISOString():null,received_at:sent?null:(parsed.date||new Date()).toISOString(),attachment_count:parsed.attachments?.length||0,raw_headers:{message_id:parsed.messageId||null,in_reply_to:parsed.inReplyTo||null,references}};
         const nurturing=!junkFolder&&isInstantlyNurturing(record,connection);
+        const systemNotice=classifySystemNotice(record);
         record.folder=folder;
-        let match=nurturing?{id:null,method:'instantly_warmup_filter'}:junkFolder&&connection.mailbox_kind==='shared_inquiry'?{id:null,method:'shared_mailbox_junk_pending_triage'}:await matchInquiry(record,connection);
-        if(!nurturing&&!match.id)match=await createInquiryFromShared(record,connection,{junkFolder:junkFolder&&connection.mailbox_kind==='shared_inquiry'})||match;
-        const {data:storedRow,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:nurturing?'ignored':match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
+        let match=systemNotice?{id:null,method:'system_notice_filter'}:nurturing?{id:null,method:'instantly_warmup_filter'}:junkFolder&&connection.mailbox_kind==='shared_inquiry'?{id:null,method:'shared_mailbox_junk_pending_triage'}:await matchInquiry(record,connection);
+        if(!systemNotice&&!nurturing&&!match.id)match=await createInquiryFromShared(record,connection,{junkFolder:junkFolder&&connection.mailbox_kind==='shared_inquiry'})||match;
+        const {data:storedRow,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:systemNotice||nurturing?'ignored':match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
         if(error)throw error;
         // Junk messages are untrusted; keep their body for human review but do
         // not download or persist attachments before a person inspects them.

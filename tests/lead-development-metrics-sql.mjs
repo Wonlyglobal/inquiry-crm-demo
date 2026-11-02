@@ -1,0 +1,63 @@
+// Real migration in a disposable, synthetic database. No production or messaging.
+import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+const {PGlite}=await import(process.argv[2]||'@electric-sql/pglite');
+export async function createMetricsFixture(){
+ const db=new PGlite();
+ await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema private;
+ create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+ create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('test.jwt',true),''),'{}')::jsonb$$;
+ create table public.profiles(id uuid primary key,full_name text,team text,active boolean default true,role text,is_test_data boolean default false,data_environment text default 'production');
+ create table private.sales_leads(id uuid primary key default gen_random_uuid(),sales_id uuid,recorded_on date);
+ create table private.sales_lead_events(id uuid default gen_random_uuid(),actor_id uuid,target_id uuid,action text,at timestamptz default clock_timestamp(),details jsonb);
+ alter table private.sales_leads enable row level security;alter table private.sales_lead_events enable row level security;
+ revoke all on private.sales_leads,private.sales_lead_events from public,anon,authenticated,service_role;
+ create function private.reject_risk_event_mutation() returns trigger language plpgsql as $$begin raise exception 'immutable';end$$;
+ create trigger events_immutable before update or delete on private.sales_lead_events for each row execute function private.reject_risk_event_mutation();
+ create function private.crm_manager_covers_user(manager uuid,subject uuid) returns boolean language sql as $$select exists(select 1 from public.profiles m join public.profiles s on m.team=s.team where m.id=manager and s.id=subject)$$;
+ grant usage on schema auth to authenticated,anon;`);
+ const original=await readFile(new URL('../supabase/migrations/20261026090000_sales_lead_workspace.sql',import.meta.url),'utf8');
+ const actor=original.match(/create function private\.sales_lead_actor\(\)[\s\S]*?end \$\$;/)[0];await db.exec(actor);
+ await db.exec('revoke all on function private.sales_lead_actor() from public,anon,authenticated,service_role');
+ const ids={s:'11111111-1111-4111-8111-111111111111',s2:'22222222-2222-4222-8222-222222222222',m:'33333333-3333-4333-8333-333333333333',o:'44444444-4444-4444-8444-444444444444',boss:'55555555-5555-4555-8555-555555555555',test:'66666666-6666-4666-8666-666666666666',inactive:'77777777-7777-4777-8777-777777777777'};
+ for(const [key,id] of Object.entries(ids))await db.query('insert into public.profiles(id,full_name,team,role,is_test_data,active) values($1,$2,$3,$4,$5,$6)',[id,'模拟'+key,key==='s2'?'B':'A',key==='m'?'marketing':key==='o'?'owner':key==='boss'?'sales_manager':'sales',key==='test',key!=='inactive']);
+ await db.exec(await readFile(new URL('../supabase/migrations/20261102170000_lead_development_metrics.sql',import.meta.url),'utf8'));
+ const as=async key=>{await db.exec('reset role');await db.query("select set_config('test.uid',$1,false),set_config('test.jwt',$2,false)",[ids[key]||'',JSON.stringify({role:'authenticated'})]);await db.exec('set role '+(key?'authenticated':'anon'))};
+ const call=async(name,args)=>(await db.query('select public.'+name+'('+args.map((_,i)=>'$'+(i+1)).join(',')+') r',args)).rows[0].r;
+ const today=(await db.query("select (clock_timestamp() at time zone 'Asia/Shanghai')::date::text d")).rows[0].d;
+ return {db,ids,as,call,today};
+}
+if(process.argv[1]===new URL(import.meta.url).pathname){
+ const {db,ids,as,call,today}=await createMetricsFixture();let checks=0;
+ const ok=value=>{assert.ok(value);checks++},reject=async fn=>{await assert.rejects(fn);checks++};
+ const read=()=>call('lead_development_workspace',[today,today]);
+ const save=(section,values,revision=0,target=ids.s)=>call('save_lead_development_metrics',[target,today,today,section,JSON.stringify(values),revision]);
+ await as('s');ok((await read()).rows.length===1);ok((await read()).rows[0].ledger_count===0);
+ const actuals={lead_mode:'manual',manual_leads:40,sent:50,invalid:20,opened:6,replied:3,note:'隔离模拟平台整周期汇总'};
+ ok((await save('actuals',actuals)).revision===1);ok((await read()).rows[0].actuals.manual_leads===40);
+ await reject(()=>save('actuals',actuals,0));await reject(()=>save('actuals',actuals,0,ids.s2));await reject(()=>save('goals',{lead_target:200,note:'模拟目标依据'}));
+ for(const field of ['manual_leads','sent','invalid','opened','replied'])for(const value of [-1,0.5,'2',true,1000001])await reject(()=>save('actuals',{...actuals,[field]:value},1));
+ for(const invalid of [{...actuals,invalid:52},{...actuals,opened:31},{...actuals,replied:7},{...actuals,lead_mode:null},{...actuals,manual_leads:null},{...actuals,lead_mode:'ledger'},{...actuals,note:'短'},{...actuals,unexpected:1}])await reject(()=>save('actuals',invalid,1));
+ await reject(()=>call('save_lead_development_metrics',[ids.s,today,today,null,JSON.stringify(actuals),1]));
+ await reject(()=>call('save_lead_development_metrics',[ids.s,today,today,'actuals',null,1]));
+ await as('m');ok((await read()).rows.length===2);ok((await read()).rows.every(r=>r.can_set_goals&&!r.can_record));
+ await reject(()=>save('actuals',actuals,1));
+ const goals={region:'模拟大区',lead_target:200,send_target:140,note:'模拟周期目标依据'};
+ ok((await save('goals',goals,1)).revision===2);ok((await read()).rows.find(r=>r.sales_id===ids.s).actuals.sent===50);
+ for(const target of [ids.test,ids.inactive,ids.m,null])await reject(()=>save('goals',goals,0,target));
+ await reject(()=>save('goals',{...goals,lead_target:'200'},2));
+ await reject(()=>db.exec('select * from private.lead_development_metrics'));
+ await as('s2');ok((await read()).rows.length===1);ok((await read()).rows[0].revision===0);
+ await as('boss');ok((await read()).rows.length===1);await reject(()=>save('goals',goals,2));await reject(()=>save('actuals',actuals,2));
+ await as('s');ok((await read()).rows[0].goals.lead_target===200);
+ ok((await save('actuals',{lead_mode:'ledger',manual_leads:null,sent:0,invalid:0,opened:null,replied:0,note:'模拟已核实零发送'},2)).revision===3);
+ ok((await read()).rows[0].goals.send_target===140);ok((await read()).rows[0].actuals.opened===null);
+ await db.query("select set_config('test.jwt',$1,false)",[JSON.stringify({app_metadata:{crm_read_only:true}})]);await reject(read);
+ await as('test');await reject(read);await as('inactive');await reject(read);await as();await reject(read);
+ await db.exec('reset role');await db.exec('set role service_role');await reject(read);
+ await db.exec('reset role');ok((await db.query('select count(*)::int n from private.sales_leads')).rows[0].n===0);
+ ok((await db.query("select count(*)::int n from private.sales_lead_events where action='development_metrics_saved'")).rows[0].n===3);
+ await reject(()=>db.exec("update private.sales_lead_events set action='tamper'"));
+ const rls=(await db.query("select relrowsecurity from pg_class where oid='private.lead_development_metrics'::regclass")).rows[0];ok(rls.relrowsecurity);
+ await as('o');await reject(()=>call('lead_development_workspace',[null,today]));await reject(()=>call('lead_development_workspace',['2020-01-01',today]));await reject(()=>call('lead_development_workspace',[today,'2099-01-01']));
+ await db.close();console.log(JSON.stringify({checks,synthetic:true,production_writes:false}));
+}

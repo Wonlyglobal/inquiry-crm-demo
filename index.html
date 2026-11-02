@@ -8275,14 +8275,20 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         button.disabled = false;
         if (error) return toast("智能整理保存失败：" + error.message);
         Object.assign(currentInquiry, update);
+        renderEmailNeedsStatus(currentInquiry);
         $("#detail-smart-reason").value = "";
         toast("智能整理已保存，修改记录已留痕");
       });
       function renderEmailNeedsStatus(inquiry){
         const names={product_category:"产品",target_country:"国家",quantity:"数量",demand_summary:"需求摘要",conflicting_quantities:"数量存在冲突",conflicting_countries:"国家存在冲突",summary_conflicts_with_existing_fields:"摘要与现有填写不一致",source_too_long:"原文过长，需人工核对"};
         const report=inquiry.emailNeedsReport;
+        const fields=["product_category","target_country","quantity","demand_summary"];
+        const missing=fields.filter(key=>!String(inquiry[key]??"").trim());
+        const filled=fields.filter(key=>!missing.includes(key));
+        const sourceWarnings=(report?.unresolved||[]).filter(key=>!fields.includes(key));
+        const currentStatus=`当前已填写：${filled.map(key=>names[key]).join("、")||"无"}；待补核实：${missing.map(key=>names[key]).join("、")||"无空项，请核对已填内容"}。已有填写保留，填写不代表采购已确认。`;
         $("#run-smart-summary").disabled=inquiry.source!=="email";
-        $("#email-needs-status").textContent=inquiry.source!=="email"?"非邮件询盘，保留现有填写。":inquiry.emailNeedsExtractionError?"自动提取未完成："+inquiry.emailNeedsExtractionError:report?`原邮件提取已检查（待人工核实）。补入：${(report.applied_fields||[]).map(k=>names[k]||k).join("、")||"无新增"}；已有填写保留。待核实：${(report.unresolved||[]).map(k=>names[k]||"原文信息不明确").join("、")||"请核对原邮件与附件规格"}`:"原邮件中的明确基本需求会自动补入；请核对后使用。";
+        $("#email-needs-status").textContent=inquiry.source!=="email"?"非邮件询盘，保留现有填写。":currentStatus+(inquiry.emailNeedsExtractionError?"原邮件规则检查未完成："+inquiry.emailNeedsExtractionError:report?"原邮件规则检查已留痕；人工或附件补充以当前字段和修改记录为准。" :"原邮件中的明确基本需求会自动补入；请核对后使用。")+(sourceWarnings.length?` 原文提示：${sourceWarnings.map(key=>names[key]||"原文信息不明确").join("、")}。`:"");
       }
       $("#run-smart-summary").addEventListener("click",async()=>{
         if(!currentInquiry||currentInquiry.source!=="email")return;

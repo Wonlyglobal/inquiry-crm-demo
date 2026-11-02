@@ -1,0 +1,43 @@
+// Real invoker-RLS migration in an isolated synthetic PostgreSQL, no external API.
+import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+import {websiteEvidence,checkedWebsiteSummary} from '../supabase/functions/_shared/website-english-policy.mjs';
+const {PGlite}=await import(process.argv[2]||'@electric-sql/pglite');const db=new PGlite();let checks=0;
+const ok=x=>{assert.ok(x);checks++},reject=async f=>{await assert.rejects(f);checks++};
+const ids={s:'11111111-1111-4111-8111-111111111111',other:'22222222-2222-4222-8222-222222222222',test:'33333333-3333-4333-8333-333333333333'};
+await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('test.jwt',true),''),'{}')::jsonb$$;
+grant usage on schema auth to anon,authenticated,service_role;
+create table profiles(id uuid primary key,active boolean default true,is_test_data boolean default false,data_environment text default 'production');
+create table companies(id uuid primary key default gen_random_uuid(),owner_id uuid,name text,private_note text,seo_focus_categories jsonb default '[]',project_category_signals jsonb default '[]',updated_at timestamptz default clock_timestamp());
+create table inquiries(id uuid primary key default gen_random_uuid(),owner_id uuid,company_id uuid,is_test_data boolean default false,data_environment text default 'production',archived_at timestamptz);
+create table audit_logs(id uuid default gen_random_uuid(),actor_id uuid,entity_type text,entity_id uuid,action text,before_data jsonb,after_data jsonb,reason text);
+alter table profiles enable row level security;alter table inquiries enable row level security;alter table companies enable row level security;alter table audit_logs enable row level security;
+create policy p on profiles for select to authenticated using(id=auth.uid());
+create policy i on inquiries for select to authenticated using(owner_id=auth.uid());
+create policy c on companies for all to authenticated using(owner_id=auth.uid()) with check(owner_id=auth.uid());
+create policy a on audit_logs for insert to authenticated with check(actor_id=auth.uid());
+grant select on profiles,inquiries to authenticated;grant select,update on companies to authenticated;grant insert on audit_logs to authenticated;
+create function audit_fail() returns trigger language plpgsql as $$begin if current_setting('test.fail_audit',true)='true' then raise exception 'audit failed';end if;return new;end$$;
+create trigger audit_fail before insert on audit_logs for each row execute function audit_fail();`);
+for(const [key,id] of Object.entries(ids))await db.query('insert into profiles(id,is_test_data) values($1,$2)',[id,key==='test']);
+const one=async(sql,args=[])=>(await db.query(sql,args)).rows[0];
+const c=(await one("insert into companies(owner_id,name,private_note) values($1,'模拟公司','private unchanged') returning *",[ids.s]));
+const i=(await one('insert into inquiries(owner_id,company_id) values($1,$2) returning *',[ids.s,c.id]));
+await db.exec(await readFile(new URL('../supabase/migrations/20261102190000_save_website_english_signals.sql',import.meta.url),'utf8'));
+const evidence=websiteEvidence([{url:'https://example.com/',title:'Factory-direct sourcing and OEM/ODM services.'}],'https://example.com/','2026-11-02T04:00:00Z');
+const result=checkedWebsiteSummary({choices:[{finish_reason:'stop',message:{content:JSON.stringify({seo:[{summary:'The website promotes factory-direct sourcing.',evidence_ids:['E1']}],projects:[]})}}]},evidence,{inputHash:'a'.repeat(64),generatedAt:'2026-11-02T04:00:01Z'});
+const as=async(key,readonly=false)=>{await db.exec('reset role');await db.query("select set_config('test.uid',$1,false),set_config('test.jwt',$2,false)",[ids[key]||'',JSON.stringify({role:key?'authenticated':'anon',app_metadata:{crm_read_only:readonly}})]);await db.exec('set role '+(key?'authenticated':'anon'))};
+const save=(seo=result.seo,projects=result.projects,stamp=c.updated_at,company=c.id)=>db.query('select public.save_website_english_signals($1,$2,$3,$4,$5) r',[i.id,company,stamp,JSON.stringify(seo),JSON.stringify(projects)]);
+await as('other');await reject(()=>save());await as('test');await reject(()=>save());await as();await reject(()=>save());
+await db.exec('reset role;set role service_role');await reject(()=>save());await as('s',true);await reject(()=>save());await as('s');
+await reject(()=>save(result.seo,result.projects,c.updated_at,'44444444-4444-4444-8444-444444444444'));
+ok((await save()).rows[0].r.seo_focus_categories[0].name==='The website promotes factory-direct sourcing.');
+ok((await save()).rows[0].r.project_category_signals[0].kind==='gap'); // Same exact data is idempotent, even with the original timestamp.
+const invalids=[{...result.seo[0],name:'中文'},{...result.seo[0],evidence:[]},{...result.seo[0],review_status:'human_verified'},{...result.seo[0],private_contact:'secret@example.com'},{...result.seo[0],input_hash:'bad'},{...result.seo[0],evidence:[{...evidence[0],source_url:'https://example.com/?secret=1'}]}];
+for(const item of invalids)await reject(()=>save([item]));
+const changed=[{...result.seo[0],name:'The website describes OEM/ODM sourcing services.'}];await reject(()=>save(changed)); // Stale timestamp cannot overwrite.
+await db.exec('reset role');const after=await one('select * from companies where id=$1',[c.id]);ok(after.private_note===c.private_note&&after.name===c.name&&after.owner_id===c.owner_id);ok((await one('select count(*)::int n from audit_logs')).n===1);
+await db.exec("select set_config('test.fail_audit','true',false)");await as('s');await reject(()=>save(changed,result.projects,after.updated_at));await db.exec('reset role');ok((await one('select seo_focus_categories from companies where id=$1',[c.id])).seo_focus_categories[0].name===result.seo[0].name);
+ok((await one("select prosecdef from pg_proc where oid='public.save_website_english_signals(uuid,uuid,timestamptz,jsonb,jsonb)'::regprocedure")).prosecdef===false);
+await db.close();console.log(JSON.stringify({checks,synthetic:true,production_writes:false}));

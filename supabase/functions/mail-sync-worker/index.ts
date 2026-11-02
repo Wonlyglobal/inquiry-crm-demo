@@ -1,4 +1,4 @@
-import { runEdgeCycle } from "../../../mail-sync/src/index.mjs";
+import { runEdgeCycle } from "./runtime/index.mjs";
 
 const workerToken = Deno.env.get("MAIL_SYNC_WORKER_TOKEN") || "";
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {

@@ -1,0 +1,447 @@
+import { classifySystemNotice } from './system-notices.mjs';
+import { selectPersonalMailbox } from './mailbox-selection.mjs';
+import { ImapFlow } from 'imapflow';
+import { simpleParser } from 'mailparser';
+import nodemailer from 'nodemailer';
+import { createClient } from '@supabase/supabase-js';
+import { writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { parseWebsiteFormMessage, websiteInquiryTitle, isWebsiteFormServiceDomain } from './website-form.mjs';
+import { processManualSharedMailSync } from './manual-sync.mjs';
+import { isJunkFolder, selectSyncFolders, shouldInitializeAtLatest } from './folders.mjs';
+import { withSafeReadRetries } from './fetch-resilience.mjs';
+import { runEdgeMailCycle, runWithEdgeWorkerLease } from './edge-cycle.mjs';
+import { deliverDailyLeadReport } from './daily-lead-report.mjs';
+
+const url=process.env.SUPABASE_URL;
+const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+if(!url||!key) throw new Error('SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 未配置');
+const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:withSafeReadRetries()}});
+const interval=Math.max(30,Number(process.env.SYNC_INTERVAL_SECONDS||60))*1000;
+const initialLimit=Math.max(10,Number(process.env.INITIAL_SYNC_LIMIT||100));
+const reportHour=Math.min(23,Math.max(0,Number(process.env.DAILY_LEAD_REPORT_HOUR||18)));
+const feishuWebhook=String(process.env.FEISHU_WEBHOOK_URL||'').trim();
+const dingtalkWebhook=String(process.env.DINGTALK_WEBHOOK_URL||'').trim();
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+const cleanEmail=(v)=>String(v||'').trim().toLowerCase();
+const normalizeSubject=(v)=>String(v||'').replace(/^\s*((re|fw|fwd|答复|回复|转发)\s*[:：]\s*)+/i,'').replace(/\s+/g,' ').trim().toLowerCase();
+const addrList=(node)=>[...(node?.value||[])].map(x=>cleanEmail(x.address)).filter(Boolean);
+const headerId=(v)=>String(v||'').trim().replace(/^<|>$/g,'');
+const safeFileName=(v,index)=>String(v||`attachment-${index+1}`).replace(/[^a-zA-Z0-9._()\-\u4e00-\u9fff]/g,'_').slice(0,180);
+const escapeHtml=(v)=>String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const emailHtml=(v)=>`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#17231f">${escapeHtml(v).replace(/\n/g,'<br>').replace('WONLY International Sales Team','WONLY International Sales Team<br><img src="https://letter.foreverdoodle.com/wonly-logo-gold.png" alt="WONLY" width="210" style="display:block;width:210px;max-width:100%;height:auto;margin:10px 0 8px;border:0">')}</div>`;
+const isSentFolder=(name)=>/sent|已发送|发件箱/i.test(name);
+const isInstantlyNurturing=(message,connection)=>{
+  if(connection.mailbox_kind!=='shared_inquiry'||message.direction!=='inbound')return false;
+  const content=[message.sender_email,message.subject,message.body_text].filter(Boolean).join('\n');
+  // Instantly warm-up traffic currently carries either the Chloe identity or
+  // the campaign marker used by the warm-up pool. Keep it in the mail archive,
+  // but never create CRM inquiries, tasks, notifications, or dashboard data.
+  return /\bchloe\b/i.test(content)||/\b50JPRYT\b/i.test(content);
+};
+const sourceNames={email:'企业邮箱',manual:'手工录入（待补充渠道）',website:'官网表单',feishu:'飞书',google_ads:'Google Ads',meta_ads:'Meta Ads',linkedin:'LinkedIn',exhibition:'展会',outbound:'销售自主开发',referral:'经销商/客户转介绍',other:'其他'};
+const statusNames={pending_assignment:'待分配',received:'收到询盘',qualified:'有效询盘',contacted:'已联系',quoted:'已报价',sample_sent:'已寄样',negotiating:'谈判',won:'成交',lost:'丢单'};
+const validityNames={pending:'待确认',valid:'有效',invalid:'无效'};
+function chinaParts(date=new Date()){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(date);
+  const get=type=>parts.find(x=>x.type===type)?.value||'';
+  return {date:`${get('year')}-${get('month')}-${get('day')}`,hour:Number(get('hour'))};
+}
+
+async function sendDailyLeadReport(){
+  return deliverDailyLeadReport({db,feishuWebhook,dingtalkWebhook,reportHour});
+}
+
+async function secretFor(id){const {data,error}=await db.rpc('read_mailbox_secret',{target_connection_id:id});if(error||!data)throw error||new Error('邮箱凭据不存在');return data}
+
+function permanentError(message){
+  const error=new Error(message);
+  error.permanent=true;
+  return error;
+}
+
+async function writeOutboxAudit(job,action,reason,afterData={}){
+  const {error}=await db.from('audit_logs').insert({
+    actor_id:job.sender_user_id,
+    entity_type:job.inquiry_id?'inquiry':'profile',
+    entity_id:job.inquiry_id||job.sender_user_id,
+    action,
+    reason,
+    after_data:{outbox_id:job.id,recipient:job.recipient_email,subject:job.subject,...afterData},
+  });
+  if(error)console.error(`outbox audit ${job.id}:`,error.message);
+}
+
+async function validateOutboxSend(job){
+  const {data:sender,error:senderError}=await db.from('profiles').select('id,full_name,role,active').eq('id',job.sender_user_id).maybeSingle();
+  if(senderError)throw senderError;
+  if(!sender?.active)throw permanentError('定时邮件已取消：发送账号不存在或已停用');
+  if(!job.inquiry_id)return {sender,messageKind:'standalone'};
+
+  const [{data:inquiry,error:inquiryError},{data:latest,error:latestError}]=await Promise.all([
+    db.from('inquiries').select('id,owner_id').eq('id',job.inquiry_id).maybeSingle(),
+    db.from('email_messages').select('direction').eq('inquiry_id',job.inquiry_id).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+  ]);
+  if(inquiryError)throw inquiryError;
+  if(latestError)throw latestError;
+  if(!inquiry)throw permanentError('定时邮件已取消：关联询盘不存在');
+  if(inquiry.owner_id!==job.sender_user_id&&!['owner','sales_manager'].includes(sender.role)){
+    throw permanentError('定时邮件已取消：发送人已不再负责该询盘');
+  }
+  if(job.quotation_id){
+    const {data:quote,error:quoteError}=await db.from('quotation_versions').select('id,inquiry_id,status,created_by').eq('id',job.quotation_id).maybeSingle();
+    if(quoteError)throw quoteError;
+    if(!quote||quote.inquiry_id!==job.inquiry_id)throw permanentError('定时报价已取消：报价与询盘不匹配');
+    if(quote.status!=='approved')throw permanentError('定时报价已取消：报价已不再处于主管批准状态');
+  }
+
+  // The current thread state is authoritative at execution time. An initial
+  // inquiry or the latest customer message is a reply; sending after our most
+  // recent outbound message is proactive and must obey suppression/frequency.
+  const messageKind=!latest||latest.direction==='inbound'?'reply':'outreach';
+  if(messageKind==='outreach'){
+    const {data:policy,error:policyError}=await db.rpc('check_inquiry_contact_allowed',{target_inquiry_id:job.inquiry_id});
+    if(policyError)throw policyError;
+    if(!policy?.allowed)throw permanentError(`触达规则拦截：${String(policy?.reason||'当前不允许主动联系客户')}`);
+  }
+  return {sender,messageKind};
+}
+
+async function recordScheduledMarketingContact(job,sentAt){
+  const {data:policy,error:policyError}=await db.from('inquiry_contact_policies').select('last_contact_at,next_allowed_at,min_interval_days').eq('inquiry_id',job.inquiry_id).maybeSingle();
+  if(policyError||!policy)throw policyError||new Error('尚未设置触达规则');
+  const nextAllowedAt=new Date(new Date(sentAt).getTime()+Number(policy.min_interval_days)*86400000).toISOString();
+  const {error:updateError}=await db.from('inquiry_contact_policies').update({last_contact_at:sentAt,next_allowed_at:nextAllowedAt,updated_by:job.sender_user_id,updated_at:sentAt}).eq('inquiry_id',job.inquiry_id);
+  if(updateError)throw updateError;
+  await writeOutboxAudit(job,'marketing_contact_recorded','CRM 定时开发信已发送',{
+    last_contact_at:sentAt,
+    next_allowed_at:nextAllowedAt,
+    previous_last_contact_at:policy.last_contact_at,
+    previous_next_allowed_at:policy.next_allowed_at,
+  });
+}
+
+async function recoverStaleOutboxJobs(){
+  const cutoff=new Date(Date.now()-10*60000).toISOString();
+  const {data:stale,error}=await db.from('mail_outbox').select('*').eq('status','sending').lte('started_at',cutoff).order('started_at').limit(50);
+  if(error)throw error;
+  for(const job of stale||[]){
+    // SMTP delivery may already have succeeded before the worker stopped. Do
+    // not retry an ambiguous delivery automatically, because that can send a
+    // duplicate customer email. Surface it for a human to verify instead.
+    const errorMessage='发送结果待人工确认：服务在 SMTP 提交后未完成状态回写，系统为避免重复邮件不会自动重试';
+    const failedAt=new Date().toISOString();
+    const {data:recovered,error:recoverError}=await db.from('mail_outbox').update({status:'failed',last_error:errorMessage,updated_at:failedAt}).eq('id',job.id).eq('status','sending').lte('started_at',cutoff).select('id').maybeSingle();
+    if(recoverError)throw recoverError;
+    if(!recovered)continue;
+    if(job.draft_id)await db.from('outreach_drafts').update({status:'failed',last_error:errorMessage,updated_at:failedAt}).eq('id',job.draft_id);
+    await writeOutboxAudit(job,'mailbox_scheduled_message_delivery_uncertain',errorMessage,{started_at:job.started_at,detected_at:failedAt,automatic_retry:false});
+  }
+}
+
+async function processOutbox(){
+  await recoverStaleOutboxJobs();
+  const {data:jobs,error}=await db.from('mail_outbox').select('*').eq('status','pending').lte('next_attempt_at',new Date().toISOString()).order('created_at').limit(20);
+  if(error)throw error;
+  for(const job of jobs||[]){
+    const claimedAt=new Date().toISOString();
+    const {data:claimed}=await db.from('mail_outbox').update({status:'sending',started_at:claimedAt,attempts:Number(job.attempts||0)+1}).eq('id',job.id).eq('status','pending').select('*').maybeSingle();
+    if(!claimed)continue;
+    try{
+      const {sender,messageKind}=await validateOutboxSend(job);
+      const intakePromise=job.inquiry_id?db.from('email_intake').select('message_id').eq('inquiry_id',job.inquiry_id).order('created_at',{ascending:false}).limit(1).maybeSingle():Promise.resolve({data:null,error:null});
+      const [{data:connection,error:connectionError},{data:intake,error:intakeError}]=await Promise.all([
+        selectPersonalMailbox(db,job.sender_user_id,job.mailbox_connection_id||'').then(data=>({data,error:null})),
+        intakePromise,
+      ]);
+      if(connectionError||!connection)throw connectionError||new Error('业务员邮箱未连接');
+      if(intakeError)throw intakeError;
+      const password=await secretFor(connection.id);
+      const transport=nodemailer.createTransport({host:connection.smtp_host,port:connection.smtp_port,secure:Number(connection.smtp_port)===465,auth:{user:connection.email,pass:password},connectionTimeout:15000,greetingTimeout:15000,socketTimeout:30000});
+      const threadId=headerId(job.in_reply_to||intake?.message_id);
+      const sent=await transport.sendMail({from:`"${sender.full_name||connection.email}" <${connection.email}>`,to:job.recipient_email,...(job.cc_emails?.length?{cc:job.cc_emails}:{}),subject:job.subject,text:job.body_text,html:emailHtml(job.body_text),...(threadId?{inReplyTo:threadId,references:[threadId]}:{})});
+      const sentAt=new Date().toISOString();
+      await db.from('mail_outbox').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null}).eq('id',job.id);
+      if(job.quotation_id){
+        const {error:quoteError}=await db.rpc('finalize_scheduled_quotation',{target_outbox_id:job.id,target_sent_at:sentAt});
+        if(quoteError)console.error(`outbox quotation ${job.id}:`,quoteError.message);
+      }
+      if(job.draft_id)await db.from('outreach_drafts').update({status:'sent',sent_at:sentAt,message_id:sent.messageId||null,last_error:null,updated_at:sentAt}).eq('id',job.draft_id);
+      let contactPolicyRecorded=messageKind!=='outreach';
+      if(messageKind==='outreach'){
+        try{await recordScheduledMarketingContact(job,sentAt);contactPolicyRecorded=true}catch(error){console.error(`outbox contact policy ${job.id}:`,error?.message||error)}
+      }
+      await writeOutboxAudit(job,'mailbox_scheduled_message_sent','CRM 定时邮件已发送',{message_id:sent.messageId||null,message_kind:messageKind,contact_policy_recorded:contactPolicyRecorded});
+    }catch(error){
+      const attempts=Number(claimed.attempts||1),terminal=Boolean(error?.permanent)||attempts>=3,errorMessage=String(error?.message||error).slice(0,1000);
+      await db.from('mail_outbox').update({status:terminal?'failed':'pending',last_error:errorMessage,next_attempt_at:new Date(Date.now()+Math.min(15,attempts*5)*60000).toISOString()}).eq('id',job.id);
+      if(terminal&&job.draft_id)await db.from('outreach_drafts').update({status:'failed',last_error:errorMessage,updated_at:new Date().toISOString()}).eq('id',job.draft_id);
+      if(terminal)await writeOutboxAudit(job,'mailbox_scheduled_message_failed',errorMessage,{attempts,permanent:Boolean(error?.permanent)});
+    }
+  }
+}
+
+async function matchInquiry(message, connection){
+  // A provider sends submissions for unrelated buyers. Only the exact original
+  // Message-ID can reuse a submission; sender, subject and reference headers
+  // must never collapse a new shared-inbox form into an earlier buyer's lead.
+  if(connection.mailbox_kind==='shared_inquiry'&&message.direction==='inbound'&&
+    (isWebsiteFormServiceDomain(message.sender_email)||parseWebsiteFormMessage(message))){
+    const originalId=headerId(message.message_id);
+    if(originalId){
+      const {data:intakes,error}=await db.from('email_intake').select('inquiry_id,id').eq('message_id',originalId).limit(1);
+      if(error)throw error;
+      if(intakes?.length)return {id:intakes[0].inquiry_id||null,intakeId:intakes[0].id,method:'website_submission_message_id'};
+      const {data:copies,error:copyError}=await db.from('email_messages').select('inquiry_id').eq('message_id',originalId).not('inquiry_id','is',null).limit(1);
+      if(copyError)throw copyError;
+      if(copies?.[0]?.inquiry_id)return {id:copies[0].inquiry_id,method:'website_submission_message_id'};
+    }
+    return {id:null,method:'website_new_submission'};
+  }
+  const ids=[message.in_reply_to,...message.reference_ids,message.message_id].map(headerId).filter(Boolean);
+  if(ids.length){
+    const {data:prior}=await db.from('email_messages').select('inquiry_id').in('message_id',ids).not('inquiry_id','is',null).limit(1);
+    if(prior?.[0]?.inquiry_id)return {id:prior[0].inquiry_id,method:'thread_header'};
+    const {data:intake}=await db.from('email_intake').select('inquiry_id').in('message_id',ids).not('inquiry_id','is',null).limit(1);
+    if(intake?.[0]?.inquiry_id)return {id:intake[0].inquiry_id,method:'original_message_id'};
+    const {data:draft}=await db.from('outreach_drafts').select('inquiry_id').in('message_id',ids).limit(1);
+    if(draft?.[0]?.inquiry_id)return {id:draft[0].inquiry_id,method:'outreach_message_id'};
+    for(const messageId of ids){
+      const {data:audit}=await db.from('audit_logs').select('entity_id,after_data').eq('action','mailbox_message_sent').contains('after_data',{message_id:messageId}).limit(1);
+      if(audit?.[0]?.after_data?.inquiry_id)return {id:audit[0].after_data.inquiry_id,method:'mailbox_compose_message_id'};
+    }
+  }
+  const counterpart=message.direction==='inbound'?message.sender_email:message.recipient_emails[0];
+  if(counterpart){
+    let q=db.from('email_intake').select('inquiry_id,inquiries!inner(id,owner_id,title,created_at)').eq('sender_email',counterpart).not('inquiry_id','is',null).order('created_at',{ascending:false}).limit(10);
+    const {data}=await q;
+    const candidates=(data||[]).filter(x=>message.direction==='inbound'||x.inquiries?.owner_id===connection.user_id);
+    const exact=candidates.find(x=>normalizeSubject(x.inquiries?.title)===normalizeSubject(message.subject));
+    if(exact?.inquiry_id)return {id:exact.inquiry_id,method:'email_and_subject'};
+    if(candidates.length===1)return {id:candidates[0].inquiry_id,method:'unique_contact_email'};
+  }
+  return {id:null,method:null};
+}
+
+async function reconcileMessageCopies(row){
+  if(!row?.message_id||!row?.inquiry_id)return row;
+  const {data:copies,error}=await db.from('email_messages')
+    .select('id,direction,inquiry_id,created_at')
+    .eq('message_id',row.message_id)
+    .not('inquiry_id','is',null);
+  if(error)throw error;
+  if(!copies||copies.length<2)return row;
+  // The sender's Sent copy is the authoritative CRM association. Shared-mailbox
+  // delivery can be synchronized at the same moment and otherwise fall back to
+  // an unrelated inquiry that happens to use the same internal email address.
+  const canonical=copies.find(copy=>copy.direction==='outbound')||copies[0];
+  const duplicateIds=copies.map(copy=>copy.id);
+  const {error:updateError}=await db.from('email_messages')
+    .update({inquiry_id:canonical.inquiry_id,association_status:'matched',association_method:'duplicate_message_id'})
+    .in('id',duplicateIds);
+  if(updateError)throw updateError;
+  // A faster mailbox worker may already have created derived records using the
+  // temporary match. Keep those records attached to the same canonical inquiry.
+  await db.from('follow_ups').update({inquiry_id:canonical.inquiry_id}).in('email_message_id',duplicateIds);
+  await db.from('communication_summaries').update({inquiry_id:canonical.inquiry_id}).in('source_message_id',duplicateIds);
+  return {...row,inquiry_id:canonical.inquiry_id,association_status:'matched',association_method:'duplicate_message_id'};
+}
+
+async function createInquiryFromShared(message, connection, { junkFolder = false } = {}){
+  if(connection.mailbox_kind!=='shared_inquiry'||message.direction!=='inbound')return null;
+  if(message.message_id){
+    const {data:existing,error}=await db.from('email_intake').select('id,inquiry_id').eq('message_id',message.message_id).limit(1).maybeSingle();
+    if(error)throw error;
+    if(existing)return {id:existing.inquiry_id||null,intakeId:existing.id,method:'shared_mailbox_existing_intake'};
+  }
+  const creator=connection.created_by;
+  // Junk-folder content must always enter the human triage queue as-is. Do not
+  // auto-create companies/inquiries or invoke website-form conversion here.
+  const websiteForm=junkFolder?null:parseWebsiteFormMessage(message);
+  const customerEmail=websiteForm?.email||message.sender_email;
+  const receivedAt=message.received_at||new Date().toISOString();
+  if(!websiteForm){
+    if(message.message_id){
+      const {data:existing,error:lookupError}=await db.from('email_intake').select('id').eq('message_id',message.message_id).limit(1).maybeSingle();
+      if(lookupError)throw lookupError;
+      if(existing)return {id:null,method:junkFolder?'shared_mailbox_junk_already_in_triage':'shared_mailbox_already_in_triage',intakeId:existing.id};
+    }
+    const parsedData={detected_source:'email',...(junkFolder?{mailbox_folder:message.folder,triage_reason:'ali_mail_junk_folder'}:{})};
+    const {data:intake,error:intakeError}=await db.from('email_intake').insert({message_id:message.message_id||null,sender_email:customerEmail,sender_name:null,recipient_email:connection.email,subject:message.subject,body_text:message.body_text||'',received_at:receivedAt,parsed_data:parsedData,processing_status:'pending_review',inquiry_id:null,created_by:creator,created_at:receivedAt}).select('id').single();
+    if(intakeError)throw intakeError;
+    const {data:markets}=await db.from('profiles').select('id').eq('role','marketing').eq('active',true);
+    if(markets?.length)await db.from('notifications').insert(markets.map(p=>({recipient_id:p.id,inquiry_id:null,type:'new_inquiry_email',title:'收到待分拣邮件',body:`${customerEmail} · ${message.subject||'无主题'}`})));
+    return {id:null,method:'shared_mailbox_pending_triage',intakeId:intake.id};
+  }
+  const domain=websiteForm.companyDomain||null;
+  const companyName=websiteForm?.companyName||null;
+  let companyId=null,contactId=null;
+  if(domain){const {data:c}=await db.from('companies').select('id').ilike('domain',domain).maybeSingle();companyId=c?.id||null}
+  if(!companyId&&websiteForm?.companyName){const {data:c}=await db.from('companies').select('id').ilike('name',websiteForm.companyName).limit(1);companyId=c?.[0]?.id||null}
+  if(!companyId&&companyName){const {data:c}=await db.from('companies').insert({name:companyName,domain,country:websiteForm?.country||null,created_by:creator}).select('id').single();companyId=c?.id||null}
+  else if(companyId&&websiteForm?.country)await db.from('companies').update({country:websiteForm.country,updated_at:new Date().toISOString()}).eq('id',companyId).is('country',null);
+  if(companyId){
+    const {data:existing}=await db.from('contacts').select('id,company_id').eq('email',customerEmail).maybeSingle();contactId=existing?.company_id===companyId?existing.id:null;
+    if(!existing){const {data:c}=await db.from('contacts').insert({company_id:companyId,full_name:websiteForm?.name||null,email:customerEmail,phone:websiteForm?.phone||null,job_title:websiteForm?.jobTitle||null,created_by:creator}).select('id').single();contactId=c?.id||null}
+  }
+  const title=websiteForm?websiteInquiryTitle(websiteForm):(message.subject||`来自 ${message.sender_email} 的邮件询盘`);
+  const inquiryPayload={company_id:companyId,contact_id:contactId,title,product_category:websiteForm?.product||null,quantity:websiteForm?.quantity||null,target_country:websiteForm?.country||null,source:websiteForm?'website':'email',source_detail:websiteForm?.sourceDetail||null,original_message:message.body_text||'',status:'pending_assignment',created_by:creator,updated_by:creator,created_at:receivedAt,first_contact_due_at:new Date(new Date(receivedAt).getTime()+10*60000).toISOString(),last_change_reason:websiteForm?'官网表单自动解析入库':'公共询盘邮箱自动收件'};
+  const {data:inq,error}=await db.from('inquiries').insert(inquiryPayload).select('id').single();
+  if(error)throw error;
+  if(websiteForm){
+    const a=websiteForm.attribution||{};
+    const medium=String(a.utmMedium||'').toLowerCase(),source=String(a.utmSource||'').toLowerCase();
+    const channel=medium==='organic'||medium==='organic_search'||medium==='seo'?'organic_search':
+      ['cpc','ppc','paid','paid_search'].includes(medium)&&['google','googleads','google_ads'].includes(source)?'google_ads':
+      ['facebook','instagram','meta','meta_ads'].includes(source)?'meta_ads':source.includes('linkedin')?'linkedin':'website';
+    const {error:touchError}=await db.from('inquiry_marketing_touches').insert({inquiry_id:inq.id,touch_at:receivedAt,channel,campaign_name:a.utmCampaign||null,landing_page:a.landingPage||null,evidence_note:'官网表单邮件兜底归因',is_primary:true,created_by:creator,utm_source:a.utmSource||null,utm_medium:a.utmMedium||null,utm_campaign:a.utmCampaign||null,utm_content:a.utmContent||null,utm_term:a.utmTerm||null,referrer_url:a.referrerUrl||null,session_ref:a.sessionRef||null});
+    if(touchError)console.error('Website attribution persistence failed:',touchError.message);
+  }
+  if(websiteForm?.journeyEvents?.length){
+    const {error:journeyError}=await db.from('inquiry_user_journey_events').insert(websiteForm.journeyEvents.map(event=>({...event,inquiry_id:inq.id})));
+    if(journeyError)console.error('Website journey persistence failed:',journeyError.message);
+  }
+  await db.from('email_intake').insert({message_id:message.message_id||null,sender_email:customerEmail,sender_name:websiteForm?.name||null,recipient_email:connection.email,subject:message.subject,body_text:message.body_text||'',received_at:receivedAt,parsed_data:websiteForm?{...websiteForm.rawFields,transport_sender:message.sender_email,detected_source:'website'}:{},processing_status:'pending_review',inquiry_id:inq.id,created_by:creator,created_at:receivedAt});
+  const {data:markets}=await db.from('profiles').select('id').eq('role','marketing').eq('active',true);
+  if(markets?.length)await db.from('notifications').insert(markets.map(p=>({recipient_id:p.id,inquiry_id:inq.id,type:'new_inquiry_email',title:websiteForm?'收到新的官网询盘':'收到新的邮件询盘',body:`${customerEmail} · ${title}`})));
+  return {id:inq.id,method:'shared_mailbox_created'};
+}
+
+function ruleSummary(message){
+  const direction=message.direction==='inbound'?'客户来信':'业务员发信';
+  const body=String(message.body_text||'').replace(/\s+/g,' ').trim().slice(0,600);
+  return `${direction}：${message.subject||'无主题'}${body?`。内容摘要：${body}`:''}`;
+}
+
+async function applyMatchedMessage(row, connection,{triggerAi=true}={}){
+  const {data:inq}=await db.from('inquiries').select('id,owner_id,title').eq('id',row.inquiry_id).single();
+  if(!inq)return;
+  const {error:followupError}=await db.rpc('record_synced_email_followup',{target_email_message_id:row.id});
+  if(followupError)throw followupError;
+  if(row.direction==='inbound'){
+    const {data:managers}=await db.from('profiles').select('id').eq('role','sales_manager').eq('active',true);
+    const recipients=[inq.owner_id,...(managers||[]).map(x=>x.id)].filter(Boolean);
+    if(recipients.length)await db.from('notifications').insert([...new Set(recipients)].map(id=>({recipient_id:id,inquiry_id:inq.id,type:'customer_email_reply',title:'客户有新邮件回复',body:`${row.sender_email||''} · ${row.subject||inq.title}`})));
+  }
+  await db.from('communication_summaries').insert({inquiry_id:inq.id,source_message_id:row.id,summary_zh:ruleSummary(row),latest_customer_request:row.direction==='inbound'?(row.body_text||'').slice(0,2000):null,provider:'rules'});
+  if(!triggerAi)return;
+  try{
+    const response=await fetch(`${url}/functions/v1/email-communication-ai`,{method:'POST',headers:{Authorization:`Bearer ${key}`,apikey:key,'Content-Type':'application/json'},body:JSON.stringify({message_id:row.id,trigger:'mail_sync'}),signal:AbortSignal.timeout(45000)});
+    if(!response.ok)console.error(`AI summary ${row.id}: ${await response.text()}`);
+  }catch(error){console.error(`AI summary ${row.id}:`,error?.message||error)}
+}
+
+async function syncFolder(connection,password,folder,{edge=false,maxMessages=Infinity,deadline=Infinity}={}){
+  const client=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:edge?8000:15000,greetingTimeout:edge?8000:15000,socketTimeout:edge?15000:45000});
+  await client.connect();
+  try{
+    const lock=await client.getMailboxLock(folder);
+    try{
+      const {data:cursor}=await db.from('email_sync_cursors').select('*').eq('mailbox_connection_id',connection.id).eq('folder',folder).maybeSingle();
+      const uidValidity=String(client.mailbox.uidValidity||'');
+      const last=cursor?.uid_validity===uidValidity?Number(cursor.last_uid||0):0;
+      // A newly connected mailbox starts at its current newest message. This
+      // prevents old mailbox history from being imported as fresh CRM work.
+      const junkFolder=isJunkFolder(folder);
+      if(!cursor&&shouldInitializeAtLatest(folder,connection.mailbox_kind)){
+        const baseline=Math.max(0,Number(client.mailbox.uidNext||1)-1);
+        const {error:baselineError}=await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:baseline,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
+        if(baselineError)throw baselineError;
+        console.log(`mailbox initialized ${folder} at UID ${baseline}`);
+        return {complete:true,processed:0};
+      }
+      const start=last?last+1:Math.max(1,Number(client.mailbox.uidNext||1)-initialLimit);
+      let maxUid=last,processed=0,hitLimit=false,timedOut=false;
+      for await(const msg of client.fetch(`${start}:*`,{uid:true,source:{start:0,maxLength:12_000_000},envelope:true,headers:['message-id','in-reply-to','references']})){
+        if(msg.uid<=last)continue;
+        if(Date.now()>=deadline){timedOut=true;break}
+        if(processed>=maxMessages){hitLimit=true;break}
+        maxUid=Math.max(maxUid,msg.uid);
+        const parsed=await simpleParser(msg.source);
+        const sent=isSentFolder(folder);
+        const references=Array.isArray(parsed.references)?parsed.references:(parsed.references?[parsed.references]:[]);
+        const record={mailbox_connection_id:connection.id,folder,uid:msg.uid,message_id:headerId(parsed.messageId),in_reply_to:headerId(parsed.inReplyTo),reference_ids:references.map(headerId),direction:sent?'outbound':'inbound',sender_email:cleanEmail(parsed.from?.value?.[0]?.address),recipient_emails:addrList(parsed.to),cc_emails:addrList(parsed.cc),subject:parsed.subject||'',body_text:parsed.text||'',body_html:typeof parsed.html==='string'?parsed.html:'',sent_at:sent?(parsed.date||new Date()).toISOString():null,received_at:sent?null:(parsed.date||new Date()).toISOString(),attachment_count:parsed.attachments?.length||0,raw_headers:{message_id:parsed.messageId||null,in_reply_to:parsed.inReplyTo||null,references}};
+        const nurturing=!junkFolder&&isInstantlyNurturing(record,connection);
+        const systemNotice=classifySystemNotice(record);
+        record.folder=folder;
+        let match=systemNotice?{id:null,method:'system_notice_filter'}:nurturing?{id:null,method:'instantly_warmup_filter'}:junkFolder&&connection.mailbox_kind==='shared_inquiry'?{id:null,method:'shared_mailbox_junk_pending_triage'}:await matchInquiry(record,connection);
+        if(!systemNotice&&!nurturing&&!match.id)match=await createInquiryFromShared(record,connection,{junkFolder:junkFolder&&connection.mailbox_kind==='shared_inquiry'})||match;
+        const {data:storedRow,error}=await db.from('email_messages').upsert({...record,inquiry_id:match.id,association_status:systemNotice||nurturing?'ignored':match.id?'matched':'pending',association_method:match.method},{onConflict:'mailbox_connection_id,folder,uid'}).select('*').single();
+        if(error)throw error;
+        // Junk messages are untrusted; keep their body for human review but do
+        // not download or persist attachments before a person inspects them.
+        if(!(junkFolder&&connection.mailbox_kind==='shared_inquiry'))for(const [index,attachment] of (parsed.attachments||[]).entries()){
+          if(!attachment.content?.length||attachment.content.length>10*1024*1024)continue;
+          const fileName=safeFileName(attachment.filename,index),storagePath=`${storedRow.id}/${index}-${fileName}`;
+          const {error:uploadError}=await db.storage.from('email-attachments').upload(storagePath,attachment.content,{upsert:true,contentType:attachment.contentType||'application/octet-stream'});
+          if(uploadError){console.error(edge?'Attachment upload failed':`Attachment upload ${storagePath}: ${uploadError.message}`);continue}
+          const {error:attachmentError}=await db.from('email_attachments').upsert({email_message_id:storedRow.id,file_name:fileName,content_type:attachment.contentType||null,size_bytes:attachment.content.length,storage_path:storagePath,content_id:attachment.contentId||null,inline:attachment.contentDisposition==='inline'},{onConflict:'storage_path'});
+          if(attachmentError)console.error(edge?'Attachment record failed':`Attachment record ${storagePath}: ${attachmentError.message}`);
+        }
+        const row=await reconcileMessageCopies(storedRow);
+        if(row?.inquiry_id)await applyMatchedMessage(row,connection,{triggerAi:!edge});
+        processed++;
+      }
+      const {error:cursorError}=await db.from('email_sync_cursors').upsert({mailbox_connection_id:connection.id,folder,uid_validity:uidValidity,last_uid:maxUid,last_synced_at:new Date().toISOString(),last_error:null},{onConflict:'mailbox_connection_id,folder'});
+      if(cursorError)throw cursorError;
+      return {complete:!hitLimit&&!timedOut,processed};
+    }finally{lock.release()}
+  }finally{await client.logout().catch(()=>{})}
+}
+
+async function syncMailbox(connection,{edge=false,maxMessagesPerFolder=Infinity,deadline=Infinity}={}){
+  const password=await secretFor(connection.id);
+  const probe=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:edge?8000:15000,greetingTimeout:edge?8000:15000,socketTimeout:edge?15000:45000});
+  await probe.connect();let boxes;try{boxes=await probe.list()}finally{await probe.logout().catch(()=>{})}
+  let complete=true;
+  for(const folder of selectSyncFolders(boxes,{includeJunk:connection.mailbox_kind==='shared_inquiry'})){
+    if(Date.now()>=deadline){complete=false;break}
+    const result=await syncFolder(connection,password,folder,{edge,maxMessages:maxMessagesPerFolder,deadline});
+    if(!result?.complete)complete=false;
+  }
+  const syncState=complete
+    ?{last_synced_at:new Date().toISOString(),error_message:null,status:'connected'}
+    :{error_message:'本轮同步未完成，将在下次周期继续'};
+  const {error:updateError}=await db.from('mailbox_connections').update(syncState).eq('id',connection.id);
+  if(updateError)throw updateError;
+  return {complete};
+}
+
+async function runOptionalCycleStage(name, task){
+  try{await task()}catch(error){console.error(`${name} stage failed: ${error?.name||'Error'}`)}
+}
+
+async function cycle(){
+  // Scheduled sending/reporting is independent of mailbox ingestion. A
+  // transient queue/report failure must not prevent the IMAP sync stage.
+  await runOptionalCycleStage('mail outbox',processOutbox);
+  await runOptionalCycleStage('daily lead report',sendDailyLeadReport);
+  let manuallySyncedConnectionId=null;
+  try{manuallySyncedConnectionId=await processManualSharedMailSync({db,syncMailbox,log:message=>console.error(message)})}catch(error){console.error(`manual mail sync request stage failed: ${error?.name||'Error'}`)}
+  const {data,error}=await db.from('mailbox_connections').select('*').eq('status','connected').eq('sync_enabled',true);if(error)throw error;
+  await Promise.allSettled((data||[]).filter(connection=>connection.id!==manuallySyncedConnectionId).map(async connection=>{try{await syncMailbox(connection);console.log(`${connection.mailbox_kind} mailbox synced`)}catch(error){console.error(`${connection.mailbox_kind} mailbox sync failed: ${error?.name||'Error'}`);await db.from('mailbox_connections').update({error_message:String(error?.message||error).slice(0,1000)}).eq('id',connection.id)}}));
+  await writeFile('/tmp/healthy',new Date().toISOString());
+}
+
+export async function runEdgeCycle(){
+  const deadline=Date.now()+105_000;
+  const syncForEdge=(connection,{manual=false}={})=>syncMailbox(connection,{edge:true,maxMessagesPerFolder:manual?60:30,deadline});
+  return runWithEdgeWorkerLease({
+    db,
+    log:message=>console.error(message),
+    run:async()=>{
+      await runOptionalCycleStage('daily lead report',sendDailyLeadReport);
+      return runEdgeMailCycle({
+      db,
+      now:Date.now(),
+      processManual:()=>processManualSharedMailSync({db,syncMailbox:connection=>syncForEdge(connection,{manual:true}),log:message=>console.error(message)}),
+      syncMailbox:connection=>syncForEdge(connection),
+      log:message=>console.error(message),
+      });
+    },
+  });
+}
+
+if(import.meta.main===true||(process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1])){
+  while(true){try{await cycle()}catch(error){console.error(`mail sync cycle failed: ${error?.name||'Error'}`)}await sleep(interval)}
+}

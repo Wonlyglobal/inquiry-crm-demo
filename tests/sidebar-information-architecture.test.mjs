@@ -46,3 +46,13 @@ test('shortcut authorization derives from original workspace roles and entry rem
     assert.equal(check('sales-lead-entry',role),role==='sales');
   }
 });
+test('official intake is discoverable in acquisition and keeps its original authorized route',()=>{
+ for(const name of ['index.html','grace.html']){
+  const source=fs.readFileSync(new URL('../'+name,import.meta.url),'utf8');
+  const groups=vm.runInNewContext(source.match(/const sidebarNavigationGroups = (\[[\s\S]*?\n      \]);/)[1]);
+  assert.equal(groups.find(g=>g.key==='acquisition').views[0],'email');
+  assert.ok(!groups.find(g=>g.key==='communication').views.includes('email'));
+  assert.match(source,/data-view="email">\s*<i data-lucide="mail-plus"><\/i><span>询盘待分拣<\/span>/);
+  assert.match(source,/\["pending","待分拣"\]/);
+ }
+});

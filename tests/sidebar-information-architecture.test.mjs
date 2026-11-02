@@ -56,3 +56,11 @@ test('official intake is discoverable in acquisition and keeps its original auth
   assert.match(source,/\["pending","待分拣"\]/);
  }
 });
+test('official inquiry label agrees across sidebar, page and guide without changing its route',()=>{
+ for(const name of ['index.html','grace.html']){
+  const source=fs.readFileSync(new URL('../'+name,import.meta.url),'utf8');
+  assert.match(source,/data-view="inquiries">\s*<i data-lucide="contact-round"><\/i><span>官方询盘<\/span>/);
+  assert.match(source,/inquiries: \["官方询盘"/);
+  assert.match(source,/inquiries:"官方询盘"/);
+ }
+});

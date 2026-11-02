@@ -27,9 +27,10 @@ export function nextStep(p){
  if(p.invalid_review_status==='pending')return `${manager}：审核无效申请`;
  if(p.validity==='invalid')return `${market}：保留关闭记录；有新信息时重新评估`;
  if(['won','lost'].includes(p.status))return `${owner}：${p.status==='won'?'核对成交记录并安排后续履约':'复盘丢单，确认后续培育安排'}`;
+ if(p.nurture_status==='nurturing'||p.sales_disposition==='recycled')return `${market}：按培育计划跟进，核实后再提交主管分配`;
  if(p.validity!=='valid')return `${market}：核实需求和询盘有效性`;
  if(!p.owner_set)return `${manager}：指定负责业务员`;
- const action={pending_assignment:'核对分配并开展首次联系',received:'首次联系客户并核实需求',qualified:'联系客户并确认采购条件',contacted:'补齐采购条件并准备报价',quoted:'跟进报价反馈和样品安排',sample_sent:'跟进样品反馈',negotiating:'推进谈判并确认下一步'}[p.status]||'核对当前进展并安排跟进';
+ const action={pending_assignment:'核对分配并开展首次联系',received:p.first_contact_done?'跟进客户反馈并核实采购条件':'首次联系客户并核实需求',qualified:'联系客户并确认采购条件',contacted:'补齐采购条件并准备报价',quoted:'跟进报价反馈和样品安排',sample_sent:'跟进样品反馈',negotiating:'推进谈判并确认下一步'}[p.status]||'核对当前进展并安排跟进';
  return `${owner}：${action}`;
 }
 function eventTitle(p){
@@ -54,6 +55,7 @@ export function pipelineMessage(item){
  const lines=[`【WONLY CRM】${eventTitle(p)}`,`询盘：${no}`];
  if(item.mode==='basic_demand')lines.push(`基本需求：${safeProduct(p.raw_product)} / ${safeCountry(p.raw_country)} / ${safeQuantity(p.raw_quantity)}`);
  lines.push(`当前进度：${p.kind==='intake'&&!p.inquiry_id?'邮件分拣/登记':p.validity==='invalid'?'已关闭（无效）':p.validity!=='valid'?'待确认有效性':stage(p.status)}`,`下一步：${nextStep(p)}`);
+ if(p.nurture_status==='nurturing'&&p.nurture_next_at)lines.push(`计划培育：${time(p.nurture_next_at)}`);
  if(p.next_follow_up_at)lines.push(`计划跟进：${time(p.next_follow_up_at)}`);
  lines.push(`更新人：${person(p.actor_name)||'系统或后台任务'}`,`事件时间：${time(item.occurred_at)}（北京时间）`, `CRM详情：https://crm.foreverdoodle.com/${uuid.test(p.inquiry_id||'')?'#inquiry/'+p.inquiry_id:'#view=email'}`,'以上为事件发生时的记录；当前进度与权限以 CRM 为准。');
  return {msg_type:'text',content:{text:lines.join('\n')}};

@@ -40,7 +40,7 @@ $$;
 create function private.pipeline_projection(row_data jsonb,kind text) returns jsonb language sql immutable set search_path='' as $$
  select coalesce(jsonb_object_agg(e.key,e.value),'{}'::jsonb) from jsonb_each(row_data) e
  where e.key=any(case when kind='inquiry' then array['status','validity','owner_id','invalid_review_status','product_category','target_country','quantity',
- 'demand_summary','qualification_identity','qualification_need','qualification_role','qualification_value','qualification_timing','qualification_fit','qualification_next_step','qualification_manager_confirmed_at','next_follow_up_at','first_valid_contact_at','nurture_status','nurture_next_at','sales_disposition','lead_priority','submitted_for_assignment_at']
+ 'demand_summary','qualification_identity','qualification_need','qualification_role','qualification_value','qualification_timing','qualification_fit','qualification_next_step','qualification_manager_confirmed_at','qualification_score','next_follow_up_at','first_valid_contact_at','nurture_status','nurture_next_at','nurture_note','sales_disposition','lead_priority','submitted_for_assignment_at']
  else array['triage_label','processing_status','inquiry_id','trashed_at','assigned_marketing_id','research_completed_at','registered_at','forwarded_at'] end)
 $$;
 create function private.capture_pipeline_feishu() returns trigger language plpgsql security definer set search_path='' as $$
@@ -72,10 +72,10 @@ begin
  'created',tg_op='INSERT','from_status',o->'status','from_validity',o->'validity','from_owner',o->'owner_id',
  'status',base->'status','validity',base->'validity','owner_set',owner_id is not null,
  'owner_name',private.pipeline_person(owner_id),'manager_name',private.pipeline_manager(owner_id),
- 'market_name',private.pipeline_person(coalesce(nullif(n->>'assigned_marketing_id','')::uuid,nullif(n->>'triaged_by','')::uuid,nullif(base->>'created_by','')::uuid)),
+ 'market_name',private.pipeline_person(coalesce(nullif(n->>'assigned_marketing_id','')::uuid,nullif(n->>'triaged_by','')::uuid,case when base->>'nurture_status'='nurturing' then nullif(base->>'nurture_updated_by','')::uuid end,nullif(base->>'created_by','')::uuid)),
  'actor_name',case when auth.uid() is null then null else private.pipeline_person(actor_id) end,
  'triage_label',n->'triage_label','processing_status',n->'processing_status','trashed',nullif(n->>'trashed_at','') is not null,
- 'invalid_review_status',base->'invalid_review_status','next_follow_up_at',base->'next_follow_up_at',
+ 'invalid_review_status',base->'invalid_review_status','next_follow_up_at',base->'next_follow_up_at','first_contact_done',nullif(base->>'first_valid_contact_at','') is not null,'nurture_status',base->'nurture_status','sales_disposition',base->'sales_disposition','nurture_next_at',base->'nurture_next_at',
  'raw_product',left(coalesce(base->>'product_category',''),200),'raw_country',left(coalesce(base->>'target_country',''),100),'raw_quantity',left(coalesce(base->>'quantity',''),100),
  'changed_fields',changes);
  -- Converting mail creates an inquiry in the same transaction: one linked event is enough.

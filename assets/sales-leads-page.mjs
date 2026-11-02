@@ -1,3 +1,4 @@
+import {mountDevelopmentMetrics} from './lead-development-metrics.mjs?v=20261102-1';
 import {decodeCustomerCsv} from './customer-csv-reader.mjs?v=20261029-encoding1';
 import {leadWorksheetRecords} from './lead-worksheet-rows.mjs?v=20261029-1';
 import {mountWeeklyCustomerReview} from './weekly-customer-review.mjs?v=20261028-1';
@@ -6,7 +7,7 @@ import {renderLeadFileState,bindLeadFilePicker,clearLeadImportSelection} from '.
 import {leadStageLabel,formatStageSummary} from './sales-lead-stages.mjs';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=t=>$('#status').textContent=t,stamp=t=>t?new Date(t).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
-let weeklyReview,contactTarget;
+let weeklyReview,contactTarget,developmentMetrics;
 let selectedImportFile=null,importRecords=[];
 let db,data,pendingRows=[],requestId=crypto.randomUUID(),busy=false;
 const fileNodes={name:$('#file-name'),state:$('#file-state'),remove:$('#remove-import-file')};
@@ -31,6 +32,8 @@ async function load(){
  const weekly=await weeklyReview.refresh({sales:$('#sales').value});
  if(weekly)$('#customer-deadline-rules').textContent=weekly.rules.map(r=>`${r.effective_on}起：每周客户核对 ${r.due_at} 截止`).join('；');
  render();status(`核对时间：${stamp(data.as_of)}（北京时间）；仅展示当前权限范围，未来尚未发生日期不记未提交。`);
+ developmentMetrics ||= mountDevelopmentMetrics($('#development-metrics'),{rpc});
+ await developmentMetrics.refresh({from:$('#from').value,to:$('#to').value,sales:$('#sales').value});
 }
 function render(){
  const selectedPerson=$('#sales').value,stats=data.timeliness;
@@ -51,7 +54,7 @@ $('#lead-form').onsubmit=e=>{e.preventDefault();action(async()=>{const row=norma
 $('#contact-cancel').onclick=()=>{$('#contact-edit').hidden=true;contactTarget=null};
 $('#contact-form').onsubmit=e=>{e.preventDefault();action(async()=>{const values=Object.fromEntries(new FormData(e.target));await rpc('update_sales_lead_contact',{target_id:contactTarget,email_value:values.email,phone_value:values.phone});$('#contact-edit').hidden=true;contactTarget=null;try{await load()}catch(error){status('联系方式已保存，但列表刷新失败：'+leadRequestMessage(error))}})};
 $('#no-new').onclick=()=>action(async()=>{const reason=prompt('请说明今天无新增客户线索的原因（至少4字）');if(reason===null)return;await rpc('declare_no_sales_leads',{target_day:localDay(),reason});await load()});
-$('#refresh').onclick=()=>action(load);$('#sales').onchange=()=>{render();weeklyReview?.refresh({sales:$('#sales').value})};
+$('#refresh').onclick=()=>action(load);$('#sales').onchange=()=>{render();weeklyReview?.refresh({sales:$('#sales').value});developmentMetrics?.refresh({from:$('#from').value,to:$('#to').value,sales:$('#sales').value})};
 $('#from').onchange=$('#to').onchange=()=>action(load);
 $('#rules-form').onsubmit=e=>{e.preventDefault();action(async()=>{const r=Object.fromEntries(new FormData(e.target));r.daily_min=Number(r.daily_min);r.weekly_day=Number(r.weekly_day);await rpc('configure_weekly_customer_rules',r);await load()})};
 $('#report-deadline-form').onsubmit=e=>{e.preventDefault();action(async()=>{await rpc('configure_daily_report_deadline',Object.fromEntries(new FormData(e.target)));await load()})};

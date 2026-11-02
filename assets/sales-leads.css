@@ -58,3 +58,4 @@
 .workspace-shortcuts{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}.workspace-shortcuts a{border:1px solid #c8d8cf;border-radius:999px;padding:10px 16px;text-decoration:none;background:#fff;color:#1b4435;font-size:14px;font-weight:600}
 
 #status,.file-state { white-space:pre-line; }
+.development-table{min-width:1680px}.development-table th,.development-table td{min-width:64px;padding:12px 10px}.development-table td:last-child{min-width:200px;max-width:260px}.development-table button{display:block;margin-top:10px}.development-table th[colspan]{text-align:center}.development-total{background:#f1f6f3;font-weight:600}.development-editor{margin-top:24px;padding:20px;background:#f5f8f6;border:1px solid #d9e4df;border-radius:14px}.development-editor h3{margin-top:0}#development-metrics [role=status]{white-space:pre-line;color:#5a6c63}#development-metrics input,#development-metrics select,#development-metrics textarea{width:100%}

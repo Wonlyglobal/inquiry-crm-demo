@@ -1,3 +1,4 @@
+import {candidateMetrics,candidateTable,candidateDetail} from './company-candidates-ui.mjs?v=20261102-layout1';
 import {candidateLabels,candidateSourceLabels,candidateImportRows,candidateBatches,candidateReceipt,candidateColumns} from './company-candidates.mjs?v=20261028-1';
 import {localDay,leadRequestMessage} from './sales-leads.mjs?v=20261028-contact-1';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -6,17 +7,40 @@ const status=t=>$('#status').textContent=t,stamp=t=>t?new Date(t).toLocaleString
 async function rpc(name,args){const result=await db.rpc(name,args);if(result.error)throw Error(leadRequestMessage(result.error));return result.data}
 async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button,#file').forEach(b=>b.disabled=true);try{await fn()}catch(error){status('未完成：'+leadRequestMessage(error))}finally{busy=false;document.querySelectorAll('button,#file').forEach(b=>b.disabled=false);$('#import').disabled=!chunks.length||done===chunks.length;$('#previous').disabled=offset===0;$('#next').disabled=!view||offset+50>=view.total}}
 async function load(){
+ closeCandidate();
  view=await rpc('company_candidate_workspace',{search_text:$('#search').value.trim(),state_filter:$('#filter').value,page_offset:offset});
  $('#import-panel').hidden=!['owner','marketing'].includes(view.actor.role);
- $('#counts').textContent=`符合筛选 ${view.total} 家 · 待核实 ${view.pending} 家 · 可领取 ${view.verified} 家`;
- $('#candidate-list').innerHTML=view.items.map(item=>item.masked?`<article class="candidate-card masked"><h3>公司信息已遮蔽</h3><p>负责人：${esc(item.responsible_name)}</p><span>${esc(candidateLabels[item.state])}</span></article>`:`<article class="candidate-card"><h3>${esc(item.company)}</h3><div class="meta">${esc(item.country)} · ${esc(item.category||'品类待核实')} · ${esc(candidateLabels[item.state])}</div><p>官网候选：${item.website?`<a href="${esc(item.website)}" target="_blank" rel="noopener noreferrer">${esc(item.website)}</a>`:'待补充'}</p><p><a href="${esc(item.source_url)}" target="_blank" rel="noopener noreferrer">查看公开来源</a> · ${esc(candidateSourceLabels[item.source_kind])}<small>来源快照：${esc(item.snapshot_date)}（不代表资料当前已核实）</small></p>${item.reviewed_at?`<p>核验时间：${esc(stamp(item.reviewed_at))}<br>${esc(item.review_note||'')}</p>`:''}<div class="button-group">${item.can_review?`<button data-review="${esc(item.id)}" class="button-secondary">核对官网与公司身份</button>`:''}${item.can_claim?`<button data-claim="${esc(item.id)}">本人领取</button>`:''}${item.mine&&!item.lead_id?`<button data-promote="${esc(item.id)}">补充需求转个人线索</button>`:''}${item.lead_id?'<a href="sales-leads.html#lead-dashboard">打开个人线索工作台</a>':''}${item.existing?'<small>已有客户或线索，不能再次转入计数。</small>':''}</div></article>`).join('');
+ $('#open-import').hidden=$('#import-panel').hidden;
+ $('#counts').innerHTML=candidateMetrics(view);
+ $('#candidate-list').innerHTML=candidateTable(view.items);
  $('#page').textContent=view.total?`${offset+1}—${Math.min(offset+50,view.total)} / ${view.total}`:'0 条';
- for(const kind of ['review','claim','promote'])$('#candidate-list').querySelectorAll(`[data-${kind}]`).forEach(button=>button.onclick=()=>{target=view.items.find(item=>item.id===button.dataset[kind]);for(const other of ['review','claim','promote'])$('#'+other+'-panel').hidden=other!==kind;$('#'+kind+'-company').textContent=target.company;if(kind==='review'){$('#review-form').reset();$('#review-form [name=official_url]').value=target.official_url||target.website||''}if(kind==='promote'){$('#promote-form').reset();$('#promote-form [name=acquired_on]').value=localDay()}$('#'+kind+'-panel').scrollIntoView({block:'center'})});
+ $('#candidate-list').querySelectorAll('[data-detail]').forEach(button=>button.onclick=()=>openCandidate(view.items.find(item=>item.id===button.dataset.detail)));
  status(`服务器回读 ${stamp(view.as_of)}（北京时间）。候选导入与领取不计入个人线索。`);
 }
 $('#refresh').onclick=()=>action(async()=>{offset=0;await load()});$('#previous').onclick=()=>action(async()=>{offset=Math.max(0,offset-50);await load()});$('#next').onclick=()=>action(async()=>{offset+=50;await load()});
-for(const kind of ['review','claim','promote'])$('#cancel-'+kind).onclick=()=>{$('#'+kind+'-panel').hidden=true;target=null};
-async function savedThenRefresh(message){for(const kind of ['review','claim','promote'])$('#'+kind+'-panel').hidden=true;target=null;try{await load();status(message+' · 已回读服务器数据')}catch(error){status(message+'，但列表刷新失败：'+leadRequestMessage(error))}}
+function closeCandidate(){
+ if($('#candidate-dialog').open)$('#candidate-dialog').close();
+ for(const kind of ['review','claim','promote'])$('#'+kind+'-panel').hidden=true;
+ $('#candidate-detail').innerHTML='';target=null;
+}
+function openCandidate(item,kind=null){
+ if(!item||item.masked)return;
+ if(kind==='review'&&!item.can_review||kind==='claim'&&!item.can_claim||kind==='promote'&&(!item.mine||item.lead_id))return;
+ target=item;$('#candidate-detail').innerHTML=candidateDetail(item,stamp);
+ for(const other of ['review','claim','promote'])$('#'+other+'-panel').hidden=other!==kind;
+ if(kind){$('#'+kind+'-company').textContent=item.company;
+  if(kind==='review'){$('#review-form').reset();$('#review-form [name=official_url]').value=item.official_url||item.website||''}
+  if(kind==='promote'){$('#promote-form').reset();$('#promote-form [name=acquired_on]').value=localDay()}
+ }
+ for(const actionName of ['review','claim','promote'])$('#candidate-detail').querySelectorAll(`[data-${actionName}]`).forEach(button=>button.onclick=()=>openCandidate(item,actionName));
+ if(!$('#candidate-dialog').open)$('#candidate-dialog').showModal();
+ if(kind){$('#'+kind+'-panel').scrollIntoView({block:'nearest'});$('#'+kind+'-panel').querySelector('input,select,textarea,button')?.focus()}else $('#close-candidate').focus();
+}
+$('#close-candidate').onclick=closeCandidate;
+$('#candidate-dialog').addEventListener('close',()=>{for(const kind of ['review','claim','promote'])$('#'+kind+'-panel').hidden=true;$('#candidate-detail').innerHTML='';target=null});
+$('#open-import').onclick=()=>{$('#candidate-import-details').open=true;$('#import-panel').scrollIntoView({block:'start'});$('#choose-file').focus()};
+for(const kind of ['review','claim','promote'])$('#cancel-'+kind).onclick=()=>openCandidate(target);
+async function savedThenRefresh(message){closeCandidate();try{await load();status(message+' · 已回读服务器数据')}catch(error){status(message+'，但列表刷新失败：'+leadRequestMessage(error))}}
 $('#review-form').onsubmit=e=>{e.preventDefault();action(async()=>{await rpc('review_company_candidate',{target_id:target.id,...Object.fromEntries(new FormData(e.target))});await savedThenRefresh('核验记录已保存')})};
 $('#confirm-claim').onclick=()=>action(async()=>{await rpc('claim_company_candidate',{target_id:target.id});await savedThenRefresh('已领取，尚未计入个人线索')});
 $('#promote-form').onsubmit=e=>{e.preventDefault();action(async()=>{const result=await rpc('promote_company_candidate',{target_id:target.id,...Object.fromEntries(new FormData(e.target))});if(!result?.lead_id)throw Error('个人线索回执不完整，请刷新核对');await savedThenRefresh('已保存为本人线索，来源记录保留')})};

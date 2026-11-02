@@ -7,10 +7,13 @@ const ids=await new (Object.getPrototypeOf(async function(){}).constructor)('db'
 for(const name of ['20261028170000_sales_lead_pending_contact.sql','20261028183000_company_candidate_pool.sql'])await db.exec(await readFile(new URL('../supabase/migrations/'+name,import.meta.url),'utf8'));
 async function actor(key){await db.exec('reset role');await db.query("select set_config('test.uid',$1,false)",[ids[key]]);await db.exec('set role authenticated')}
 await actor('o');
+const demoRows=[1,2,3].map(n=>({lead_id:'ui-layout-synthetic-'+n,company_candidate:['模拟公司 · 安全门渠道','模拟公司 · 建筑五金采购','模拟公司 · 工程配套'][n-1],country_candidate:['Ghana','UAE','Ghana'][n-1],category_candidate:'门锁与建筑五金',website_candidate:`https://synthetic${n}.example/`,source_url:`https://synthetic${n}.example/about`,source_kind:'company_site_candidate',source_snapshot_date:'2026-10-01'}));
+await db.query('select public.import_company_candidates($1::jsonb,$2::uuid,$3::text)',[JSON.stringify(demoRows),crypto.randomUUID(),'模拟布局验收']);
+
 const controls='<div style="padding:16px;background:#fff0d9"><strong>隔离模拟验收 · 非生产、不发邮件或群消息</strong><button onclick="fetch(\'/actor\',{method:\'POST\',body:\'o\'}).then(()=>location.reload())">模拟老板</button><button onclick="fetch(\'/actor\',{method:\'POST\',body:\'s\'}).then(()=>location.reload())">模拟业务员A</button><button onclick="fetch(\'/actor\',{method:\'POST\',body:\'s2\'}).then(()=>location.reload())">模拟业务员B</button></div>';
-const assets=new Set(['company-candidates-page.mjs','company-candidates.mjs','sales-leads.mjs','sales-leads.css']);
+const assets=new Set(['company-candidates-page.mjs','company-candidates-ui.mjs','company-candidates.css','company-candidates.mjs','sales-leads.mjs','sales-leads.css','customer-import-normalize.mjs']);
 const server=http.createServer(async(req,res)=>{try{
- if(req.method==='GET'&&req.url==='/'){res.setHeader('Content-Type','text/html;charset=utf-8');return res.end((await readFile(new URL('../company-candidates.html',import.meta.url),'utf8')).replace('<body>','<body>'+controls))}
+ if(req.method==='GET'&&req.url==='/'){res.setHeader('Content-Type','text/html;charset=utf-8');return res.end((await readFile(new URL('../company-candidates.html',import.meta.url),'utf8')).replace(/<body[^>]*>/,match=>match+controls))}
  if(req.method==='GET'&&req.url==='/xlsx.mjs'){res.setHeader('Content-Type','text/javascript');return res.end(await readFile('/private/tmp/crm-sales-leads-xlsx-0.20.3.mjs'))}
  if(req.method==='GET'&&req.url?.startsWith('/assets/')){const name=req.url.slice(8).split('?')[0];if(!assets.has(name))throw Error('fixture asset denied');let text=await readFile(new URL('../assets/'+name,import.meta.url),'utf8');
   if(name==='company-candidates-page.mjs'){

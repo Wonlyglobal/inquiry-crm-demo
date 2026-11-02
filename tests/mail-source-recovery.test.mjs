@@ -36,7 +36,7 @@ function fixture({existing=[],risk=null,blockedProfile=false,zero=false}={}){
  return {db,writes,calls,uploads,imap};
 }
 test('search is frozen by sender and date; exact decoded identity and subject must match',()=>{
- const q=searchQuery(task);assert.equal(q.from,'buyer@example.test');assert.equal(q.subject,task.subject);assert.ok(q.before>q.since);
+ const q=searchQuery(task);assert.equal(q.from,'buyer@example.test');assert.equal(q.subject,task.subject);assert.ok(q.sentBefore>q.sentSince);assert.equal(q.since,undefined);assert.equal(q.before,undefined);
  assert.equal(matchesOriginal(parsed,task),true);assert.equal(matchesOriginal({...parsed,subject:'other'},task),false);
  assert.equal(matchesOriginal({...parsed,from:{value:[{address:'other@example.test'}]}},task),false);
  assert.equal(matchesOriginal({...parsed,date:new Date('2026-10-01')},task),false);
@@ -77,4 +77,9 @@ test('empty search is a checked absence; deadline gives partial rather than fals
 });
 test('handler uses existing dedicated token before service access and accepts no arbitrary search body',async()=>{
  const s=await readFile(new URL('../supabase/functions/mail-source-recovery/index.ts',import.meta.url),'utf8');assert.match(s,/request.method!=="POST"/);assert.ok(s.indexOf('x-mail-sync-token')<s.indexOf('createClient(Deno.env'));assert.doesNotMatch(s,/request.json|request.text|console.log|fetch\(/);
+});
+
+test('imported internal dates do not hide a real original: retry exact sender/subject and verify MIME header time',async()=>{
+ const f=fixture();let round=0;f.imap.search=async query=>{round++;if(query.sentSince)return [];assert.deepEqual(query,{from:'buyer@example.test',subject:task.subject});return [42]};
+ const r=await recoverNextMailbox({db:f.db,createImap:()=>f.imap,parseMail:async()=>parsed,deadline:Date.now()+10000});assert.equal(round,2);assert.equal(r.recovered,1);
 });

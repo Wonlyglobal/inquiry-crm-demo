@@ -9,7 +9,7 @@ const queryData=async query=>{const r=await query;if(r.error)throw r.error;retur
 const digest=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',value))].map(x=>x.toString(16).padStart(2,'0')).join('');
 export function searchQuery(task){
  const at=new Date(task.at);if(!Number.isFinite(+at)||!address(task.sender)||!normalizeSubject(task.subject))throw Error('invalid_frozen_search_task');
- return {from:address(task.sender),subject:task.subject,since:new Date(+at-3*86400_000),before:new Date(+at+4*86400_000)};
+ return {from:address(task.sender),subject:task.subject,sentSince:new Date(+at-3*86400_000),sentBefore:new Date(+at+4*86400_000)};
 }
 export function matchesOriginal(parsed,task){
  return clean(parsed.from?.value?.[0]?.address)===address(task.sender)
@@ -78,11 +78,12 @@ export async function recoverNextMailbox({db,createImap,parseMail,deadline,now=(
      const lock=await client.getMailboxLock(folder,{readOnly:true});
      try{
       stage='imap_search';let uids=await client.search(query,{uid:true})||[];
-      if(!uids.length){const {subject,...fallback}=query;uids=await client.search(fallback,{uid:true})||[];}
+      if(!uids.length)uids=await client.search({from:query.from,subject:query.subject},{uid:true})||[];
       if(uids.length>100){item.issues.push('candidate_limit');incomplete=true;continue}
       if(uids.length)for await(const meta of client.fetch(uids,{uid:true,size:true,envelope:true},{uid:true})){
        if(now()>=deadline){incomplete=true;break}
        if(meta.envelope&&normalizeSubject(meta.envelope.subject)!==normalizeSubject(task.subject))continue;
+       if(meta.envelope?.date&&Math.abs(+new Date(meta.envelope.date)-+new Date(task.at))>15*60_000){item.issues.push('same_sender_subject_different_time');continue}
        if(meta.size>20*1024*1024){item.issues.push('message_size_limit');continue}
        stage='imap_fetch';const fetched=await client.fetchOne(meta.uid,{uid:true,source:{maxLength:20*1024*1024+1}},{uid:true});
        if(!fetched?.source||fetched.source.length>20*1024*1024){item.issues.push('message_size_limit');continue}
@@ -104,7 +105,7 @@ export async function recoverNextMailbox({db,createImap,parseMail,deadline,now=(
  }catch(error){failure=['EAUTH','AUTHENTICATIONFAILED','ETIMEDOUT','ECONNREFUSED','ENOTFOUND','42P01','23505','42501'].includes(error?.code)?error.code:error?.name==='Error'?'mailbox_or_storage_error':'transport_or_database_error';finalState='failed';}
  finally{
   if(client)await client.logout().catch(()=>{});
-  const result={items,failure,last_stage:stage,source_records:items.reduce((n,x)=>n+x.candidates.filter(c=>c.state==='recovered').length,0)};
+  const result={items,failure,last_stage:stage,search_version:'header-date-v2',source_records:items.reduce((n,x)=>n+x.candidates.filter(c=>c.state==='recovered').length,0)};
   const done=await db.rpc('finish_mail_source_recovery',{target_job:job.id,target_lease:job.lease_id,final_state:finalState,result_data:result});if(done.error)throw done.error;
  }
  return {ok:finalState==='completed',jobs:1,state:finalState,items:items.length,recovered:items.filter(x=>x.state==='found').length};

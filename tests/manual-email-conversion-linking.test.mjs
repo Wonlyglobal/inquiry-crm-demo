@@ -25,7 +25,8 @@ test('conversion links messages for both existing and newly created inquiries',(
   assert.match(migration,/where e\.inquiry_id is not null[\s\S]*link_email_intake_messages\(intake_row\.id,intake_row\.inquiry_id\)/);
 });
 
-test('frontend requests an AI thread summary after a successful conversion',()=>{
-  assert.match(html,/email-communication-ai/);
-  assert.match(html,/trigger:"mail_sync"/);
+test('conversion keeps private email AI blocked and relies on in-transaction basic extraction',()=>{
+  const start=html.indexOf('async function convertEmailIntakes('),end=html.indexOf('\n      ',start);
+  const flow=html.slice(start,end);assert.match(flow,/convert_email_intakes_to_inquiries/);assert.doesNotMatch(flow,/email-communication-ai/);
+  assert.match(html,/extract_inquiry_email_needs/);
 });

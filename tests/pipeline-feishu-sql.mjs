@@ -1,0 +1,56 @@
+// Disposable PostgreSQL only. Applies the actual migration, never contacts Feishu.
+import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+const {PGlite}=await import(process.argv[2]||'@electric-sql/pglite');const db=new PGlite();let checks=0;
+const ok=v=>{assert.ok(v);checks++},reject=async f=>{await assert.rejects(f);checks++};
+await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema private;
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('test.jwt',true),''),'{}')::jsonb$$;
+create table profiles(id uuid primary key,full_name text,team text,active boolean default true,role text,is_test_data boolean default false,data_environment text default 'production');
+create table inquiries(id uuid primary key default gen_random_uuid(),inquiry_no bigint default 1,status text default 'pending_assignment',validity text default 'pending',owner_id uuid,created_by uuid,updated_by uuid,product_category text,target_country text,quantity text,demand_summary text,qualification_need text,invalid_review_status text,next_follow_up_at timestamptz,is_test_data boolean default false,data_environment text default 'production',archived_at timestamptz,excluded_from_dashboard boolean default false,updated_at timestamptz);
+create table email_intake(id uuid primary key default gen_random_uuid(),triage_label text,processing_status text,inquiry_id uuid,trashed_at timestamptz,triaged_by uuid,assigned_marketing_id uuid,received_at timestamptz default now(),created_at timestamptz default now(),body_text text);
+create function private.reject_risk_event_mutation() returns trigger language plpgsql as $$begin raise exception 'immutable';end$$;
+create function private.crm_manager_covers_user(manager uuid,subject uuid) returns boolean language sql as $$select exists(select 1 from public.profiles m join public.profiles s on m.team=s.team where m.id=manager and s.id=subject)$$;
+create function private.sales_lead_actor() returns public.profiles language plpgsql security definer set search_path='' as $$declare p public.profiles;begin select * into p from public.profiles where id=auth.uid() and active and not is_test_data and data_environment='production';if p.id is null then raise exception 'denied';end if;return p;end$$;
+grant usage on schema auth to anon,authenticated,service_role;`);
+await db.exec(await readFile(new URL('../supabase/migrations/20261102180000_pipeline_feishu_events.sql',import.meta.url),'utf8'));
+const one=async(sql,args=[])=>(await db.query(sql,args)).rows[0];
+const id=(await one("insert into inquiries default values returning id")).id;ok((await one('select count(*)::int n from private.pipeline_feishu_queue')).n===0);
+await db.exec("insert into profiles(id,full_name,role) values('11111111-1111-4111-8111-111111111111','模拟老板','owner');update private.pipeline_feishu_config set approved_by='11111111-1111-4111-8111-111111111111',approval_reason='合成测试授权基本需求群摘要',enabled=true,mode='basic_demand',enabled_at=clock_timestamp(),destination_hash=repeat('a',64)");
+await db.query("update inquiries set product_category='fire_door',target_country='US',quantity='20',demand_summary='secret customer contact and quote',qualification_need='private note' where id=$1",[id]);
+let row=await one('select * from private.pipeline_feishu_queue');ok(row.payload.raw_product==='fire_door');ok(!JSON.stringify(row.payload).includes('private note'));ok(!JSON.stringify(row.payload).includes('secret customer'));
+const count=async()=>(await one('select count(*)::int n from private.pipeline_feishu_queue')).n;
+await db.query('update inquiries set updated_at=now() where id=$1',[id]);ok(await count()===1);
+await db.exec('begin');await db.query("update inquiries set status='received' where id=$1",[id]);await db.query("update inquiries set status='qualified' where id=$1",[id]);await db.exec('commit');ok(await count()===2);row=await one("select * from private.pipeline_feishu_queue order by occurred_at desc limit 1");ok(row.payload.from_status==='pending_assignment'&&row.payload.status==='qualified');
+await db.exec('begin');await db.query("update inquiries set status='received' where id=$1",[id]);await db.query("update inquiries set status='qualified' where id=$1",[id]);await db.exec('commit');ok((await one("select count(*)::int n from private.pipeline_feishu_queue where state='cancelled'")).n===1);
+const before=await count();await db.exec('begin');await db.query("update inquiries set status='won' where id=$1",[id]);await db.exec('rollback');ok(await count()===before);
+for(const status of ['received','qualified','contacted','quoted','sample_sent','negotiating','won','lost','pending_assignment'])await db.query('update inquiries set status=$2 where id=$1',[id,status]);ok(await count()===before+9);
+for(const flags of ["is_test_data=true","data_environment='sandbox'","archived_at=now()","excluded_from_dashboard=true"])await db.exec('insert into inquiries('+flags.split('=')[0]+') values('+flags.split('=')[1]+')');ok(await count()===before+9);
+await db.exec("insert into email_intake(received_at) values(now()-interval '1 day')");ok(await count()===before+9);
+const mail=(await one("insert into email_intake(body_text) values('mail must never leave') returning id")).id;ok(await count()===before+10);
+await db.query("update email_intake set triage_label='real' where id=$1",[mail]);ok(await count()===before+11);ok(!(await one("select payload::text t from private.pipeline_feishu_queue where entity_id=$1 order by occurred_at desc limit 1",[mail])).t.includes('mail must'));
+await db.exec('set role authenticated');await reject(()=>db.query('select claim_pipeline_feishu($1)',['a'.repeat(64)]));await reject(()=>db.exec('select * from private.pipeline_feishu_queue'));await db.exec('reset role');
+await db.query("select set_config('test.jwt',$1,false)",[JSON.stringify({role:'service_role'})]);await db.exec('set role service_role');await reject(()=>db.query('select claim_pipeline_feishu($1)',['b'.repeat(64)]));
+let items=(await one('select claim_pipeline_feishu($1) r',['a'.repeat(64)])).r;ok(items.length===10);ok((await one('select claim_pipeline_feishu($1) r',['a'.repeat(64)])).r.length===0);
+await db.query('select finish_pipeline_feishu($1,$2,true,null)',[items[0].id,items[0].lease_token]);await reject(()=>db.query('select finish_pipeline_feishu($1,$2,true,null)',[items[0].id,items[0].lease_token]));
+await db.query("select finish_pipeline_feishu($1,$2,false,'HTTP secret must not persist')",[items[1].id,items[1].lease_token]);await db.exec('reset role');row=await one('select * from private.pipeline_feishu_queue where id=$1',[items[1].id]);ok(row.state==='pending'&&row.last_error==='delivery_failed'&&row.next_attempt_at>row.occurred_at);
+await reject(()=>db.exec("update private.pipeline_feishu_audit set action='tamper'"));
+await db.exec("update private.pipeline_feishu_config set last_claimed_at=null;update private.pipeline_feishu_queue set lease_until=now()-interval '1 second' where state='sending';update private.pipeline_feishu_queue set attempts=5 where state='sending'");await db.query('select claim_pipeline_feishu($1)',['a'.repeat(64)]);ok((await one("select count(*)::int n from private.pipeline_feishu_queue where state='failed'")).n===8);
+// Removal from production after queueing cancels rather than delivering.
+await db.query('update inquiries set archived_at=now() where id=$1',[id]);await db.exec('update private.pipeline_feishu_config set last_claimed_at=null');await db.query('select claim_pipeline_feishu($1)',['a'.repeat(64)]);ok((await one("select count(*)::int n from private.pipeline_feishu_queue where entity_id=$1 and state='pending'",[id])).n===0);
+await db.exec('update private.pipeline_feishu_config set enabled=false');await reject(()=>db.query('select claim_pipeline_feishu($1)',['a'.repeat(64)]));
+// One conversion = one reminder, even though it writes two business tables.
+await db.exec("update private.pipeline_feishu_config set enabled=true,last_claimed_at=null");
+await db.exec('begin');const converted=(await one('insert into inquiries default values returning id')).id;
+await db.query('update email_intake set inquiry_id=$2 where id=$1',[mail,converted]);await db.exec('commit');
+ok((await one("select state from private.pipeline_feishu_queue where kind='inquiry' and entity_id=$1",[converted])).state==='cancelled');
+ok((await one("select count(*)::int n from private.pipeline_feishu_queue where kind='intake' and inquiry_id=$1 and state='pending'",[converted])).n===1);
+await db.exec('begin');const mail2=(await one('insert into email_intake default values returning id')).id;const inquiry2=(await one('insert into inquiries default values returning id')).id;
+await db.query('update email_intake set inquiry_id=$2 where id=$1',[mail2,inquiry2]);await db.exec('commit');
+ok((await one("select inquiry_id from private.pipeline_feishu_queue where kind='intake' and entity_id=$1",[mail2])).inquiry_id===inquiry2);
+// Receipt is authenticated and scoped; no queue or payload read grants leak.
+await db.query("select set_config('test.uid','11111111-1111-4111-8111-111111111111',false)");await db.exec('set role authenticated');
+ok((await one('select pipeline_feishu_receipt($1) r',[converted])).r.queued);
+await db.exec('reset role');await db.exec("insert into profiles(id,full_name,role) values('22222222-2222-4222-8222-222222222222','模拟他人','sales')");
+await db.query("select set_config('test.uid','22222222-2222-4222-8222-222222222222',false)");await db.exec('set role authenticated');await reject(()=>db.query('select pipeline_feishu_receipt($1)',[converted]));await db.exec('reset role');
+ok((await one("select count(*)::int n from pg_class where oid in('private.pipeline_feishu_config'::regclass,'private.pipeline_feishu_queue'::regclass,'private.pipeline_feishu_audit'::regclass) and relrowsecurity")).n===3);
+await db.close();console.log(JSON.stringify({checks,synthetic:true,production_writes:false}));

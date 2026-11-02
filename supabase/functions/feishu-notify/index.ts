@@ -31,6 +31,11 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     if (action === "registered" && !["owner", "marketing"].includes(caller.role)) return new Response(JSON.stringify({ error: "仅市场部或老板可发送登记通知" }), { status: 403, headers: cors });
     if (action === "assigned" && !["owner", "sales_manager"].includes(caller.role)) return new Response(JSON.stringify({ error: "仅销售主管或老板可发送分配通知" }), { status: 403, headers: cors });
 
+    if(Deno.env.get("CRM_PIPELINE_FEISHU_ENABLED")==="true"){
+      const receipt=await userClient.rpc("pipeline_feishu_receipt",{target:inquiryId});
+      if(receipt.error||!receipt.data?.enabled)throw new Error("流水线提醒队列暂不可确认，请查看通知审计；业务已保存");
+      return new Response(JSON.stringify({sent:false,queued:!receipt.data.excluded&&receipt.data.queued,excluded:receipt.data.excluded,action}),{headers:cors});
+    }
     const webhookUrl = Deno.env.get("FEISHU_WEBHOOK_URL") || "";
     const appId = Deno.env.get("FEISHU_APP_ID") || "";
     const appSecret = Deno.env.get("FEISHU_APP_SECRET") || "";

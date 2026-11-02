@@ -473,3 +473,7 @@ verify_jwt = false
 
 [functions.pipeline-feishu-dispatch]
 verify_jwt = false
+
+[functions.mail-source-recovery]
+# Exact private maintenance jobs only; dedicated existing mailbox token, no body API.
+verify_jwt = false

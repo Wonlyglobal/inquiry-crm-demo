@@ -2984,14 +2984,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       }
       let appDialogResolve=null;
       function closeAppDialog(result=false){$("#app-dialog").classList.add("hidden");const resolve=appDialogResolve;appDialogResolve=null;if(resolve)resolve(result)}
-      function appConfirm(message,{title="请确认",confirmText="确认",cancelText="取消",showCancel=true,value=""}={}){
+      function appConfirm(message,{title="请确认",confirmText="确认",cancelText="取消",showCancel=true,value="",editable=false,placeholder="",minLength=0}={}){
         if(appDialogResolve)closeAppDialog(false);
         $("#app-dialog-title").textContent=title;$("#app-dialog-message").textContent=message;$("#app-dialog-confirm").textContent=confirmText;$("#app-dialog-cancel").textContent=cancelText;$("#app-dialog-cancel").classList.toggle("hidden",!showCancel);
-        const valueInput=$("#app-dialog-value");valueInput.value=value;valueInput.classList.toggle("hidden",!value);$("#app-dialog").classList.remove("hidden");
-        if(value)setTimeout(()=>{valueInput.focus();valueInput.select()},0);else setTimeout(()=>$("#app-dialog-confirm").focus(),0);
+        const valueInput=$("#app-dialog-value");valueInput.value=value;valueInput.readOnly=!editable;valueInput.placeholder=placeholder;valueInput.minLength=minLength;valueInput.maxLength=editable?1000:524288;valueInput.required=editable&&minLength>0;valueInput.setCustomValidity("");valueInput.classList.toggle("hidden",!editable&&!value);$("#app-dialog").classList.remove("hidden");
+        if(editable||value)setTimeout(()=>{valueInput.focus();valueInput.select()},0);else setTimeout(()=>$("#app-dialog-confirm").focus(),0);
         return new Promise(resolve=>{appDialogResolve=resolve});
       }
-      $("#app-dialog-confirm").addEventListener("click",()=>closeAppDialog(true));
+      $("#app-dialog-value").addEventListener("input",event=>event.target.setCustomValidity(""));
+      $("#app-dialog-confirm").addEventListener("click",()=>{const input=$("#app-dialog-value");if(!input.readOnly&&!input.classList.contains("hidden")){if(input.value.trim().length<input.minLength){input.setCustomValidity(`请填写至少 ${input.minLength} 字真实原因`);input.reportValidity();input.focus();return}input.setCustomValidity("");if(!input.reportValidity())return}closeAppDialog(true)});
       $("#app-dialog-cancel").addEventListener("click",()=>closeAppDialog(false));
       $("#app-dialog-close").addEventListener("click",()=>closeAppDialog(false));
       window.addEventListener("offline", () => toast("网络已断开；只读页面会自动重试，提交操作请在网络恢复后进行"));
@@ -6350,7 +6351,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
       function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
       async function promptAuditedReason(title,message){
-        const accepted=await appConfirm(message,{title,confirmText:"继续",value:"请输入至少 8 字原因"});
+        const accepted=await appConfirm(message,{title,confirmText:"继续",editable:true,placeholder:"请输入至少 8 字真实原因",minLength:8});
         if(!accepted)return null;
         const reason=$("#app-dialog-value").value.trim();
         if(reason.length<8){toast("原因至少需要 8 个字");return null}

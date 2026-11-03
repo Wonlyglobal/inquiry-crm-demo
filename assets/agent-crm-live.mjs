@@ -29,6 +29,8 @@ export function crmDataIntent(question){
 
 // Builds the answer object the conversation shows; `compute` is the CRM's own local statistics.
 export function crmLiveAnswer(question,{compute,ready,chart=null,metric=null,snapshot=null,stale=false}){
+ const navigation=/^(?:请问|请告诉我|请问一下)?(?:CRM[ 的]*)?询盘商机(?:的入口)?(?:在哪里|在哪儿|在哪|怎么打开|怎么进入|入口在哪里)[？?。！!]*$/i;
+ if(navigation.test(String(question).trim()))return {answer:'在 CRM 左侧导航点击「询盘商机」即可进入。在 Grace App 中，可在 CRM 网页打开这个菜单。若菜单不可见，请联系管理员核对账号权限。',windows:[],labels:['CRM 操作指南']};
  const intent=crmDataIntent(question);if(!intent)return null;
  if(stale)return {answer:'CRM 本次刷新失败，不能把上次成功快照当作当前统计。本次不返回数字或图表，请刷新成功后重试。',windows:[],labels:['CRM 数据待更新']};
  if(!ready)return {answer:'CRM 实时数据还在加载，稍等几秒再问我一次。',windows:[],labels:['CRM 实时数据']};

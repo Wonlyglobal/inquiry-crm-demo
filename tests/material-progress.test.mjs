@@ -31,3 +31,12 @@ test('completion excludes partial extraction and deferred product documents',()=
  const product=progressRows(p).rows.find(r=>r.label==='深度分析');
  assert.equal(product.total,10);assert.equal(product.done,2);assert.equal(product.pct,20);
 });
+
+test('video inventory accounts for unindexed files without labelling them unsupported',()=>{
+ const p=materialProgress({...now,video_coverage:{total:955,ready:847,partial:6,processing:0,queued:0,failed:9,not_indexed:93}});
+ const row=progressRows(p).rows.find(r=>r.label==='视频');
+ assert.equal(row.segs.reduce((n,s)=>n+s.n,0),955);
+ assert.match(row.detail,/尚未建立索引 93/);
+ assert.match(progressAnswer(p),/尚未建立索引 93/);
+ assert.doesNotMatch(row.detail,/不支持/);
+});

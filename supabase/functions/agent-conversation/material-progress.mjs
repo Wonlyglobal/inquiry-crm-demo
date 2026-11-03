@@ -16,10 +16,10 @@ export function progressAnswer(p){
  if(p.status!=='available')return {denied:'物料库没有通过你的账号授权校验，看不到理解进度。',not_configured:'物料库连接还没有配置好，看不到理解进度。'}[p.status]||'这次没连上物料库，理解进度稍后再看；Grace 页面左侧的“资料理解进度”会自动刷新。';
  const d=p.documents,done=d.ready+d.partial;
  const lines=[`还没有全部理解。按物料库 ${p.read_at.slice(0,16).replace('T',' ')} 的实时状态：`,
-  `■ 文档和图片 ${d.total} 份：文字已读完 ${d.ready}，读了一部分 ${d.partial}，正在读 ${d.processing}，排队 ${d.queued}，失败 ${d.failed}，暂不支持 ${d.not_indexed}（读到文字的占 ${pct(done,d.total)}%）。`];
+  `■ 文档和图片 ${d.total} 份：文字已读完 ${d.ready}，读了一部分 ${d.partial}，正在读 ${d.processing}，排队 ${d.queued}，失败 ${d.failed}，尚未建立索引 ${d.not_indexed}（读到文字的占 ${pct(done,d.total)}%）。`];
  if(p.products)lines.push(`■ 产品信息提取（型号、参数归到具体产品）：完成 ${p.products.processed}，进行中 ${p.products.processing}，有缺口 ${p.products.partial}，排队 ${p.products.waiting}，暂缓 ${p.products.deferred}（不像产品资料的先放后面）。`);
  else lines.push('■ 产品信息提取（型号、参数归到具体产品）：还没上线，要在公司内网部署物料服务器的产品提取后才开始。现在能做到的是按文字检索和画册型号对照。');
- if(p.videos)lines.push(`■ 视频 ${p.videos.total} 条：采样解析完成 ${p.videos.ready}，部分 ${p.videos.partial}，正在解析 ${p.videos.processing}，排队 ${p.videos.queued}，失败 ${p.videos.failed}。采样不是逐帧理解。`);
+ if(p.videos)lines.push(`■ 视频 ${p.videos.total} 条：采样解析完成 ${p.videos.ready}，部分 ${p.videos.partial}，正在解析 ${p.videos.processing}，排队 ${p.videos.queued}，失败 ${p.videos.failed}，尚未建立索引 ${p.videos.not_indexed}。采样不是逐帧理解。`);
  else lines.push('■ 视频：当前接口未提供解析统计，无法确认后台是否正在运行；单条视频状态可在查资料时核对。');
  lines.push('“读完文字”不等于读懂产品：参数和型号归属都还没有人工核验。进度在 Grace 页面左侧“资料理解进度”里实时显示。');
  return lines.join('\n');
@@ -27,7 +27,7 @@ export function progressAnswer(p){
 // Same numbers as a chart window for the answer.
 export function progressChart(p){
  if(p.status!=='available')return null;const d=p.documents;
- const bars=[{label:'文字已读完',value:d.ready},{label:'读了一部分',value:d.partial},{label:'正在读',value:d.processing},{label:'排队',value:d.queued},{label:'失败',value:d.failed},{label:'暂不支持',value:d.not_indexed}];
+ const bars=[{label:'文字已读完',value:d.ready},{label:'读了一部分',value:d.partial},{label:'正在读',value:d.processing},{label:'排队',value:d.queued},{label:'失败',value:d.failed},{label:'尚未建立索引',value:d.not_indexed}];
  return {type:'data_chart',source:'material_progress',label:'资料理解进度',chart:{title:`文档和图片 ${d.total} 份的理解进度`,stat:`读到文字 ${pct(d.ready+d.partial,d.total)}%`,unit:'份',bars,
   sources:[{label:'物料库文档解析索引（实时）',detail:'按你的权限统计，只计数，不含文件内容'},{label:'说明',detail:'读完文字不等于读懂产品；产品参数都未人工核验'}]}};
 }

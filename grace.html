@@ -2303,6 +2303,7 @@
         </div>
         <div class="form-body detail-section hidden" data-detail-section="summary">
           <h4>客户原文</h4>
+          <section id="inquiry-merge-panel" class="quality-panel" aria-label="重复询盘合并" hidden></section>
           <textarea id="detail-original-message" class="input" rows="9" readonly></textarea>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px">
             <h4 style="margin:0">智能整理</h4>
@@ -6900,6 +6901,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#detail-risk-flag").checked = !!inquiry.risk_flag;
         renderRetentionPanel();
         $("#detail-original-message").value = inquiry.original_message || "";
+        const mergeRoot=$("#inquiry-merge-panel");mergeRoot.hidden=true;mergeRoot.replaceChildren();
+        import("./assets/inquiry-merge.mjs?v=20261104-1").then(async({mountInquiryMerge})=>{if(currentInquiry?.id!==id)return;await mountInquiryMerge(mergeRoot,{inquiry,rpc:async(name,args)=>{const result=await supabase.rpc(name,args);if(result.error)throw Error(result.error.message);return result.data},refresh:async(target)=>{await openInquiryDetail(target);await loadInquiries();toast("重复询盘已合并，原文与历史保留");}})}).catch(error=>{if(currentInquiry?.id===id){mergeRoot.hidden=false;mergeRoot.textContent="合并入口暂不可用："+error.message}});
         const {mountOutreachProducts,renderOutreachProductProfile}=await import("./assets/outreach-product-selection.mjs?v=20261024-4");
         const productSuggestion=mountOutreachProducts($("#grace-outreach-categories"),[inquiry.title,inquiry.demand_summary].filter(Boolean).join(' '));
         $("#grace-outreach-category").value=productSuggestion;

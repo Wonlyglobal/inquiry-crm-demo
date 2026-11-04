@@ -2333,6 +2333,7 @@
           </div>
           <p class="hint">先核验当前公开来源。动态官网可能只返回页面标题，此时需人工补充事实与来源；未经审核不会公开存入 Business。</p>
           <div id="research-loading" class="hint hidden" role="status" aria-live="polite"><progress aria-label="背调正在处理" style="width:100%"></progress><span id="research-loading-step">正在准备背调…</span><small>处理时间取决于官网响应；不会自动公开入库。请勿重复点击。</small></div>
+          <section id="mail-research-context" class="quality-panel" aria-label="客户原文待核验信息"></section>
           <p id="detail-research-status" class="hint" aria-live="polite">背调状态：尚未执行</p>
           <section class="quality-panel" id="business-public-evidence-editor">
             <h4>Business 公开入库事实</h4>
@@ -6921,13 +6922,16 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const originalText = String(inquiry.original_message || "");
         const senderEmail = String(intake?.sender_email || "").trim().toLowerCase();
         const {mailCompanyWebsite}=await import("./assets/mail-company-website.mjs?v=20261024-1");
-        const websiteCandidate=mailCompanyWebsite(originalText, company.name || originalText.match(/(?:^|\n)\s*company(?:[ _]name)?\s*:\s*([^\n]+)/i)?.[1] || "");
+        const {mailResearchContext,renderMailResearchContext}=await import("./assets/mail-research-context.mjs?v=20261104-1");
+        if(currentInquiry?.id!==id)return;
+        const mailContext=mailResearchContext(inquiry);renderMailResearchContext($("#mail-research-context"),mailContext);
+        const websiteCandidate=mailCompanyWebsite(originalText, mailContext.company || company.name || originalText.match(/(?:^|\n)\s*company(?:[ _]name)?\s*:\s*([^\n]+)/i)?.[1] || "");
         const namedCompany = originalText.match(/\bat\s+([A-Z][A-Za-z0-9&.' -]{1,80}?)\s+(?:in\s+[A-Z]|[,.\n])/i)?.[1]?.trim();
         currentInquiry.webformProviderIdentityBlocked = isWebsiteFormServiceCompany(company.name) || isWebsiteFormServiceDomain(company.domain);
         const websiteLead = inquiry.source === "website" || isWebsiteFormServiceDomain(senderEmail) || isWebsiteFormServiceDomain(intake?.parsed_data?.transport_sender);
         const bodyCompany = originalText.match(/(?:^|\n)\s*company(?:[ _]name)?\s*:\s*([^\n]+)/i)?.[1]?.trim() || "";
         const submittedCompanyName = !isWebsiteFormServiceCompany(bodyCompany) && !/^https?:\/\//i.test(bodyCompany) ? bodyCompany : "";
-        $("#detail-research-company").value = currentInquiry.webformProviderIdentityBlocked ? submittedCompanyName : company.name || submittedCompanyName || (!websiteLead ? namedCompany : "") || "";
+        $("#detail-research-company").value = currentInquiry.webformProviderIdentityBlocked ? submittedCompanyName : company.name || submittedCompanyName || mailContext.company || (!websiteLead ? namedCompany : "") || "";
         const {researchCompanyDomain}=await import("./assets/business-public-research.mjs?v=20261022-2");
         if(currentInquiry?.id!==id||autonomousResearchInquiryId)return;
         $("#detail-research-domain").value = researchCompanyDomain(company.domain || "") || websiteCandidate.domain;
@@ -8623,6 +8627,12 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry || autonomousResearchInquiryId) return;
         const id=currentInquiry.id, button=$("#run-business-research");
+        const {mailResearchContext,renderMailResearchContext}=await import("./assets/mail-research-context.mjs?v=20261104-1");
+        if(currentInquiry?.id!==id||autonomousResearchInquiryId)return;
+        const mailContext=mailResearchContext({...currentInquiry,original_message:$("#detail-original-message").value});
+        renderMailResearchContext($("#mail-research-context"),mailContext);
+        if(!$("#detail-research-company").value.trim()&&mailContext.company)$("#detail-research-company").value=mailContext.company;
+        if(!$("#detail-research-domain").value.trim()&&mailContext.website.domain){$("#detail-research-domain").value=mailContext.website.domain;updateDomainLink();}
         if (!$("#detail-research-domain").value.trim()) { $("#detail-research-status").textContent="缺少已核对官网，尚未执行独立核验；请补充官网或公开来源，不代表公司不存在。"; $("#detail-research-domain").scrollIntoView({block:"center"});$("#detail-research-domain").focus({preventScroll:true});toast("请先填写从邮件正文或签名核对的公司官网，再生成背调");return; }
         const {researchCompanyDomain}=await import("./assets/business-public-research.mjs?v=20261022-2");
         if(!researchCompanyDomain($("#detail-research-domain").value.trim()))return toast("邮箱平台或表单服务商不能当作客户官网，请核对邮件正文中的真实公司网站");
@@ -8636,7 +8646,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           await loadCompanyImages();
           if(currentInquiry?.id!==id)return;
           const fresh=currentInquiry.publicWebsiteResearch;
-          if(!fresh){$("#detail-research-status").textContent="官网访问未完成，保留历史证据；尚未发布或入库。请核对域名或补充可公开来源。";return;}
+          if(!fresh){$("#detail-research-status").textContent="官网访问未完成；原文已知信息已整理在上方（客户自述、待核验），历史证据保留。请核对候选官网或补充公开来源；尚未公开入库。";return;}
           loadingStep.textContent="2/3 正在整理公开事实与证据来源…";
           const {websiteFacts,appendPublicFactRow}=await import("./assets/business-public-research.mjs?v=20261022-2");
           const editor=$("#business-public-evidence-rows");editor.replaceChildren();editor.dataset.inquiryId=id;
@@ -8652,7 +8662,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           loadingStep.textContent="3/3 正在检查证据覆盖及未核实项…";
           assessResearchQuality();
           await maybeGeneratePostCreateOutreach();
-        }catch{if(currentInquiry?.id===id)$("#detail-research-status").textContent="本次背调未完成，未公开保存；请刷新页面后重试，必要时补充公开证据。";}
+        }catch{if(currentInquiry?.id===id)$("#detail-research-status").textContent="本次公开核验未完成；上方原文已知信息与历史证据保留，未公开入库。可重试或补充公开来源。";}
         finally{autonomousResearchInquiryId=null;button.disabled=false;button.textContent=originalLabel;button.removeAttribute("aria-busy");loading.classList.add("hidden");}
       });
       bindResearchGenerateEntry({source:$("#run-business-research"),shortcut:$("#generate-detail-research")});

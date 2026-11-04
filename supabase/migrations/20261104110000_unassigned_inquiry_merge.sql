@@ -23,7 +23,7 @@ create trigger inquiries_merge_guard before insert or update on public.inquiries
 create function private.merge_actor() returns public.profiles language plpgsql stable security definer set search_path='' as $$
 declare a public.profiles:=private.sales_lead_actor();begin return a;end $$;
 create function private.merge_email(i public.inquiries) returns text language sql stable security definer set search_path='' as $$
- select lower(coalesce(nullif(c.email,''),(regexp_match(coalesce(i.original_message,''),'[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}'))[1],'')) from (select 1) seed left join public.contacts c on c.id=i.contact_id;
+ select lower(coalesce(nullif(c.email,''),(regexp_match(coalesce(i.original_message,''),'(?:^|\n)[ \t]*(?:email|e-mail)[ \t]*[:：][ \t]*([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})','i'))[1],'')) from (select 1) seed left join public.contacts c on c.id=i.contact_id;
 $$;
 create function private.merge_is_official(i public.inquiries) returns boolean language sql stable security definer set search_path='' as $$
  select i.source::text in('website','email','whatsapp','organic_search','social_media','google_ads','meta_ads','linkedin','exhibition','feishu')

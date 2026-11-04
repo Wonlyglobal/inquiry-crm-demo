@@ -16,7 +16,7 @@ const migration=await readFile(new URL('../supabase/migrations/20261104110000_un
 const ids=Array.from({length:7},(_,n)=>`00000000-0000-4000-8000-00000000000${n+1}`),[owner,market,sales,target,source,c,box]=ids;
 await db.query("insert into profiles(id,role) values($1,'owner'),($2,'marketing'),($3,'sales')",[owner,market,sales]);
 await db.query("insert into contacts values($1,'customer@example.invalid')",[c]);
-await db.query("insert into inquiries(id,contact_id,source,created_at,inquiry_no,title,original_message) values($1,$3,'email','2026-11-03T10:14:08Z',326,'Original','FIRST ORIGINAL'),($2,null,'website','2026-11-03T10:20:59Z',324,'Website','email: customer@example.invalid')",[target,source,c]);
+await db.query("insert into inquiries(id,contact_id,source,created_at,inquiry_no,title,original_message) values($1,$3,'email','2026-11-03T10:14:08Z',326,'Original','FIRST ORIGINAL'),($2,null,'website','2026-11-03T10:20:59Z',324,'Website',E'recipient: inquiry@wonlyglobal.com\nemail: customer@example.invalid')",[target,source,c]);
 await db.query("update inquiries set target_country='Synthetic land' where id=$1",[source]);
 const q=(s,a=[])=>db.query(s,a),actor=async id=>{await db.exec('reset role');await q("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated')};
 const deny=async(s,a,p)=>{await assert.rejects(()=>q(s,a),p);checks++};const preview=async()=> (await q('select preview_inquiry_merge($1,$2) x',[source,target])).rows[0].x;
@@ -30,7 +30,7 @@ await db.exec('reset role');await q('update inquiries set owner_id=null');await 
 await db.exec('reset role');await q('delete from private.sales_leads');await q("insert into mailbox_connections values($1,'personal')",[box]);await q('insert into email_messages values(gen_random_uuid(),$1,$2)',[source,box]);await actor(market);await deny('select preview_inquiry_merge($1,$2)',[source,target],/私有邮件/);
 await db.exec('reset role');await q("update mailbox_connections set mailbox_kind='shared_inquiry'");await actor(market);
 p=await preview();await q('select merge_unassigned_inquiries($1,$2,$3,$4)',[source,target,'已核对两次来信，同一客户同一需求',p.hash]);
-await db.exec('reset role');const rows=(await q('select * from inquiries order by created_at')).rows;assert.equal(rows[0].original_message,'FIRST ORIGINAL');assert.equal(rows[1].original_message,'email: customer@example.invalid');assert.equal(rows[1].merged_into_id,target);assert.ok(rows[1].archived_at);assert.equal(rows[0].target_country,'Synthetic land');assert.equal((await q('select count(*)::int n from email_messages')).rows[0].n,1);checks+=6;
+await db.exec('reset role');const rows=(await q('select * from inquiries order by created_at')).rows;assert.equal(rows[0].original_message,'FIRST ORIGINAL');assert.equal(rows[1].original_message,'recipient: inquiry@wonlyglobal.com\nemail: customer@example.invalid');assert.equal(rows[1].merged_into_id,target);assert.ok(rows[1].archived_at);assert.equal(rows[0].target_country,'Synthetic land');assert.equal((await q('select count(*)::int n from email_messages')).rows[0].n,1);checks+=6;
 await actor(market);const state=(await q('select inquiry_merge_workspace($1) x',[target])).rows[0].x;assert.equal(state.history.length,1);assert.equal(state.history[0].source_no,324);checks+=2;
 await deny('select merge_unassigned_inquiries($1,$2,$3,$4)',[source,target,'重复请求不得重复执行',p.hash],/未归档/);
 await deny('select restore_inquiry_merge($1,$2)',[source,'尝试市场人员自行撤销'],/仅老板/);

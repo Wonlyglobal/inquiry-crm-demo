@@ -180,6 +180,8 @@
         font-size: 14px;
         margin-bottom: 18px;
       }
+      #dashboard-home { width:100%;border:0;background:transparent;box-shadow:none;color:inherit;cursor:pointer;text-align:left; }
+      #dashboard-home:focus-visible { outline:2px solid var(--brand);outline-offset:3px; }
       .logo > i {
         width: 34px;
         height: 34px;
@@ -1594,7 +1596,7 @@
     </section>
     <div id="app" class="app hidden">
       <aside class="rail">
-        <div class="logo world-brand"><img src="./assets/wonly-gold.png" alt="王力 WONLY" /><span>CRM</span></div>
+        <button id="dashboard-home" class="logo world-brand" type="button" aria-label="进入经营看板" title="进入经营看板"><img src="./assets/wonly-gold.png" alt="王力 WONLY" /><span>CRM</span></button>
         <button class="nav active" data-view="dashboard">
           <i data-lucide="layout-dashboard"></i><span>经营看板</span></button
         ><button class="nav" data-view="sales-today">
@@ -6119,12 +6121,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#target-plan-table").innerHTML=`<table><thead><tr><th>人员/大区</th>${Array.from({length:12},(_,i)=>`<th class="${i+1===month?'target-month-current':''}">${i+1}月${isAmount?'（万元）':''}</th>`).join("")}<th>合计${isAmount?'（万元）':''}</th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr><td><span class="target-plan-name"><b>${esc(r.name)}</b><small>${esc(r.sub)}</small></span></td>${r.vals.map((v,i)=>`<td class="${i+1===month?'target-month-current':''}">${v?(isAmount?formatPlan(v):v):"—"}</td>`).join("")}<td class="target-total">${isAmount?formatPlan(r.total):r.total}</td></tr>`).join(""):'<tr><td colspan="14">暂无目标数据</td></tr>'}</tbody></table>`;
         $$("[data-target-plan-metric]").forEach(btn=>btn.classList.toggle("active",btn.dataset.targetPlanMetric===metric));
       }
-      function renderDashboard(rows, profiles, history, followups) {
-        const costs=dashboardState.costs||[], targets=dashboardState.targets||[],audits=dashboardState.audits||[],rates=dashboardState.rates||[];
-        dashboardState={...dashboardState,rows,profiles,history,followups,costs,targets,audits,rates};
-        renderDashboardEmailObservationPanel(profiles);
-        const observationMonth=$("#dashboard-email-observation-month")?.value||chinaDate().slice(0,7);
-        if(["owner","sales_manager","sales"].includes(profile?.role)&&!dashboardState.emailObservationSummary.month&&!dashboardState.emailObservationSummary.loading)loadDashboardEmailObservationSummary(observationMonth);
+      function renderDashboardInquiryMetrics(rows,profiles){
         const {type,start,end,previousStart,previousEnd}=dashboardRange();
         const selectedTeam=$("#dashboard-team")?.value||"", selectedSales=$("#dashboard-sales")?.value||"", selectedSource=$("#dashboard-source")?.value||"",selectedCountry=$("#dashboard-country")?.value||"",selectedProduct=$("#dashboard-product")?.value||"",selectedDealType=$("#dashboard-deal-type")?.value||"";
         const allowedProfiles=profiles.filter(p=>(!selectedTeam||p.team===selectedTeam)&&(!selectedSales||p.id===selectedSales));
@@ -6143,6 +6140,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#kpi-avg-response").textContent=mins(responded.length?responded.reduce((s,x)=>s+new Date(x.first_valid_contact_at)-new Date(x.assigned_at),0)/responded.length:NaN);
         $("#kpi-conversion").textContent=pct(won.length,closed.length);
         const validPeriod=periodRows.filter(x=>x.validity==="valid"),quotedStages=new Set(["quoted","sample_sent","negotiating","won","lost"]);$("#kpi-quote-rate").textContent=pct(validPeriod.filter(x=>quotedStages.has(x.status)).length,validPeriod.length);
+        return {type,start,end,previousStart,previousEnd,selectedTeam,selectedSales,selectedSource,selectedCountry,selectedProduct,selectedDealType,allowedProfiles,allowedIds,scoped,periodRows,activeScoped,commercialScoped,decided,closed,won,assigned,responded,fast,overdue,validPeriod,quotedStages};
+      }
+      function renderDashboard(rows, profiles, history, followups) {
+        const costs=dashboardState.costs||[], targets=dashboardState.targets||[],audits=dashboardState.audits||[],rates=dashboardState.rates||[];
+        dashboardState={...dashboardState,rows,profiles,history,followups,costs,targets,audits,rates};
+        renderDashboardEmailObservationPanel(profiles);
+        const observationMonth=$("#dashboard-email-observation-month")?.value||chinaDate().slice(0,7);
+        if(["owner","sales_manager","sales"].includes(profile?.role)&&!dashboardState.emailObservationSummary.month&&!dashboardState.emailObservationSummary.loading)loadDashboardEmailObservationSummary(observationMonth);
+        const {type,start,end,previousStart,previousEnd,selectedTeam,selectedSales,selectedSource,selectedCountry,selectedProduct,selectedDealType,allowedProfiles,allowedIds,scoped,periodRows,activeScoped,commercialScoped,decided,closed,won,assigned,responded,fast,overdue,validPeriod,quotedStages}=renderDashboardInquiryMetrics(rows,profiles);
         const includeImportedOrders=$("#dashboard-data-scope")?.value!=="legacy",historicalCny=includeImportedOrders?historicalOrdersForFilters().filter(x=>x.ordered_at&&inRange(x.ordered_at,start,end)).reduce((sum,x)=>sum+Number(x.amount_wan||0)*10000,0):0,wonCny=sumWonCny(won)+historicalCny,usdCny=fxToCny("USD")||0;
         $("#hero-sales-label").textContent=includeImportedOrders?"销售额（CRM成交＋导入订单）":"团队总销售额";
         $("#kpi-won-cny").textContent=money(wonCny,"CNY"); $("#kpi-won-usd").textContent=usdCny?money(wonCny/usdCny,"USD"):"汇率待更新";
@@ -6540,6 +6546,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#channel-cost-form").onsubmit=async e=>{e.preventDefault();const currency=$("#cost-currency").value,amount=Number($("#cost-amount").value),rate=fxToCny(currency);if(currency!=="CNY"&&!rate)return toast("今日汇率尚未同步，暂不能保存该币种成本");const payload={month:$("#cost-month").value+"-01",channel:$("#cost-channel").value,amount,currency,amount_cny:amount*(rate||1),entered_by:profile.id};const {error}=await supabase.from("channel_costs").upsert(payload,{onConflict:"month,channel"});if(error)return toast("渠道成本保存失败："+error.message);$("#dashboard-modal").classList.add("hidden");toast("渠道成本已保存");await loadInquiries();};
       }
       async function loadInquiries() {
+        renderDashboardUnavailable();
         setDashboardLoadState("loading", dashboardHasSuccessfulLoad ? "正在更新看板数据…" : "正在加载看板数据…");
         try {
           const result = await loadInquiriesUnsafe();
@@ -6640,16 +6647,24 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         return { data: all, error: null };
       }
       async function loadInquiriesUnsafe() {
-        const { data, error } = await loadAllDashboardInquiries();
+        const [{ data, error },{ data: dashboardFields },profilesResult,targetPeopleResult,exchangeRatesResult,historyResult] = await Promise.all([
+          loadAllDashboardInquiries(),loadAllDashboardInquiryFields(),
+          supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active,avatar_url").eq("active",true),
+          supabase.from("sales_target_people").select("*").order("sales_region").order("display_name"),
+          supabase.from("exchange_rates").select("*").order("rate_date",{ascending:false}).limit(500),
+          loadAllStageHistory(),
+        ]);
         if (error) throw new Error("询盘数据加载失败：" + error.message);
+        if (profilesResult.error) throw new Error("成员数据加载失败："+profilesResult.error.message);
         const rows = await officialInquiryRows(data || [],(name,args)=>supabase.rpc(name,args));
-        // Optional dashboard columns are loaded separately so the UI remains
-        // usable while a newly deployed migration is being applied.
-        const { data: dashboardFields } = await loadAllDashboardInquiryFields();
+        // Optional dashboard fields retain the existing graceful fallback.
         if (dashboardFields) {
           const byId = new Map(dashboardFields.map(x => [x.id, x]));
           rows.forEach(x => Object.assign(x, byId.get(x.id) || {}));
         }
+        renderSalesAmountRankingEarly(rows, profilesResult.data||[], targetPeopleResult.data||[], exchangeRatesResult.data||[]);
+        renderDashboardInquiryMetrics(rows,profilesResult.data||[]);
+        setDashboardLoadState("loading","核心指标已加载，正在补充邮件、历史订单和其他明细…");
         const emailInquiryIds = rows.filter((x) => x.source === "email").map((x) => x.id);
         const receivedAtByInquiry = new Map(), senderEmailByInquiry = new Map();
         if (emailInquiryIds.length) {
@@ -6662,29 +6677,21 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
             if (intake.sender_email) senderEmailByInquiry.set(intake.inquiry_id, intake.sender_email);
           }
         }
-        const { data: history, error: historyError } = await loadAllStageHistory();
+        const {data:history,error:historyError}=historyResult;
         if (historyError) throw new Error("阶段时间加载失败：" + historyError.message);
-        // The sales ranking only needs inquiries, people and exchange rates.
-        // Render it before slower mail, audit, legacy and channel queries finish.
-        const [{ data: earlyProfiles }, { data: earlyTargetPeople }, { data: earlyRates }] = await Promise.all([
-          supabase.from("profiles").select("id,full_name,role,team,active").eq("active", true),
-          supabase.from("sales_target_people").select("profile_id,display_name,department"),
-          supabase.from("exchange_rates").select("*").order("rate_date", { ascending: false }).limit(500),
-        ]);
-        renderSalesAmountRankingEarly(rows, earlyProfiles || [], earlyTargetPeople || [], earlyRates || []);
         const dailyScopeResult=profile?.role==="sales_manager"?await supabase.rpc("get_my_management_scope"): {data:{people:[]},error:null};
         const dashboardResults = await Promise.all([
-          supabase.from("profiles").select("id,full_name,email,english_name,job_title,role,team,active,avatar_url").eq("active", true),
+          Promise.resolve(profilesResult),
           loadAllDashboardFollowups(),
           loadAllDashboardEmailMessages(),
           loadAllDashboardWhatsAppMessages(),
           loadAllDashboardReplyReminders(),
           loadModuleRowsPaged((from,to)=>supabase.from("channel_costs").select("*").range(from,to)),
           loadModuleRowsPaged((from,to)=>supabase.from("sales_targets").select("*").range(from,to)),
-          supabase.from("sales_target_people").select("*").order("sales_region").order("display_name"),
+          Promise.resolve(targetPeopleResult),
           loadModuleRowsPaged((from,to)=>supabase.from("sales_target_plan_items").select("*").eq("target_year",2026).eq("is_current",true).range(from,to)),
           loadModuleRowsPaged((from,to)=>supabase.from("audit_logs").select("id,entity_id,actor_id,action,reason,before_data,after_data,created_at").eq("entity_type","inquiry").order("created_at",{ascending:false}).range(from,to)),
-          supabase.from("exchange_rates").select("*").order("rate_date",{ascending:false}).limit(500),
+          Promise.resolve(exchangeRatesResult),
           loadModuleRowsPaged((from,to)=>supabase.from("legacy_engineering_projects").select("legacy_project_id,country,partner_name,product_type,project_status,next_milestone_at,contract_amount_wan,legacy_owner_name,owner_id,source_created_at").range(from,to)),
           profile?.role==="owner"?loadModuleRowsPaged((from,to)=>supabase.from("historical_sales_order_lines").select("source_row,source_month,legacy_owner_name,owner_id,order_no,contract_name,order_quantity,amount_wan,ordered_at,target_stock_at,expected_stock_at,status_code").order("ordered_at",{ascending:false}).range(from,to)):Promise.resolve({data:[],error:null}),
           loadModuleRowsPaged((from,to)=>supabase.from("daily_sales_reports").select("sales_id,report_date,status,submitted_at,is_simulated").eq("report_date",chinaDate()).eq("status","submitted").eq("is_simulated",false).not("submitted_at","is",null).range(from,to)),
@@ -6693,7 +6700,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           loadModuleRowsPaged((from,to)=>supabase.from("inquiry_retention_requests").select("id,inquiry_id,requested_by,requested_until,reason,status,created_at").order("created_at",{ascending:false}).range(from,to)),
           loadModuleRowsPaged((from,to)=>supabase.from("inquiry_marketing_touches").select("inquiry_id,channel,is_primary,touch_at,program_name,campaign_name,tactic_name,offer_name").order("touch_at",{ascending:false}).range(from,to)),
         ]);
-        const [profilesResult, followupsResult, emailMessagesResult, whatsAppMessagesResult, replyRemindersResult, channelCostsResult, salesTargetsResult, targetPeopleResult, targetPlanItemsResult, auditsResult, exchangeRatesResult, legacyProjectsResult, historicalOrdersResult, dailyReportsResult, emailIntakesResult, researchCompaniesResult, retentionRequestsResult, marketingTouchesResult] = dashboardResults;
+        const [completedProfilesResult, followupsResult, emailMessagesResult, whatsAppMessagesResult, replyRemindersResult, channelCostsResult, salesTargetsResult, completedTargetPeopleResult, targetPlanItemsResult, auditsResult, completedExchangeRatesResult, legacyProjectsResult, historicalOrdersResult, dailyReportsResult, emailIntakesResult, researchCompaniesResult, retentionRequestsResult, marketingTouchesResult] = dashboardResults;
         if (profilesResult.error) throw new Error("成员数据加载失败：" + profilesResult.error.message);
         if (profile?.role === "owner" && historicalOrdersResult.error) throw new Error("历史订单加载失败：" + historicalOrdersResult.error.message);
         const dashboardProfiles=profilesResult.data, dashboardFollowups=followupsResult.data, dashboardEmailMessages=emailMessagesResult.data, dashboardWhatsAppMessages=whatsAppMessagesResult.data, replyReminders=replyRemindersResult.data, channelCosts=channelCostsResult.data, salesTargets=salesTargetsResult.data, targetPeople=targetPeopleResult.data, targetPlanItems=targetPlanItemsResult.data, dashboardAudits=auditsResult.data, exchangeRates=exchangeRatesResult.data, legacyProjects=legacyProjectsResult.data, historicalOrders=historicalOrdersResult.data, dailyReports=dailyReportsResult.data, emailIntakes=emailIntakesResult.data, researchCompanies=researchCompaniesResult.data, retentionRequests=retentionRequestsResult.data, marketingTouches=marketingTouchesResult.data;
@@ -7625,6 +7632,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           switchView(item.dataset.view);
         }),
       );
+      $("#dashboard-home").addEventListener("click",()=>$(".nav[data-view=\"dashboard\"]")?.click());
       $("#close-daily").addEventListener("click", async () => {if(await dailyReportController.canLeave())switchView("dashboard");});
       ['#daily-progress','#daily-blockers','#daily-plan'].forEach(id=>$(id).addEventListener('input',()=>dailyReportController.changed()));
       window.addEventListener('beforeunload',event=>{if(dailyReportController.hasUnsavedChanges()){event.preventDefault();event.returnValue='';}});

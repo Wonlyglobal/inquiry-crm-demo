@@ -13,8 +13,10 @@ test('today workbench loads complete inquiry and stage history datasets',()=>{
   assert.match(html,/async function loadAllDashboardInquiries\(\)/);
   assert.match(html,/async function loadAllDashboardInquiryFields\(\)/);
   assert.match(html,/async function loadAllStageHistory\(\)/);
-  assert.match(html,/const \{ data, error \} = await loadAllDashboardInquiries\(\)/);
-  assert.match(html,/const \{ data: history, error: historyError \} = await loadAllStageHistory\(\)/);
+  assert.match(html,/const \[\{ data, error \},[\s\S]*?await Promise\.all\(\[/);
+  assert.match(html,/loadAllDashboardInquiries\(\),loadAllDashboardInquiryFields\(\)/);
+  assert.match(html,/loadAllStageHistory\(\),/);
+  assert.match(html,/const \{data:history,error:historyError\}=historyResult/);
 });
 
 test('today workbench paginates follow-ups, mail and reply reminders',()=>{

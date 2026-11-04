@@ -42,7 +42,8 @@ test('today workbench loads only approved task datasets with shared pagination',
 test('customer and research modules paginate complete company datasets',()=>{
   const customers=html.slice(html.indexOf('} else if(view==="customers")'),html.indexOf('} else if(view==="follow-calendar")'));
   assert.match(customers,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("inquiries"\)/);
-  assert.match(customers,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("contacts"\)/);
+  assert.match(customers,/chunks\(contactIds,[\s\S]*?supabase\.from\("contacts"\)/);
+  assert.match(customers,/loadModuleRowsPaged\(\(from,to\)=>factory\(ids.slice\(start,start\+200\),from,to\)\)/);
   const research=html.slice(html.indexOf('} else if (view === "research")'),html.indexOf('} else if (view === "legacy-projects")'));
   assert.match(research,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("inquiries"\)/);
   assert.match(research,/loadModuleRowsPaged\(\(from,to\)=>supabase\.from\("companies"\)/);

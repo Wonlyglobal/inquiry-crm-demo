@@ -27,24 +27,15 @@ test('all approved manual customer channels and minimum fields are exposed',()=>
   assert.match(sql,/客户可能已由其他业务员负责，请提交主管核查归属/);
 });
 
-test('customer management presents company contact and opportunity layers',()=>{
+test('customer management uses an owner-oriented directory over authorized rows',()=>{
   assert.match(html,/id="customer-core"/);
-  assert.match(html,/function renderCustomerCore\(companies=\[\],contacts=\[\],inquiries=\[\]\)/);
-  assert.match(html,/<h3>公司<\/h3>/);
-  assert.match(html,/<h3>联系人<\/h3>/);
-  assert.match(html,/<h3>商机<\/h3>/);
+  assert.match(html,/buildCustomerDirectory\(inquiries,contacts,people,origins,followups\)/);
+  assert.match(html,/mountCustomerDirectory/);
+  assert.match(html,/inquiryOrigins\(owned/);
+  assert.match(html,/supabase.from\("follow_ups"\)/);
+  assert.match(html,/loadVersion!==moduleLoadVersion\|\|activeModuleView!==view/);
+  assert.match(html,/customerDirectoryController\?\.destroy\(\)/);
   assert.match(html,/\+ 新建客户 \/ 商机/);
-});
-
-test('customer core stays usable with hundreds of companies',()=>{
-  assert.match(html,/const pageSize=10,relatedLimit=8/);
-  assert.match(html,/filtered\.slice\(pageStart,pageStart\+pageSize\)/);
-  assert.match(html,/id="customer-core-search"/);
-  assert.match(html,/id="customer-core-sort"/);
-  assert.match(html,/id="customer-core-prev"/);
-  assert.match(html,/id="customer-core-next"/);
-  assert.match(html,/filter\(item=>String\(item\.company_id\)===String\(selectedCompanyId\)\)/);
-  assert.match(html,/data-customer-core-select/);
 });
 
 test('self-addressed inbox messages are clearly identified without rewriting envelope data',()=>{

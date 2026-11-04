@@ -1549,7 +1549,8 @@
     <!-- Embedded CRM page inside the Grace timeline (same origin only): no rail, top bar or agent world. -->
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
-</head>
+    <link rel="stylesheet" href="./assets/customer-directory.css?v=20261104-1">
+  </head>
   <body>
     <section id="boot" class="boot-shell">
       <div class="boot-card"><span class="boot-spinner"></span><span>Grace 正在准备…</span></div>
@@ -1906,7 +1907,7 @@
           </section>
           <section id="sales360-quarter-panel" class="card hidden" aria-label="季度业务员评价进度"></section>
           <section id="whatsapp-workspace" class="wa-workspace hidden" aria-label="WhatsApp Business 聊天工作台"></section>
-          <section id="customer-core" class="customer-core hidden" aria-label="公司联系人商机总览"></section>
+          <section id="customer-core" class="customer-core hidden" aria-label="业务员客户列表"></section>
           <section id="inquiry-command" class="inquiry-command hidden">
             <div class="inquiry-command-head"><div><h2>询盘状态总览</h2><p>先定位待处理环节，再进入具体询盘；数字随当前数据权限实时更新。</p></div><span class="tag">点击状态可快速筛选</span></div>
             <div id="inquiry-stage-tabs" class="inquiry-stage-tabs"></div>
@@ -2693,7 +2694,8 @@
         document.querySelector('#boot').textContent='Grace 正在准备…';
       }
       import {savedWebsiteSignals,signalFieldText,signalSaveFields,generatedWebsiteSignals,renderWebsiteSignalEvidence} from './assets/website-english-signals.mjs?v=20261102-en1';
-      import {officialInquiryRows} from './assets/official-inquiries.mjs?v=20261102-origin1';
+      import {officialInquiryRows,inquiryOrigins} from './assets/official-inquiries.mjs?v=20261104-directory1';
+      import {buildCustomerDirectory,mountCustomerDirectory} from './assets/customer-directory.mjs?v=20261104-1';
       import {createRealtimeClient} from './assets/agent-realtime-client.mjs?v=20261019-connect3';
       import { mountConversation } from './assets/agent-conversation.mjs?v=20261030-mobile1';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261103-navigation';
@@ -4630,30 +4632,19 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if(connection?.status==="disabled")return "我的邮箱 · 已停用";
         return "连接我的邮箱";
       }
-      function renderCustomerCore(companies=[],contacts=[],inquiries=[]){
+      let customerDirectoryController=null;
+      const customerDirectoryStates=new Map();
+      function renderCustomerCore(companies=[],contacts=[],inquiries=[],people=[],origins=new Map(),followups=[]){
         const box=$("#customer-core");if(!box)return;
-        const pageSize=10,relatedLimit=8;
-        let query="",sortMode="recent",page=1,selectedCompanyId=companies[0]?.id||null;
-        const companySearchText=item=>[item.company?.name,item.company?.domain,item.company?.country,...item.inquiries.map(inquiry=>`${inquiry.title||""} ${inquiry.product_category||""}`)].filter(Boolean).join(" ").toLocaleLowerCase();
-        const companyItem=item=>`<button class="customer-core-item ${String(item.id)===String(selectedCompanyId)?"active":""}" type="button" data-customer-core-select="${esc(item.id)}" aria-pressed="${String(item.id)===String(selectedCompanyId)}"><b>${esc(item.company?.name||"未命名公司")}</b><small>${esc(displayCountry(item.company?.country))} · ${item.inquiries.length} 个商机</small></button>`;
-        const contactItem=item=>`<button class="customer-core-item" type="button" data-customer-core-open="${esc(item.company_id)}"><b>${esc(item.full_name||item.email||item.phone||item.whatsapp||"未命名联系人")}</b><small>${esc(item.email||item.phone||item.whatsapp||"联系方式待补充")}</small></button>`;
-        const opportunityItem=item=>`<button class="customer-core-item" type="button" data-customer-core-inquiry="${esc(item.id)}"><b>#${String(item.inquiry_no||"").padStart(6,"0")} · ${esc(item.title||"未命名商机")}</b><small>${esc(displayInquiryStage(item))} · ${esc(sourceNames[item.source]||item.source||"来源待补充")}</small></button>`;
-        const render=()=>{
-          const needle=query.trim().toLocaleLowerCase(),filtered=companies.filter(item=>!needle||companySearchText(item).includes(needle)).sort((a,b)=>sortMode==="name"?String(a.company?.name||"").localeCompare(String(b.company?.name||""),"zh-CN"):new Date(b.lastAt||0)-new Date(a.lastAt||0));
-          const pageCount=Math.max(1,Math.ceil(filtered.length/pageSize));page=Math.min(page,pageCount);
-          const pageStart=(page-1)*pageSize,pageCompanies=filtered.slice(pageStart,pageStart+pageSize);
-          if(!pageCompanies.some(item=>String(item.id)===String(selectedCompanyId)))selectedCompanyId=pageCompanies[0]?.id||null;
-          const selected=companies.find(item=>String(item.id)===String(selectedCompanyId)),selectedContacts=[...contacts].filter(item=>String(item.company_id)===String(selectedCompanyId)).sort((a,b)=>String(b.updated_at||b.created_at||"").localeCompare(String(a.updated_at||a.created_at||""))),selectedOpportunities=[...inquiries].filter(item=>String(item.company_id)===String(selectedCompanyId)).sort((a,b)=>String(b.updated_at||b.created_at||"").localeCompare(String(a.updated_at||a.created_at||"")));
-          const rangeStart=filtered.length?pageStart+1:0,rangeEnd=Math.min(pageStart+pageSize,filtered.length),selectedName=selected?.company?.name||"请先选择公司";
-          box.innerHTML=`<div class="customer-core-toolbar"><label class="customer-core-search"><span class="sr-only">搜索公司</span><input id="customer-core-search" class="input" type="search" value="${esc(query)}" placeholder="搜索公司、国家、域名、产品或商机" autocomplete="off"><span class="tag" aria-live="polite">${filtered.length} 家</span></label><select id="customer-core-sort" class="input customer-core-sort" aria-label="公司排序"><option value="recent" ${sortMode==="recent"?"selected":""}>最近更新</option><option value="name" ${sortMode==="name"?"selected":""}>公司名称</option></select></div><article class="customer-core-card"><header><div><h3>公司</h3><p>每页 ${pageSize} 家，选择后查看关联资料</p></div><span class="tag">${companies.length}</span></header><div class="customer-core-list">${pageCompanies.map(companyItem).join("")||'<small class="hint">没有匹配的公司</small>'}</div><div class="customer-core-pagination"><small>${rangeStart}–${rangeEnd} / ${filtered.length}</small><div><button id="customer-core-prev" class="ghost" type="button" aria-label="上一页" ${page<=1?"disabled":""}>←</button><button id="customer-core-next" class="ghost" type="button" aria-label="下一页" ${page>=pageCount?"disabled":""}>→</button></div></div></article><article class="customer-core-card"><header><div><h3>联系人</h3><p title="${esc(selectedName)}">${esc(selectedName)}</p></div><span class="tag">${selectedContacts.length}</span></header><div class="customer-core-list">${selectedContacts.slice(0,relatedLimit).map(contactItem).join("")||'<small class="hint">该公司暂无联系人</small>'}</div>${selectedContacts.length>relatedLimit?`<p class="customer-core-overflow">另有 ${selectedContacts.length-relatedLimit} 位联系人，请进入客户详情查看</p>`:""}${selected?`<button class="ghost customer-core-open" type="button" data-customer-core-open="${esc(selected.id)}">查看客户详情</button>`:""}</article><article class="customer-core-card"><header><div><h3>商机</h3><p title="${esc(selectedName)}">${esc(selectedName)}</p></div><span class="tag">${selectedOpportunities.length}</span></header><div class="customer-core-list">${selectedOpportunities.slice(0,relatedLimit).map(opportunityItem).join("")||'<small class="hint">该公司暂无商机</small>'}</div>${selectedOpportunities.length>relatedLimit?`<p class="customer-core-overflow">另有 ${selectedOpportunities.length-relatedLimit} 个商机，请进入客户详情查看</p>`:""}</article>`;
-          $("#customer-core-search").addEventListener("input",event=>{query=event.target.value;page=1;render();const input=$("#customer-core-search");input.focus();input.setSelectionRange(input.value.length,input.value.length)});
-          $("#customer-core-sort").addEventListener("change",event=>{sortMode=event.target.value;page=1;render()});
-          $("#customer-core-prev").addEventListener("click",()=>{page-=1;render()});$("#customer-core-next").addEventListener("click",()=>{page+=1;render()});
-          $$('[data-customer-core-select]').forEach(button=>button.addEventListener("click",()=>{selectedCompanyId=button.dataset.customerCoreSelect;render()}));
-          $$('[data-customer-core-open]').forEach(button=>button.addEventListener("click",()=>openCustomerRecord(button.dataset.customerCoreOpen)));
-          $$('[data-customer-core-inquiry]').forEach(button=>button.addEventListener("click",()=>openInquiryDetail(button.dataset.customerCoreInquiry)));
-        };
-        render();
+        customerDirectoryController?.destroy();
+        const key=profile.id;
+        if(!customerDirectoryStates.has(key))customerDirectoryStates.set(key,{});
+        const rows=buildCustomerDirectory(inquiries,contacts,people,origins,followups);
+        customerDirectoryController=mountCustomerDirectory(box,{rows,state:customerDirectoryStates.get(key),
+          unassigned:inquiries.filter(i=>!i.owner_id).length,
+          formatDate:fmtDate,stageLabel:value=>statusNames[value]||value,channelLabel:value=>sourceNames[value]||value,
+          onCustomer:openCustomerRecord,onInquiry:openInquiryDetail,
+          onView:view=>{const nav=$(`.nav[data-view="${view}"]`);if(nav)nav.click()},canEnterLeads:profile.role==="sales"});
       }
       const customerImportColumns=["公司名称","联系人","客户邮箱","电话","WhatsApp","国家/地区","来源渠道","渠道明细","需求摘要","产品品类","数量","商机标题","预计金额","币种","预计采购日期"];
       const customerImportKeys={"客户名称":"company","国家":"country","邮箱":"email","来源":"source","需求简述":"demand","获取日期":"acquired_on","acquired_on":"acquired_on","公司名称":"company","company":"company","客户类型":"company_type","公司类型":"company_type","company_type":"company_type","联系人":"contact","contact":"contact","客户邮箱":"email","email":"email","电话":"phone","phone":"phone","WhatsApp":"whatsapp","whatsapp":"whatsapp","国家/地区":"country","country":"country","来源渠道":"source","source":"source","渠道明细":"source_detail","source_detail":"source_detail","需求摘要":"demand","demand":"demand","产品品类":"product","product":"product","数量":"quantity","quantity":"quantity","商机标题":"title","title":"title","预计金额":"estimated_value","estimated_value":"estimated_value","币种":"currency","currency":"currency","预计采购日期":"expected_purchase_date","expected_purchase_date":"expected_purchase_date"};
@@ -4684,8 +4675,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const config = {
           inquiries: ["官方询盘", "官方渠道进入、由市场部整理并提交分配的询盘；业务员导入请到客户管理或个人商机查看", "官方渠道询盘"],
           customers: profile.role === "sales"
-            ? ["客户管理", "统一管理本人负责的公司、联系人、商机和全部渠道跟进", "本人客户"]
-            : ["客户管理", "按权限统一查看公司、联系人、商机及跨渠道客户记录", "可见客户"],
+            ? ["客户管理", "本人客户档案按来源区分；日常客户线索单独录入与统计", "本人客户"]
+            : ["客户管理", "按业务员查看权限范围内的客户，区分自主开发、官方分配和转介绍", "可见客户"],
           "sales-today": ["今日工作台", "仅展示主管分配的询盘，以及已关联询盘的真实客户新回复", "销售任务"],
           "follow-calendar": ["跟进日历", "按天查看每位业务员的开发信、客户来信和邮件回复情况", "每日邮件跟进"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为官方询盘", "待分拣邮件"],
@@ -4713,6 +4704,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         }
         const preserveEmailSearch = view === "email" && activeModuleView === "email";
         const preserveMemberFilters = view === "settings" && activeModuleView === "settings";
+        customerDirectoryController?.destroy();customerDirectoryController=null;
         activeModuleView = view;
         $("#personal-mailbox-filter").classList.toggle("hidden",view!=="mailbox");
         if(view!=="whatsapp"&&whatsappRealtimeChannel){supabase.removeChannel(whatsappRealtimeChannel);whatsappRealtimeChannel=null;clearTimeout(whatsappRealtimeTimer)}
@@ -4753,7 +4745,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#website-intake-panel").classList.toggle("hidden",!websiteMonitorVisible);
         if(websiteMonitorVisible)loadWebsiteIntakeMonitor();
         if(view==="customers")$("#customer-core").innerHTML='<article class="customer-core-card"><h3>正在加载客户主档…</h3><p>按当前账号权限读取公司、联系人和商机。</p></article>';
-        $("#module-table-wrap").classList.toggle("hidden",view==="whatsapp");
+        $("#module-table-wrap").classList.toggle("hidden",view==="whatsapp"||view==="customers");
         $("#inquiry-command").classList.toggle("hidden", view !== "inquiries");
         $("#email-triage-actions").classList.toggle("hidden",view!=="email");
         $("#email-class-tabs").classList.toggle("hidden",view!=="email");
@@ -4916,19 +4908,21 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           let inquiryQuery=(from,to)=>{let q=supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,target_country,estimated_amount,currency,won_amount,won_currency,created_at,updated_at,companies(name)").eq("validity","valid").not("status","in","(lost)").eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).range(from,to);if(profile.role==="sales")q=q.eq("owner_id",profile.id);return q};
           const inquiryResult=await loadModuleRowsPaged(inquiryQuery);if(inquiryResult.error)query=Promise.resolve(inquiryResult);else{const inquiries=inquiryResult.data||[],ids=inquiries.map(item=>item.id),[samplesResult,ordersResult]=ids.length?await Promise.all([loadModuleRowsPaged((from,to)=>supabase.from("sample_shipments").select("id,inquiry_id,status,updated_at").in("inquiry_id",ids).range(from,to)),loadModuleRowsPaged((from,to)=>supabase.from("sales_orders").select("id,inquiry_id,status,total_amount,currency,expected_delivery_at,updated_at").in("inquiry_id",ids).range(from,to))]):[{data:[],error:null},{data:[],error:null}];const relatedError=samplesResult.error||ordersResult.error;if(relatedError)query=Promise.resolve({data:null,error:relatedError});else{const samples=samplesResult.data||[],orders=ordersResult.data||[];query=Promise.resolve({data:inquiries.map(item=>({...item,samples:samples.filter(row=>row.inquiry_id===item.id),orders:orders.filter(row=>row.inquiry_id===item.id)})),error:null});columns=["询盘","客户","国家/地区","商机阶段","样品","订单","当前履约状态","预计交付","操作"];mapper=item=>{const company=Array.isArray(item.companies)?item.companies[0]:item.companies,activeOrder=item.orders.find(order=>!["completed","cancelled"].includes(order.status))||item.orders[0],sampleStatus=item.samples[0]?.status,fulfillmentStatus=activeOrder?orderStatusNames[activeOrder.status]||activeOrder.status:sampleStatus?sampleStatusNames[sampleStatus]||sampleStatus:"待登记";return{id:item.id,fulfillmentInquiry:item,meta:{risk:activeOrder?.expected_delivery_at&&new Date(activeOrder.expected_delivery_at)<new Date()&&!['delivered','completed'].includes(activeOrder.status)},cells:[`#${String(item.inquiry_no||"").padStart(6,"0")} · ${item.title}`,company?.name||"—",displayCountry(item.target_country),displayInquiryStage(item),`${item.samples.length} 条`,`${item.orders.length} 条`,fulfillmentStatus,activeOrder?.expected_delivery_at?fmtDate(activeOrder.expected_delivery_at):"—"],actions:[{label:"管理履约",onClick:()=>openFulfillmentManager(item)}]}};clickable=true;}}
         } else if(view==="customers"){
-          const inquiryResult=await loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,status,validity,owner_id,company_id,target_country,product_category,created_at,updated_at,won_amount,won_currency,won_at,companies(id,name,domain,country,company_type,main_business,value_grade,purchase_likelihood,risk_level)").not("company_id","is",null).eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).range(from,to));
-          if(inquiryResult.error)query=Promise.resolve(inquiryResult);else{
-            const inquiries=inquiryResult.data||[],companyIds=[...new Set(inquiries.map(item=>item.company_id).filter(Boolean))],contactResult=companyIds.length?await loadModuleRowsPaged((from,to)=>supabase.from("contacts").select("id,company_id,full_name,email,phone,whatsapp,created_at,updated_at").in("company_id",companyIds).range(from,to)):({data:[],error:null});
-            if(contactResult.error)query=Promise.resolve(contactResult);else{
-              const contactCounts=new Map();(contactResult.data||[]).forEach(item=>contactCounts.set(item.company_id,(contactCounts.get(item.company_id)||0)+1));
-              const grouped=new Map();inquiries.forEach(item=>{const company=Array.isArray(item.companies)?item.companies[0]:item.companies;if(!company)return;let record=grouped.get(company.id);if(!record){record={id:company.id,company,inquiries:[],products:new Set(),lastAt:item.updated_at||item.created_at};grouped.set(company.id,record)}record.inquiries.push(item);if(item.product_category)record.products.add(item.product_category);if(new Date(item.updated_at||item.created_at)>new Date(record.lastAt))record.lastAt=item.updated_at||item.created_at});
-              const companyRecords=[...grouped.values()].sort((a,b)=>new Date(b.lastAt)-new Date(a.lastAt));renderCustomerCore(companyRecords,contactResult.data||[],inquiries);
-              query=Promise.resolve({data:companyRecords,error:null});
-              columns=["客户公司","国家/地区","客户类型","采购偏好","联系人","历史询盘","成交","客户等级","最近更新","操作"];
-              mapper=record=>({id:record.id,customerCompanyId:record.id,meta:{risk:["high","critical"].includes(record.company.risk_level)},cells:[record.company.name,displayCountry(record.company.country),record.company.company_type||"—",[...record.products].join("、")||"待补充",`${contactCounts.get(record.id)||0} 人`,`${record.inquiries.length} 条`,`${record.inquiries.filter(item=>item.status==="won").length} 条`,record.company.value_grade||"—",fmtDate(record.lastAt)],actions:[{label:"查看客户",onClick:()=>openCustomerRecord(record.id)}]});
-              clickable=true;
-            }
-          }
+          try{
+            const inquiryResult=await loadModuleRowsPaged((from,to)=>supabase.from("inquiries").select("id,inquiry_no,title,status,validity,source,owner_id,company_id,contact_id,target_country,product_category,created_at,updated_at,next_follow_up_at,archived_at,merged_into_id,excluded_from_dashboard,companies(id,name,domain,country,company_type)").not("company_id","is",null).is("archived_at",null).eq("excluded_from_dashboard",false).order("updated_at",{ascending:false}).range(from,to));
+            if(inquiryResult.error)throw inquiryResult.error;
+            const inquiries=inquiryResult.data||[],owned=inquiries.filter(i=>i.owner_id&&!i.merged_into_id),contactIds=[...new Set(owned.map(i=>i.contact_id).filter(Boolean))],ownerIds=[...new Set(owned.map(i=>i.owner_id))],inquiryIds=owned.map(i=>i.id);
+            const chunks=async(ids,factory)=>{const all=[];for(let start=0;start<ids.length;start+=200){const result=await loadModuleRowsPaged((from,to)=>factory(ids.slice(start,start+200),from,to));if(result.error)throw result.error;all.push(...(result.data||[]))}return all};
+            const [contacts,people,origins,followups]=await Promise.all([
+              chunks(contactIds,(ids,from,to)=>supabase.from("contacts").select("id,company_id,full_name,email,phone,whatsapp").in("id",ids).range(from,to)),
+              chunks(ownerIds,(ids,from,to)=>supabase.from("profiles").select("id,full_name").in("id",ids).range(from,to)),
+              inquiryOrigins(owned,(name,args)=>supabase.rpc(name,args)),
+              chunks(inquiryIds,(ids,from,to)=>supabase.from("follow_ups").select("id,inquiry_id,created_at,next_follow_up_at,completed_at").in("inquiry_id",ids).order("created_at",{ascending:false}).range(from,to)),
+            ]);
+            if(loadVersion!==moduleLoadVersion||activeModuleView!==view)return;
+            renderCustomerCore([],contacts,inquiries,people,origins,followups);
+            query=Promise.resolve({data:[],error:null});columns=[];mapper=x=>x;
+          }catch(error){query=Promise.resolve({data:null,error});}
         } else if(view==="follow-calendar"){
           const now=new Date(),dateText=value=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(value),todayDate=dateText(now),start=new Date(now),end=new Date(now);start.setHours(0,0,0,0);
           if(followCalendarRange==="today")end.setDate(start.getDate()+1);
@@ -5112,6 +5106,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const { data, error } = moduleResult;
         if (loadVersion !== moduleLoadVersion || view !== activeModuleView) return;
         if(view==="knowledge")knowledgeCountState=moduleResult.knowledgeCount||null;
+        if(error&&view==="customers"){
+          $("#customer-core").innerHTML='<article class="customer-core-card"><h3>客户列表暂未加载完成</h3><p>'+esc(error.message||"请稍后重试")+'</p><button class="ghost" type="button" id="customer-directory-retry">重新加载客户</button></article>';
+          $("#customer-directory-retry").onclick=()=>loadModule("customers");
+          refreshButton.classList.remove("loading");refreshButton.disabled=false;return;
+        }
         if (error) {
           const networkFailure = /failed to fetch|networkerror|load failed/i.test(String(error.message || error));
           const detail = networkFailure ? "暂时无法连接数据服务，系统已自动重试。请检查网络后点击重新加载。" : error.message;
@@ -5136,6 +5135,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           icons();
           return;
         }
+        if(view==="customers"){refreshButton.classList.remove("loading");refreshButton.disabled=false;icons();return;}
         if (["inquiries", "assignment", "nurture", "public-pool", "follow-calendar"].includes(view)) {
           const ownerIds = [...new Set((data || []).flatMap((item) => view==="follow-calendar"?[item.owner_id,item.author_id,Array.isArray(item.inquiries)?item.inquiries[0]?.owner_id:item.inquiries?.owner_id]:[item.owner_id]).filter(Boolean))];
           if (ownerIds.length) {
@@ -9460,7 +9460,13 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#operations-settings").onclick=openOperationalSettings;
       $("#followup-settings").onclick=openFollowupPreferences;
       $("#customer-import-template").onclick=downloadCustomerImportTemplate;
-      $("#customer-import").onclick=()=>$("#customer-import-file").click();
+      function chooseCustomerImportKind(){
+        const canRecord=profile.role==="sales"&&canAccessView("sales-lead-entry");
+        openDashboardModal("选择导入内容",`<p class="hint">先区分日常线索和已有客户，避免把尚未跟进的名单当成已形成商机的客户。</p>${canRecord?'<article class="customer-import-kind"><h3>日常客户线索</h3><p>用于新发现、尚未明确需求的客户名单。进入线索账本，记录实际录入时间；补齐资料后由业务员主动转为个人商机。</p><button type="button" class="primary" id="customer-import-as-leads">导入客户线索</button></article>':'<p class="hint">日常线索由业务员在本人「线索录入」中登记；管理账号可在「线索看板」查看权限范围内的记录。</p>'}<article class="customer-import-kind"><h3>已有客户档案</h3><p>仅用于已建立跟进关系的客户资料，保留原客户导入功能及关联记录。导入方式不代表官方分配，也不自动确认询价、会议或成交。</p><button type="button" class="ghost" id="customer-import-as-records">选择已有客户档案文件</button></article>`);
+        const leadButton=$("#customer-import-as-leads");if(leadButton)leadButton.onclick=()=>{$("#dashboard-modal").classList.add("hidden");$('.nav[data-view="sales-lead-entry"]').click()};
+        $("#customer-import-as-records").onclick=()=>{$("#dashboard-modal").classList.add("hidden");$("#customer-import-file").click()};
+      }
+      $("#customer-import").onclick=chooseCustomerImportKind;
       $("#customer-import-file").addEventListener("change",event=>previewCustomerImport(event.target.files?.[0]));
       $("#edit-followup-defaults").onclick=openFollowupPreferences;
       $("#apply-followup-defaults").onclick=applyFollowupPreferences;

@@ -9,7 +9,7 @@ test("CRM startup has a CDN fallback and bounded dependency loading", () => {
   assert.match(html, /esm\.sh\/@@?supabase|esm\.sh\/\@supabase/);
   assert.match(html, /cdn\.jsdelivr\.net\/npm\/\@supabase\/supabase-js/);
   assert.match(html, /unpkg\.com\/\@supabase\/supabase-js/);
-  assert.match(html, /unpkg\.com\/\@supabase\/supabase-js@2\.57\.4\/dist\/module\/index\.js/);
+  assert.match(html, /unpkg\.com\/\@supabase\/supabase-js@2\.57\.4\/dist\/umd\/supabase\.js/);
   assert.match(html, /Supabase 客户端加载失败/);
 });
 

@@ -1,3 +1,4 @@
+import { loadBrowserScript } from './browser-dependency.mjs';
 import { fitGraceViewport } from './grace-viewport.mjs';
 fitGraceViewport(document.body);
 import { publicConfig } from './grace-public-config.mjs';
@@ -67,7 +68,7 @@ $('#composer').addEventListener('submit',async event=>{
 async function start(){
  if(!/^[a-z]{20}$/.test(publicConfig.projectRef)||forbidden.has(publicConfig.projectRef)||!publicConfig.anonKey){say('公众服务尚未开通；企业用户可使用已有入口。');return}
  try{
-  const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2.57.4');
+  const {createClient}=await loadBrowserScript('./assets/vendor/supabase-2.57.4.js',{select:()=>typeof window.supabase?.createClient==='function'?window.supabase:null});
   client=createClient(`https://${publicConfig.projectRef}.supabase.co`,publicConfig.anonKey,{auth:{storageKey:'grace-public-auth',persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   client.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY')$('#recovery').showModal();const previous=user?.id;user=session?.user||null;if(previous&&previous!==user?.id)clearConversation()});
   const {data,error}=await client.auth.getUser();if(!error)user=data.user;

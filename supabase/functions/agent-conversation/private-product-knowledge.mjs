@@ -1,5 +1,5 @@
 // Original-owner RPC only. Native private excerpts never enter a provider or speech prompt.
-import {materialModelCodes,materialVersion,normalizeProductInput} from './product-input.mjs';
+import {materialModelCodes,materialVersion,normalizeProductInput,materialFields} from './product-input.mjs';
 import {nativeProductEvidence} from './product-native-evidence.mjs';
 
 const canonical=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[\s_/.-]+/g,'');
@@ -15,12 +15,14 @@ export const nativeGapText=g=>gapLabels[g]||(/^[a-z_]+$/.test(g)?'原生区域�
 export function nativeProductTurn(question,history=[]){
  const q=normalizeProductInput(question).trim();
  const models=materialModelCodes(q);
+ const fieldQuestion=materialFields(q).length>0||/缺口|未覆盖|没写|未知/.test(q);
+ if(/新需求|换个话题|新话题|不查资料|天气|新闻|CRM|社媒|网站|公司|企业/.test(q))return null;
  const prior=history.find(h=>String(h).startsWith(prefix));
- if(models.length===1&&(parameter.test(q)||prior&&q.length<=100&&/^(?:换成|改为|再看|那)/.test(q))){
+ if(models.length===1&&((parameter.test(q)||fieldQuestion)||prior&&q.length<=100&&/^(?:换成|改为|再看|那)/.test(q))){
   const edition=materialVersion(q)||(prior&&/^(?:换成|改为|再看|那)/.test(q)?materialVersion(prior):'')||'';
   return {model:models[0],edition,question:models[0]+(edition?' '+edition:'')+'；'+q};
  }
- if(!prior||models.length||q.length>100||!parameter.test(q)||! /^(?:那|它|这款|这个|还有|再|来源|证据|缺口|门厚|安装|供电|电池|尺寸|材质|功能|开锁|解锁|what|and|how)/i.test(q))return null;
+ if(!prior||models.length||q.length>100||!(parameter.test(q)||fieldQuestion)||! /^(?:请问|请|那么|那|它|这款|这个|还有|再|来源|出处|原文|证据|缺口|门厚|厚度|多厚|安装|供电|电池|尺寸|材质|功能|配置|参数|质保|保修|认证|颜色|隔音|隔声|适用|用什么|什么材料|怎么|哪些|what|and|how)/i.test(q))return null;
  const priorQ=prior.slice(prefix.length),previous=materialModelCodes(priorQ);
  if(previous.length!==1)return null;
  const edition=materialVersion(q)||materialVersion(priorQ)||'';

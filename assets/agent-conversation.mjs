@@ -1,4 +1,4 @@
-import {privateReportQuestion,PRIVATE_REPORT_KEY} from './agent-private-report-context.mjs?v=20261105-company-followup1';
+import {privateReportQuestion,PRIVATE_REPORT_KEY} from './agent-private-report-context.mjs?v=20261105-context-fields1';
 import {mountPrivateIntelligence,privateReportButtons} from './agent-private-intelligence.mjs?v=20261027-private-input1';
 import {createConnectionCheck} from './agent-connection.mjs?v=20261019-connect1';
 import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=20261019-private1';

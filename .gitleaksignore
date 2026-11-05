@@ -2,7 +2,9 @@
 # Browser-distributed client key; no service_role/model/SMTP credential exemption.
 c58ed8c7b50f250fc946a896e9ef5b3b7b69e8e2:assets/grace-public-config.mjs:jwt:2
 
-# Exact public vendor export expression and its historical explanatory comment.
+# Exact integrity-verified official Supabase 2.57.4 UMD false positive.
+# Vendor SHA256 and official tarball integrity are asserted in tests/browser-dependency.test.mjs.
+# Preserve the existing exact historical explanatory-comment exception from main.
 # Neither location contains a credential; no path-wide or rule-wide exemption.
 b9a1e7844174969b8b175a484b065dc408e8278f:assets/vendor/supabase-2.57.4.js:generic-api-key:1
 6860fbae3ae88e199141c0839a15b0f202d7066f:.gitleaksignore:generic-api-key:6

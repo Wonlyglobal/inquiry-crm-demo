@@ -11,7 +11,7 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
     />
-    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="./assets/vendor/lucide-0.468.0.min.js" defer></script>
     <style>
       :root {
         --ink: #17211b;
@@ -2678,7 +2678,34 @@
     </aside>
     <link rel="stylesheet" href="./assets/grace-mobile.css?v=20261030-layout1" />
     <link rel="stylesheet" href="./assets/grace-orb.css?v=20261006-2" />
+    <script>
+      // This guard runs before the module graph, including failed local imports.
+      (()=>{
+        const labels={resources:"加载页面资源",client:"加载登录组件",session:"恢复登录状态",profile:"读取账号资料",workspace:"准备工作台"};
+        let stage="resources",ready=false,failed=false;
+        function boot(){return document.querySelector("#boot")}
+        function fail(code="application",message="页面初始化失败，请刷新后重试"){
+          const box=boot();if(ready||failed||!box||box.classList.contains("hidden"))return;
+          failed=true;box.replaceChildren();
+          const card=document.createElement("div");card.className="boot-card";
+          const title=document.createElement("strong");title.textContent="CRM 暂时无法打开";
+          const text=document.createElement("span");text.textContent=message;
+          const status=document.createElement("small");status.textContent=`${labels[stage]||labels.resources} · ${code}`;
+          const retry=document.createElement("button");retry.type="button";retry.className="primary";retry.textContent="重新加载";retry.onclick=()=>location.reload();
+          card.append(title,text,status,retry);box.append(card);
+        }
+        const timer=setTimeout(()=>fail("startup_timeout","连接时间较长，请检查网络后重新加载；已保存的登录状态不会被清除。"),90000);
+        window.crmBoot={stage(value){if(!labels[value]||ready)return;stage=value;const box=boot();if(box&&!failed&&!box.classList.contains("hidden")){const text=box.querySelector(".boot-card span:last-child");if(text)text.textContent=labels[value]+"…"}},ready(){ready=true;clearTimeout(timer)},fail};
+        window.addEventListener("error",event=>{
+          if(ready)return;
+          const target=event.target;
+          if(target?.tagName==="SCRIPT"&&target.type==="module")return fail("page_resource","页面资源未加载完整，请重新加载；无需清除账号或密码。");
+          if(event.filename){try{const file=new URL(event.filename,location.href);if(file.origin===location.origin&&file.pathname===location.pathname)fail("application")}catch{}}
+        },true);
+      })();
+    </script>
     <script type="module">
+      import {loadBrowserScript} from "./assets/browser-dependency.mjs?v=20261105-local1";
       import {bindResearchGenerateEntry} from "./assets/research-generate-entry.mjs?v=20261029-1";
       import {leadWorkspaceRoute} from "./assets/lead-workspace-route.mjs?v=20261028-sidebar2";
       import {openLeadWorkspaceFrame} from "./assets/lead-workspace-frame.mjs?v=20261029-1";
@@ -2714,13 +2741,7 @@ import {MAIL_TYPES,renderMailTypeRankings,renderMailTypeWorkspace} from './asset
 import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReviewRequests} from './assets/sales-mail-review.mjs?v=20261023-3';
       import { mountIntelligence, mountLobbyBrief } from './assets/agent-intelligence.mjs?v=20260928-1';
       import {canUseAgentWorld,mountAgentWorld} from "./assets/agent-world.mjs?v=20261015-stable-call1";
-      const showBootFailure = (message = "页面初始化失败，请刷新后重试") => {
-        const boot = document.querySelector("#boot");
-        if (!boot || boot.classList.contains("hidden")) return;
-        boot.innerHTML = `<div class="boot-card"><strong>CRM 暂时无法打开</strong><span>${message}</span><button class="primary" onclick="location.reload()">重新加载</button></div>`;
-      };
-      window.addEventListener("error", () => showBootFailure());
-      window.addEventListener("unhandledrejection", () => showBootFailure("数据服务或页面依赖加载失败，请刷新后重试"));
+      const showBootFailure = (message = "页面初始化失败，请刷新后重试") => window.crmBoot?.fail("application",message);
       // Some corporate DNS/proxy networks intermittently stall esm.sh. Keep the
       // boot screen from spinning forever by timing out the primary CDN and
       // falling back to jsDelivr (the Supabase client is otherwise identical).
@@ -2732,24 +2753,25 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         promise,
         new Promise((_, reject) => setTimeout(() => reject(new Error(message)), timeoutMs)),
       ]);
+      window.crmBoot?.stage("client");
       let supabaseModule;
       try {
-        supabaseModule = await importWithTimeout("https://esm.sh/@supabase/supabase-js@2.57.4");
-      } catch (primaryError) {
+        // Same exact SDK version, npm integrity verified; normal login needs no CDN.
+        supabaseModule=await loadBrowserScript("./assets/vendor/supabase-2.57.4.js",{select:()=>typeof window.supabase?.createClient==="function"?window.supabase:null});
+      } catch(localError) {
         try {
-          supabaseModule = await importWithTimeout("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm");
-        } catch (fallbackError) {
+          supabaseModule = await importWithTimeout("https://esm.sh/@supabase/supabase-js@2.57.4");
+        } catch(primaryError) {
           try {
-            // A third independent CDN keeps startup usable on networks that
-            // block either esm.sh or jsDelivr. All three sources expose the
-            // same official Supabase ESM package.
-            supabaseModule = await importWithTimeout("https://unpkg.com/@supabase/supabase-js@2.57.4/dist/module/index.js");
-          } catch (lastError) {
-            const boot = document.querySelector("#boot");
-            if (boot) {
-              boot.innerHTML = `<div class="boot-card"><strong>系统依赖加载失败</strong><span>请检查网络或代理后刷新页面。</span><button class="primary" onclick="location.reload()">重新加载</button></div>`;
+            supabaseModule = await importWithTimeout("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm");
+          } catch(fallbackError) {
+            try {
+              // The raw dist/module entry contains bare imports; use browser UMD.
+              supabaseModule=await loadBrowserScript("https://unpkg.com/@supabase/supabase-js@2.57.4/dist/umd/supabase.js",{select:()=>typeof window.supabase?.createClient==="function"?window.supabase:null});
+            } catch(lastError) {
+              window.crmBoot?.fail("auth_dependency","登录组件暂时无法加载，请检查网络后重试；无需清除已保存的登录状态。");
+              throw new Error("Supabase 客户端加载失败");
             }
-            throw new Error(`Supabase 客户端加载失败：${lastError?.message || fallbackError?.message || primaryError?.message || "未知错误"}`);
           }
         }
       }
@@ -3131,6 +3153,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         toast("当前账号的导出/下载能力已因风险保护暂停，请联系老板完成复验和解除");return false;
       }
       async function showApp() {
+        window.crmBoot?.stage("workspace");
         if(isGraceApp()){
           $('#boot').classList.add('hidden');
           if(!canUseAgentWorld(profile,currentAuthUser)){
@@ -9762,6 +9785,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       let sessionError = null;
       let preservedSessionFailure = false;
       try {
+        window.crmBoot?.stage("session");
         const sessionResult = await Promise.race([
           supabase.auth.getSession(),
           new Promise((_, reject) => setTimeout(() => reject(new Error("认证服务连接超时")), 15000)),
@@ -9776,6 +9800,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         openRecoveryPassword();
       } else if (session) {
         try {
+          window.crmBoot?.stage("profile");
           await loadProfileWithRetry(session.user);
           sessionReady = true;
         } catch (error) {
@@ -9789,6 +9814,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           }
         }
       }
+      window.crmBoot?.ready();
       $("#boot").classList.add("hidden");
       if (preservedSessionFailure) {
         $("#login-error").textContent = "登录状态仍保留，账号资料暂时加载失败。请点击重新加载，无需再次输入密码。";

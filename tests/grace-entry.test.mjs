@@ -15,8 +15,8 @@ const branch=source.slice(start+'      async function showApp() {'.length,source
 async function boot(allowed){
  const events=[],nodes=new Map();const $=key=>{if(!nodes.has(key))nodes.set(key,{classList:{add:x=>events.push(key+':hide'),remove:x=>events.push(key+':show')},textContent:''});return nodes.get(key)};
  const never=()=>new Promise(()=>{});
- const run=new Function('$','isGraceApp','canUseAgentWorld','profile','currentAuthUser','restoreAgentLocation','loadInquiries','loadDashboardPreferences','loadMyRiskControls',`return (async()=>{${branch}})()`);
- await run($,()=>true,()=>allowed,{}, {},()=>events.push('Grace mounted'),never,never,never);
+ const run=new Function('window','$','isGraceApp','canUseAgentWorld','profile','currentAuthUser','restoreAgentLocation','loadInquiries','loadDashboardPreferences','loadMyRiskControls',`return (async()=>{${branch}})()`);
+ await run({crmBoot:{stage:()=>{}}},$,()=>true,()=>allowed,{}, {},()=>events.push('Grace mounted'),never,never,never);
  return {events,nodes};
 }
 test('authorized Grace mounts before pending business data and never enters CRM startup',async()=>{

@@ -49,3 +49,7 @@ python3 scripts/prepare-private-intelligence.py --source-dir '<项目私有目�
 运行时先核对完整型号标题、区域和精确原文位置，再同本次授权签名源的SHA、版次、页码及现行标记配对；保存包不能自报现行或人工核验。未配对的摘录只能当私有候选，不能用于市场优势。原件SHA、知识包摘要、发布日期、物料更新时间、提取/导入时间分别保留；未知不替代。有可定向的授权当前源时，按完整型号与源SHA构造既定知识键，去重后串行最多查5个键、每键1份、原始返回合计最多5份；空命中不追加最近记录回退，无自动重试。定向读取沿用原版次标签校验，文件名中的版次仅用于冲突检查，不补作当前源凭证。没有可定向当前源时，才互斥地读取最近5份作为候选，候选全部不参与正向分析。源键超限、任一读取失败或响应范围不符、同SHA版次元数据冲突均明确标记未完成，保留可读摘录并暂停正向分析；每次RPC仍消耗原30次/分钟读取额度。
 
 直接产品参数与连续追问保留完整型号和指定版次；市场分析可补读同源字段，仍不代替当地准入、安装实测、成本/渠道及购买证据。公开仓库仅通用实现和合成测试，所有真实文字、组包、问答与验收只存私有目录。回滚恢复配套运行时/校验器，保留产品版本和审计；旧未识别product的读取器需排除新类型，不能令旧界面误报回读成功。
+
+### Company evidence follow-ups
+
+An active single evidence report also accepts short company-field follow-ups (mission, vision, values, corporate spirit, business philosophy and English name), including a request for the original source. These select the same report through the original authenticated read RPC; no report body enters model history. Other companies, new dates/tasks and other report kinds do not inherit this selector. Existing ten-minute expiry, persona/reset/error cleanup and source/version/uncertainty display remain unchanged. This is bounded phrase resolution, not unrestricted semantic memory or human verification of company facts.

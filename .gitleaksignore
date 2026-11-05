@@ -1,3 +1,8 @@
 # Exact public Supabase anon JWT only: role=anon, project=xzetwedmveglnjkxiuet.
 # Browser-distributed client key; no service_role/model/SMTP credential exemption.
 c58ed8c7b50f250fc946a896e9ef5b3b7b69e8e2:assets/grace-public-config.mjs:jwt:2
+
+# Exact integrity-verified official Supabase 2.57.4 UMD false positive.
+# Matches bundled JavaScript export names; no credential value.
+# Vendor SHA256 and official tarball integrity are asserted in tests/browser-dependency.test.mjs.
+b9a1e7844174969b8b175a484b065dc408e8278f:assets/vendor/supabase-2.57.4.js:generic-api-key:1

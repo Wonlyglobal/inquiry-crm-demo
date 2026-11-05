@@ -1,3 +1,4 @@
+import {companyQuestion,companyDocuments,companyDirectAnswer} from './company-question.mjs';
 import {existingVideoIntent,loadExistingVideoIndex,existingVideoAnalysis} from './social-video-existing.mjs';
 import {nativeProductEvidence} from './product-native-evidence.mjs';
 import {nativeProductAnswer} from './private-product-knowledge.mjs';
@@ -12,12 +13,12 @@ export function privateIntelligenceIntent(q=''){
  // Explicit saved-source questions stay in the private snapshot even when they name
  // individual counters instead of saying "指标", or put the platform first.
  const savedSocial=/(?:已同步|已保存|私有)/.test(text)&&/(?:TikTok|Instagram|Facebook|YouTube|社媒)/i.test(text)&&/(?:指标|帖子|逐帖|观看|播放|点击|点赞|评论|分享|收藏|触达|曝光|来源日期|缺口)/.test(text);
- return existingVideoIntent(text)||socialAnalysisIntent(text)||savedSocial||/周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据/i.test(text);
+ return companyQuestion(text)||existingVideoIntent(text)||socialAnalysisIntent(text)||savedSocial||/周报|日报|私有知识|私有证据|新增证据|内部简报|同步的报告|同步.*证据/i.test(text);
 }
 export function privateIntelligenceQuery(q='',now=Date.now()){
  q=typeof q==='string'?q.normalize('NFKC'):'';
  const id=q.match(/\b(?:product-[0-9a-f]{64}|(?:weekly|daily|evidence|tiktok|instagram|facebook|youtube)-20\d{2}-\d{2}-\d{2}(?:-20\d{2}-\d{2}-\d{2})?)\b/)?.[0]||null;
- const kind=id?id.split('-')[0]:/tiktok/i.test(q)?'tiktok':/instagram/i.test(q)?'instagram':/facebook/i.test(q)?'facebook':/youtube/i.test(q)?'youtube':/周报/.test(q)?'weekly':/日报/.test(q)?'daily':/证据/.test(q)?'evidence':null;
+ const kind=id?id.split('-')[0]:companyQuestion(q)?'evidence':/tiktok/i.test(q)?'tiktok':/instagram/i.test(q)?'instagram':/facebook/i.test(q)?'facebook':/youtube/i.test(q)?'youtube':/周报/.test(q)?'weekly':/日报/.test(q)?'daily':/证据/.test(q)?'evidence':null;
  const dates=q.match(/20\d{2}-\d{2}-\d{2}/g)||[];
  let from=dates[0]||null,to=dates[1]||null;
  if(!from&&/上周|本周|这周/.test(q)){
@@ -28,11 +29,12 @@ export function privateIntelligenceQuery(q='',now=Date.now()){
  if(from&&!to&&kind!=='weekly')to=from;
  // A bare week-start date does not authorize selecting a later week's report.
  if(from&&!to&&kind==='weekly'){const d=new Date(from+'T00:00:00Z');if(Number.isFinite(d.getTime())){d.setUTCDate(d.getUTCDate()+6);to=d.toISOString().slice(0,10)}}
- return {p_kind:kind,p_from:from,p_to:to,p_key:id,p_limit:kind?1:5};
+ return {p_kind:kind,p_from:from,p_to:to,p_key:id,p_limit:companyQuestion(q)&&!id?5:kind?1:5};
 }
 export function privateIntelligenceAnswer(result,question='',now=Date.now(),content=null,video=null){
  const rows=Array.isArray(result?.documents)?result.documents:[];
  if(!rows.length)return '私有知识库没有查到对应日期的已同步报告或证据。这不表示该期间没有业务或市场变化；请先导入对应报告。';
+ if(companyQuestion(question)&&companyDocuments(rows).length)return companyDirectAnswer(rows,question);
  const out=['以下来自公司私有知识库；报告与证据未发送给外部模型。'];
  for(const row of rows){const d=row.document;
   if(d.kind==='product'){
@@ -62,6 +64,7 @@ export async function readPrivateIntelligence(client,q,now=Date.now(),options={}
   if(error)throw Error('私有知识读取未完成，请稍后重试');
   documents.push(...(data?.documents||[]));if(!data?.documents?.length&&platforms.length>1)missing.push(selector.p_kind);
  }
+ if(companyQuestion(q)&&(!query.p_key||companyDocuments(documents).length)){const selected=companyDocuments(documents);documents.splice(0,documents.length,...selected);if(!documents.length)return {answer:companyDirectAnswer([],q),receipts:[]};}
  const video=existingVideoIntent(q)&&documents.length?await loadExistingVideoIndex(options.materialConfig,q,options.fetcher||fetch,now):null;
  const content=!existingVideoIntent(q)&&socialContentIntent(q)&&documents.length?await loadSocialContent(options.authorization,options.fetcher||fetch,now):null;
  const note=platforms.length>1?'\n\n各平台分别读取各自已同步快照，不做跨平台排行榜。'+(missing.length?'未找到对应日期快照：'+missing.join('、')+'；不当作0或没有发布。':''):'';

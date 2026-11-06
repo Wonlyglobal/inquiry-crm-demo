@@ -27,3 +27,11 @@ CRM_PIPELINE_FEISHU_WEBHOOK_URL 与 CRM_PIPELINE_FEISHU_ENABLED 仅服务端使�
 隔离 PostgreSQL 执行真实迁移，验证事务/去重/九阶段/权限/租约/退避/失败/排除；离线测试投影、固定目的地、鉴权、发送失败与旧入口。允许一条不含真实客户/人员/业绩的固定连接消息验收；不制造真实客户/阶段、不回放旧业务。自然真实业务的端到端送达需后续真实操作发生后观察。
 
 回滚先关闭 DB enabled 与服务端开关，并暂停仅 crm-pipeline-feishu-dispatch；恢复经备份核对的两个旧入口源码和前端。保留队列、审计、原客户数据与全部既发证据，不删除已发消息或通知记录。逐项确认旧入口恢复的原群仍是授权目的地；不能把停止新路由误作允许转发到旧群。其余治理风险不因此关闭。正式生产状态详见项目 WORKLOG/DEPLOY_AUDIT 与私有验收目录。
+
+## 单人真实提及候选（2026-11-02）
+
+用户要求直接 @ 指定成员，个人账号外部群场景不要求企业空间。官方规则：外部群单人提及仅支持 Open ID，自定义 Webhook 不具有读取成员/反查姓名的能力；参考[自定义机器人使用指南](https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot)和[外部用户与应用机器人](https://open.feishu.cn/document/develop-robots/add-bot-to-external-group)。个人实名认证的应用机器人可支持外部用户主动单聊后获取 Open ID；尚未创建应用、扩大权限或操作实名认证。
+
+候选新增仅服务端 CRM_PIPELINE_FEISHU_MENTION_OPEN_ID / CRM_PIPELINE_FEISHU_MENTION_NAME 可选绑定，严格 ou_+32位hex和单行姓名，拒绝 all、CRM UUID、标签、URL和不完整绑定。只允许服务端可信配置生成一个真实 at 标签，浏览器请求和事件正文不能指定被提及者；正文需求/原权限/队列范围保持。未配置时原消息不变，错误配置拒绝派发，留队列等待纠正，不降级伪装成已提及。
+
+没有取得且核验指定成员有效 Open ID 前，不配置或部署提及，不把姓名展示当成功通知，也不改成 @所有人。当前生产仍是PR459文本姓名。待完成账号绑定后正常CI发布，明确单条提及验收；不要重发历史业务消息。回滚仅恢复 worker/shared 源码和撤销这两个专用提及设置，保留原路由、队列及审计。

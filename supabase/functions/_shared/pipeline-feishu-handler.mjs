@@ -1,4 +1,4 @@
-import {pipelineMessage} from './pipeline-feishu-message.mjs';
+import {pipelineMessage,mentionRecipient} from './pipeline-feishu-message.mjs';
 const reply=(status,result)=>new Response(JSON.stringify(result),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
 export function pipelineHandler({env,createDb,fetcher=fetch,wait=ms=>new Promise(r=>setTimeout(r,ms)),digest=async text=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text))),v=>v.toString(16).padStart(2,'0')).join('')}){
  return async request=>{
@@ -8,6 +8,8 @@ export function pipelineHandler({env,createDb,fetcher=fetch,wait=ms=>new Promise
   if(env('CRM_PIPELINE_FEISHU_ENABLED')!=='true')return reply(503,{error:'pipeline_disabled'});
   const webhook=env('CRM_PIPELINE_FEISHU_WEBHOOK_URL')||'';
   if(!/^https:\/\/open\.feishu\.cn\/open-apis\/bot\/v2\/hook\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(webhook))return reply(503,{error:'destination_not_configured'});
+  let recipient;
+  try{recipient=mentionRecipient(env('CRM_PIPELINE_FEISHU_MENTION_OPEN_ID'),env('CRM_PIPELINE_FEISHU_MENTION_NAME'))}catch{return reply(503,{error:'mention_binding_invalid'})}
   try{
    const db=createDb(),{data,error}=await db.rpc('claim_pipeline_feishu',{destination_hash:await digest(webhook)});
    if(error||!Array.isArray(data))return reply(503,{error:'queue_unavailable'});
@@ -15,7 +17,7 @@ export function pipelineHandler({env,createDb,fetcher=fetch,wait=ms=>new Promise
    for(const [index,item] of data.entries()){
     if(index)await wait(500);
     let ok=false,code='network_or_timeout',message;
-    try{message=pipelineMessage(item);if(new TextEncoder().encode(JSON.stringify(message)).length>18000)throw new Error('payload_too_large')}catch{code='payload_rejected'}
+    try{message=pipelineMessage(item,recipient);if(new TextEncoder().encode(JSON.stringify(message)).length>18000)throw new Error('payload_too_large')}catch{code='payload_rejected'}
     if(message&&code!=='payload_rejected')try{
      const response=await fetcher(webhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(message),signal:AbortSignal.timeout(10000)});
      const result=await response.json();ok=response.ok&&result.code===0;

@@ -136,6 +136,7 @@ begin
   if action<>'revoke' and me.id<>g.approver_id then raise exception '只有指定审批人可审批'; end if;
   if r.expires_at<=clock_timestamp() or (action='revoke' and r.status not in('pending','approved')) or (action<>'revoke' and r.status<>'pending') then raise exception '申请已处理或过期'; end if;
   if action<>'revoke' and args->>'hash' is distinct from r.snapshot_hash then raise exception '请先核对本次快照'; end if;
+  if action<>'revoke' and not exists(select 1 from private.company_export_events where request_id=r.id and actor_id=me.id and event_type='previewed') then raise exception '请先打开并核对本次快照'; end if;
   update private.company_export_requests set status=case action when 'approve' then 'approved' when 'reject' then 'rejected' else 'revoked' end,
    download_expires_at=case when action='approve' then least(expires_at,clock_timestamp()+interval '10 minutes') else null end where id=r.id;
   insert into private.company_export_events(request_id,actor_id,event_type,reason,metadata) values(r.id,me.id,action,why,jsonb_build_object('hash',r.snapshot_hash));

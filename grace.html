@@ -4746,6 +4746,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#legacy-project-template").classList.toggle("hidden", view !== "legacy-projects");
         $("#legacy-project-import").classList.toggle("hidden", view !== "legacy-projects" || profile?.role!=="owner");
         $("#customer-import-template").classList.toggle("hidden",view!=="customers");
+        $("#company-export-open")?.classList.toggle("hidden",view!=="customers");
         $("#customer-import").classList.toggle("hidden",view!=="customers"||!["owner","marketing","sales"].includes(profile.role));
         if(view === "legacy-projects" && profile?.role==="owner"){
           supabase.rpc("import_legacy_engineering_projects",{p_rows:[],p_source_file:"capability-check"}).then(({error})=>{

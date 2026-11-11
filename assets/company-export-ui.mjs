@@ -5,7 +5,7 @@ export async function mountCompanyExportButton({client,anchor,openModal,escapeHt
  const call=async(action,args={})=>{const {data,error}=await client.rpc('company_export_workspace',{action,args});if(error)throw Error(error.message||'导出服务暂不可用');return data};
  let initial;try{initial=await call('list')}catch{return}
  if(!initial?.enabled)return;
- const button=document.createElement('button');button.id='company-export-open';button.type='button';button.className='ghost';button.textContent='全范围导出 / 审批';anchor.parentElement.insertBefore(button,anchor);
+ const button=document.createElement('button');button.id='company-export-open';button.type='button';button.className=anchor.classList.contains('hidden')?'ghost hidden':'ghost';button.textContent='全范围导出 / 审批';anchor.parentElement.insertBefore(button,anchor);
  const counts=x=>Object.entries(x||{}).map(([k,n])=>`${labels[k]||k} ${n}`).join(' · ');
  async function show(){
   openModal('客户全范围导出','<p role="status">正在读取授权和导出记录…</p>');

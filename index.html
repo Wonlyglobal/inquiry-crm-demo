@@ -3173,6 +3173,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#app").classList.remove("hidden");
         $("#ai-assistant-open").classList.remove("hidden");
         $("#user-name").textContent = profile.full_name;
+        void import('./assets/company-export-ui.mjs?v=20261111-1').then(({mountCompanyExportButton})=>mountCompanyExportButton({client:supabase,anchor:$('#customer-import'),openModal:openDashboardModal,escapeHtml:esc,saveFile:(filename,text)=>{const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}})).catch(()=>{});
         $("#user-role").textContent = (profile.job_title || roleNames[profile.role] || profile.role) + (crmReadOnly ? " · 市场部只读" : "");
         applyReadOnlyControls();
         setMemberAvatar($("#avatar"), profile, "王");

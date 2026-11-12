@@ -22,3 +22,14 @@ test('UI only saves server approved CSV and escapes every preview',()=>{
  assert.match(ui,/esc\(JSON.stringify\(rows,null,2\)\)/);
  assert.doesNotMatch(ui,/localStorage|signInWithPassword|service_role|\.from\(/);
 });
+const direct=readFileSync(new URL('../supabase/migrations/20261112100000_owner_direct_company_exports.sql',import.meta.url),'utf8');
+test('direct export is an explicit per-account flag and never a role-wide bypass',()=>{
+ assert.match(direct,/add column direct_download boolean not null default false/);
+ assert.match(direct,/g.direct_download and not exists\(select 1 from public.profiles where id=g.requester_id and role='owner'\)/);
+ assert.match(direct,/r.direct_download is distinct from g.direct_download/);
+ assert.match(direct,/me.id=r.requester_id or g.direct_download/);
+ assert.match(direct,/'direct_authorized'/);assert.match(direct,/new.direct_download,new.id/);
+ assert.match(direct,/requester_id=r.requester_id and approver_id=r.approver_id/);
+ assert.match(ui,/r.can_approve/);assert.match(ui,/r.can_download/);assert.match(ui,/created.direct/);
+ assert.doesNotMatch(direct,/update public.profiles|alter policy|grant .* on .* to authenticated/);
+});

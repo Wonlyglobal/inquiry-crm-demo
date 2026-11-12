@@ -24,6 +24,7 @@ insert into follow_ups values('40000000-0000-0000-0000-000000000001','30000000-0
 insert into quotation_versions values('50000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001',123,now());
 insert into private.sales_leads values('60000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000003','合成线索',now());`);
 await db.exec(await readFile(new URL('../supabase/migrations/20261111120000_followup_company_exports.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20261112100000_owner_direct_company_exports.sql',import.meta.url),'utf8'));
 await db.exec(`insert into private.company_export_grants(requester_id,approver_id,requester_email,approver_email,reason,approval_reference) values('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','request@example.invalid','review@example.invalid','合成用户明确批准单人审批例外','synthetic-approval-20261111');`);
 const actor=async n=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[`00000000-0000-0000-0000-00000000000${n}`]);await db.exec('set role authenticated')};
 const call=async(a,args={})=>(await db.query('select public.company_export_workspace($1,$2) x',[a,args])).rows[0].x;
@@ -46,4 +47,17 @@ await db.exec('reset role');await db.exec("update private.company_export_grants 
 await db.exec('reset role');await db.exec("insert into risk_user_controls values('00000000-0000-0000-0000-000000000001',true,false,false)");await actor(1);await denied(call('download',{id:r2.id}),/风险控制/);
 await db.exec('reset role');await db.exec('delete from risk_user_controls');await db.exec("update private.company_export_grants set active=false");await db.exec("update private.company_export_grants set active=true");await actor(1);await denied(call('download',{id:r2.id}),/授权或账号角色/);
 await db.exec('reset role');await db.exec('set role anon');await denied(call('list'),/permission denied/);
+await db.exec('reset role');
+await db.exec(`insert into private.company_export_grants(requester_id,approver_id,requester_email,approver_email,direct_download,reason,approval_reference) values('00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000002','review@example.invalid','review@example.invalid',true,'项目负责人批准合成账号直接导出','synthetic-direct-20261112');`);
+await actor(2);const directList=await call('list');assert.equal(directList.direct,true);assert.equal(directList.requester,true);assert.equal(directList.approver,true);checks+=3;
+const own=await call('request',{categories,reason:'合成负责人直接导出全部客户'});assert.equal(own.direct,true);checks++;
+let ownRow=(await call('list')).requests.find(x=>x.id===own.id);assert.equal(ownRow.status,'approved');assert.equal(ownRow.can_download,true);assert.equal(ownRow.can_approve,false);assert.ok(ownRow.events.some(x=>x.action==='direct_authorized'));assert.ok(!ownRow.events.some(x=>x.action==='approve'));checks+=5;
+await denied(call('approve',{id:own.id,hash:ownRow.snapshot_hash,reason:'不允许伪造本人审批动作'}),/指定审批人/);
+await db.exec('reset role');await denied(db.query('update private.company_export_requests set direct_download=false where id=$1',[own.id]),/不可修改/);
+await actor(1);const legacy=await call('request',{categories:['customers'],reason:'合成跟单仍然必须经审批',direct:true});assert.equal(legacy.direct,false);checks++;await denied(call('download',{id:legacy.id}),/未获批准/);
+await actor(2);const both=(await call('list')).requests;assert.ok(both.some(x=>x.id===legacy.id&&x.can_approve&&!x.can_download));checks++;
+const legacyPreview=await call('preview',{id:legacy.id});await call('approve',{id:legacy.id,hash:legacyPreview.hash,reason:'合成原跟单流程核对后审批'});checks++;
+const ownedFile=await call('download',{id:own.id});assert.ok(ownedFile.csv.includes(own.id));checks++;await denied(call('download',{id:own.id}),/已领取/);
+await actor(1);assert.ok((await call('download',{id:legacy.id})).csv.includes(legacy.id));checks++;
+await db.exec('reset role');await db.exec("update private.company_export_grants set active=false where requester_id='00000000-0000-0000-0000-000000000002'");await actor(2);const onlyReview=await call('list');assert.equal(onlyReview.direct,false);assert.equal(onlyReview.requester,false);assert.equal(onlyReview.approver,true);checks+=3;
 await db.close();console.log(`${checks} company export assertions passed`);

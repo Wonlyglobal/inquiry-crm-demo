@@ -18,7 +18,7 @@ test('all six categories use production-only snapshots, no raw mail, attachment 
 });
 test('UI only saves server approved CSV and escapes every preview',()=>{
  assert.match(ui,/client.rpc\('company_export_workspace'/);assert.match(ui,/if\(!initial\?\.enabled\)return/);
- assert.match(ui,/saveFile\(file.filename,'\\ufeff'\+file.csv\)/);
+ assert.match(ui,/companyExportXlsx\(file.csv\)/);
  assert.match(ui,/esc\(JSON.stringify\(rows,null,2\)\)/);
  assert.doesNotMatch(ui,/localStorage|signInWithPassword|service_role|\.from\(/);
 });

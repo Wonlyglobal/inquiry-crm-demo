@@ -12,14 +12,14 @@ create table risk_user_controls(user_id uuid primary key,export_suspended boolea
 create function private.reject_risk_event_mutation() returns trigger language plpgsql as $$begin raise exception 'immutable';end$$;
 create function private.crm_export_csv_cell(value text) returns text language sql as $$select '"'||replace(case when coalesce(value,'') ~ '^[[:space:]]*[=+@-]' then ''''||coalesce(value,'') else coalesce(value,'') end,'"','""')||'"'$$;
 create table companies(id uuid primary key,name text,created_at timestamptz,is_test_data boolean,data_environment text);
-create table contacts(id uuid primary key,company_id uuid,email text,created_at timestamptz,is_test_data boolean,data_environment text);
+create table contacts(id uuid primary key,company_id uuid,email text,full_name text,created_at timestamptz,is_test_data boolean,data_environment text);
 create table inquiries(id uuid primary key,company_id uuid,owner_id uuid,title text,created_at timestamptz,is_test_data boolean,data_environment text,archived_at timestamptz,merged_into_id uuid,excluded_from_dashboard boolean);
 create table follow_ups(id uuid primary key,inquiry_id uuid,content text,created_at timestamptz,attribution_correction_id uuid);
 create table quotation_versions(id uuid primary key,inquiry_id uuid,total_amount numeric,created_at timestamptz);
 create table private.sales_leads(id uuid primary key,sales_id uuid,company text,recorded_at timestamptz);
 insert into profiles values('00000000-0000-0000-0000-000000000001','request@example.invalid','合成跟单','marketing',true,false,'production'),('00000000-0000-0000-0000-000000000002','review@example.invalid','合成审批人','owner',true,false,'production'),('00000000-0000-0000-0000-000000000003','other@example.invalid','其他人','owner',true,false,'production');
 insert into companies values('10000000-0000-0000-0000-000000000001','=FORMULA',now(),false,'production'),('10000000-0000-0000-0000-000000000002','TEST',now(),true,'test');
-insert into contacts values('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','synthetic@example.invalid',now(),false,'production');
+insert into contacts values('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','synthetic@example.invalid','合成联系人',now(),false,'production');
 insert into inquiries values('30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000003','全公司商机',now(),false,'production',null,null,false),('30000000-0000-0000-0000-000000000002',null,null,'ARCHIVED',now(),false,'production',now(),null,false);
 insert into follow_ups values('40000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','合成跟进',now(),null);
 insert into quotation_versions values('50000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001',123,now());
@@ -27,6 +27,7 @@ insert into private.sales_leads values('60000000-0000-0000-0000-000000000001','0
 await db.exec(await readFile(new URL('../supabase/migrations/20261111120000_followup_company_exports.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20261112100000_owner_direct_company_exports.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20261112110000_company_export_role_compat.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20261112120000_company_export_workbook_names.sql',import.meta.url),'utf8'));
 await db.exec(`insert into private.company_export_grants(requester_id,approver_id,requester_email,approver_email,reason,approval_reference) values('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','request@example.invalid','review@example.invalid','合成用户明确批准单人审批例外','synthetic-approval-20261111');`);
 const actor=async n=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[`00000000-0000-0000-0000-00000000000${n}`]);await db.exec('set role authenticated')};
 const call=async(a,args={})=>(await db.query('select public.company_export_workspace($1,$2) x',[a,args])).rows[0].x;
@@ -39,7 +40,7 @@ const categories=['customers','contacts','opportunities','followups','quotations
 const r=await call('request',{categories,reason:'合成跟单复核全公司客户数据'});assert.deepEqual(r.counts,Object.fromEntries(categories.map(k=>[k,1])));checks++;
 assert.equal((await call('list')).requests[0].snapshot,undefined);checks++;
 await denied(call('preview',{id:r.id}),/仅审批人/);await denied(call('approve',{id:r.id,reason:'禁止本人自批验证用例'}),/指定审批人/);await denied(call('download',{id:r.id}),/未获批准/);
-await actor(2);const p=await call('preview',{id:r.id});assert.equal(p.snapshot.quotations[0].total_amount,123);checks++;await denied(call('approve',{id:r.id,hash:'fake',reason:'快照哈希不一致验证用例'}),/先核对/);
+await actor(2);const p=await call('preview',{id:r.id});assert.equal(p.snapshot.quotations[0].total_amount,123);assert.equal(p.snapshot.opportunities[0]['负责业务员姓名'],'其他人');assert.equal(p.snapshot.followups[0]['关联公司名称'],'=FORMULA');checks+=3;await denied(call('approve',{id:r.id,hash:'fake',reason:'快照哈希不一致验证用例'}),/先核对/);
 await call('approve',{id:r.id,hash:p.hash,reason:'已核对全字段合成快照用途'});checks++;
 await denied(call('download',{id:r.id}),/未获批准/);
 await actor(1);const file=await call('download',{id:r.id});assert.ok(file.csv.includes("'=FORMULA"));assert.ok(!file.csv.includes('ARCHIVED'));assert.ok(file.csv.includes(r.id));checks+=3;await denied(call('download',{id:r.id}),/已领取/);

@@ -58,9 +58,16 @@ function eventTitle(p){
  if(fields.some(f=>f.startsWith('nurture_')))return '培育安排已更新';
  return '询盘跟进进度已更新';
 }
-export function pipelineMessage(item){
+export function mentionRecipient(openId,name){
+ if(!openId&&!name)return null;
+ if(typeof openId!=='string'||!/^ou_[a-f0-9]{32}$/.test(openId)||!person(name))throw new Error('invalid_mention_binding');
+ return {open_id:openId,name:person(name)};
+}
+export function pipelineMessage(item,recipient=null){
+ const verified=recipient?mentionRecipient(recipient.open_id,recipient.name):null;
+ const mention=verified?`提醒：<at user_id="${verified.open_id}">${verified.name}</at>\n`:'';
  const p=item.payload||{};
- if(p.kind==='connection_test')return {msg_type:'text',content:{text:'【WONLY CRM 流水线提醒 · 连接验收】\n这是一条合成示例，无真实客户、人员或业绩。\n事件：询盘已分拣\n基本需求：防火门 / 国家待核实 / 数量待核实\n下一步：市场部（待指定）核实需求，销售主管再分配业务员。\n正式提醒仅来自启用后已保存的业务更新。'}};
+ if(p.kind==='connection_test')return {msg_type:'text',content:{text:mention+'【WONLY CRM 流水线提醒 · 连接验收】\n'+(verified?'这是一条合成示例，无真实客户或业绩；仅验收指定成员提及。':'这是一条合成示例，无真实客户、人员或业绩。')+'\n事件：询盘已分拣\n基本需求：防火门 / 国家待核实 / 数量待核实\n下一步：市场部（待指定）核实需求，销售主管再分配业务员。\n正式提醒仅来自启用后已保存的业务更新。'}};
  if(!['inquiry','intake'].includes(p.kind))throw new Error('invalid_event_kind');
  const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
  const no=/^\d{1,12}$/.test(String(p.inquiry_no??''))?`#${String(p.inquiry_no).padStart(6,'0')}`:'待登记';
@@ -70,5 +77,5 @@ export function pipelineMessage(item){
  if(p.nurture_status==='nurturing'&&p.nurture_next_at)lines.push(`计划培育：${time(p.nurture_next_at)}`);
  if(p.next_follow_up_at)lines.push(`计划跟进：${time(p.next_follow_up_at)}`);
  lines.push(`更新人：${person(p.actor_name)||'系统或后台任务'}`,`事件时间：${time(item.occurred_at)}（北京时间）`, `CRM详情：https://crm.foreverdoodle.com/${uuid.test(p.inquiry_id||'')?'#inquiry/'+p.inquiry_id:'#view=email'}`,'以上为事件发生时的记录；当前进度与权限以 CRM 为准。');
- return {msg_type:'text',content:{text:lines.join('\n')}};
+ return {msg_type:'text',content:{text:mention+lines.join('\n')}};
 }

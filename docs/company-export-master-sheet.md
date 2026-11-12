@@ -1,0 +1,7 @@
+# Customer master sheet
+
+Prepend 客户总表 to the existing six complete detail sheets. Group by stable company ID plus salesperson ID and sort by salesperson; same-name people/companies are never inferred to be identical. Contacts are company-shared and may repeat across salesperson rows. Leads count under the original recording salesperson; opportunities, follow-ups and quotation versions use their snapshot responsible person. No cross-currency total is invented.
+
+Stable company/person relation IDs are added privately to newly frozen snapshots so date/category-filtered detail exports still retain the correct summary links. Names/IDs are not refreshed after approval. Existing snapshots remain immutable and fall back only to explicit record relations; unresolved standalone leads remain distinct and visibly marked. Every company appears even when unassigned; every lead, opportunity, follow-up and quotation belongs to exactly one summary row. No data permissions or export approval changes.
+
+The master shows company facts, contact channels, sources, product categories, lead needs/count/date, opportunity/stage/amount summaries, latest follow-up/feedback/next date and quotation/version summaries. Long narrative summaries point explicitly to their unchanged complete detail sheet rather than hiding or overwriting history. Two identifying columns and header are frozen; technical IDs/tracking remain hidden at the end. This is a customer view, not a new performance scoring definition.

@@ -40,6 +40,9 @@ test('browser read-only boundary retains viewing and password change but rejects
   assert.equal(allowed('/functions/v1/mailbox-send','POST'),false);
   assert.equal(allowed('/functions/v1/mailbox-send','GET'),false);
   assert.equal(allowed('/rest/v1/rpc/get_shared_inquiry_mailbox_status','POST'),true);
+  assert.equal(allowed('/rest/v1/rpc/get_inquiry_channel_origins','POST'),true);
+  assert.equal(allowed('/rest/v1/rpc/company_export_workspace','POST'),true);
+  assert.equal(allowed('/rest/v1/rpc/create_export_request','POST'),false);
   assert.equal(allowed('/rest/v1/rpc/finish_initial_password_change','POST'),true);
   assert.equal(allowed('/rest/v1/rpc/finish_readonly_initial_password_change','POST'),true);
   assert.equal(allowed('/storage/v1/object/sign/customer-documents/test','POST'),true);

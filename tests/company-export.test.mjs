@@ -33,3 +33,11 @@ test('direct export is an explicit per-account flag and never a role-wide bypass
  assert.match(ui,/r.can_approve/);assert.match(ui,/r.can_download/);assert.match(ui,/created.direct/);
  assert.doesNotMatch(direct,/update public.profiles|alter policy|grant .* on .* to authenticated/);
 });
+
+const compat=readFileSync(new URL('../supabase/migrations/20261112110000_company_export_role_compat.sql',import.meta.url),'utf8');
+test('production enum roles compare as text and CSV is aggregated without quadratic concatenation',()=>{
+ assert.match(compat,/r.requester_role is distinct from \(select role::text/);
+ assert.match(compat,/r.approver_role is distinct from \(select role::text/);
+ assert.match(compat,/string_agg/);assert.match(compat,/order by dataset.key,item.ordinality,field.key/);
+ assert.doesNotMatch(compat,/csv:=csv\|\|/);
+});

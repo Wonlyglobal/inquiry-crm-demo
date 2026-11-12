@@ -2783,9 +2783,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         if (url.pathname.startsWith("/functions/v1/")) return false;
         if (method === "POST" && /^\/storage\/v1\/object\/(sign|list)\//.test(url.pathname)) return true;
         if (["GET", "HEAD", "OPTIONS"].includes(method)) return true;
-        return method === "POST" && ["/rest/v1/rpc/get_shared_inquiry_mailbox_status", "/rest/v1/rpc/finish_initial_password_change", "/rest/v1/rpc/finish_readonly_initial_password_change", "/rest/v1/rpc/get_my_sales_360_workspace", "/rest/v1/rpc/submit_sales_360_evaluation"].includes(url.pathname);
+        return method === "POST" && ["/rest/v1/rpc/get_inquiry_channel_origins", "/rest/v1/rpc/company_export_workspace", "/rest/v1/rpc/get_shared_inquiry_mailbox_status", "/rest/v1/rpc/finish_initial_password_change", "/rest/v1/rpc/finish_readonly_initial_password_change", "/rest/v1/rpc/get_my_sales_360_workspace", "/rest/v1/rpc/submit_sales_360_evaluation"].includes(url.pathname);
       }
       function readOnlyMutationControl(button) {
+        // Dedicated export RPC rechecks the exact per-user grant and approval state.
+        if (button.closest("#company-export-request,#company-export-review") || button.matches("[data-download],[data-preview],[data-revoke],#company-export-back")) return false;
         if (button.matches(".nav,[data-view],.detail-tab,[data-detail-tab],[data-close]")) return false;
         if (button.closest("#login-form,#password-form,#forgot-password-form,#sales360-evaluation-form")) return false;
         const label = (button.textContent || "").trim();
@@ -2812,7 +2814,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         }
       }, true);
       document.addEventListener("submit", event => {
-        if (crmReadOnly && !["login-form","password-form","forgot-password-form","sales360-evaluation-form"].includes(event.target.id)) {
+        if (crmReadOnly && !["login-form","password-form","forgot-password-form","sales360-evaluation-form","company-export-request","company-export-review"].includes(event.target.id)) {
           event.preventDefault(); event.stopImmediatePropagation(); toast("当前账号为市场部只读权限");
         }
       }, true);

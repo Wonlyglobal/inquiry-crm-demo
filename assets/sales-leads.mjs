@@ -16,6 +16,8 @@ export function summarize(data,salesId,from,to){
 export function emptyLeadValue(value){
  const text=String(value??'').trim();return /^(?:[-—–]+|无|暂无|未知|待确认|待补充|n\/a|null)$/i.test(text)?'':text;
 }
+export const estimateCurrencies={CNY:'人民币',USD:'美元',EUR:'欧元',GBP:'英镑',HKD:'港币',JPY:'日元',AED:'阿联酋迪拉姆',SAR:'沙特里亚尔',INR:'印度卢比',AUD:'澳元',CAD:'加元'};
+export function estimateIssues(row){const amount=String(row.estimated_amount??'').trim();return amount&&!/^[0-9]{1,12}(\.[0-9]{1,2})?$/.test(amount)?['预计金额需为非负数，最多12位整数及2位小数']:amount&&!/^[A-Z]{3}$/.test(row.currency||'CNY')?['币种需为三位大写代码']:[]}
 export function leadIssues(row){
  const issues=[];
  if(!row.company&&!row.contact)issues.push('客户名称或联系人至少填写一项');
@@ -25,15 +27,15 @@ export function leadIssues(row){
  if((row.company||'').length>300||(row.contact||'').length>200||row.demand.length>10000||JSON.stringify(row).length>15900)issues.push('线索内容超长，请拆分核对，不会截断原文');
  if(row.demand.length<4)issues.push('需求简述至少4字，可填写待跟进方向');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(row.acquired_on)||Number.isNaN(Date.parse(row.acquired_on+'T00:00:00Z'))||new Date(row.acquired_on+'T00:00:00Z').toISOString().slice(0,10)!==row.acquired_on)issues.push('获取日期应为YYYY-MM-DD');
- return issues;
+ return [...issues,...estimateIssues(row)];
 }
 export function normalizeLead(row){
- return Object.fromEntries(['company','contact','country','email','phone','source','demand','acquired_on'].map(k=>[k,emptyLeadValue(row[k])]));
+ const out=Object.fromEntries(['company','contact','country','email','phone','source','demand','acquired_on'].map(k=>[k,emptyLeadValue(row[k])]));const amount=emptyLeadValue(row.estimated_amount);return {...out,...(amount!==''?{estimated_amount:amount,currency:String(row.currency||'CNY').trim().toUpperCase()}: {})};
 }
 export function importRows(rows,{acquiredOn=""}={}){
  if(!Array.isArray(rows)||!rows.length||rows.length>200)throw Error('每批导入1—200行');
  const customerFormat=rows.some(r=>Object.hasOwn(r,'公司名称')||Object.hasOwn(r,'客户邮箱')||Object.hasOwn(r,'来源渠道'));
- const keys={company:'客户名称',contact:'联系人',country:'国家',email:'邮箱',phone:'电话',source:'来源',demand:'需求简述',acquired_on:'获取日期'};
+ const keys={company:'客户名称',contact:'联系人',country:'国家',email:'邮箱',phone:'电话',source:'来源',demand:'需求简述',acquired_on:'获取日期',estimated_amount:'预计金额',currency:'币种'};
  const errors=[];
  const result=rows.map((r,i)=>{const raw={};for(const [k,label] of Object.entries(keys))raw[k]=r[label]??r[k]??'';
   if(customerFormat){
@@ -41,7 +43,7 @@ export function importRows(rows,{acquiredOn=""}={}){
    for(const [k,label] of Object.entries(aliases))raw[k]=r[label]??raw[k];
    const extra={row_number:Number.isInteger(r.__rowNum__)?r.__rowNum__+1:i+2,...raw,source_detail:r['渠道明细']||'',company_type:r['客户类型']||''};
    const normalized=normalizeCustomerImports([extra]).rows[0];
-   Object.assign(raw,normalized);
+   const originalAmount=raw.estimated_amount,originalCurrency=raw.currency;Object.assign(raw,normalized);raw.estimated_amount=originalAmount;raw.currency=originalCurrency;
    const notes=[normalized.source_detail];
    for(const label of ['WhatsApp','产品品类','数量','商机标题','预计金额','币种','预计采购日期'])if(String(r[label]??'').trim())notes.push(`${label}（原文件）：${r[label]}`);
    if(!raw.phone)raw.phone=r.WhatsApp||'';

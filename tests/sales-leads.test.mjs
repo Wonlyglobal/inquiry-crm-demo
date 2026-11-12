@@ -54,3 +54,5 @@ test('date completion revalidates the retained file and never submits automatica
  assert.match(page,/decodeCustomerCsv\(bytes\)/);assert.match(page,/importRecords=\[\]/);
  const html=readFileSync(new URL('../sales-leads.html',import.meta.url),'utf8');assert.match(html,/id="import-acquired-on" type="date"/);assert.doesNotMatch(html,/id="import-acquired-on"[^>]*value=/);
 });
+
+ test('optional estimates preserve zero and currency in manual and both import formats without inflating identity',()=>{const r={company:'模拟公司',country:'Ghana',source:'outbound',demand:'待跟进门类需求',acquired_on:'2026-11-12'};const a=importRows([{...r,estimated_amount:'0'}])[0];assert.equal(a.estimated_amount,'0');assert.equal(a.currency,'CNY');const b=importRows([{'公司名称':'模拟公司','国家/地区':'Ghana','需求摘要':'待跟进门类需求','获取日期':'2026-11-12','预计金额':'12.34','币种':'usd'}])[0];assert.equal(b.estimated_amount,'12.34');assert.equal(b.currency,'USD');assert.throws(()=>importRows([{...r,estimated_amount:'-1'}]),/预计金额/);assert.throws(()=>importRows([{...r,estimated_amount:'1.234'}]),/预计金额/);assert.ok(!Object.hasOwn(importRows([r])[0],'estimated_amount'))});

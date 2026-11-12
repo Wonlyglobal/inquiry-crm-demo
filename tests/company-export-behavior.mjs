@@ -28,6 +28,7 @@ await db.exec(await readFile(new URL('../supabase/migrations/20261111120000_foll
 await db.exec(await readFile(new URL('../supabase/migrations/20261112100000_owner_direct_company_exports.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20261112110000_company_export_role_compat.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20261112120000_company_export_workbook_names.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20261112130000_company_export_summary_links.sql',import.meta.url),'utf8'));
 await db.exec(`insert into private.company_export_grants(requester_id,approver_id,requester_email,approver_email,reason,approval_reference) values('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','request@example.invalid','review@example.invalid','合成用户明确批准单人审批例外','synthetic-approval-20261111');`);
 const actor=async n=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[`00000000-0000-0000-0000-00000000000${n}`]);await db.exec('set role authenticated')};
 const call=async(a,args={})=>(await db.query('select public.company_export_workspace($1,$2) x',[a,args])).rows[0].x;
@@ -40,7 +41,7 @@ const categories=['customers','contacts','opportunities','followups','quotations
 const r=await call('request',{categories,reason:'合成跟单复核全公司客户数据'});assert.deepEqual(r.counts,Object.fromEntries(categories.map(k=>[k,1])));checks++;
 assert.equal((await call('list')).requests[0].snapshot,undefined);checks++;
 await denied(call('preview',{id:r.id}),/仅审批人/);await denied(call('approve',{id:r.id,reason:'禁止本人自批验证用例'}),/指定审批人/);await denied(call('download',{id:r.id}),/未获批准/);
-await actor(2);const p=await call('preview',{id:r.id});assert.equal(p.snapshot.quotations[0].total_amount,123);assert.equal(p.snapshot.opportunities[0]['负责业务员姓名'],'其他人');assert.equal(p.snapshot.followups[0]['关联公司名称'],'=FORMULA');checks+=3;await denied(call('approve',{id:r.id,hash:'fake',reason:'快照哈希不一致验证用例'}),/先核对/);
+await actor(2);const p=await call('preview',{id:r.id});assert.equal(p.snapshot.quotations[0].total_amount,123);assert.equal(p.snapshot.opportunities[0]['负责业务员姓名'],'其他人');assert.equal(p.snapshot.followups[0]['关联公司名称'],'=FORMULA');assert.equal(p.snapshot.followups[0]['关联公司编号'],'10000000-0000-0000-0000-000000000001');assert.equal(p.snapshot.followups[0]['负责业务员编号'],'00000000-0000-0000-0000-000000000003');checks+=5;await denied(call('approve',{id:r.id,hash:'fake',reason:'快照哈希不一致验证用例'}),/先核对/);
 await call('approve',{id:r.id,hash:p.hash,reason:'已核对全字段合成快照用途'});checks++;
 await denied(call('download',{id:r.id}),/未获批准/);
 await actor(1);const file=await call('download',{id:r.id});assert.ok(file.csv.includes("'=FORMULA"));assert.ok(!file.csv.includes('ARCHIVED'));assert.ok(file.csv.includes(r.id));checks+=3;await denied(call('download',{id:r.id}),/已领取/);

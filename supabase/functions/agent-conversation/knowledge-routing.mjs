@@ -5,7 +5,7 @@ import {analysisIntent} from './deep-analysis.mjs';
 export function knowledgeRoute(question,history=[]){
  const q=normalizeProductInput(question),previous=history.filter(x=>x.role==='user').at(-1)?.content||'';
  const followup=/^(那|继续|展开|详细|为什么|怎么做|再|它|他们|这个|上面)/.test(q)&&q.length<80;
- const topic=followup?q+' '+previous:q;
+ const topic=(followup?q+' '+previous:q).replace(/不涉及(?:任何)?(?:公司资料|产品或市场)[，。；;]?/g,'');
  const productInternal=/(我们|我司|王力|wonly)/i.test(topic)&&/产品|型号|材质|规格|尺寸|认证|防火|隔音|质保|安装|参数/i.test(topic);
  const modelQuestion=/\b[A-Za-z][A-Za-z0-9_-]*\d[A-Za-z0-9_-]*\b/.test(topic)&&(materialFields(topic).length>0||/资料|信息|介绍/.test(topic));
  const materials=productInternal||modelQuestion||seriesIntent(topic)||/(?:木门|安全门|防盗门|智能锁|门锁|医用门|防火门|防火窗).{0,8}(?:画册|样本)/.test(topic)||/物料|资料库|产品系列|系列目录|产品线|产品知识|知识覆盖|解析进度|产品手册|宣传册|安装视频|公司动态|公司资料|找.{0,12}(资料|文件|视频|图片)/.test(topic)

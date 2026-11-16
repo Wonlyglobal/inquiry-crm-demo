@@ -108,7 +108,8 @@ export function catalogPageIntent(question){
  // but “尺寸是多少，请附PDF页码” is a question, not a file request.
  const explicit=/打开|下载|翻看|翻一下|调出|调取|\b(?:open|download)\b/i.test(q);
  if(CATALOG_FACT.test(q)&&(!explicit||/只回答|只要回答|是多少|多少|多久|是什么|有哪些|里的|中的/.test(q)))return false;
- return CATALOG_VERB.test(q)||/pdf/i.test(q);
+ const titleOnly=/^(?:WONLY\s*)?(?:真?智能锁|静音木门|木门|工程|项目|工程方案|零售|零售产品)?\s*画册(?:呢|吧)?[。？?！!]*$/i.test(q);
+ return titleOnly||CATALOG_VERB.test(q)||/pdf/i.test(q);
 }
 // Terse file follow-ups inherit only the most recent unambiguous catalogue.
 export function catalogRequestTurn(question,history=[]){

@@ -60,3 +60,9 @@ test('catalogue PDF comes from the material library: best current matching PDF, 
  assert.equal(pickCatalogAsset('c2',[{id:'x',name:'零售价格表.pdf',isCurrentVersion:true}]),null);
  assert.equal(CATALOG_QUERIES.c4.length,2);
 });
+
+ test('bare catalogue titles request a file without swallowing parameter questions',()=>{
+ for(const q of ['智能锁画册','智能锁画册？','真智能锁画册','木门画册','工程画册','零售画册','WONLY 智能锁画册','画册'])assert.equal(catalogPageIntent(q),true,q);
+ assert.equal(catalogNameIntent('智能锁画册'),'c4');
+ for(const q of ['智能锁画册有哪些型号','智能锁画册里的供电参数','不要智能锁画册','智能锁画册尺寸是多少'])assert.equal(catalogPageIntent(q),false,q);
+ });

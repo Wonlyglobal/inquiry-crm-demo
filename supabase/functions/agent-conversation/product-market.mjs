@@ -81,10 +81,15 @@ export async function loadMarketMaterials(question,model,catalog,load){
 const PREFIX='产品市场：';
 export function productMarketTurn(question,history=[]){
  const q=normalizeProductInput(question).replace(/^产品市场：/,'').trim();
- const previous=history.find(h=>String(h).startsWith(PREFIX));
+ const last=history.at(-1);
+ const previous=String(last||'').startsWith(PREFIX)?last:null;
  const follow=previous&&/^(?:那|那么|换成|改为|再看|继续|来源|证据|缺口|为什么|哪些|建议|评分|匹配|竞争|下一页|产品第|国家第)/.test(q)&&
   (productMarketIntent(q)||countryMatches(q).length||materialModelCodes(q).length||catOf(q)||/来源|证据|缺口|为什么|建议|评分|匹配|竞争|下一页|产品第|国家第|优势|劣势|机会|威胁|定位|参数|安装|认证|售后/.test(q));
  if(!productMarketIntent(q)&&!follow)return null;
+ // Generic frameworks are not requests for the internal product catalogue.
+ const scoped=q.replace(/不涉及[^，。；;\n]*/g,'');
+ const internalScope=catOf(scoped)||materialModelCodes(scoped).length||/王力|WONLY|我们|本公司|我司|产品|型号|画册|规格书|CRM|询盘|门窗/i.test(scoped);
+ if(!follow&&!internalScope)return null;
  if(!previous||!follow)return q;
  const prior=previous.slice(PREFIX.length),models=materialModelCodes(q),category=catOf(q),countries=countryMatches(q);
  let base=prior.replace(/(?:产品|国家)第\s*\d+\s*页/g,'');

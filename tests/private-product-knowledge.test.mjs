@@ -49,13 +49,13 @@ test('saved product receipt/list reads remain compatible without claiming source
 test('parameter response uses original quotes, no commercial score and a query-only context',()=>{
  const turn={model:'TEST80 Pro',edition:'V9',question:'TEST80 Pro V9参数'};
  const answer=nativeProductAnswer({facts:[],receipts:[],gaps:[],status:'not_found'},turn);
- assert.match(answer.answer,/不借用相邻型号/);assert.match(answer.answer,/不据此给出国家商业匹配评分/);assert.equal(answer.material_question,'私有产品：'+turn.question);
- assert.match(nativeProductAnswer({facts:[],gaps:[]},{...turn,question:'TEST80 Pro 的防水等级是多少'}).answer,/具体参数未在这些原生文字中/);
+ assert.match(answer.answer,/暂未取得可核实的同型号参数/);assert.doesNotMatch(answer.answer,/国家商业匹配评分/);assert.match(answer.evidence_report,/不借用相邻型号/);assert.equal(answer.material_question,'私有产品：'+turn.question);
+ assert.match(nativeProductAnswer({facts:[],gaps:[]},{...turn,question:'TEST80 Pro 的防水等级是多少'}).answer,/暂未取得可核实的同型号参数/);
 });
 test('compound parameter questions name each missing dimension without borrowing a known value',()=>{
  const result={facts:[{field:'门厚',value:'Door thickness 40-80mm',ref:'Synthetic page 1',edition:'V9',sha256:'a'.repeat(64),analysis_eligible:true}],receipts:[],gaps:[]};
  const answer=nativeProductAnswer(result,{model:'TEST80 PRO',edition:'V9',question:'TEST80 PRO；门厚、防水等级和最大承重是多少？'}).answer;
- assert.match(answer,/门厚：下方同型号原文含相关线索/);assert.match(answer,/防水与防护等级：本次摘录未返回可定位的原文参数，保持未知/);assert.match(answer,/最大承重：本次摘录未返回可定位的原文参数，保持未知/);assert.match(answer,/Door thickness 40-80mm/);
+ assert.match(answer,/门厚：Door thickness 40-80mm/);assert.match(answer,/防水与防护等级：暂未取得可核实的同型号参数，不能确定/);assert.match(answer,/最大承重：暂未取得可核实的同型号参数，不能确定/);assert.match(answer,/Door thickness 40-80mm/);
  const follow=nativeProductTurn('它的原文发布日期呢',['私有产品：TEST80 PRO V9；参数']);assert.equal(follow.model,'TEST80 PRO');assert.equal(follow.edition,'V9');
 });
 test('only source-validated private facts supplement a market report and never establish commercial admission',async()=>{
@@ -112,7 +112,7 @@ test('one exact read failure stops without retry or latest fallback and withhold
  const native=await loadPrivateProductEvidence(client,{model:'TEST80 PRO',edition:'V9',materials});
  assert.equal(calls.length,2);assert.ok(calls.every(a=>a.p_key!==null));assert.equal(native.read_count,1);assert.equal(native.status,'partial');assert.equal(native.retrieval_incomplete,true);assert.equal(native.facts.length,1);assert.equal(native.facts[0].analysis_eligible,false);assert.doesNotMatch(JSON.stringify(native),/SYNTHETIC-PRIVATE-ERROR/);
  const report=productMarketReport({question:'TEST80 PRO智能锁V9在肯尼亚市场分析',catalog:{sources:[],products:[{model:'TEST80 PRO',category:'smart_lock'}]},materials,native,evidence:[]});
- assert.equal(report.current_parameter_count,0);assert.equal(report.product.retrieval_incomplete,true);assert.doesNotMatch(report.answer,/可作为待测试卖点/);assert.match(nativeProductAnswer(native,{model:'TEST80 PRO',edition:'V9',question:'参数'}).answer,/读取失败不表示没有参数/);
+ assert.equal(report.current_parameter_count,0);assert.equal(report.product.retrieval_incomplete,true);assert.doesNotMatch(report.answer,/可作为待测试卖点/);assert.match(nativeProductAnswer(native,{model:'TEST80 PRO',edition:'V9',question:'参数'}).answer,/不代表物料库没有该参数/);
 });
 
 test('malformed, oversized and out-of-scope exact responses fail closed within the original raw-row budget',async t=>{
@@ -158,5 +158,5 @@ test('the actual native handler returns an incomplete read without a false missi
  let audited=false,spoken='';const target=syntheticRow();
  const deps={guest:false,nativeProductTurn,loadPrivateProductEvidence,nativeProductAnswer,input:{question:'TEST80 PRO V9的供电参数',persona:'Grace',materialHistory:[]},client:{rpc:async()=>({error:{message:'SYNTHETIC-PRIVATE-ERROR'}})},admin:{from:()=>({insert:async x=>{audited=x.after_data.operation==='private_product_native';return {error:null}}})},loadCatalog:async()=>({sources:[],products:[]}),gateMaterialEvidence:x=>x,loadMarketMaterials:async()=>({status:'available',assets:[sourceFor(target)]}),loadFullMaterials:()=>{throw Error('Unexpected extra read')},materialConfig:{},user:{id:'synthetic'},action:'synthetic',key:'synthetic',ticket:async x=>{spoken=x.text;return null},json:x=>x};
  const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor,result=await new AsyncFunction(...Object.keys(deps),branch+'\nreturn {fallthrough:true};')(...Object.values(deps));
- assert.equal(audited,true);assert.equal(result.fallthrough,undefined);assert.equal(result.provider,'internal');assert.equal(result.model,'private-product-native');assert.equal(result.context.native_fields,0);assert.match(result.answer,/补读未完成/);assert.doesNotMatch(result.answer,/SYNTHETIC-PRIVATE-ERROR/);assert.match(spoken,/不能据此判断没有参数/);assert.doesNotMatch(spoken,/原生文字证据已放在窗口里/);
+ assert.equal(audited,true);assert.equal(result.fallthrough,undefined);assert.equal(result.provider,'internal');assert.equal(result.model,'private-product-native');assert.equal(result.context.native_fields,0);assert.match(result.answer,/资料读取未完成/);assert.doesNotMatch(result.answer,/SYNTHETIC-PRIVATE-ERROR/);assert.match(spoken,/不能据此判断没有参数/);assert.doesNotMatch(spoken,/原生文字证据已放在窗口里/);
 });

@@ -13,6 +13,7 @@ create function private.reject_risk_event_mutation() returns trigger language pl
 create function private.crm_manager_covers_inquiry(a uuid,i uuid) returns boolean language sql as $$select false$$;
 create function private.sales_lead_actor() returns profiles language plpgsql as $$declare a public.profiles;begin select * into a from public.profiles where id=auth.uid() and active and not is_test_data and data_environment='production';if a.id is null then raise exception 'unauthorized';end if;return a;end$$;`);
 const migration=await readFile(new URL('../supabase/migrations/20261104110000_unassigned_inquiry_merge.sql',import.meta.url),'utf8');await db.exec(migration);
+await db.exec(await readFile(new URL('../supabase/migrations/20261116180000_owned_master_inquiry_merge.sql',import.meta.url),'utf8'));
 const ids=Array.from({length:7},(_,n)=>`00000000-0000-4000-8000-00000000000${n+1}`),[owner,market,sales,target,source,c,box]=ids;
 await db.query("insert into profiles(id,role) values($1,'owner'),($2,'marketing'),($3,'sales')",[owner,market,sales]);
 await db.query("insert into contacts values($1,'customer@example.invalid')",[c]);
@@ -38,4 +39,19 @@ await actor(owner);await q('select restore_inquiry_merge($1,$2)',[source,'隔离
 await db.exec('reset role');assert.equal((await q('select count(*)::int n from inquiries where archived_at is null')).rows[0].n,2);checks++;await deny('delete from private.inquiry_merges',[],/immutable/);
 await actor(market);await deny('select * from private.inquiry_merges',[],/permission denied/);
 await db.exec('reset role');await db.exec('set role anon');await deny('select inquiry_merge_workspace($1)',[target],/permission denied/);
+await db.exec('reset role');
+const owned='00000000-0000-4000-8000-000000000008',incoming='00000000-0000-4000-8000-000000000009',service='00000000-0000-4000-8000-000000000010';
+await q("insert into contacts values($1,'service@example.invalid')",[service]);
+await q("insert into inquiries(id,owner_id,contact_id,source,created_at,inquiry_no,title,original_message) values($1,$3,$4,'email','2026-11-03T21:39:29Z',101,'Same request',E'Email: customer2@example.invalid'),($2,null,$4,'email','2026-11-03T21:49:57Z',102,'Same request',E'Email: CUSTOMER2@example.invalid')",[owned,incoming,sales,service]);
+await db.exec('create table follow_ups(id int,inquiry_id uuid,content text);create table quotation_versions(id int,inquiry_id uuid,total_amount numeric)');
+await q("insert into follow_ups values(1,$1,'original follow-up'),(2,$2,'incoming note')",[owned,incoming]);await q('insert into quotation_versions values(1,$1,100)',[owned]);
+assert.equal((await q('select private.merge_email(i) x from inquiries i where id=$1',[owned])).rows[0].x,'customer2@example.invalid');checks++;
+await actor(market);await deny('select preview_inquiry_merge($1,$2)',[incoming,owned],/老板确认/);await actor(sales);await deny('select preview_inquiry_merge($1,$2)',[incoming,owned],/仅允许/);
+await actor(owner);let ownedState=(await q('select inquiry_merge_workspace($1) x',[owned])).rows[0].x;assert.ok(ownedState.can_merge);assert.equal(ownedState.candidates[0].id,incoming);checks+=2;
+const ownedPreview=(await q('select preview_inquiry_merge($1,$2) x',[incoming,owned])).rows[0].x;assert.equal(ownedPreview.target.preserves_assigned_owner,true);checks++;
+await deny('select merge_unassigned_inquiries($1,$2,$3,$4)',[incoming,owned,'确认同客户同产品，保留原业务员','bad'],/预览已变化/);
+await q('select merge_unassigned_inquiries($1,$2,$3,$4)',[incoming,owned,'确认同客户同产品，保留原业务员',ownedPreview.hash]);
+await db.exec('reset role');const kept=(await q('select * from inquiries where id=$1',[owned])).rows[0];assert.equal(kept.owner_id,sales);assert.equal(kept.created_at.toISOString(),'2026-11-03T21:39:29.000Z');assert.equal(kept.original_message,'Email: customer2@example.invalid');assert.equal((await q('select merged_into_id from inquiries where id=$1',[incoming])).rows[0].merged_into_id,owned);checks+=4;
+assert.equal((await q('select count(*)::int n from follow_ups')).rows[0].n,2);assert.equal((await q('select count(*)::int n from quotation_versions')).rows[0].n,1);assert.equal((await q("select count(*)::int n from inquiries where inquiry_no in(101,102) and archived_at is null")).rows[0].n,1);checks+=3;
+await actor(owner);assert.equal((await q('select inquiry_merge_workspace($1) x',[owned])).rows[0].x.history.length,1);checks++;await deny('select merge_unassigned_inquiries($1,$2,$3,$4)',[incoming,owned,'禁止重复合并已归档记录',ownedPreview.hash],/未归档/);
 console.log(checks+' isolated inquiry merge checks passed');await db.close();

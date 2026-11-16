@@ -6173,7 +6173,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#kpi-total").textContent=periodRows.length;
         $("#kpi-total").disabled=false;
         const detailSnapshot=periodRows.map(row=>({id:row.id,inquiry_no:row.inquiry_no}));
-        const detailScope={type,start,end,selectedTeam,selectedSales,selectedSource,selectedCountry,selectedProduct,selectedDealType};
+        const detailScope={type,start,end,selectedTeam,selectedSales,selectedSource,sourceLabel:$("#dashboard-source")?.selectedOptions?.[0]?.textContent||selectedSource,selectedCountry,selectedProduct,selectedDealType};
         $("#kpi-total").onclick=()=>openOfficialInquiryDetails(detailSnapshot,detailScope); $("#kpi-pending").textContent=activeScoped.filter(x=>x.validity==="valid"&&x.status==="pending_assignment").length;
         const assigned=commercialScoped.filter(x=>x.assigned_at&&inRange(x.assigned_at,start,end));
         const responded=assigned.filter(x=>x.first_valid_contact_at);
@@ -6412,7 +6412,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         openDashboardModal("新增官方询盘明细",'<div id="official-inquiry-detail-root" tabindex="-1" role="region" aria-label="新增官方询盘明细">正在加载明细…</div>');
         const root=$("#official-inquiry-detail-root"); root.focus();
         try{
-        const {mountOfficialInquiryDetails}=await import("./assets/official-inquiry-details.mjs?v=20261116-details1");
+        const {mountOfficialInquiryDetails}=await import("./assets/official-inquiry-details.mjs?v=20261116-details2");
         if(!root.isConnected)return;
         await mountOfficialInquiryDetails(root,{rows,scope,
           loadPage:async ids=>{

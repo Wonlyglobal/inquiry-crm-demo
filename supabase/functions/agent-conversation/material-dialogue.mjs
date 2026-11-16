@@ -47,7 +47,37 @@ export function evidenceDifferences(assets){
  }
  return [...groups].filter(([,v])=>new Set(v.map(x=>x.assetId)).size>1).slice(0,3).map(([key,v])=>`待核对：${key.replace('|',' · ')}在当前资料中的表述不同，可能涉及条件或版本差异，尚未判定矛盾。\n`+v.slice(0,3).map(x=>`${x.source} / ${x.location}：${x.quote}`).join('\n')).join('\n\n');
 }
+// Direct parameter replies use only the normalized, source-gated product findings.
+// Full source excerpts remain available through the existing explicit detail action.
+export function directMaterialParameterAnswer(data,question){
+ const named=namedMaterialProducts(question),codes=materialModelCodes(question);
+ const targets=named.length?named:codes;
+ const requested=fields(question).filter(x=>!['来源','页码','版本'].includes(x));
+ if(named.length!==1||targets.length!==1||!requested.length||data.status!=='available')return null;
+ const target=targets[0],matches=[],covered=new Set();
+ for(const a of data.assets||[]){
+  if(!a.isCurrentVersion)continue;
+  for(const f of a.document?.product_understanding?.findings||[]){
+   if(String(f.product).toLowerCase()!==target.toLowerCase())continue;
+   const relevant=requested.filter(w=>f.field===w||fields(f.field).includes(w));
+   if(!relevant.length||!Number.isInteger(f.page)||typeof f.value!=='string'||!f.value.trim())continue;
+   const key=[f.field,f.value,a.id,f.page].join('|');if(matches.some(m=>m.key===key))continue;
+   matches.push({key,f,a,relevant});
+  }
+ }
+ const hidden=(data.assets||[]).some(a=>Number(a.document?.product_understanding?.hidden_findings)>0);
+ if(!matches.length)return `${target}的${requested.join('、')}：本次返回证据未明确覆盖所问参数，暂不能确定。\n来源缺口：当前返回的资料没有可用于这一回答的参数证据。${hidden?'未通过来源校验的证据已隐藏。':''}`;
+ const chosen=matches.slice(0,3);for(const m of chosen)for(const w of m.relevant)covered.add(w);
+ const lines=chosen.map(({f,a})=>`${target}｜${f.field}：${f.value}\n来源：${a.name}，第${f.page}页，${a.versionLabel||'版次未标注'}；资料更新：${a.updatedAt||'未返回'}。`);
+ const missing=requested.filter(w=>!covered.has(w));
+ if(missing.length)lines.push('本次证据未明确覆盖：'+missing.join('、')+'。');
+ if(hidden)lines.push('未通过来源校验的证据已隐藏。');
+ if(chosen.some(({a})=>a.document?.status==='partial'))lines.push('资料仅部分解析，仍有缺口。');
+ lines.push('以上为内部机器提取，尚未人工核验。'+(data.has_more||matches.length>chosen.length?'还有未展示的候选证据。':''));
+ return lines.join('\n');
+}
 export function conciseMaterialAnswer(data,question){
+ const direct=directMaterialParameterAnswer(data,question);if(direct)return direct;
  if(/知识覆盖|解析进度|学了多少|了解多少/.test(question))return coverageSummary(data.document_coverage)+'内部资料仅在公司系统内处理。你可以按型号查询参数、安装要求或资料出处。';
  if(!data.assets.length&&data.relevance_filtered)return '本次检索没有找到同时满足你所提条件的资料。未将其他门类、未标注英文或非手册文件充当结果。'+(data.has_more?'本页候选未匹配，仍有后续候选，可说“下一页”继续核对。':'这不代表公司一定没有该资料；可能缺少语言标注或尚未入库。');
  if(!data.assets.length)return '在本次有权检索的资料中没有找到匹配内容，不能据此判断该产品不存在。请提供完整型号，或减少关键词后重试。\n'+coverageSummary(data.document_coverage);

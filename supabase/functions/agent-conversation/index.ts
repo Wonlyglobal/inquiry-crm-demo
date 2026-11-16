@@ -408,7 +408,7 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
    const catalogueHistory=(input.materialHistory||[]).map((q:string)=>q.replace(/^画册检索：/,''));
    const projectQuery=projectTurn(input.question,catalogueHistory),catalogueQuery=catalogueTurn(input.question,input.materialHistory||[]);
    const contextTurn=projectQuery||catalogueQuery?{question:projectQuery||catalogueQuery}:resolveMaterialTurn(input.question,catalogueHistory),catalogQuestion=(contextTurn.clarification?input.question:contextTurn.question).replace(/^物料：/,'');
-   const scopedNamedMaterial=explicitMaterialDocument(contextTurn.question)||(/^物料[:：]/.test(contextTurn.question)&&namedMaterialProducts(contextTurn.question).length>0);
+   const scopedNamedMaterial=explicitMaterialDocument(contextTurn.question)||namedMaterialProducts(contextTurn.question).length>0;
    const spec=guest||scopedNamedMaterial||materialVersion(catalogQuestion)||selectionIntent(catalogQuestion)?null:specIntent(catalogQuestion);
    if(spec){const catalog=await loadCatalog(admin);const answer=catalog&&!findModels(catalogQuestion,catalog).length?specAnswer(spec,catalog):null;if(answer){
     const fullSearch=fullCatalogueAnswer(null,catalog,catalogQuestion);

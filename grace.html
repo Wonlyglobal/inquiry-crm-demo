@@ -1542,6 +1542,14 @@
           grid-template-columns: 1fr;
         }
       }
+
+      .official-count-button{display:block;border:0;background:transparent;color:inherit;padding:0;min-width:2ch;text-align:left;cursor:pointer;box-shadow:none;border-radius:8px}
+      .official-count-button:hover:not(:disabled){color:#a44b00;text-decoration:underline;text-underline-offset:6px}
+      .official-count-button:focus-visible{outline:3px solid #c99e48;outline-offset:5px}
+      .official-detail-list{display:grid;gap:16px}.official-detail-row{border:1px solid #d6e2dc;border-radius:16px;padding:18px;background:#fff}
+      .official-detail-row h4{margin:0 0 12px}.official-detail-row dl{display:grid;grid-template-columns:90px minmax(0,1fr);gap:10px;margin:0}.official-detail-row dt{color:#63766c}.official-detail-row dd{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
+      .official-detail-row small{display:block}.official-detail-row details{white-space:normal}.official-detail-row pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}.official-detail-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}.official-detail-error{color:#a34438}
+      @media(max-width:600px){.official-detail-row{padding:14px}.official-detail-row dl{grid-template-columns:1fr;gap:5px}.official-detail-row dd{margin-bottom:9px}}
     </style>
   <link rel="stylesheet" href="./assets/agent-world.css?v=20261020-layout4" />
   <link rel="stylesheet" href="./assets/ui-contrast.css?v=20261012-feedback" />
@@ -1755,7 +1763,7 @@
           <div class="kpis dashboard-kpis current-dashboard-block" data-dashboard-widget="core-kpis">
             <div class="card">
               <div class="kpi-label">新增官方询盘 <button class="metric-help" data-metric="new_inquiries">?</button></div>
-              <div class="kpi-value" id="kpi-total">0</div>
+              <button type="button" class="kpi-value official-count-button" id="kpi-total" disabled aria-haspopup="dialog" aria-label="查看新增官方询盘明细">—</button><small class="hint">点击数字核对明细</small>
             </div>
             <div class="card">
               <div class="kpi-label">待分配 <button class="metric-help" data-metric="pending_assignment">?</button></div>
@@ -5903,6 +5911,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       }
       function renderDashboardUnavailable() {
         if (dashboardHasSuccessfulLoad) return;
+        $("#kpi-total").disabled=true; $("#kpi-total").onclick=null;
         $("#hero-sales-cny").textContent = "—";
         $("#hero-sales-usd").textContent = "数据未加载";
         $("#hero-sales-period").textContent = "等待重新加载";
@@ -6153,7 +6162,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const periodRows=scoped.filter(x=>inRange(x.created_at,start,end));
         const activeScoped=scoped.filter(x=>x.validity!=="invalid"),commercialScoped=scoped.filter(x=>x.validity==="valid");
         const decided=periodRows.filter(x=>x.validity!=="pending"), closed=periodRows.filter(x=>x.validity==="valid"&&["won","lost"].includes(x.status)), won=scoped.filter(x=>x.validity==="valid"&&x.status==="won"&&inRange(x.won_at||x.created_at,start,end));
-        $("#kpi-total").textContent=periodRows.length; $("#kpi-pending").textContent=activeScoped.filter(x=>x.validity==="valid"&&x.status==="pending_assignment").length;
+        $("#kpi-total").textContent=periodRows.length;
+        $("#kpi-total").disabled=false;
+        const detailSnapshot=periodRows.map(row=>({id:row.id,inquiry_no:row.inquiry_no}));
+        const detailScope={type,start,end,selectedTeam,selectedSales,selectedSource,selectedCountry,selectedProduct,selectedDealType};
+        $("#kpi-total").onclick=()=>openOfficialInquiryDetails(detailSnapshot,detailScope); $("#kpi-pending").textContent=activeScoped.filter(x=>x.validity==="valid"&&x.status==="pending_assignment").length;
         const assigned=commercialScoped.filter(x=>x.assigned_at&&inRange(x.assigned_at,start,end));
         const responded=assigned.filter(x=>x.first_valid_contact_at);
         const fast=responded.filter(x=>new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000);
@@ -6387,6 +6400,26 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       function addAiMessage(role,text,options){const host=$("#ai-assistant-messages");if(worldPersona){const node=appendQuestionMessage(host,role,text,options);if(!/^(I\'m here, Chloe\.|Hello Chloe|.*已准备好)/.test(text))worldController?.showResponse();return node;}else{const el=document.createElement("div");el.className=`ai-message ${role}`;el.textContent=text;host.append(el);host.scrollTop=host.scrollHeight;return el;}}
 
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
+      async function openOfficialInquiryDetails(rows,scope){
+        openDashboardModal("新增官方询盘明细",'<div id="official-inquiry-detail-root" tabindex="-1" role="region" aria-label="新增官方询盘明细">正在加载明细…</div>');
+        const root=$("#official-inquiry-detail-root"); root.focus();
+        try{
+        const {mountOfficialInquiryDetails}=await import("./assets/official-inquiry-details.mjs?v=20261116-details1");
+        if(!root.isConnected)return;
+        await mountOfficialInquiryDetails(root,{rows,scope,
+          loadPage:async ids=>{
+            const result=await supabase.from("inquiries").select("id,inquiry_no,title,contact_name,demand_summary,original_message,created_at,archived_at,merged_into_id,excluded_from_dashboard,companies(name)").in("id",ids);
+            if(result.error)throw new Error("询盘读取失败，请重试");
+            const active=(result.data||[]).filter(row=>!row.archived_at&&!row.merged_into_id&&!row.excluded_from_dashboard);
+            const visible=await officialInquiryRows(active,(name,args)=>supabase.rpc(name,args));
+            const receipt=visible.length?await supabase.from("email_intake").select("inquiry_id,received_at").in("inquiry_id",visible.map(row=>row.id)):{data:[],error:null};
+            return {rows:visible,receipts:receipt.data||[],receiptError:!!receipt.error};
+          },
+          loadHistory:async id=>{const result=await supabase.rpc("inquiry_merge_workspace",{target_id:id});if(result.error)throw new Error("合并记录读取失败或无查看权限");return result.data.history},
+          openInquiry:id=>{$("#dashboard-modal").classList.add("hidden");openInquiryDetail(id)}
+        });
+        }catch{if(root.isConnected)root.textContent="明细组件加载失败，请关闭后重试；看板数据未修改。"}
+      }
       function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
       async function promptAuditedReason(title,message){
         const accepted=await appConfirm(message,{title,confirmText:"继续",editable:true,placeholder:"请输入至少 8 字真实原因",minLength:8});

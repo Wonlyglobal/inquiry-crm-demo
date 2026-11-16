@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {readAnswerStream} from '../assets/grace-answer-stream.mjs';
+import {providerStream} from '../supabase/functions/agent-conversation/bailian.mjs';
+function response(text){const bytes=new TextEncoder().encode(text);return new Response(new ReadableStream({start(c){for(const b of bytes)c.enqueue(new Uint8Array([b]));c.close()}}),{headers:{'content-type':'text/event-stream'}})}
+test('UTF8 deltas precede authoritative final answer',async()=>{const parts=[];const result=await readAnswerStream(response('event: delta\ndata: {"text":"你好"}\n\nevent: delta\ndata: {"text":"世界"}\n\nevent: result\ndata: {"answer":"你好世界"}\n\n'),s=>parts.push(s));assert.deepEqual(parts,['你好','世界']);assert.equal(result.answer,'你好世界')});
+test('lost connection and server errors never count as completed',async()=>{await assert.rejects(readAnswerStream(response('event: delta\ndata: {"text":"部分"}\n\n'),()=>{}),/中断/);await assert.rejects(readAnswerStream(response('event: error\ndata: {"error":"登录失效"}\n\n')),/登录失效/)});
+test('old JSON endpoint remains compatible',async()=>{assert.deepEqual(await readAnswerStream(Response.json({answer:'回答'})),{answer:'回答'})});
+test('provider streams text with stop marker and keeps complete answer',async()=>{const parts=[];let request;const result=await providerStream({stream:false},'test',s=>parts.push(s),undefined,async(url,options)=>{request=JSON.parse(options.body);return response('data: {"choices":[{"delta":{"content":"中文"}}]}\n\ndata: {"choices":[{"delta":{"content":"回答"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')});assert.equal(request.stream,true);assert.deepEqual(parts,['中文','回答']);assert.equal(result.choices[0].message.content,'中文回答')});
+test('provider rejects truncation instead of persisting success',async()=>{for(const tail of ['',',"finish_reason":"length"'])await assert.rejects(providerStream({},'test',()=>{},undefined,async()=>response('data: {"choices":[{"delta":{"content":"部分"}'+tail+'}]}\n\n')),/未完成/) });
+
+test('CRLF and heartbeats remain readable',async()=>{const parts=[];const result=await readAnswerStream(response(': ping\r\n\r\nevent: delta\r\ndata: {"text":"好"}\r\n\r\nevent: result\r\ndata: {"answer":"好"}\r\n\r\n'),s=>parts.push(s));assert.deepEqual(parts,['好']);assert.equal(result.answer,'好')});

@@ -1,3 +1,4 @@
+import {mountChatScroll} from './grace-chat-scroll.mjs';
 import { fitGraceViewport } from './grace-viewport.mjs';
 import {arrangeVoiceSettings,tidyMobileMessages} from './agent-voice-settings.mjs?v=20261019-private1';
 import {progressBlock} from './agent-material-progress.mjs';
@@ -20,6 +21,7 @@ export function mountGraceMobile({host,model,onLogout,readProgress}){
  const feedback=panel.querySelector('.agent-response-feedback');let feedbackFold=null;
  if(feedback){feedbackFold=document.createElement('details');feedbackFold.className='grace-feedback';const summary=document.createElement('summary');summary.textContent='评价与回答偏好';feedback.before(feedbackFold);feedbackFold.append(summary,feedback)}
  const messages=panel.querySelector('#ai-assistant-messages'),tidy=()=>{tidyMobileMessages(messages,empty);if(feedbackFold)feedbackFold.hidden=feedback.hidden};tidy();const messageObserver=new MutationObserver(tidy);if(messages)messageObserver.observe(messages,{childList:true,subtree:true});if(feedback)messageObserver.observe(feedback,{attributes:true,attributeFilter:['hidden']});
+ const chatScroll=mountChatScroll({scroller:app.querySelector('.grace-scroll'),content:messages,buttonHost:app.querySelector('.grace-composer'),active:()=>app.dataset.view==='chat'});
  const timeline=document.querySelector('#room-timeline');if(timeline)app.querySelector('.grace-history').append(timeline);
  let callState={active:false},mode='idle',interruptTimer,progressBusy=false;
  async function updateProgress(){if(progressBusy||document.hidden||!app.isConnected)return;progressBusy=true;const button=app.querySelector('.grace-progress-refresh');button.disabled=true;button.textContent='正在查询…';try{const p=await readProgress?.();app.querySelector('.grace-progress-body').replaceChildren(progressBlock(p||{status:'unavailable'}))}catch{app.querySelector('.grace-progress-body').replaceChildren(progressBlock({status:'unavailable'}))}finally{progressBusy=false;button.disabled=false;button.textContent='刷新进度'}}
@@ -32,7 +34,7 @@ export function mountGraceMobile({host,model,onLogout,readProgress}){
  function tab(view){const changed=app.dataset.view!==view;app.dataset.view=view;if(changed)app.querySelector('.grace-scroll').scrollTop=0;app.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tab===view)));if(view==='history'){model.loadTimeline();void updateProgress()}}
  app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
  app.querySelectorAll('[data-question]').forEach(b=>b.onclick=()=>{document.querySelector('#ai-assistant-input').value=b.dataset.question;form.requestSubmit()});
- form.addEventListener('submit',()=>{const input=document.querySelector('#ai-assistant-input');if(input.value.trim())tab('chat');else if(!model.busy()){for(const node of app.querySelectorAll('#grace-status,.grace-chat-status span'))node.textContent='请先输入你想问的问题';input.focus()}},true);
+ form.addEventListener('submit',()=>{const input=document.querySelector('#ai-assistant-input');if(input.value.trim()){tab('chat');chatScroll.latest();}else if(!model.busy()){for(const node of app.querySelectorAll('#grace-status,.grace-chat-status span'))node.textContent='请先输入你想问的问题';input.focus()}},true);
  app.querySelector('.grace-voice').onclick=()=>tools.querySelector('[data-phone-toggle]')?.click();
  app.querySelector('.grace-enroll-shortcut').onclick=()=>{tab('settings');const button=tools.querySelector('[data-voiceprint-enroll]');button?.scrollIntoView({block:'center'});button?.focus({preventScroll:true})};
  app.querySelector('.grace-call-end').onclick=()=>model.phone.stop();
@@ -46,5 +48,5 @@ export function mountGraceMobile({host,model,onLogout,readProgress}){
  fitGraceViewport(app);
 
  tab('home');paint();
- return {showConversation(){if(!callState.active)tab('chat')},setStatus(text){for(const node of app.querySelectorAll('#grace-status,.grace-chat-status span'))node.textContent=text||stateLabels[orbState(mode)];},setMode(value){clearTimeout(interruptTimer);mode=value;paint()}};
+ return {showConversation(){if(!callState.active){const entering=app.dataset.view!=='chat';tab('chat');if(entering)chatScroll.latest();}},setStatus(text){for(const node of app.querySelectorAll('#grace-status,.grace-chat-status span'))node.textContent=text||stateLabels[orbState(mode)];},setMode(value){clearTimeout(interruptTimer);mode=value;paint()}};
 }

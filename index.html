@@ -2705,6 +2705,7 @@
       })();
     </script>
     <script type="module">
+import {recoveryIntent,recoveryRedirect,cleanRecoveryUrl,observePasswordRecovery} from "./assets/password-recovery.mjs?v=20261116-recovery1";
       import {loadBrowserScript} from "./assets/browser-dependency.mjs?v=20261105-local1";
       import {bindResearchGenerateEntry} from "./assets/research-generate-entry.mjs?v=20261029-1";
       import {leadWorkspaceRoute} from "./assets/lead-workspace-route.mjs?v=20261028-sidebar2";
@@ -2856,6 +2857,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         }
         return String(result?.error?.message || fallback);
       }
+      const recoveryRequested = recoveryIntent(location);
       const supabase = createClient(
           "https://plhverjihjilnuhlhlxi.supabase.co",
           "sb_publishable_uDiOI4MTIoHbsQDAqHsH1A_4Db3Hmmw",
@@ -2863,6 +2865,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         ),
         $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
+      const recoveryFlow = observePasswordRecovery(supabase.auth, recoveryRequested);
       let profile = null, currentAuthUser = null, riskControlState = {export_suspended:false,download_suspended:false,sensitive_reveal_suspended:false}, dashboardLayoutEditing = false, dashboardPreferenceState = null, dashboardPreferenceSaveTimer = null, dashboardPreferenceSaveQueue = Promise.resolve(), dashboardPreferencesApplying = false, detailTabsEditing = false, detailTabsSaveTimer = null;
       let returnToDailyAfterLeadCreate = false;
       let dailySection = "report";
@@ -7505,7 +7508,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           return;
         }
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${location.origin}${location.pathname}`,
+          redirectTo: recoveryRedirect(location),
         });
         button.disabled = false;
         if (error) {
@@ -7543,7 +7546,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         }
         if (passwordChangeMode === "recovery") {
           await supabase.auth.signOut();
-          history.replaceState(null, "", location.pathname + location.search);
+          history.replaceState(null, "", cleanRecoveryUrl(location));
           $("#password-modal").classList.add("hidden");
           $("#login").classList.remove("hidden");
           $("#login-error").style.color = "var(--green)";
@@ -7563,7 +7566,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#new-password").value = "";
         $("#new-password-confirm").value = "";
         $("#password-error").textContent = "";
-        history.replaceState(null, "", location.pathname + location.search);
+        history.replaceState(null, "", cleanRecoveryUrl(location));
         $("#password-modal").classList.add("hidden");
         $("#app").classList.add("hidden");
         $("#ai-assistant-open").classList.add("hidden");
@@ -9772,18 +9775,18 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       const openRecoveryPassword = () => {
         passwordChangeMode = "recovery";
         $("#password-modal-title").textContent = "设置新的登录密码";
+        $("#password-form button[type=submit]").textContent = "保存新密码";
+        $("#password-logout").textContent = "取消重置，返回登录";
         $("#password-error").textContent = "";
         $("#boot").classList.add("hidden");
         $("#login").classList.add("hidden");
         $("#app").classList.add("hidden");
         $("#password-modal").classList.remove("hidden");
       };
-      let recoveryActive = /(?:^|[&#?])type=recovery(?:&|$)/.test(`${location.hash}&${location.search}`);
-      supabase.auth.onAuthStateChange((event) => {
-        if (event === "PASSWORD_RECOVERY") {
-          recoveryActive = true;
-          openRecoveryPassword();
-        }
+      let recoveryActive = !!recoveryFlow.session;
+      recoveryFlow.onVerified(() => {
+        recoveryActive = true;
+        openRecoveryPassword();
       });
       let session = null;
       let sessionError = null;
@@ -9802,7 +9805,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       let sessionReady = false;
       if (session && recoveryActive) {
         openRecoveryPassword();
-      } else if (session) {
+      } else if (session && !recoveryRequested) {
         try {
           window.crmBoot?.stage("profile");
           await loadProfileWithRetry(session.user);
@@ -9825,6 +9828,11 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#login-form").querySelectorAll(".field, button[type='submit'], #forgot-password").forEach((element) => element.classList.add("hidden"));
         $("#session-retry").classList.remove("hidden");
       } else if (sessionError) $("#login-error").textContent = "数据服务暂时无法连接，请检查网络后重试";
+      if (recoveryRequested && !recoveryActive) {
+        $("#login-error").textContent = sessionError
+          ? "重置链接验证暂未完成，请检查网络后重新打开邮件链接。"
+          : "重置链接未完成验证，可能已过期或已使用。请点击忘记密码，重新申请最新邮件链接。";
+      }
       if (!sessionReady && !recoveryActive) $("#login").classList.remove("hidden");
       const initialInquiry = location.hash.match(/^#inquiry\/(.+)$/);
       if (sessionReady && !isGraceApp() && initialInquiry)

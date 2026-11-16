@@ -460,3 +460,10 @@ Validation: 1119 offline regressions, browser module syntax and whitespace check
 
 2026-10-26 release approval: the user explicitly approved submission to Wonlyglobal/inquiry-crm-demo, normal checks, merge and deployment of this previously reviewed October 24 start-of-day layout restoration; no email sending. Rebased on current main fd4b7b8 without conflicts, retaining all later daily-lead/Grace changes. Revalidation: 1285 offline regressions, module syntax and diff checks pass. No backend/database/policy/data writes. Pending protected PR/CI and production verification; production must not be described as restored until these complete.
 2026-10-29 | CRM 节日日历开发候选：用户要求将社媒系统的节日日历功能同步到 CRM。执行者 Codex 从 GitHub `Wonlyglobal/inquiry-crm-demo` 最新 main 创建干净分支 `codex/crm-festival-calendar-20261029`，未覆盖项目目录中的现有未提交改动。在“邮件跟进日历”新增近期 3 个世界节日/营销节点横幅、当月 42 格节日月历、电商大促/节日/国际主题日分类标注和当日邮件收发汇总；移动端横幅只显示最近 1 个节日，月历保持横向可滚动。固定和规则类节日自动计算；春节、开斋节、排灯节和平台大促等非固定日期需按年维护，界面已标明以当地公告为准。改动仅前端读取现有权限内的邮件活动汇总，未新增数据表、RLS、Edge Function、客户可见范围或外部 AI 调用。模块脚本语法、`git diff --check`、新增节日日历测试及启动/角色/市场只读 15 项回归待最终统一记录。本条为开发候选，未部署生产；回滚为丢弃该分支或 revert 候选提交。
+
+
+## 2026-11-16 密码重置回跳修复候选（未上线）
+授权：项目负责人提供员工点击重置邮件又回普通登录页的截图，作为恢复流程故障修复；执行Codex。发现当前源码在大量初始化后才订阅PASSWORD_RECOVERY，SDK可能已清理hash/发出事件；截图不足以确认实际链接是否已过期或被邮件扫描消费。
+变更：SDK创建前捕获恢复意图、创建后立即订阅并仅在内存缓存SDK已验证恢复事件；UI就绪后回放事件；新邮件回跳带auth=recovery意图，不以该标识或普通已登录session当作恢复验证。验证失败与网络失败给出明确提示；恢复页“保存新密码/取消重置”，成功和退出清理回跳参数。CRM/Grace由共享构建同步。
+验证：1605项UTC回归、模块语法、diff检查通过。新增4项覆盖早/晚事件、SDK清hash、空事件、普通登录不作为恢复、登出清除、回跳与清理。只做本地合成认证事件，未发送邮件、打开真实重置链接、读取令牌、修改密码/profile、变更SMTP/认证策略/RLS或生产部署。本人真实邮箱闭环待发布后由用户自行输入新密码验收。
+状态：分支fix/password-recovery-entry-20261116，本地候选；原生产未变。回滚正常回退前端，无数据迁移/历史删除。剩余：此截图实际认证日志/链接失效原因未确认；邮件安全扫描或跨设备WebView行为需真实链接单独核对；不得索要含token的重置链接。

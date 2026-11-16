@@ -18,7 +18,7 @@ test('signed-in password changes are verified through the bound company email',(
 });
 
 test('verified recovery session is still required before password update',()=>{
-  assert.match(html,/event === "PASSWORD_RECOVERY"/);
+  assert.match(html,/observePasswordRecovery\(supabase.auth, recoveryRequested\)/);
   assert.match(html,/passwordChangeMode = "recovery"/);
   assert.match(html,/supabase\.auth\.updateUser\(\{ password: a \}\)/);
 });

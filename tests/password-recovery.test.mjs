@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {recoveryIntent,recoveryRedirect,cleanRecoveryUrl,observePasswordRecovery} from '../assets/password-recovery.mjs';
+const location=new URL('https://crm.example.invalid/?auth=recovery#access_token=synthetic&type=recovery');
+function fixture(){let callback;return {auth:{onAuthStateChange(fn){callback=fn;return {data:{subscription:{unsubscribe(){}}}}}},emit:(...args)=>callback(...args)}}
+const session={user:{id:'synthetic-user'},access_token:'synthetic-token'};
+test('early recovery event survives late UI registration and SDK hash cleanup',()=>{const f=fixture(),flow=observePasswordRecovery(f.auth,recoveryIntent(location));f.emit('PASSWORD_RECOVERY',session);let shown=0;flow.onVerified(s=>{assert.equal(s,session);shown++});assert.equal(shown,1);assert.equal(flow.session,session)});
+test('late verified event opens recovery; intent or existing login alone never authorizes reset UI',()=>{const f=fixture(),flow=observePasswordRecovery(f.auth,true);let shown=0;flow.onVerified(()=>shown++);f.emit('INITIAL_SESSION',session);f.emit('SIGNED_IN',session);f.emit('PASSWORD_RECOVERY',null);assert.equal(shown,0);assert.equal(flow.session,null);f.emit('PASSWORD_RECOVERY',session);assert.equal(shown,1);f.emit('SIGNED_OUT',null);assert.equal(flow.session,null)});
+test('cross-browser redirect carries intent without tokens and cleanup removes auth parameters',()=>{assert.equal(recoveryRedirect(location),'https://crm.example.invalid/?auth=recovery');assert.equal(cleanRecoveryUrl(location),'/');assert.equal(recoveryIntent(new URL('https://crm.example.invalid/#error_code=otp_expired')),true);assert.equal(recoveryIntent(new URL('https://crm.example.invalid/#view=customers')),false)});
+test('CRM captures intent before SDK creation and listens before slow bootstrap work',()=>{const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.ok(html.indexOf('const recoveryRequested =')<html.indexOf('const supabase = createClient('));assert.ok(html.indexOf('observePasswordRecovery(supabase.auth')<html.indexOf('let profile = null'));assert.match(html,/session && !recoveryRequested/);assert.match(html,/重置链接未完成验证/);assert.match(html,/保存新密码/)});

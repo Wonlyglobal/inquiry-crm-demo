@@ -68,7 +68,7 @@ for(const file of ['index.html','grace.html'])test(`${file}: local analysis time
 test('both entry pages and model controller import one shared version of question state',()=>{
  const sources=['index.html','grace.html','assets/agent-conversation.mjs'].map(f=>readFileSync(new URL('../'+f,import.meta.url),'utf8'));
  const versions=sources.map(s=>s.match(/agent-question-windows\.mjs\?v=([^'"]+)/)?.[1]);assert.equal(new Set(versions).size,1);assert.ok(versions[0]);
- for(const source of sources.slice(0,2))assert.match(source,/onMessage:\(role,text,options\)=>\{addAiMessage\(role,text,options\)/);
+ for(const source of sources.slice(0,2))assert.match(source,/onMessage:\(role,text,options\)=>\{const node=addAiMessage\(role,text,options\);graceMobile\?\.showConversation\(\);return node/);
  assert.match(sources[2],/onMessage\('user',question,\{card:currentQuestionWindow/);
 });
 

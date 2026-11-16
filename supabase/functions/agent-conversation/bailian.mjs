@@ -39,3 +39,15 @@ export function transcriptionBody(bytes,mime){
  let binary='';for(let n=0;n<bytes.length;n+=8192)binary+=String.fromCharCode(...bytes.subarray(n,n+8192));
  return {model:MODELS.transcribe,messages:[{role:'user',content:[{type:'input_audio',input_audio:{data:`data:${mime};base64,${btoa(binary)}`}}]}],stream:false,asr_options:{enable_itn:true}};
 }
+
+// Stream only an already-authorized general answer; business validation stays buffered.
+export async function providerStream(body,key,onDelta,signal,fetcher=fetch){
+ const response=await fetcher(CHAT_URL,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({...body,stream:true}),signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)});
+ if(!response.ok)throw Error('百炼服务暂不可用');
+ const reader=response.body?.getReader();if(!reader)throw Error('模型未完成回答');
+ const decoder=new TextDecoder();let buffer='',answer='',finished=false,size=0;
+ try{for(;;){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>1024*1024)throw Error('模型响应过大');buffer+=decoder.decode(value,{stream:true});
+ let end;while((end=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,end).trim();buffer=buffer.slice(end+1);if(!line.startsWith('data:'))continue;const data=line.slice(5).trim();if(data==='[DONE]')continue;const item=JSON.parse(data);if(item.error)throw Error('模型未完成回答');const choice=item.choices?.[0];const delta=choice?.delta?.content;if(typeof delta==='string'&&delta){const visible=delta.slice(0,Math.max(0,6000-answer.length));answer+=delta;if(answer.length>12000)throw Error('模型响应过大');if(visible)onDelta(visible)}if(choice?.finish_reason){if(choice.finish_reason!=='stop')throw Error('模型未完成回答');finished=true}}
+ }if(!finished||!answer.trim())throw Error('模型未完成回答，请重试');return {choices:[{finish_reason:'stop',message:{content:answer}}]};
+ }finally{await reader.cancel().catch(()=>{});reader.releaseLock()}
+}

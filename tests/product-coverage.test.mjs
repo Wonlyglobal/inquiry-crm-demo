@@ -34,7 +34,7 @@ test('failed documents lose semantic findings entirely',()=>{
 test('ledger shows six states and never claims competitor work or verification',()=>{
  const l=productLedger(gateMaterialEvidence(data([asset('a',doc([finding(),finding({field:'耐火',value:'60 分钟',quote:'TEST-X1 耐火 60 分钟'})]))])));
  assert.equal(l.products.length,1);assert.equal(l.human_verified,false);
- const t=productLedgerText(l);
+ const t=productLedgerText(l,{includeCompetitors:true});
  for(const s of ['资料覆盖','事实提取','型号核对','竞品证据：未开始','分析：已整理内部事实','待人工确认'])assert.ok(t.includes(s),s);
  assert.ok(!/已核验(?!）)|已确认/.test(t.replace('未人工核验','')));
 });
@@ -42,7 +42,7 @@ test('differing values across files are listed, not resolved',()=>{
  const other=normalizeDocument({status:'ready',sha256:'b'.repeat(64),pages_total:1,pages_processed:1,pages_with_text:1,pages:[{page:1,kind:'native_text',chunks:['TEST-X1 门板厚度 1.5mm']}],product_understanding:{schema:'local-product-v1',source_sha256:'b'.repeat(64),status:'processed',findings:[finding({value:'1.5mm',quote:'TEST-X1 门板厚度 1.5mm'})]}});
  const l=productLedger(gateMaterialEvidence(data([asset('a',doc([finding()])),asset('b',other)])));
  assert.equal(l.products[0].conflicts.length,1);assert.equal(l.products[0].asset_count,2);
- const t=productLedgerText(l);assert.match(t,/尚未判定矛盾/);assert.ok(t.includes('1.2mm')&&t.includes('1.5mm'));
+ const t=productLedgerText(l,{includeCompetitors:true});assert.match(t,/尚未判定矛盾/);assert.ok(t.includes('1.2mm')&&t.includes('1.5mm'));
 });
 test('similar product names are flagged but never merged',()=>{
  const d=normalizeDocument({status:'ready',sha256:sha,pages_total:1,pages_processed:1,pages_with_text:1,pages:[{page:1,kind:'native_text',chunks:['WL-100 厚度 1mm；WL100 厚度 2mm']}],product_understanding:{schema:'local-product-v1',source_sha256:sha,status:'processed',findings:[{product:'WL-100',field:'厚度',value:'1mm',page:1,quote:'WL-100 厚度 1mm'},{product:'WL100',field:'厚度',value:'2mm',page:1,quote:'WL100 厚度 2mm'}]}});

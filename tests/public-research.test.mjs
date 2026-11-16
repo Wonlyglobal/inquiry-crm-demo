@@ -37,7 +37,7 @@ test('ledger links product category to public evidence without leaking category 
  assert.deepEqual(gated.assets[0].document.research_categories,['fire_door']);assert.equal(gated.assets[0].document.knowledge_profile,null);
  const l=productLedger(gated,validateEvidence(file([entry])));
  assert.match(l.products[0].states.competitor,/1条公开候选对标证据/);assert.match(l.products[0].states.analysis,/不排名/);
- const t=productLedgerText(l);assert.match(t,/同维度对照/);assert.match(t,/90 分钟/);assert.match(t,/60 分钟/);
+ const t=productLedgerText(l,{includeCompetitors:true});assert.match(t,/同维度对照/);assert.match(t,/90 分钟/);assert.match(t,/60 分钟/);
  const none=productLedger(gated,[]);assert.match(none.products[0].states.competitor,/未开始：防火门暂无/);
 });
 
@@ -78,7 +78,7 @@ test('public evidence reaches the 30-item target with Gulf and Mexico coverage',
 
 test('ledger names sourced competitor products even without overlapping dimensions',()=>{
  const l=productLedger({status:'available',assets:[{id:'a',name:'合成手册',document:{status:'ready',research_categories:['fire_door'],product_understanding:{status:'processed',findings:[{product:'TEST-X1',field:'颜色',value:'红',page:1,quote:'红'}]}}}]},validateEvidence(file([entry])));
- const t=productLedgerText(l);
+ const t=productLedgerText(l,{includeCompetitors:true});
  assert.match(t,/公开公司｜公开产品/);assert.match(t,/可对标维度：耐火等级/);assert.match(t,/缺少同维度参数/);assert.match(t,/https:\/\/example.com\/a.pdf/);
  assert.equal(l.products[0].comparisons.length,0);assert.ok(!/优于|胜出/.test(t));
 });

@@ -41,11 +41,11 @@ export function productLedger(data,evidence=PUBLIC_EVIDENCE){
  return {products:list,similar:similar.slice(0,5),hidden_findings:hidden,human_verified:false};
 }
 
-export function productLedgerText(ledger){
+export function productLedgerText(ledger,{includeCompetitors=false}={}){
  if(!ledger)return '';
  const hiddenNote=ledger.hidden_findings?`另有${ledger.hidden_findings}条机器提取所在页未随本次检索返回，无法对照原文，已隐藏；可按型号加页码继续查询。\n`:'';
  if(!ledger.products.length)return hiddenNote;
- const lines=ledger.products.slice(0,5).map((p,i)=>`${i+1}. ${p.name}\n资料覆盖：${p.states.coverage}\n事实提取：${p.states.extraction}\n型号核对：${p.states.model_check}\n竞品证据：${p.states.competitor}\n分析：${p.states.analysis}\n待人工确认：${p.states.pending}`+p.conflicts.slice(0,2).map(c=>`\n待核对：${c.field}在不同出处的表述不同，可能涉及条件或版本差异，尚未判定矛盾。\n`+c.values.map(v=>`${v.asset} / 第${v.page}页：${v.quote}`).join('\n')).join('')+expertProfileText(p.expert)+competitorCandidatesText(p.competitor_candidates||[])+comparisonText(p.comparisons||[]));
+ const lines=ledger.products.slice(0,5).map((p,i)=>`${i+1}. ${p.name}\n资料覆盖：${p.states.coverage}\n事实提取：${p.states.extraction}\n型号核对：${p.states.model_check}${includeCompetitors?`\n竞品证据：${p.states.competitor}\n分析：${p.states.analysis}`:""}\n待人工确认：${p.states.pending}`+p.conflicts.slice(0,2).map(c=>`\n待核对：${c.field}在不同出处的表述不同，可能涉及条件或版本差异，尚未判定矛盾。\n`+c.values.map(v=>`${v.asset} / 第${v.page}页：${v.quote}`).join('\n')).join('')+expertProfileText(p.expert)+(includeCompetitors?competitorCandidatesText(p.competitor_candidates||[])+comparisonText(p.comparisons||[]):''));
  return '产品理解状态（内部机器提取，均未人工核验，不是完整产品理解）\n'+lines.join('\n\n')
   +(ledger.products.length>5?`\n另有${ledger.products.length-5}个产品候选未展开。`:'')
   +(ledger.similar.length?'\n名称相近但未合并，需人工确认是否同一产品：'+ledger.similar.map(x=>x.join(' / ')).join('；'):'')

@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {priceGroups,priceChartActions,priceAnswer,priceIntent} from '../supabase/functions/agent-conversation/competitor-brief.mjs';
 import {timelineWindow,expandTimeline} from '../supabase/functions/agent-conversation/request-timeline.mjs';
-import {windowsFrom,storable,priceChart} from '../assets/agent-timeline.mjs';
+import {windowsFrom,storable,priceChart,shouldOpenResource} from '../assets/agent-timeline.mjs';
 
 function fakeDoc(){const all=[];const mk=tag=>({tag,children:[],style:{},dataset:{},className:'',textContent:'',append(...c){this.children.push(...c)}});
  return {head:mk('head'),createElement:t=>{const n=mk(t);all.push(n);return n},getElementById:()=>null,all};}
@@ -44,5 +44,5 @@ test('silence transcribes to empty text instead of an error',async()=>{
 });
 test('timeline charts remain inline and never auto-enlarge',async()=>{
  const {readFileSync}=await import('node:fs');const tl=readFileSync(new URL('../assets/agent-timeline.mjs',import.meta.url),'utf8');
- assert.match(tl,/windows.map\(w=>addWindow\(li,w,\{open:true\}\)\)/);assert.doesNotMatch(tl,/autoBig|position:fixed/);
+ assert.equal(shouldOpenResource({kind:'chart'},0),true);assert.equal(shouldOpenResource({kind:'chart'},1),false);assert.doesNotMatch(tl,/autoBig|position:fixed/);
 });

@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {sourceLabels,windowsFrom,storable,timeLabel,STAGES} from '../assets/agent-timeline.mjs';
+import {sourceLabels,windowsFrom,storable,timeLabel,STAGES,shouldOpenResource} from '../assets/agent-timeline.mjs';
 import {validateTimelineEntry,timelineWindow,expandTimeline,searchQuery} from '../supabase/functions/agent-conversation/request-timeline.mjs';
 import {readFileSync} from 'node:fs';
 const id='0b0f3c1e-1111-4222-8333-444455556666';
@@ -41,4 +41,10 @@ test('resources stay inline until explicitly enlarged; empty answers are never s
  assert.doesNotMatch(tl,/if\(open&&.*autoBig\)\{d.classList.add/);assert.match(tl,/gt-win.gt-big\{position:relative/);assert.doesNotMatch(tl,/position:fixed/);assert.match(tl,/for\(const d of list.querySelectorAll\('\.gt-win'\)\)/);assert.match(tl,/compact:true/);assert.match(tl,/e\.key!=='Escape'/);
  const conv=readFileSync(new URL('../assets/agent-conversation.mjs',import.meta.url),'utf8');
  assert.match(conv,/if\(!String\(result\?\.answer\|\|''\)\.trim\(\)\)/);assert.match(conv,/这次没有生成回答/);
+});
+
+test('candidate documents stay collapsed while primary requested viewer opens',()=>{
+ assert.equal(shouldOpenResource({kind:'catalog'},0),true);
+ assert.equal(shouldOpenResource({kind:'catalog'},1),false);
+ for(const kind of ['material','search','evidence','link'])assert.equal(shouldOpenResource({kind},0),false);
 });

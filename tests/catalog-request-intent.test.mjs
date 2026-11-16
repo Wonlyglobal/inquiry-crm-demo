@@ -22,3 +22,11 @@ test('ordinary product ledger omits unrelated competitor report',()=>{
  const ledger={products:[{name:'SYNTHETIC',states:{coverage:'1页',extraction:'1条',model_check:'待核实',competitor:'UNRELATED',analysis:'UNRELATED',pending:'1条'},conflicts:[],expert:null,competitor_candidates:[],comparisons:[]}],similar:[],hidden_findings:0};
  assert.doesNotMatch(productLedgerText(ledger),/UNRELATED|竞品型号|竞品证据/);
 });
+
+test('independent counterexamples keep evidence questions and negated commands out of file routing',()=>{
+ for(const q of ['不打开智能锁画册，回答型号','智能锁画册尺寸是多少，请附PDF页码','我不需要下载智能锁画册','请问智能锁画册里的保修多久？','Do not open smart locks catalog'])assert.equal(catalogPageIntent(q),false,q);
+ for(const q of ['麻烦打开智能锁画册第10页','请下载木门画册PDF','Please open smart locks catalog'])assert.equal(catalogPageIntent(q),true,q);
+ assert.equal(catalogRequestTurn('刚才那本画册',['打开智能锁画册和木门画册']),'打开画册');
+ assert.equal(catalogRequestTurn('麻烦发我木门画册',['打开智能锁画册']),'麻烦发我木门画册');
+ assert.equal(catalogRequestTurn('刚才那本画册',['今天社媒数据']),'打开画册');
+});

@@ -96,14 +96,27 @@ export function recordAnswer(intent,records){
 // short-lived signed link (10 minutes). Requires the model code to be found in the catalogue extract.
 export const CATALOG_PAGE_PREFIX='catalog-pages/';
 // Catalogue requests also accept 下载/翻看 and "pdf" ("给我零售画册 PDF"); list questions stay with catalogue knowledge.
-const CATALOG_VERB=/打开|调出|调取|弹出|跳转|开一下|新窗口|浏览器|下载|翻看|翻一下|pdf/i;
-export function catalogPageIntent(question){const q=String(question||'').trim();return /画册|产品页|型号页|目录页|catalog/i.test(q)&&(CATALOG_VERB.test(q)||/^(?:请)?(?:帮我)?(?:我)?(?:需要|想要|要|给我|发我|发给我|找一下|找)(?:一[本份张])?[^？?。！!]{0,60}(?:画册|catalog(?:ue)?)[。！!]?$/i.test(q))}
-// Only terse file follow-ups inherit the most recent topic; facts and new topics do not.
+const CATALOG_VERB=/打开|调出|调取|弹出|跳转|开一下|新窗口|浏览器|下载|翻看|翻一下|看看|给我看|发我|发给我|给我|发份|发一份|发一下|找一下|找下|帮忙找|需要|想要|我要|我要文件|\b(?:open|download|send|show)\b/i;
+const CATALOG_NOUN=/画册|产品页|型号页|目录页|catalog(?:ue)?|brochure/i;
+// Negation and evidence questions must win over incidental action words or PDF citations.
+const CATALOG_DENIAL=/不要|不用|不(?:打开|下载|发给|发我)|别(?:再|给|帮|打开|下载|发)|不是要|不需要|不想|无需|不必|\b(?:do not|don't|no need|not asking)\b/i;
+const CATALOG_FACT=/里的|中的|有哪些|是什么|是多少|多大|多少|多久|为什么|怎么|是否|保修|质保|供电|材质|尺寸|厚度|隔音|参数|来源|页码|\b(?:voltage|warranty|dimensions|material|specifications)\b/i;
+export function catalogPageIntent(question){
+ const q=String(question||'').trim();
+ if(!CATALOG_NOUN.test(q)||CATALOG_DENIAL.test(q))return false;
+ // Explicit file/page downloads remain actions (e.g. 下载木门隔音PDF),
+ // but “尺寸是多少，请附PDF页码” is a question, not a file request.
+ const explicit=/打开|下载|翻看|翻一下|调出|调取|\b(?:open|download)\b/i.test(q);
+ if(CATALOG_FACT.test(q)&&(!explicit||/只回答|只要回答|是多少|多少|多久|是什么|有哪些|里的|中的/.test(q)))return false;
+ return CATALOG_VERB.test(q)||/pdf/i.test(q);
+}
+// Terse file follow-ups inherit only the most recent unambiguous catalogue.
 export function catalogRequestTurn(question,history=[]){
  const q=String(question||'').trim();
- if(!/^(?:那|这个|它的)?(?:画册|画册呢|发我画册|给我画册|打开画册|下载画册)[。？?！!]*$/.test(q))return q;
+ if(!/^(?:那|这个|它的|刚才那本)?(?:画册|画册呢|发我画册|给我画册|打开画册|下载画册|再发一下画册)[。？?！!]*$/.test(q))return q;
  const previous=String(history.at(-1)||'');
- const named=CATALOG_WORDS.find(([,re])=>re.test(previous))?.[0];
+ const names=CATALOG_WORDS.filter(([,re])=>re.test(previous));
+ const named=names.length===1?names[0][0]:null;
  return named?'打开'+CATALOG_TITLES[named]+(materialVersion(previous)?' '+materialVersion(previous):''):'打开画册';
 }
 export function catalogPagePath(catalog,page){return /^c[1-4]$/.test(catalog)&&Number.isInteger(page)&&page>0&&page<1000?`${CATALOG_PAGE_PREFIX}${catalog}_p${String(page).padStart(3,'0')}.jpg`:null}

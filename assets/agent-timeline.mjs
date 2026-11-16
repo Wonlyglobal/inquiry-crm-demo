@@ -99,6 +99,8 @@ export function priceSpec(c){
 }
 export function priceChart(c,doc=document){return dataChart(priceSpec(c),doc)}
 // Answer → window descriptors (what gets rendered now and stored for history).
+// Only the primary requested viewer opens automatically; evidence remains available on demand.
+export function shouldOpenResource(resource,index){return index===0&&['catalog','crm_view','crm_record','chart'].includes(resource?.kind)}
 export function windowsFrom(result){
  const w=[];
  for(const a of Array.isArray(result?.actions)?result.actions:[]){
@@ -186,7 +188,7 @@ export function createTimeline(root,{call,getPersona,materialRow,materialFile=nu
     li.stage('need','done');const labels=sourceLabels(result);li.sources(labels);li.stage('data',labels.length?'done':'skip');
     const windows=windowsFrom(result);li.stage('act',windows.length?'active':'skip');
     // Keep resources inside the timeline so the conversation input remains reachable.
-    const loads=windows.map(w=>addWindow(li,w,{open:true}));
+    const loads=windows.map((w,i)=>{const open=shouldOpenResource(w,i);const load=addWindow(li,w,{open});return open?load:()=>Promise.resolve()});
     li.stage('answer','done');li.dataset.status='done';
     const settle=Promise.race([Promise.allSettled(loads.map(l=>l())),new Promise(r=>setTimeout(r,20000))]);
     settle.then(()=>{if(windows.length)li.stage('act','done');save('done',String(result?.context?.route||result?.provider||''),labels,windows)});

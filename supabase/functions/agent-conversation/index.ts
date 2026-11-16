@@ -1,3 +1,4 @@
+import {selectChatModel} from './model-routing.mjs';
 import {conciseCatalogList} from './catalog-list-answer.mjs';
 import {seoStatQuestion,seoStatReply} from './seo-stat-report.mjs';
 import {seriesIntent,materialVersion,materialModelCodes,namedMaterialProducts,explicitMaterialDocument} from './product-input.mjs';
@@ -275,7 +276,7 @@ async function handleAgent(req:Request,nested=false):Promise<Response>{
   const {count,error:rateError}=await admin.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action',action).gte('created_at',new Date(Date.now()-60000).toISOString());
   if(rateError)return json({error:'暂时无法核验调用限额'},503);
   if((count||0)>=12)return json({error:'请求较多，请一分钟后重试'},429);
-  const model=input.action==='chat'?(Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'):input.action==='transcribe'?MODELS.transcribe:MODELS.speech;
+  const model=input.action==='chat'?selectChatModel(input,{standard:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus',complex:Deno.env.get('BAILIAN_AGENT_COMPLEX_MODEL')||Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'}):input.action==='transcribe'?MODELS.transcribe:MODELS.speech;
   let speakerCheck:Promise<any>|null=null,guest=false,qEmbedding:number[]|null=null;
   let crmForChart:any=null;
   let endpoint=CHAT_URL,body:any,contextMetadata:any=null,qualityContext:any=null,route:any=null,materialTurn:any=null,web:any={status:'not_requested',sources:[]};

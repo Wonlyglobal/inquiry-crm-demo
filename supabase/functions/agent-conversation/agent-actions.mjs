@@ -108,15 +108,17 @@ export function catalogPageIntent(question){
  // but “尺寸是多少，请附PDF页码” is a question, not a file request.
  const explicit=/打开|下载|翻看|翻一下|调出|调取|\b(?:open|download)\b/i.test(q);
  if(CATALOG_FACT.test(q)&&(!explicit||/只回答|只要回答|是多少|多少|多久|是什么|有哪些|里的|中的/.test(q)))return false;
- return CATALOG_VERB.test(q)||/pdf/i.test(q);
+ const titleOnly=/^(?:WONLY\s*)?(?:真?智能锁|静音木门|木门|工程|项目|工程方案|零售|零售产品)?\s*画册(?:呢|吧)?[。？?！!]*$/i.test(q);
+ return titleOnly||CATALOG_VERB.test(q)||/pdf/i.test(q);
 }
 // Terse file follow-ups inherit only the most recent unambiguous catalogue.
 export function catalogRequestTurn(question,history=[]){
  const q=String(question||'').trim();
- if(!/^(?:那|这个|它的|刚才那本)?(?:画册|画册呢|发我画册|给我画册|打开画册|下载画册|再发一下画册)[。？?！!]*$/.test(q))return q;
+ if(!/^(?:(?:那|这个|它的|刚才那本)?(?:画册|画册呢|发我画册|给我画册|打开画册|下载画册|再发一下画册)|刚才那本|那本|打开它|下载它|下载|再发一下)[。？?！!]*$/.test(q))return q;
  const previous=String(history.at(-1)||'');
  const names=CATALOG_WORDS.filter(([,re])=>re.test(previous));
  const named=names.length===1?names[0][0]:null;
+ if(!named&&!/画册/.test(q))return q;
  return named?'打开'+CATALOG_TITLES[named]+(materialVersion(previous)?' '+materialVersion(previous):''):'打开画册';
 }
 export function catalogPagePath(catalog,page){return /^c[1-4]$/.test(catalog)&&Number.isInteger(page)&&page>0&&page<1000?`${CATALOG_PAGE_PREFIX}${catalog}_p${String(page).padStart(3,'0')}.jpg`:null}

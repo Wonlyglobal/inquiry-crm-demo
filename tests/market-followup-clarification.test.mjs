@@ -30,3 +30,10 @@ test('natural analyse-product-market wording routes internally even without SWOT
  for(const q of ['只分析智能锁画册v9的TEST80 PRO在马来西亚的市场，保留来源','分析TEST80 Basic在肯尼亚的市场','评估TEST80 PRO的越南市场','Analyse the TEST80 PRO market in Vietnam'])assert.equal(productMarketIntent(q),true);
  for(const q of ['TEST80 PRO的尺寸是多少','分析TEST80 PRO安装视频画面'])assert.equal(productMarketIntent(q),false);
 });
+
+test('generic SWOT questions do not open private product reports or revive stale topics',()=>{
+ for(const q of ['用SWOT分析一家虚构水果店','深入分析排队时如何选择队伍，不涉及产品或市场','解释五力模型','市场分析是什么'])assert.equal(productMarketTurn(q),null,q);
+ assert.equal(productMarketTurn('那英国呢',['产品市场：TEST80 PRO市场分析','今天的SEO点击']),null);
+ assert.match(productMarketTurn('智能锁新加坡市场分析'),/智能锁/);
+ assert.match(productMarketTurn('王力SWOT分析'),/王力/);
+});

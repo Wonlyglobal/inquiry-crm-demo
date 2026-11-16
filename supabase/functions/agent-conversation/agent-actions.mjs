@@ -3,6 +3,7 @@
 // Actions are allowlisted here AND re-checked in the browser. Nothing is sent to an external model:
 // these answers are deterministic. Customer data never goes into a search URL.
 import evidence from './competitor-evidence.json' with {type:'json'};
+import {materialVersion} from './product-input.mjs';
 import {mentionedCompanies} from './public-research.mjs';
 
 export const OPEN_VERB=/打开|调出|调取|弹出|跳转|给我看|帮我看|展示|显示|开一下|开个窗口|新窗口|浏览器/;
@@ -96,12 +97,20 @@ export function recordAnswer(intent,records){
 export const CATALOG_PAGE_PREFIX='catalog-pages/';
 // Catalogue requests also accept 下载/翻看 and "pdf" ("给我零售画册 PDF"); list questions stay with catalogue knowledge.
 const CATALOG_VERB=/打开|调出|调取|弹出|跳转|开一下|新窗口|浏览器|下载|翻看|翻一下|pdf/i;
-export function catalogPageIntent(question){const q=String(question||'');return CATALOG_VERB.test(q)&&/画册|产品页|型号页|目录页|catalog/i.test(q)}
+export function catalogPageIntent(question){const q=String(question||'').trim();return /画册|产品页|型号页|目录页|catalog/i.test(q)&&(CATALOG_VERB.test(q)||/^(?:请)?(?:帮我)?(?:我)?(?:需要|想要|要|给我|发我|发给我|找一下|找)(?:一[本份张])?[^？?。！!]{0,60}(?:画册|catalog(?:ue)?)[。！!]?$/i.test(q))}
+// Only terse file follow-ups inherit the most recent topic; facts and new topics do not.
+export function catalogRequestTurn(question,history=[]){
+ const q=String(question||'').trim();
+ if(!/^(?:那|这个|它的)?(?:画册|画册呢|发我画册|给我画册|打开画册|下载画册)[。？?！!]*$/.test(q))return q;
+ const previous=String(history.at(-1)||'');
+ const named=CATALOG_WORDS.find(([,re])=>re.test(previous))?.[0];
+ return named?'打开'+CATALOG_TITLES[named]+(materialVersion(previous)?' '+materialVersion(previous):''):'打开画册';
+}
 export function catalogPagePath(catalog,page){return /^c[1-4]$/.test(catalog)&&Number.isInteger(page)&&page>0&&page<1000?`${CATALOG_PAGE_PREFIX}${catalog}_p${String(page).padStart(3,'0')}.jpg`:null}
 const CATALOG_FILE={c1:'Project-Solutions',c2:'Retail-Catalogue',c3:'Soundproof-Wooden-Doors',c4:'True-Smart-Locks'};
 export const CATALOG_TITLES={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 const CATALOG_WORDS=[['c1',/工程画册|项目画册|工程方案画册|project solutions/i],['c2',/零售画册|零售产品画册|retail/i],['c3',/木门画册|静音木门|soundproof/i],['c4',/智能锁画册|真智能锁|smart locks? catalog/i]];
-export function catalogNameIntent(question){const q=String(question||'');return CATALOG_VERB.test(q)?CATALOG_WORDS.find(([,re])=>re.test(q))?.[0]||null:null}
+export function catalogNameIntent(question){const q=String(question||'');return catalogPageIntent(q)?CATALOG_WORDS.find(([,re])=>re.test(q))?.[0]||null:null}
 // Opening a catalogue returns a viewer action; the browser then asks for short-lived page links (catalog-pages).
 export async function catalogPageActions(models,catalog){
  const norm=s=>String(s||'').toUpperCase().replace(/[\s\-_/]+/g,'');const seen=new Set(),out=[];

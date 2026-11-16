@@ -37,3 +37,10 @@ test('generic SWOT questions do not open private product reports or revive stale
  assert.match(productMarketTurn('智能锁新加坡市场分析'),/智能锁/);
  assert.match(productMarketTurn('王力SWOT分析'),/王力/);
 });
+
+import {knowledgeRoute} from '../supabase/functions/agent-conversation/knowledge-routing.mjs';
+test('explicit generic exclusions do not request private material retrieval',()=>{
+ for(const q of ['用SWOT分析一家虚构水果店，不涉及任何公司资料；只写四条，每条一句。','深入分析排队时如何选择队伍，用两句话解释，不涉及产品或市场。'])assert.equal(knowledgeRoute(q).materials,false);
+ assert.equal(knowledgeRoute('查找公司资料').materials,true);
+ assert.equal(knowledgeRoute('不涉及任何公司资料；查找S50 Pro产品手册').materials,true);
+});

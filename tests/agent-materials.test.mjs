@@ -12,3 +12,20 @@ test('series directory instructions do not filter out all citation files',async(
  const result=await loadFullMaterials({...config,question:'请介绍我们的产品系列目录，列出资料来源、版本和页码。'},async(url,o)=>{const b=JSON.parse(o.body);assert.equal(b.query,'');assert.deepEqual(b.terms,[]);assert.equal(b.catalogue,true);assert.equal(b.page,1);assert.ok(await verifyMaterialRequest({proof:o.headers['X-CRM-Proof'],body:o.body,publicJwk}));return Response.json({status:'available',scope:'authorized_material_library',assets:[{id:'a',name:'Synthetic v7',versionLabel:'V7',isCurrentVersion:true,document:{status:'ready',pages_total:1,sha256:'a'.repeat(64),pages:[{page:1,chunks:['Synthetic']} ]}}],series_catalogue:{series:[],categories:[]}})});
  assert.equal(result.assets.length,1);assert.ok(result.series_catalogue);
 });
+
+test('transient transport failure retries once with a fresh signed nonce and unchanged request',async()=>{
+ const calls=[];
+ const result=await loadFullMaterials(config,async(url,o)=>{
+  calls.push({url,body:o.body,claims:await verifyMaterialRequest({proof:o.headers['X-CRM-Proof'],body:o.body,publicJwk})});
+  if(calls.length===1)throw new DOMException('synthetic timeout','TimeoutError');
+  return Response.json({status:'available',scope:'authorized_material_library',assets:[]});
+ });
+ assert.equal(result.status,'available');assert.equal(calls.length,2);assert.equal(calls[0].body,calls[1].body);assert.equal(calls[0].url,calls[1].url);
+ assert.equal(calls[0].claims.sub,calls[1].claims.sub);assert.notEqual(calls[0].claims.jti,calls[1].claims.jti);
+});
+test('transport retry is bounded and never retries authorization or malformed responses',async()=>{
+ for(const mode of ['network','denied','malformed']){
+  let count=0;const result=await loadFullMaterials(config,async()=>{count++;if(mode==='network')throw new TypeError('synthetic network');return mode==='denied'?new Response('',{status:403}):Response.json({status:'available',assets:[]});});
+  assert.equal(result.status,'unavailable');assert.equal(count,mode==='network'?2:1);assert.deepEqual(result.assets,[]);
+ }
+});

@@ -1546,10 +1546,13 @@
       .official-count-button{display:block;border:0;background:transparent;color:inherit;padding:0;min-width:2ch;text-align:left;cursor:pointer;box-shadow:none;border-radius:8px}
       .official-count-button:hover:not(:disabled){color:#a44b00;text-decoration:underline;text-underline-offset:6px}
       .official-count-button:focus-visible{outline:3px solid #c99e48;outline-offset:5px}
-      .official-detail-list{display:grid;gap:16px}.official-detail-row{border:1px solid #d6e2dc;border-radius:16px;padding:18px;background:#fff}
-      .official-detail-row h4{margin:0 0 12px}.official-detail-row dl{display:grid;grid-template-columns:90px minmax(0,1fr);gap:10px;margin:0}.official-detail-row dt{color:#63766c}.official-detail-row dd{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
-      .official-detail-row small{display:block}.official-detail-row details{white-space:normal}.official-detail-row pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}.official-detail-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}.official-detail-error{color:#a34438}
-      @media(max-width:600px){.official-detail-row{padding:14px}.official-detail-row dl{grid-template-columns:1fr;gap:5px}.official-detail-row dd{margin-bottom:9px}}
+      .official-detail-backdrop > .modal{max-width:1280px!important;width:calc(100vw - 48px)}
+      .official-detail-table-wrap{overflow:auto}.official-detail-table{width:100%;table-layout:fixed;min-width:920px;border-collapse:collapse;font-size:14px}
+      .official-detail-table caption{text-align:left;color:#63766c;padding:8px 0}.official-detail-table th{position:sticky;top:0;background:#edf4f0;z-index:1}
+      .official-detail-table th,.official-detail-table td{padding:12px 10px;vertical-align:top;text-align:left;overflow-wrap:anywhere;border-bottom:1px solid #d6e2dc;line-height:1.55}
+      .official-detail-table tbody tr:nth-child(even){background:#f7faf8}.official-detail-table button{padding:7px 10px;font-size:13px;white-space:normal}.official-demand-text{margin:0 0 5px}.official-summary-note{display:block;font-size:11px;color:#63766c}
+      .official-detail-row details{margin-top:6px}.official-detail-row summary{cursor:pointer;color:#8c480b}.official-detail-row pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0;max-height:320px;overflow:auto}.official-detail-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0}.official-detail-error{color:#a34438}
+      @media(max-width:600px){.official-detail-backdrop > .modal{width:calc(100vw - 20px)}.official-detail-table{font-size:13px}.official-detail-table th,.official-detail-table td{padding:10px 8px}}
     </style>
   <link rel="stylesheet" href="./assets/agent-world.css?v=20261020-layout4" />
   <link rel="stylesheet" href="./assets/ui-contrast.css?v=20261012-feedback" />
@@ -6402,9 +6405,10 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       function openAiAssistant(){const c=aiDataContext();$("#ai-assistant-scope").textContent=`数据范围：${c.scope}｜${c.start.toLocaleDateString('zh-CN')}—${c.end.toLocaleDateString('zh-CN')}`;$("#ai-assistant-panel").classList.remove("hidden");$("#ai-assistant-input").focus();}
       async function openOfficialInquiryDetails(rows,scope){
         openDashboardModal("新增官方询盘明细",'<div id="official-inquiry-detail-root" tabindex="-1" role="region" aria-label="新增官方询盘明细">正在加载明细…</div>');
+        $("#dashboard-modal").classList.add("official-detail-backdrop");
         const root=$("#official-inquiry-detail-root"); root.focus();
         try{
-        const {mountOfficialInquiryDetails}=await import("./assets/official-inquiry-details.mjs?v=20261116-details2");
+        const {mountOfficialInquiryDetails}=await import("./assets/official-inquiry-details.mjs?v=20261117-table1");
         if(!root.isConnected)return;
         await mountOfficialInquiryDetails(root,{rows,scope,
           loadPage:async ids=>{
@@ -6420,7 +6424,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         });
         }catch{if(root.isConnected)root.textContent="明细组件加载失败，请关闭后重试；看板数据未修改。"}
       }
-      function openDashboardModal(title,html){$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
+      function openDashboardModal(title,html){$("#dashboard-modal").classList.remove("official-detail-backdrop");$("#dashboard-modal-title").textContent=title;$("#dashboard-modal-body").innerHTML=html;$("#dashboard-modal").classList.remove("hidden");}
       async function promptAuditedReason(title,message){
         const accepted=await appConfirm(message,{title,confirmText:"继续",editable:true,placeholder:"请输入至少 8 字真实原因",minLength:8});
         if(!accepted)return null;

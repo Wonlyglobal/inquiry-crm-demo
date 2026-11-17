@@ -42,3 +42,12 @@ test('transient gateways retry once but auth rate-limit and invalid JSON do not'
  for(const status of [502,503,504,401,403,429]){let n=0;const result=await loadFullMaterials(config,async()=>++n===1?new Response('',{status}):Response.json({status:'available',scope:'authorized_material_library',assets:[]}));assert.equal(n,[502,503,504].includes(status)?2:1);assert.equal(result.status,n===2?'available':'unavailable');}
  let n=0;await loadFullMaterials(config,async()=>{n++;return new Response('{invalid')});assert.equal(n,1);
 });
+
+test('each attempt has an isolated HTTP client which closes after body read or failure',async()=>{
+ const clients=[];let calls=0;
+ const result=await loadFullMaterials(config,async(url,o)=>{assert.equal(o.client,clients.at(-1));assert.equal(o.client.closed,false);if(++calls===1)throw new DOMException('synthetic timeout','TimeoutError');assert.equal(clients[0].closed,true);return Response.json({status:'available',scope:'authorized_material_library',assets:[]});},()=>{const client={closed:false,close(){this.closed=true}};clients.push(client);return client});
+ assert.equal(result.status,'available');assert.equal(clients.length,2);assert.notEqual(clients[0],clients[1]);assert.ok(clients.every(x=>x.closed));
+});
+test('isolated client closes on authorization and invalid JSON without retry',async()=>{
+ for(const response of [new Response('',{status:403}),new Response('invalid json')]){let closed=0,calls=0;const result=await loadFullMaterials(config,async()=>{calls++;return response},()=>({close(){closed++}}));assert.equal(result.status,'unavailable');assert.equal(calls,1);assert.equal(closed,1)}
+});

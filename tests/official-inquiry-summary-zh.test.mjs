@@ -9,3 +9,5 @@ test('original message field excludes tracking and signatures and prefers saved 
 test('subject totals are not mixed into model counts; dimensions can have units on both sides',()=>{const s=summary({original_message:'Subject: Doors (13 units)\nSecurity door 2 units. Emergency hatch 3 units. Door 8 units. 1,000 MM x 2,100 MM'});assert.match(s.text,/2件、3件、8件/);assert.ok(!s.text.includes('13件'));assert.match(s.text,/1,000MMx2,100MM/)});
 
 test('MOQ is not a purchase quantity',()=>{const s=summary({original_message:'Please send catalogue and quote. MOQ: 100 sets. Minimum order quantity: 200 units.'});assert.match(s.text,/起订量/);assert.match(s.text,/数量未明确/);assert.ok(!s.text.includes('100套'));assert.ok(!s.text.includes('200件'))});
+
+test('approximate quantities remain approximate',()=>{assert.match(summary({original_message:'Please quote approximately 2,400 steel fire doors.'}).text,/约2400樘/);assert.match(summary({original_message:'需要约2400樘防火门，请报价。'}).text,/约2400樘/)});

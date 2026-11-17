@@ -19,7 +19,7 @@ export function resolveMaterialTurn(question,history=[]){
  // A literal named product has no model code; retain its file scope and name for short followups.
  if(!ids.length&&namedMaterialProducts(q).length)return {question:'物料：'+q.replace(/^(那|它|这个|该型号|还有)+/,'')};
  const named=namedMaterialProducts(previous);
- if(!ids.length&&oldIds.length<=1&&named.length===1&&!/对比|比较| versus | vs\.? |与|和/.test(previous)){
+ if(!ids.length&&oldIds.length<=1&&named.length===1&&!/对比|比较| versus | vs\.? /i.test(previous)){
   const at=prior.query.indexOf(named[0]);
   if(at>=0){const anchor=prior.query.slice(0,at+named[0].length),request=q.replace(/^(那|它|这个|该型号|还有)+/,'').replace(/^的/,'').replace(/[呢。？?！!]+$/,'').trim();return {question:`物料：${anchor} ${request}`.trim()}}
  }

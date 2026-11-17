@@ -1,3 +1,4 @@
+import {mountPersonalLeadWorkflow} from './personal-lead-workflow.mjs?v=20261117-closure1';
 import {visibleLeadRows,receiptDestination,leadInformationHtml} from './lead-detail-ui.mjs?v=20261117-details1';
 import {mountDevelopmentMetrics} from './lead-development-metrics.mjs?v=20261102-1';
 import {decodeCustomerCsv} from './customer-csv-reader.mjs?v=20261029-encoding1';
@@ -8,7 +9,7 @@ import {renderLeadFileState,bindLeadFilePicker,clearLeadImportSelection} from '.
 import {leadStageLabel,formatStageSummary} from './sales-lead-stages.mjs';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=t=>$('#status').textContent=t,stamp=t=>t?new Date(t).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
-let weeklyReview,contactTarget,estimateTarget,developmentMetrics,selectedLeadId=null,pendingSavedFocus=null;
+let personalWorkflow,weeklyReview,contactTarget,estimateTarget,developmentMetrics,selectedLeadId=null,pendingSavedFocus=null;
 const progressDrafts=new Map();let focusedLeadIds=new Set();
 let selectedImportFile=null,importRecords=[];
 let db,data,pendingRows=[],requestId=crypto.randomUUID(),busy=false;
@@ -18,28 +19,42 @@ bindLeadFilePicker($('#select-file'),$('#excel'));
 renderLeadFileState(fileNodes);
 async function rpc(name,args){const {data,error}=await db.rpc(name,args);if(error)throw Error(leadRequestMessage(error));return data}
 async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button,#from,#to,#sales,#excel,#import-acquired-on').forEach(b=>b.disabled=true);try{await fn()}catch(e){status('未完成：'+leadRequestMessage(e))}finally{busy=false;document.querySelectorAll('button,#from,#to,#sales,#excel,#import-acquired-on').forEach(b=>b.disabled=false);$('#import').disabled=!pendingRows.length}}
+const formBaselines=new Map();
+function formValue(id){const form=$('#'+id);return form?JSON.stringify([...new FormData(form)].map(([k,v])=>[k,String(v)])):''}
+function rememberForm(id){formBaselines.set(id,formValue(id))}
+function unsavedForms(){return [...formBaselines].some(([id,value])=>$('#'+id)&&!$('#'+id).closest('[hidden]')&&formValue(id)!==value)}
 const labels={complete:'已达标',missing:'未提交',short:'不足目标',no_new:'已申报无新增',exempt:'豁免',weekend:'周末免录'};
-async function load(){
- status('正在核对服务器数据…');const selected=$('#sales').value;
+async function load({refreshPersonal=true}={}){
+ let personalFailure='';status('正在核对服务器数据…');const selected=$('#sales').value;
  data=await rpc('sales_lead_workspace',{from_day:$('#from').value,to_day:$('#to').value});
 
  const options=data.people.map(p=>`<option value="${esc(p.id)}">${esc(p.full_name)} · ${esc(p.team)}</option>`).join('');
  $('#sales').innerHTML='<option value="">全部可见成员</option>'+options;$('#sales').value=selected;
  $('#exempt-form [name=sales_id]').innerHTML=options;
- $('#details-add-lead').hidden=data.actor.role!=='sales';
+ if($('#details-add-lead'))$('#details-add-lead').hidden=data.actor.role!=='sales';
  $('#entry').hidden=data.actor.role!=='sales';$('#entry-shortcut').hidden=data.actor.role!=='sales';$('#settings').hidden=!['owner','marketing'].includes(data.actor.role);
- renderLeadDetails();
- if(pendingSavedFocus){const id=pendingSavedFocus;pendingSavedFocus=null;showLead(id)}
- data.timeliness=await rpc('daily_report_timeliness',{from_day:$('#from').value,to_day:$('#to').value});
- data.weekly=await rpc('sales_lead_weekly_reports',{from_day:$('#from').value,to_day:$('#to').value});
+ data.timeliness={rules:[],people:[],as_of:data.as_of};data.weekly=[];
+ if(data.actor.role==='sales'){
+  if(!personalWorkflow){personalWorkflow=mountPersonalLeadWorkflow($('#lead-details'),{rpc,names:Object.fromEntries(data.people.map(p=>[p.id,p.full_name])),status,onChanged:()=>load({refreshPersonal:false})});}
+  if(refreshPersonal)try{await personalWorkflow.refresh()}catch(error){personalFailure='本人线索列表';status('个人线索加载失败，可独立重试：'+leadRequestMessage(error))}
+ }
+ render();
+ if(pendingSavedFocus){const id=pendingSavedFocus;pendingSavedFocus=null;if(personalWorkflow)await personalWorkflow.open(id);else showLead(id)}
  $('#rules').textContent=data.rules.map(r=>`${r.effective_on}起：工作日${r.daily_min}条，${r.remind_at}提醒，周${r.weekly_day} ${r.weekly_at}统计；${r.reason}`).join('\n');
- $('#report-deadline-rules').textContent=data.timeliness.rules.map(r=>`${r.effective_on}起：${r.deadline}截止`).join('；');
  weeklyReview ||= mountWeeklyCustomerReview($('#weekly-customer'),{rpc});
- const weekly=await weeklyReview.refresh({sales:$('#sales').value});
- if(weekly)$('#customer-deadline-rules').textContent=weekly.rules.map(r=>`${r.effective_on}起：每周客户核对 ${r.due_at} 截止`).join('；');
- render();status(`核对时间：${stamp(data.as_of)}（北京时间）；仅展示当前权限范围，未来尚未发生日期不记未提交。`);
  developmentMetrics ||= mountDevelopmentMetrics($('#development-metrics'),{rpc});
- await developmentMetrics.refresh({from:$('#from').value,to:$('#to').value,sales:$('#sales').value});
+ const tasks=[
+  ['日报提交率',async()=>{data.timeliness=await rpc('daily_report_timeliness',{from_day:$('#from').value,to_day:$('#to').value});$('#report-deadline-rules').textContent=data.timeliness.rules.map(r=>`${r.effective_on}起：${r.deadline}截止`).join('；')}],
+  ['商机周报',async()=>{data.weekly=await rpc('sales_lead_weekly_reports',{from_day:$('#from').value,to_day:$('#to').value})}],
+  ['每周客户核对',async()=>{const weekly=await weeklyReview.refresh({sales:$('#sales').value});if(weekly)$('#customer-deadline-rules').textContent=weekly.rules.map(r=>`${r.effective_on}起：每周客户核对 ${r.due_at} 截止`).join('；')}],
+  ['开发指标',()=>developmentMetrics.refresh({from:$('#from').value,to:$('#to').value,sales:$('#sales').value})]
+ ];
+ const results=await Promise.allSettled(tasks.map(([,fn])=>fn()));render();
+ const failures=[...(personalFailure?[personalFailure]:[]),...results.flatMap((r,i)=>r.status==='rejected'?[tasks[i][0]]:[])];
+ if(results[0].status==='rejected')$('#timeliness-basis').textContent='日报提交率暂未加载，不能据此判断为零或未提交。';
+ if(results[1].status==='rejected')$('#weekly').textContent='商机周报暂未加载，请刷新重试；不影响已保存线索。';
+ status(`线索及周期数据已回读 ${stamp(data.as_of)}（北京时间）。`+(failures.length?`辅助模块暂未完成：${failures.join('、')}；已保存线索不受影响，可点击刷新数据重试。`:''));
+
 }
 function render(){
  const selectedPerson=$('#sales').value,stats=data.timeliness;
@@ -49,11 +64,12 @@ function render(){
  const sales=$('#sales').value,from=$('#from').value,to=$('#to').value,names=Object.fromEntries(data.people.map(p=>[p.id,p.full_name])),s=summarize(data,sales,from,to);
  $('#kpis').innerHTML=[['实际新增线索',s.leads],['本周期转为商机',s.periodConversions],['无新增申报/人天',s.no_new],['未提交/人天',s.missing]].map(([k,v])=>`<article>${k}<b>${v}</b></article>`).join('');
  $('#ranking').innerHTML=data.people.filter(p=>!sales||p.id===sales).map(p=>{const x=summarize(data,p.id,from,to);return `<tr><td>${esc(p.full_name)}</td>${[x.leads,x.no_new,x.missing,x.short,x.converted,x.conversionRate===null?'—':x.conversionRate+'%',x.periodConversions].map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`}).join('');
- $('#weekly').textContent=data.weekly.filter(w=>!sales||w.sales_id===sales).map(w=>`${names[w.sales_id]}｜${w.week_start}周｜截止${stamp(w.cutoff_at)}\n新增${w.summary.new_leads}，本周转化${w.summary.period_conversions}，无新增申报${w.summary.no_new_days}，未提交${w.summary.missing_days}，不足目标${w.summary.short_days}，跟进${w.summary.followup_count}次；阶段：${formatStageSummary(w.summary.stages)}`).join('\n\n')||'当前周期尚无周报快照；首次按设置时间生成。';
+ $('#weekly').textContent=data.weekly.filter(w=>!sales||w.sales_id===sales).map(w=>`${names[w.sales_id]}｜${w.week_start}周｜截止${stamp(w.cutoff_at)}\n新增${w.summary.new_leads}，本周转化${w.summary.period_conversions}，无新增申报${w.summary.no_new_days}，未提交${w.summary.missing_days}，不足目标${w.summary.short_days}，商机完整跟进${w.summary.followup_count}次（不含线索摘要）；阶段：${formatStageSummary(w.summary.stages)}`).join('\n\n')||'当前周期尚无周报快照；首次按设置时间生成。';
  $('#days').innerHTML=data.days.filter(d=>!sales||d.sales_id===sales).sort((a,b)=>b.day.localeCompare(a.day)).map(d=>{const x=dailyState(d,data.leads);return `<tr>${[names[d.sales_id],d.day,x.count,d.daily_min,labels[x.status],d.exempt_reason||d.no_new_reason||'—',stamp(d.exempt_at||d.declared_at)].map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`}).join('');
  renderLeadDetails();
 }
 function renderLeadDetails(){
+ if(personalWorkflow)return;
  const names=Object.fromEntries(data.people.map(p=>[p.id,p.full_name]));
  const rows=visibleLeadRows(data.leads,$('#sales').value,$('#lead-search').value,$('#lead-state').value);
  $('#lead-visible-count').textContent=`${rows.length} 条`;
@@ -72,6 +88,7 @@ function renderLeadDetails(){
  bindLeadActions();
 }
 function showLead(id,mode='view'){
+ if(personalWorkflow){personalWorkflow.open(id);return}
  selectedLeadId=id;renderLeadDetails();const panel=$('#lead-information');
  if(panel.hidden){$('#lead-save-result').hidden=false;$('#lead-save-result').textContent='返回记录不在当前筛选内，请调整日期或搜索条件后查看。';$('#lead-details').scrollIntoView({block:'start'});return}
  panel.scrollIntoView({block:'center'});panel.focus({preventScroll:true});
@@ -87,14 +104,14 @@ function bindLeadActions(){
 }
 function prepareSavedLeads(receipts){
  const destination=receiptDestination(receipts,$('#from').value,$('#to').value);
- focusedLeadIds=new Set(Array.isArray(receipts)?receipts.map(r=>r.id):[]);$('#lead-search').value='';$('#lead-state').value='all';$('#sales').value='';
+ focusedLeadIds=new Set(Array.isArray(receipts)?receipts.map(r=>r.id):[]);if($('#lead-search'))$('#lead-search').value='';if($('#lead-state'))$('#lead-state').value='all';$('#sales').value='';
  if(destination){$('#from').value=destination.from;$('#to').value=destination.to;selectedLeadId=destination.id;pendingSavedFocus=destination.id}
- $('#lead-save-result').hidden=false;$('#lead-save-result').textContent=`保存结果已返回，重复线索由服务器去重。${destination?.changed?'已切换到该线索的实际录入日期。':''}可直接查看客户信息、记录跟进或转为个人商机。`;
+ if($('#lead-save-result')){$('#lead-save-result').hidden=false;$('#lead-save-result').textContent=`保存结果已返回，重复线索由服务器去重。${destination?.changed?'已切换到该线索的实际录入日期。':''}可直接查看客户信息、记录跟进或转为个人商机。`;}
  return destination?.id;
 }
 $('#lead-search').oninput=$('#lead-state').onchange=()=>{selectedLeadId=null;renderLeadDetails()};
-window.addEventListener('beforeunload',event=>{if(progressDrafts.size){event.preventDefault();event.returnValue=''}});
-$('#lead-form').onsubmit=e=>{e.preventDefault();action(async()=>{const row=normalizeLead(Object.fromEntries(new FormData(e.target)));const issues=leadIssues(row);if(issues.length)throw Error(issues.join('；'));const receipt=await rpc('record_sales_leads',{rows:[{...row,request_id:requestId}],entry_method:'manual'});const focusId=prepareSavedLeads(receipt);requestId=crypto.randomUUID();e.target.reset();e.target.elements.acquired_on.value=localDay();try{await load();if(!focusId)$('#lead-details').scrollIntoView({block:'start'})}catch(error){$('#lead-details').scrollIntoView({block:'start'});status('线索已保存，但列表刷新失败。请刷新数据核对：'+leadRequestMessage(error))}})};
+window.addEventListener('beforeunload',event=>{if(progressDrafts.size||personalWorkflow?.hasUnsaved()||unsavedForms()||pendingRows.length){event.preventDefault();event.returnValue=''}});
+$('#lead-form').onsubmit=e=>{e.preventDefault();action(async()=>{const row=normalizeLead(Object.fromEntries(new FormData(e.target)));const issues=leadIssues(row);if(issues.length)throw Error(issues.join('；'));const receipt=await rpc('record_sales_leads',{rows:[{...row,request_id:requestId}],entry_method:'manual'});const focusId=prepareSavedLeads(receipt);requestId=crypto.randomUUID();e.target.reset();e.target.elements.acquired_on.value=localDay();rememberForm('lead-form');try{await load();if(!focusId)$('#lead-details').scrollIntoView({block:'start'})}catch(error){$('#lead-details').scrollIntoView({block:'start'});status('线索已保存，但列表刷新失败。请刷新数据核对：'+leadRequestMessage(error))}})};
 $('#estimate-cancel').onclick=()=>{$('#estimate-edit').hidden=true;estimateTarget=null};
 $('#estimate-form').onsubmit=e=>{e.preventDefault();action(async()=>{const row=Object.fromEntries(new FormData(e.target));const issues=estimateIssues(row);if(issues.length)throw Error(issues.join('；'));await rpc('update_sales_lead_estimate',{target_id:estimateTarget,amount_value:row.estimated_amount,currency_value:row.currency});$('#estimate-edit').hidden=true;estimateTarget=null;try{await load()}catch(error){status('预计金额已保存，但列表刷新失败：'+leadRequestMessage(error))}})};
 $('#contact-cancel').onclick=()=>{$('#contact-edit').hidden=true;contactTarget=null};
@@ -129,6 +146,7 @@ try{
  const {data:{user},error}=await db.auth.getUser();if(error||!user)throw Error('请先返回CRM登录，再打开此工作台');
  document.querySelectorAll('select[name=currency]').forEach(s=>{s.innerHTML=Object.entries(estimateCurrencies).map(([code,name])=>`<option value="${code}">${name} ${code}</option>`).join('')});
  $('#to').value=localDay();$('#from').value=$('#to').value.slice(0,8)+'01';$('#lead-form [name=acquired_on]').value=localDay();$('#lead-form [name=source]').innerHTML=Object.entries(sources).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+ for(const id of ['lead-form','contact-form','estimate-form'])rememberForm(id);
  await load();
  const destination=location.hash==='#lead-details'?$('#lead-details'):location.hash==='#entry'&&!$('#entry').hidden?$('#entry'):location.hash==='#lead-dashboard'?$('#lead-dashboard'):location.hash==='#weekly-customer'&&!$('#weekly-customer').hidden?$('#weekly-customer'):null;destination?.scrollIntoView({block:'start'});
 }catch(e){status(leadRequestMessage(e))}

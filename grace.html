@@ -2655,6 +2655,7 @@
             <button id="add-follow" class="primary">保存跟进</button>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:22px"><div><h4 style="margin:0">客户跟进助手</h4><p class="hint" style="margin:6px 0 0">依据该客户全部已关联收发邮件生成，并保留每次更新记录。</p></div><button id="refresh-follow-assistant" class="ghost" type="button">更新总结</button></div>
+          <section id="detail-lead-history" class="quality-panel" hidden></section>
           <div id="detail-follow-assistant" class="next-action-card" style="margin-top:12px"><div><span>自动汇总客户收发信</span><b>暂无可总结的邮件</b><p>收到或发出邮件后，系统会更新客户诉求、风险和建议动作。</p></div></div>
           <h4>邮件沟通记录</h4>
           <p class="hint">同步 CRM 发信、阿里邮箱 App 已发送邮件和客户回信；无法可靠关联的邮件不会混入此处。</p>
@@ -2712,6 +2713,8 @@ import {readAnswerStream} from './assets/grace-answer-stream.mjs';
 import {recoveryIntent,recoveryRedirect,cleanRecoveryUrl,observePasswordRecovery} from "./assets/password-recovery.mjs?v=20261116-recovery1";
       import {loadBrowserScript} from "./assets/browser-dependency.mjs?v=20261105-local1";
       import {bindResearchGenerateEntry} from "./assets/research-generate-entry.mjs?v=20261029-1";
+      import {mountInquiryLeadHistory} from "./assets/inquiry-lead-history.mjs?v=20261117-closure1";
+      let inquiryLeadHistory;
       import {leadWorkspaceRoute} from "./assets/lead-workspace-route.mjs?v=20261117-details1";
       import {openLeadWorkspaceFrame} from "./assets/lead-workspace-frame.mjs?v=20261029-1";
       import {mailboxState} from './assets/mailbox-multi.mjs?v=20261028';
@@ -6912,6 +6915,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           inquiry.emailNeedsExtractionError=extraction.error?.message||"";
         }
         currentInquiry = inquiry;
+        inquiryLeadHistory ||= mountInquiryLeadHistory($('#detail-lead-history'),{rpc:async(name,args)=>{const result=await supabase.rpc(name,args);if(result.error)throw result.error;return result.data}});
+        void inquiryLeadHistory.refresh({inquiryId:inquiry.id,ownSales:profile.role==='sales'&&inquiry.owner_id===profile.id});
         $("#grace-outreach-confirm").checked=false;$("#grace-outreach-angle").value='';$("#grace-outreach-result").textContent='';$("#grace-outreach-private-evidence").textContent='';$("#grace-outreach-private-panel").classList.add('hidden');
         currentQualificationAiSuggestion = null;
         const marketAssignedScope=profile.role==="marketing"&&Boolean(inquiry.owner_id);

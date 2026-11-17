@@ -29,3 +29,16 @@ test('transport retry is bounded and never retries authorization or malformed re
   assert.equal(result.status,'unavailable');assert.equal(count,mode==='network'?2:1);assert.deepEqual(result.assets,[]);
  }
 });
+
+test('body transport failure retries complete read with fresh proof',async()=>{
+ const proofs=[];let n=0;
+ const result=await loadFullMaterials(config,async(url,o)=>{
+  proofs.push(o.headers['X-CRM-Proof']);
+  if(++n===1)return new Response(new ReadableStream({start(c){c.error(new TypeError('synthetic interrupted body'))}}));
+  return Response.json({status:'available',scope:'authorized_material_library',assets:[]});
+ });assert.equal(result.status,'available');assert.equal(n,2);assert.notEqual(proofs[0],proofs[1]);
+});
+test('transient gateways retry once but auth rate-limit and invalid JSON do not',async()=>{
+ for(const status of [502,503,504,401,403,429]){let n=0;const result=await loadFullMaterials(config,async()=>++n===1?new Response('',{status}):Response.json({status:'available',scope:'authorized_material_library',assets:[]}));assert.equal(n,[502,503,504].includes(status)?2:1);assert.equal(result.status,n===2?'available':'unavailable');}
+ let n=0;await loadFullMaterials(config,async()=>{n++;return new Response('{invalid')});assert.equal(n,1);
+});

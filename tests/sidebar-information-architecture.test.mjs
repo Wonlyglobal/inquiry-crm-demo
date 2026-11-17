@@ -27,7 +27,7 @@ test('each existing sidebar action has one group and all six groups agree in bot
     assert.equal(new Set(slots).size,slots.length);
     const navs=[...source.matchAll(/class="nav(?: [^"]*)?" data-view="([^"]+)"/g)].map(m=>m[1]).filter(v=>v!=='sop');
     for(const view of navs)assert.equal(slots.filter(v=>v===view).length,1,view);
-    assert.deepEqual(Array.from(groups[0].views),['sales-today','sales-lead-entry','daily','follow-calendar','weekly-customers']);
+    assert.deepEqual(Array.from(groups[0].views),['sales-today','sales-lead-entry','sales-lead-details','daily','follow-calendar','weekly-customers']);
   }
 });
 test('new shortcuts retain the canonical workspace and precise anchors',()=>{

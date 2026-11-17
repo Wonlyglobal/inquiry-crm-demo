@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {visibleLeadRows,receiptDestination,leadInformationHtml} from '../assets/lead-detail-ui.mjs';
+const lead={id:'one',sales_id:'self',company:'<script>Example</script>',country:'Kenya',demand:'Door request',email:'a@example.invalid',recorded_at:'2026-11-16T16:01:00Z',estimated_amount:0,currency:'CNY'};
+test('search and stage narrow the existing server scope',()=>{assert.equal(visibleLeadRows([lead],'self','door','pending').length,1);assert.equal(visibleLeadRows([lead],'other').length,0);assert.equal(visibleLeadRows([lead],'','door','converted').length,0)});
+test('duplicate receipt selects original recording day without enlarging range',()=>{assert.deepEqual(receiptDestination([{id:'one',recorded_at:lead.recorded_at}],'2026-11-18','2026-11-19'),{id:'one',from:'2026-11-17',to:'2026-11-17',changed:true});assert.equal(receiptDestination([], '2026-11-17','2026-11-17'),null)});
+test('only assigned sales can edit and text is escaped',()=>{const options={names:{self:'Sales'},sources:{},draft:'</textarea><script>bad</script>'};for(const actor of [{role:'owner',id:'self'},{role:'marketing',id:'self'},{role:'sales',id:'other'}])assert.doesNotMatch(leadInformationHtml(lead,{...options,actor}),/id="lead-progress-form"/);const html=leadInformationHtml(lead,{...options,actor:{role:'sales',id:'self'}});assert.match(html,/id="lead-progress-form"/);assert.match(html,/确认转为个人商机/);assert.match(html,/0 CNY/);assert.doesNotMatch(html,/<script>/);assert.match(html,/&lt;\/textarea&gt;/)});

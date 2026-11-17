@@ -1,3 +1,4 @@
+import {visibleLeadRows,receiptDestination,leadInformationHtml} from './lead-detail-ui.mjs?v=20261117-details1';
 import {mountDevelopmentMetrics} from './lead-development-metrics.mjs?v=20261102-1';
 import {decodeCustomerCsv} from './customer-csv-reader.mjs?v=20261029-encoding1';
 import {leadWorksheetRecords} from './lead-worksheet-rows.mjs?v=20261029-1';
@@ -7,7 +8,8 @@ import {renderLeadFileState,bindLeadFilePicker,clearLeadImportSelection} from '.
 import {leadStageLabel,formatStageSummary} from './sales-lead-stages.mjs';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=t=>$('#status').textContent=t,stamp=t=>t?new Date(t).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
-let weeklyReview,contactTarget,estimateTarget,developmentMetrics;
+let weeklyReview,contactTarget,estimateTarget,developmentMetrics,selectedLeadId=null,pendingSavedFocus=null;
+const progressDrafts=new Map();let focusedLeadIds=new Set();
 let selectedImportFile=null,importRecords=[];
 let db,data,pendingRows=[],requestId=crypto.randomUUID(),busy=false;
 const fileNodes={name:$('#file-name'),state:$('#file-state'),remove:$('#remove-import-file')};
@@ -20,12 +22,16 @@ const labels={complete:'已达标',missing:'未提交',short:'不足目标',no_n
 async function load(){
  status('正在核对服务器数据…');const selected=$('#sales').value;
  data=await rpc('sales_lead_workspace',{from_day:$('#from').value,to_day:$('#to').value});
- data.timeliness=await rpc('daily_report_timeliness',{from_day:$('#from').value,to_day:$('#to').value});
- data.weekly=await rpc('sales_lead_weekly_reports',{from_day:$('#from').value,to_day:$('#to').value});
+
  const options=data.people.map(p=>`<option value="${esc(p.id)}">${esc(p.full_name)} · ${esc(p.team)}</option>`).join('');
  $('#sales').innerHTML='<option value="">全部可见成员</option>'+options;$('#sales').value=selected;
  $('#exempt-form [name=sales_id]').innerHTML=options;
+ $('#details-add-lead').hidden=data.actor.role!=='sales';
  $('#entry').hidden=data.actor.role!=='sales';$('#entry-shortcut').hidden=data.actor.role!=='sales';$('#settings').hidden=!['owner','marketing'].includes(data.actor.role);
+ renderLeadDetails();
+ if(pendingSavedFocus){const id=pendingSavedFocus;pendingSavedFocus=null;showLead(id)}
+ data.timeliness=await rpc('daily_report_timeliness',{from_day:$('#from').value,to_day:$('#to').value});
+ data.weekly=await rpc('sales_lead_weekly_reports',{from_day:$('#from').value,to_day:$('#to').value});
  $('#rules').textContent=data.rules.map(r=>`${r.effective_on}起：工作日${r.daily_min}条，${r.remind_at}提醒，周${r.weekly_day} ${r.weekly_at}统计；${r.reason}`).join('\n');
  $('#report-deadline-rules').textContent=data.timeliness.rules.map(r=>`${r.effective_on}起：${r.deadline}截止`).join('；');
  weeklyReview ||= mountWeeklyCustomerReview($('#weekly-customer'),{rpc});
@@ -45,13 +51,50 @@ function render(){
  $('#ranking').innerHTML=data.people.filter(p=>!sales||p.id===sales).map(p=>{const x=summarize(data,p.id,from,to);return `<tr><td>${esc(p.full_name)}</td>${[x.leads,x.no_new,x.missing,x.short,x.converted,x.conversionRate===null?'—':x.conversionRate+'%',x.periodConversions].map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`}).join('');
  $('#weekly').textContent=data.weekly.filter(w=>!sales||w.sales_id===sales).map(w=>`${names[w.sales_id]}｜${w.week_start}周｜截止${stamp(w.cutoff_at)}\n新增${w.summary.new_leads}，本周转化${w.summary.period_conversions}，无新增申报${w.summary.no_new_days}，未提交${w.summary.missing_days}，不足目标${w.summary.short_days}，跟进${w.summary.followup_count}次；阶段：${formatStageSummary(w.summary.stages)}`).join('\n\n')||'当前周期尚无周报快照；首次按设置时间生成。';
  $('#days').innerHTML=data.days.filter(d=>!sales||d.sales_id===sales).sort((a,b)=>b.day.localeCompare(a.day)).map(d=>{const x=dailyState(d,data.leads);return `<tr>${[names[d.sales_id],d.day,x.count,d.daily_min,labels[x.status],d.exempt_reason||d.no_new_reason||'—',stamp(d.exempt_at||d.declared_at)].map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`}).join('');
- $('#leads').innerHTML=data.leads.filter(l=>!sales||l.sales_id===sales).map(l=>`<tr><td>${esc(l.company)}<small>${esc(l.contact)}</small></td><td>${esc(names[l.sales_id])}</td><td>${esc(l.country)}<small>${esc(l.email||l.phone||'联系方式待补充')}</small></td><td>${esc(sources[l.source]||l.source)}<small>${esc(l.demand)}</small></td><td>${esc(l.acquired_on)}</td><td>${esc(stamp(l.recorded_at))}<small>${l.method==='excel'?'Excel导入':'手动录入'}</small></td><td>${esc(leadStageLabel(l))}<small>${esc(l.progress_note||'尚未更新跟进摘要')} · ${esc(stamp(l.progress_at))}</small><small>${esc(l.estimated_amount??'—')} ${esc(l.currency||'')}</small></td><td>${esc(stamp(l.converted_at))}</td><td>${!l.inquiry_id&&l.sales_id===data.actor.id?`<button data-estimate="${esc(l.id)}">维护预计金额</button><button data-contact="${esc(l.id)}">补充联系方式</button>${l.email||l.phone?`<button data-convert="${esc(l.id)}">转为个人商机</button>`:"<small>待补充联系方式后转化</small>"}`:l.inquiry_id&&data.actor.role!=='marketing'?`<a href="/#inquiry/${esc(l.inquiry_id)}">打开商机</a>`:'已关联'}${l.inquiry_id&&l.sales_id===data.actor.id?`<button data-progress="${esc(l.id)}">更新周跟进摘要</button>`:''}</td></tr>`).join('')||'<tr><td colspan="9">本周期暂无线索，不代表历史无数据</td></tr>';
- $('#leads').querySelectorAll('[data-estimate]').forEach(b=>b.onclick=()=>{const lead=data.leads.find(l=>l.id===b.dataset.estimate);estimateTarget=lead.id;$('#estimate-edit').hidden=false;$('#estimate-customer').textContent=lead.company||lead.contact;$('#estimate-form [name=estimated_amount]').value=lead.estimated_amount??'';const code=lead.currency||'CNY',select=$('#estimate-form [name=currency]');if(![...select.options].some(o=>o.value===code))select.add(new Option(code,code));select.value=code;$('#estimate-edit').scrollIntoView({block:'center'});$('#estimate-form [name=estimated_amount]').focus()});
- $('#leads').querySelectorAll('[data-contact]').forEach(b=>b.onclick=()=>{const lead=data.leads.find(l=>l.id===b.dataset.contact);contactTarget=lead.id;$('#contact-edit').hidden=false;$('#contact-customer').textContent=lead.company||lead.contact;$('#contact-edit [name=email]').value=lead.email||'';$('#contact-edit [name=phone]').value=lead.phone||'';$('#contact-edit').scrollIntoView({block:'center'});$('#contact-edit [name=email]').focus()});
- $('#leads').querySelectorAll('[data-convert]').forEach(b=>b.onclick=()=>action(async()=>{if(!confirm('确认把这条线索转为本人商机？保留来源、原线索及转化时间。'))return;await rpc('convert_sales_lead',{target_id:b.dataset.convert});await load()}));
- $('#leads').querySelectorAll('[data-progress]').forEach(b=>b.onclick=()=>action(async()=>{const note=prompt('更新本周跟进摘要（市场部及主管可见，请勿填写私有邮件、报价文件、合同或付款资料）');if(note===null)return;await rpc('update_sales_lead_progress',{target_id:b.dataset.progress,note});await load()}));
+ renderLeadDetails();
 }
-$('#lead-form').onsubmit=e=>{e.preventDefault();action(async()=>{const row=normalizeLead(Object.fromEntries(new FormData(e.target)));const issues=leadIssues(row);if(issues.length)throw Error(issues.join('；'));await rpc('record_sales_leads',{rows:[{...row,request_id:requestId}],entry_method:'manual'});requestId=crypto.randomUUID();e.target.reset();e.target.elements.acquired_on.value=localDay();try{await load()}catch(error){status('线索已保存，但列表刷新失败。请刷新数据核对：'+leadRequestMessage(error))}})};
+function renderLeadDetails(){
+ const names=Object.fromEntries(data.people.map(p=>[p.id,p.full_name]));
+ const rows=visibleLeadRows(data.leads,$('#sales').value,$('#lead-search').value,$('#lead-state').value);
+ $('#lead-visible-count').textContent=`${rows.length} 条`;
+ $('#leads').innerHTML=rows.map(l=>`<tr data-lead-id="${esc(l.id)}" class="${focusedLeadIds.has(l.id)?'lead-focused':''}"><td><button class="lead-customer-button" data-lead-view="${esc(l.id)}">${esc(l.company||l.contact||'客户线索')}</button><small>${esc(l.contact)} · ${esc(names[l.sales_id])}</small><small>录入 ${esc(stamp(l.recorded_at))}</small></td><td>${esc(l.country)}<small>${esc(l.email||l.phone||'联系方式待补充')}</small></td><td>${esc(sources[l.source]||l.source)}<small>${esc(l.demand)}</small></td><td>${esc(leadStageLabel(l))}<small>${esc(l.progress_note||'尚未记录跟进')} · ${esc(stamp(l.progress_at))}</small><small>${esc(l.estimated_amount??'—')} ${esc(l.currency||'')}</small></td><td><button data-lead-view="${esc(l.id)}" class="button-secondary">查看客户信息</button>${l.sales_id===data.actor.id&&data.actor.role==='sales'?`<button data-progress="${esc(l.id)}" class="button-secondary">记录跟进</button>${!l.inquiry_id&&(l.email||l.phone)?`<button data-convert="${esc(l.id)}">转为个人商机</button>`:''}`:''}${l.inquiry_id&&data.actor.role!=='marketing'?`<a href="/#inquiry/${esc(l.inquiry_id)}" target="_top">打开商机</a>`:''}</td></tr>`).join('')||'<tr><td colspan="5">当前日期或筛选条件下暂无线索，请检查日期范围或清空搜索。</td></tr>';
+ const lead=rows.find(l=>l.id===selectedLeadId),panel=$('#lead-information');panel.hidden=!lead;
+ if(lead){panel.innerHTML=leadInformationHtml(lead,{actor:data.actor,names,sources,draft:progressDrafts.get(lead.id)||'',stage:leadStageLabel(lead)});
+  panel.querySelector('[data-close-lead]').onclick=()=>{selectedLeadId=null;renderLeadDetails()};
+  const form=panel.querySelector('#lead-progress-form');
+  if(form){const input=form.elements.note;input.oninput=()=>{if(input.value)progressDrafts.set(lead.id,input.value);else progressDrafts.delete(lead.id);panel.querySelector('[data-progress-draft-status]').textContent=input.value?'有未保存的跟进摘要':''};
+   panel.querySelector('[data-discard-progress]').onclick=()=>{progressDrafts.delete(lead.id);input.value='';panel.querySelector('[data-progress-draft-status]').textContent='未保存摘要已放弃；已保存记录保持不变'};
+   form.onsubmit=event=>{event.preventDefault();action(async()=>{const note=input.value.trim();if(note.length<4||note.length>2000)throw Error('跟进摘要需4—2000字');await rpc('update_sales_lead_progress',{target_id:lead.id,note});progressDrafts.delete(lead.id);try{await load();showLead(lead.id);status('跟进摘要已保存，录入时间与线索数量保持不变。')}catch(error){status('跟进摘要已保存，但列表刷新失败：'+leadRequestMessage(error))}})};
+  }
+  const cancel=panel.querySelector('[data-cancel-convert]');if(cancel)cancel.onclick=()=>panel.querySelector('[data-convert-review]').hidden=true;
+  const confirm=panel.querySelector('[data-confirm-convert]');if(confirm)confirm.onclick=()=>action(async()=>{await rpc('convert_sales_lead',{target_id:lead.id});try{await load();showLead(lead.id);status('已转为本人商机，原线索、来源、录入时间和跟进摘要已保留。')}catch(error){status('转化已完成，但列表刷新失败：'+leadRequestMessage(error))}});
+ }
+ bindLeadActions();
+}
+function showLead(id,mode='view'){
+ selectedLeadId=id;renderLeadDetails();const panel=$('#lead-information');
+ if(panel.hidden){$('#lead-save-result').hidden=false;$('#lead-save-result').textContent='返回记录不在当前筛选内，请调整日期或搜索条件后查看。';$('#lead-details').scrollIntoView({block:'start'});return}
+ panel.scrollIntoView({block:'center'});panel.focus({preventScroll:true});
+ if(mode==='progress')panel.querySelector('[name=note]')?.focus({preventScroll:true});
+ if(mode==='convert'){const review=panel.querySelector('[data-convert-review]');if(review){review.hidden=false;review.scrollIntoView({block:'center'})}}
+}
+function bindLeadActions(){
+ $('#lead-details').querySelectorAll('[data-lead-view]').forEach(b=>b.onclick=()=>showLead(b.dataset.leadView));
+ $('#lead-details').querySelectorAll('[data-progress]').forEach(b=>b.onclick=()=>showLead(b.dataset.progress,'progress'));
+ $('#lead-details').querySelectorAll('[data-convert]').forEach(b=>b.onclick=()=>showLead(b.dataset.convert,'convert'));
+ $('#lead-details').querySelectorAll('[data-estimate]').forEach(b=>b.onclick=()=>{const lead=data.leads.find(l=>l.id===b.dataset.estimate);estimateTarget=lead.id;$('#estimate-edit').hidden=false;$('#estimate-customer').textContent=lead.company||lead.contact;$('#estimate-form [name=estimated_amount]').value=lead.estimated_amount??'';const code=lead.currency||'CNY',select=$('#estimate-form [name=currency]');if(![...select.options].some(o=>o.value===code))select.add(new Option(code,code));select.value=code;$('#estimate-edit').scrollIntoView({block:'center'});$('#estimate-form [name=estimated_amount]').focus()});
+ $('#lead-details').querySelectorAll('[data-contact]').forEach(b=>b.onclick=()=>{const lead=data.leads.find(l=>l.id===b.dataset.contact);contactTarget=lead.id;$('#contact-edit').hidden=false;$('#contact-customer').textContent=lead.company||lead.contact;$('#contact-edit [name=email]').value=lead.email||'';$('#contact-edit [name=phone]').value=lead.phone||'';$('#contact-edit').scrollIntoView({block:'center'});$('#contact-edit [name=email]').focus()});
+}
+function prepareSavedLeads(receipts){
+ const destination=receiptDestination(receipts,$('#from').value,$('#to').value);
+ focusedLeadIds=new Set(Array.isArray(receipts)?receipts.map(r=>r.id):[]);$('#lead-search').value='';$('#lead-state').value='all';$('#sales').value='';
+ if(destination){$('#from').value=destination.from;$('#to').value=destination.to;selectedLeadId=destination.id;pendingSavedFocus=destination.id}
+ $('#lead-save-result').hidden=false;$('#lead-save-result').textContent=`保存结果已返回，重复线索由服务器去重。${destination?.changed?'已切换到该线索的实际录入日期。':''}可直接查看客户信息、记录跟进或转为个人商机。`;
+ return destination?.id;
+}
+$('#lead-search').oninput=$('#lead-state').onchange=()=>{selectedLeadId=null;renderLeadDetails()};
+window.addEventListener('beforeunload',event=>{if(progressDrafts.size){event.preventDefault();event.returnValue=''}});
+$('#lead-form').onsubmit=e=>{e.preventDefault();action(async()=>{const row=normalizeLead(Object.fromEntries(new FormData(e.target)));const issues=leadIssues(row);if(issues.length)throw Error(issues.join('；'));const receipt=await rpc('record_sales_leads',{rows:[{...row,request_id:requestId}],entry_method:'manual'});const focusId=prepareSavedLeads(receipt);requestId=crypto.randomUUID();e.target.reset();e.target.elements.acquired_on.value=localDay();try{await load();if(!focusId)$('#lead-details').scrollIntoView({block:'start'})}catch(error){$('#lead-details').scrollIntoView({block:'start'});status('线索已保存，但列表刷新失败。请刷新数据核对：'+leadRequestMessage(error))}})};
 $('#estimate-cancel').onclick=()=>{$('#estimate-edit').hidden=true;estimateTarget=null};
 $('#estimate-form').onsubmit=e=>{e.preventDefault();action(async()=>{const row=Object.fromEntries(new FormData(e.target));const issues=estimateIssues(row);if(issues.length)throw Error(issues.join('；'));await rpc('update_sales_lead_estimate',{target_id:estimateTarget,amount_value:row.estimated_amount,currency_value:row.currency});$('#estimate-edit').hidden=true;estimateTarget=null;try{await load()}catch(error){status('预计金额已保存，但列表刷新失败：'+leadRequestMessage(error))}})};
 $('#contact-cancel').onclick=()=>{$('#contact-edit').hidden=true;contactTarget=null};
@@ -80,12 +123,12 @@ $('#excel').onchange=()=>{const f=$('#excel').files[0];if(!f)return;action(async
  }catch(error){renderLeadFileState(fileNodes,{state:'error',file:f,error:error.message});throw error}
  finally{$('#excel').value=''}
 })};
-$('#import').onclick=()=>action(async()=>{if(!pendingRows.length||!confirm(`确认导入${pendingRows.length}条本人线索？`))return;await rpc('record_sales_leads',{rows:pendingRows,entry_method:'excel'});pendingRows=[];importRecords=[];selectedImportFile=null;$('#import-acquired-on').value='';$('#excel').value='';$('#import-preview').textContent='';$('#import-preview').hidden=true;renderLeadFileState(fileNodes,{state:'done'});try{await load()}catch(error){status('导入已保存，但列表刷新失败。请点击刷新数据重试：'+error.message)}});
+$('#import').onclick=()=>action(async()=>{if(!pendingRows.length||!confirm(`确认导入${pendingRows.length}条本人线索？`))return;const receipt=await rpc('record_sales_leads',{rows:pendingRows,entry_method:'excel'});const focusId=prepareSavedLeads(receipt);pendingRows=[];importRecords=[];selectedImportFile=null;$('#import-acquired-on').value='';$('#excel').value='';$('#import-preview').textContent='';$('#import-preview').hidden=true;renderLeadFileState(fileNodes,{state:'done'});try{await load();if(!focusId)$('#lead-details').scrollIntoView({block:'start'})}catch(error){$('#lead-details').scrollIntoView({block:'start'});status('导入已保存，但列表刷新失败。请点击刷新数据重试：'+error.message)}});
 try{
  const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm');db=createClient('https://plhverjihjilnuhlhlxi.supabase.co','sb_publishable_uDiOI4MTIoHbsQDAqHsH1A_4Db3Hmmw');
  const {data:{user},error}=await db.auth.getUser();if(error||!user)throw Error('请先返回CRM登录，再打开此工作台');
  document.querySelectorAll('select[name=currency]').forEach(s=>{s.innerHTML=Object.entries(estimateCurrencies).map(([code,name])=>`<option value="${code}">${name} ${code}</option>`).join('')});
  $('#to').value=localDay();$('#from').value=$('#to').value.slice(0,8)+'01';$('#lead-form [name=acquired_on]').value=localDay();$('#lead-form [name=source]').innerHTML=Object.entries(sources).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
  await load();
- const destination=location.hash==='#entry'&&!$('#entry').hidden?$('#entry'):location.hash==='#lead-dashboard'?$('#lead-dashboard'):location.hash==='#weekly-customer'&&!$('#weekly-customer').hidden?$('#weekly-customer'):null;destination?.scrollIntoView({block:'start'});
+ const destination=location.hash==='#lead-details'?$('#lead-details'):location.hash==='#entry'&&!$('#entry').hidden?$('#entry'):location.hash==='#lead-dashboard'?$('#lead-dashboard'):location.hash==='#weekly-customer'&&!$('#weekly-customer').hidden?$('#weekly-customer'):null;destination?.scrollIntoView({block:'start'});
 }catch(e){status(leadRequestMessage(e))}

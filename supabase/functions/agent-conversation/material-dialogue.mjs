@@ -1,5 +1,5 @@
 import {trainingAnswer} from './training-answer.mjs';
-import {documentTopicTerms} from './document-topic.mjs';
+import {documentTopicTerms,woodTrainingQuestion} from './document-topic.mjs';
 import {productParameterAnswer} from './product-parameter-answer.mjs';
 import {visualQuestion,slideVisualText} from './slide-visual.mjs';
 import {normalizeProductInput,materialModelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts} from './product-input.mjs';
@@ -17,6 +17,7 @@ export function resolveMaterialTurn(question,history=[]){
  if(/^第\s*\d+\s*页[。？?]*$/.test(q))return {question:`物料：${prior.query} ${q}`};
  if(/^(继续|展开|详细一点|详细说明)[。？?！!]*$/.test(q))return {question:`物料：${prior.query} 第${prior.page}页`,detail:true};
  if(/产品手册|宣传册|产品目录|资料库|物料[:：]|查找|寻找|安装视频|(?:木门|安全门|防盗门|智能锁|门锁|医用门|防火门|防火窗).{0,8}(?:画册|样本)/.test(q)&&! /^(那|它|这个|该型号)/.test(q))return {question:q};
+ if(!ids.length&&woodTrainingQuestion(q))return {question:q};
  // Training followups do not require a model. Carry only an unambiguous
  // product scope, never the previous answer or an unrelated product's facts.
  if(!ids.length&&!oldIds.length&&/木门/.test(previous)&&documentTopicTerms(q).length&&q.length<=60&&!/木门|安全门|防盗门|智能锁|门锁|医用门|防火门|防火窗|窗户|对比|比较/.test(q)&&!/安全门|防盗门|智能锁|门锁|医用门|防火门|防火窗|窗户|对比|比较/.test(previous)){

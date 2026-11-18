@@ -40,3 +40,14 @@ test('training uses internal retrieval and selects a topic term before the sourc
   assert.deepEqual(request.terms,[term]);
  }
 });
+
+import {nativeProductTurn} from '../supabase/functions/agent-conversation/private-product-knowledge.mjs';
+test('wood training switches away from a prior lock and keeps the new scope on follow-up',()=>{
+ const lock='私有产品：TEST80 PRO；尺寸';
+ const wood='木门怎么保养';
+ assert.equal(resolveMaterialTurn(wood,[lock]).question,wood);
+ assert.equal(nativeProductTurn(wood,[lock]),null);
+ assert.equal(nativeProductTurn('那厚度呢',[lock,wood]),null);
+ assert.equal(resolveMaterialTurn('那厚度呢',[lock,wood]).question,'物料：木门 厚度呢');
+ assert.equal(nativeProductTurn('那后面板尺寸呢',[lock])?.model,'TEST80 PRO');
+});

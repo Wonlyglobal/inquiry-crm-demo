@@ -1,3 +1,4 @@
+import {woodTrainingQuestion} from './document-topic.mjs';
 // Original-owner RPC only. Native private excerpts never enter a provider or speech prompt.
 import {materialModelCodes,materialVersion,normalizeProductInput,materialFields} from './product-input.mjs';
 import {nativeProductEvidence} from './product-native-evidence.mjs';
@@ -17,7 +18,9 @@ export function nativeProductTurn(question,history=[]){
  const models=materialModelCodes(q);
  const fieldQuestion=materialFields(q).length>0||/缺口|未覆盖|没写|未知/.test(q);
  if(/新需求|换个话题|新话题|不查资料|天气|新闻|CRM|社媒|网站|公司|企业/.test(q))return null;
- const prior=history.find(h=>String(h).startsWith(prefix));
+ const latest=String(history.at(-1)||'');
+ if(!models.length&&(woodTrainingQuestion(q)||woodTrainingQuestion(latest)))return null;
+ const prior=latest.startsWith(prefix)?latest:null;
  if(models.length===1&&((parameter.test(q)||fieldQuestion)||prior&&q.length<=100&&/^(?:换成|改为|再看|那)/.test(q))){
   const edition=materialVersion(q)||(prior&&/^(?:换成|改为|再看|那)/.test(q)?materialVersion(prior):'')||'';
   return {model:models[0],edition,question:models[0]+(edition?' '+edition:'')+'；'+q};

@@ -2,6 +2,11 @@ import {dimensionRows,dimensionPart} from './parameter-table.mjs';
 import {materialFields,materialModelCodes,materialVersion} from './product-input.mjs';
 import {sourceNamesModel} from './product-materials.mjs';
 const canonical=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[\s_/.-]+/g,'');
+// Render numeric products using × so the app's Markdown cleanup cannot
+// remove asterisks and concatenate the dimensions.
+const displayValue=(field,value)=>field==='尺寸'
+ ?value.replace(/(\d(?:[ \t]*(?:mm|cm|in|毫米|厘米))?)[ \t]*[*×][ \t]*(?=\d)/gi,'$1 × ')
+ :value;
 // Input is an authorized, evidence-gated response, never raw index snippets.
 export function productParameterAnswer(data,question,native=null){
  const models=materialModelCodes(question),wanted=materialFields(question).filter(f=>!['型号','参数','规格','来源','版本','页码'].includes(f));
@@ -58,7 +63,7 @@ export function productParameterAnswer(data,question,native=null){
   const parts=new Map();for(const value of grouped.keys()){const part=field==='尺寸'?dimensionPart(value):field;parts.set(part,(parts.get(part)||0)+1)}
   const conflict=[...parts.values()].some(n=>n>1);
   lines.push(`${field}${conflict?'（来源表述不同，分别列出，不能认定为同一配置）':''}：`);
-  for(const [value,refs] of grouped)lines.push(`- ${value}\n  来源：${refs.map(r=>`${r.source}${r.native?'':`，第 ${r.page} 页`}，${r.version}`).join('；')}`);
+  for(const [value,refs] of grouped)lines.push(`- ${displayValue(field,value)}\n  来源：${refs.map(r=>`${r.source}${r.native?'':`，第 ${r.page} 页`}，${r.version}`).join('；')}`);
  }
  lines.push('以上依据本次有权读取的原页摘录整理，未经人工参数核验。'+(data.has_more?'仍有后续资料未读取，不代表完整参数清单。':''),'需要我打开对应画册给你核对吗？');
  return lines.join('\n');

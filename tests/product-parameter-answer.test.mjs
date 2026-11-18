@@ -32,7 +32,7 @@ function tableData(text,kind='native_text'){
 test('single-model native table associates header with rows and separates front/rear dimensions',()=>{
  const text='产品型号\n 模块 功能和设计\n TEST80 Pro\n 前面板尺寸（不含手柄） 400mm*80mm*50mm\n 后面板尺寸（不含手柄） 410mm*80mm*30mm\n 适用门厚 50－100mm';
  const data=tableData(text),answer=productParameterAnswer(data,'TEST80 Pro尺寸');
- assert.match(answer,/400mm\*80mm\*50mm/);assert.match(answer,/410mm\*80mm\*30mm/);
+ assert.match(answer,/400mm × 80mm × 50mm/);assert.match(answer,/410mm × 80mm × 30mm/);
  assert.doesNotMatch(answer,/来源表述不同|50－100|模块|产品型号/);
  assert.match(answer,/第 1 页/);
 });

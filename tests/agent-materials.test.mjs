@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {loadFullMaterials,fullMaterialAnswer} from '../supabase/functions/agent-conversation/materials.mjs';import {knowledgeRoute} from '../supabase/functions/agent-conversation/knowledge-routing.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import {loadFullMaterials,fullMaterialAnswer,materialConnectionUnavailable} from '../supabase/functions/agent-conversation/materials.mjs';import {knowledgeRoute} from '../supabase/functions/agent-conversation/knowledge-routing.mjs';
 import {MATERIAL_ACTOR,verifyMaterialRequest} from '../supabase/functions/agent-conversation/material-request-proof.mjs';
 const keys=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
 const publicJwk=JSON.stringify(await crypto.subtle.exportKey('jwk',keys.publicKey));
@@ -34,4 +34,32 @@ test('body transport failure retries with a fresh proof',async()=>{
  const proofs=[];let calls=0;const result=await loadFullMaterials(config,async(_url,o)=>{proofs.push(o.headers['X-CRM-Proof']);calls++;if(calls===1)return new Response(new ReadableStream({start(c){c.error(new TypeError('synthetic body failure'))}}));return Response.json({status:'available',scope:'authorized_material_library',assets:[]})});
  assert.equal(result.status,'available');assert.equal(calls,2);assert.notEqual(proofs[0],proofs[1]);
 });
-test('invalid JSON is not retried',async()=>{let calls=0;const result=await loadFullMaterials(config,async()=>{calls++;return new Response('{bad')});assert.equal(calls,1);assert.equal(result.status,'unavailable')});
+test('invalid JSON is not retried',async()=>{let calls=0;const result=await loadFullMaterials(config,async()=>{calls++;return new Response('{bad')});assert.equal(calls,1);assert.equal(result.status,'unavailable');assert.equal(materialConnectionUnavailable(result),false)});
+
+test('direct material chat recovers after two attempts, with a fresh proof each time',async()=>{
+ const calls=[];
+ const result=await loadFullMaterials({...config,recoverConnection:true},async(_url,options)=>{
+  const claims=await verifyMaterialRequest({proof:options.headers['X-CRM-Proof'],body:options.body,publicJwk});
+  assert.ok(claims);calls.push({claims,body:options.body});
+  if(calls.length===1)throw new DOMException('upstream timeout','TimeoutError');
+  if(calls.length===2)return new Response('',{status:504});
+  return Response.json({status:'available',scope:'authorized_material_library',assets:[]});
+ });
+ assert.equal(result.status,'available');
+ assert.equal(calls.length,3);
+ assert.equal(new Set(calls.map(call=>call.claims.jti)).size,3);
+ assert.equal(new Set(calls.map(call=>call.body)).size,1);
+});
+
+test('direct material chat exhausts transport attempts and never retries access denial',async()=>{
+ for(const [status,expectedCalls,retryable] of [[503,3,true],[403,1,false]]){
+  let calls=0;
+  const result=await loadFullMaterials({...config,recoverConnection:true},async()=>{
+   calls++;
+   return new Response('',{status});
+  });
+  assert.equal(calls,expectedCalls);
+  assert.equal(materialConnectionUnavailable(result),retryable);
+  assert.deepEqual(result.assets,[]);
+ }
+});

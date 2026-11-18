@@ -67,3 +67,24 @@ test('explicit call prepares audio in the click before a slow voice preflight, b
  let prepared=0,released=0,captured=0,voice;const {model,host}=setup(async body=>{if(body.action==='status')return {enabled:true,configured:true};return new Blob(['synthetic'])},{autoVoice:false,phoneInputFactory:async()=>{prepared++;return {release:()=>released++}},phoneCapture:async()=>{captured++;throw Error('unexpected capture')},realtimeRequest:()=>new Promise(r=>voice=r)});
  const phone=host.children.flatMap(e=>e.children||[]).find(e=>e.dataset.voiceTool==='phone');const starting=phone.onclick();assert.equal(prepared,1);await new Promise(r=>setImmediate(r));assert.equal(captured,0);voice({ready:false,voiceprint_available:false});await starting;assert.equal(model.phone.isActive(),false);assert.equal(captured,0);assert.equal(released,1);model.stop();
 });
+
+test('material connection failure is retryable and keeps the last successful topic',async()=>{
+ let fail=true;const histories=[];
+ const {model,states,messages}=setup(async body=>{
+  if(body.action==='status')return {enabled:true,configured:true};
+  histories.push(body.materialHistory);
+  if(body.question==='那留缝多少'&&fail){
+   fail=false;
+   throw Object.assign(Error('企业资料暂时连不上，可重试刚才的问题'),{status:503});
+  }
+  return {answer:'Synthetic material answer',provider:'internal',context:{route:'materials',material_question:'物料：木门'}};
+ },{autoVoice:false});
+ try{
+  await model.enter();await model.ask('木门怎么保养');await model.ask('那留缝多少');
+  assert.equal(states.at(-1),'回答未完成，可重试');
+  assert.match(messages.at(-1).text,/企业资料暂时连不上/);
+  await model.ask('那留缝多少');
+  assert.deepEqual(histories,[[],['物料：木门'],['物料：木门']]);
+  assert.equal(states.at(-1),'回答完成');
+ }finally{model.stop()}
+});

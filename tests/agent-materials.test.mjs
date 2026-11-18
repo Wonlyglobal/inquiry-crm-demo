@@ -29,3 +29,9 @@ test('transport retry is bounded and never retries authorization or malformed re
   assert.equal(result.status,'unavailable');assert.equal(count,mode==='network'?2:1);assert.deepEqual(result.assets,[]);
  }
 });
+
+test('body transport failure retries with a fresh proof',async()=>{
+ const proofs=[];let calls=0;const result=await loadFullMaterials(config,async(_url,o)=>{proofs.push(o.headers['X-CRM-Proof']);calls++;if(calls===1)return new Response(new ReadableStream({start(c){c.error(new TypeError('synthetic body failure'))}}));return Response.json({status:'available',scope:'authorized_material_library',assets:[]})});
+ assert.equal(result.status,'available');assert.equal(calls,2);assert.notEqual(proofs[0],proofs[1]);
+});
+test('invalid JSON is not retried',async()=>{let calls=0;const result=await loadFullMaterials(config,async()=>{calls++;return new Response('{bad')});assert.equal(calls,1);assert.equal(result.status,'unavailable')});

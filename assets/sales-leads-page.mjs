@@ -1,4 +1,4 @@
-import {mountPersonalLeadWorkflow} from './personal-lead-workflow.mjs?v=20261117-closure1';
+import {mountPersonalLeadWorkflow} from './personal-lead-workflow.mjs?v=20261118-spacing1';
 import {visibleLeadRows,receiptDestination,leadInformationHtml} from './lead-detail-ui.mjs?v=20261117-details1';
 import {mountDevelopmentMetrics} from './lead-development-metrics.mjs?v=20261102-1';
 import {decodeCustomerCsv} from './customer-csv-reader.mjs?v=20261029-encoding1';

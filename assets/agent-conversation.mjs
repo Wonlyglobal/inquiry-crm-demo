@@ -2,7 +2,7 @@ import {privateReportQuestion,PRIVATE_REPORT_KEY} from './agent-private-report-c
 import {mountPrivateIntelligence,privateReportButtons} from './agent-private-intelligence.mjs?v=20261027-private-input1';
 import {createConnectionCheck} from './agent-connection.mjs?v=20261019-connect1';
 import {questionPlan,nextMaterialHistory} from './agent-question-plan.mjs?v=20261019-private1';
-import {materialHistoryAfterFailure} from './agent-material-retry.mjs?v=20261117-retry1';
+import {materialHistoryAfterFailure} from './agent-material-retry.mjs?v=20261118-material-outage1';
 import {createPhoneSession} from './agent-phone.mjs?v=20261015-stable-call1';
 import {preparePhoneInput,capturePhoneTurn} from './agent-phone-input.mjs?v=20261015-stable-call1';
 import {modelChoiceButtons,clarificationButtons,clarificationChoices} from './agent-model-choices.mjs?v=20261012-feedback';

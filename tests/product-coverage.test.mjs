@@ -51,7 +51,8 @@ test('similar product names are flagged but never merged',()=>{
 });
 test('renderers include the ledger only when gated findings exist',()=>{
  const withF=gateMaterialEvidence(data([asset('a',doc([finding()]))]));
- assert.match(fullMaterialAnswer(withF),/产品理解状态/);assert.match(conciseMaterialAnswer(withF,'TEST-X1 厚度'),/产品理解状态/);
+ assert.match(fullMaterialAnswer(withF),/产品理解状态/);const answer=conciseMaterialAnswer(withF,'TEST-X1 厚度');
+ assert.match(answer,/1\.2mm/);assert.match(answer,/第 1 页/);assert.doesNotMatch(answer,/产品理解状态/);
  const none=gateMaterialEvidence(data([asset('a',doc([finding({page:3})]))]));
  const c=conciseMaterialAnswer(none,'TEST-X1 厚度');assert.ok(!c.includes('产品理解状态'));assert.match(c,/已隐藏/);
  assert.ok(!fullMaterialAnswer(none).includes('内部语义提取已处理'));

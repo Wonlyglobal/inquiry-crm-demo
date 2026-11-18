@@ -1,3 +1,6 @@
+import {trainingAnswer} from './training-answer.mjs';
+import {documentTopicTerms} from './document-topic.mjs';
+import {productParameterAnswer} from './product-parameter-answer.mjs';
 import {visualQuestion,slideVisualText} from './slide-visual.mjs';
 import {normalizeProductInput,materialModelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts} from './product-input.mjs';
 import {productLedger,productLedgerText} from './product-coverage.mjs';
@@ -14,12 +17,19 @@ export function resolveMaterialTurn(question,history=[]){
  if(/^第\s*\d+\s*页[。？?]*$/.test(q))return {question:`物料：${prior.query} ${q}`};
  if(/^(继续|展开|详细一点|详细说明)[。？?！!]*$/.test(q))return {question:`物料：${prior.query} 第${prior.page}页`,detail:true};
  if(/产品手册|宣传册|产品目录|资料库|物料[:：]|查找|寻找|安装视频|(?:木门|安全门|防盗门|智能锁|门锁|医用门|防火门|防火窗).{0,8}(?:画册|样本)/.test(q)&&! /^(那|它|这个|该型号)/.test(q))return {question:q};
+ // Training followups do not require a model. Carry only an unambiguous
+ // product scope, never the previous answer or an unrelated product's facts.
+ if(!ids.length&&!oldIds.length&&/木门/.test(previous)&&documentTopicTerms(q).length&&q.length<=60&&!/木门|安全门|防盗门|智能锁|门锁|医用门|防火门|防火窗|窗户|对比|比较/.test(q)&&!/安全门|防盗门|智能锁|门锁|医用门|防火门|防火窗|窗户|对比|比较/.test(previous)){
+  const request=q.replace(/^(那|它|这个|还有)+/,'').replace(/^的/,'');
+  const version=materialVersion(q)||materialVersion(previous);
+  return {question:`物料：木门 ${request}${version&&!request.includes(version)?' '+version:''}`};
+ }
  const followup=/^(那|它|这个|该型号|还有)/.test(q)||q.length<=60&&(properties.length>0||ids.length>0&&(/呢|怎么样|如何/.test(q)||bareModel(q)));
  if(!followup)return {question:q};
  // A literal named product has no model code; retain its file scope and name for short followups.
  if(!ids.length&&namedMaterialProducts(q).length)return {question:'物料：'+q.replace(/^(那|它|这个|该型号|还有)+/,'')};
  const named=namedMaterialProducts(previous);
- if(!ids.length&&oldIds.length<=1&&named.length===1&&!/对比|比较| versus | vs\.? /i.test(previous)){
+ if(!ids.length&&oldIds.length<=1&&named.length===1&&!/对比|比较| versus | vs\.? /.test(previous)){
   const at=prior.query.indexOf(named[0]);
   if(at>=0){const anchor=prior.query.slice(0,at+named[0].length),request=q.replace(/^(那|它|这个|该型号|还有)+/,'').replace(/^的/,'').replace(/[呢。？?！!]+$/,'').trim();return {question:`物料：${anchor} ${request}`.trim()}}
  }
@@ -77,6 +87,8 @@ export function directMaterialParameterAnswer(data,question){
  return lines.join('\n');
 }
 export function conciseMaterialAnswer(data,question){
+ const parameterAnswer=productParameterAnswer(data,question);if(parameterAnswer)return parameterAnswer;
+ const training=trainingAnswer(data,question);if(training)return training;
  const direct=directMaterialParameterAnswer(data,question);if(direct)return direct;
  if(/知识覆盖|解析进度|学了多少|了解多少/.test(question))return coverageSummary(data.document_coverage)+'内部资料仅在公司系统内处理。你可以按型号查询参数、安装要求或资料出处。';
  if(!data.assets.length&&data.relevance_filtered)return '本次检索没有找到同时满足你所提条件的资料。未将其他门类、未标注英文或非手册文件充当结果。'+(data.has_more?'本页候选未匹配，仍有后续候选，可说“下一页”继续核对。':'这不代表公司一定没有该资料；可能缺少语言标注或尚未入库。');

@@ -1,3 +1,5 @@
+import {tableRowEvidence} from './parameter-table.mjs';
+import {documentTopicMatch,woodTrainingQuestion,woodTrainingSearchTerm} from './document-topic.mjs';
 import {normalizeSlideVisual,slideVisualText} from './slide-visual.mjs';
 import {seriesIntent,namedMaterialProducts,materialModelCodes,materialFields} from './product-input.mjs';
 import {mentions,sourceQuoteAt,sourceNamesModel} from './product-materials.mjs';
@@ -10,6 +12,9 @@ export function materialQuery(question){
  const original=String(question).slice(0,500),page=Number(original.match(/第\s*(\d+)\s*页/)?.[1]||1);
  // A directory request asks for authorized catalogue metadata; instructions about citations are not search terms.
  if(seriesIntent(original))return {query:'',terms:[],page,constraints:materialConstraints(original)};
+ if(woodTrainingQuestion(original)&&!materialModelCodes(original).length){
+  return {query:'木门',terms:[woodTrainingSearchTerm(original)],page,constraints:materialConstraints(original)};
+ }
  if(/^(?:查看|查询|帮我看)?(?:最新物料|最新资料|所有资料|全部资料|公司动态|知识覆盖|产品知识覆盖|解析进度|学了多少|了解多少)[。？?！!]*$/.test(original))return {query:'',terms:[],page};
  // Only the explicit routing prefix is disposable; a model may precede a meaningful colon.
  const text=original.replace(/^\s*物料\s*[:：]/,'').replace(/第\s*\d+\s*页/g,'').replace(/最新|最近|当前/g,' ').replace(/帮我|请|找到|查找|找一下|查一下|资料库|物料系统|产品知识|资料|物料|文件|给我|我要|想要|找|王力|我们|我司|介绍一下|介绍|了解|告诉我|是多少|是什么|怎么样|有哪些|如何|多少|的|？|\?/g,' ').trim();
@@ -69,7 +74,10 @@ export function normalizeDocument(d,question=''){
  const product_understanding=productEvidence(d.product_understanding,d.sha256,{rank,accept:originalContextValid,onCandidates:rows=>{semanticCandidates=rows.filter(supportedFinding)}});
  const selection={pages_invalid:inputPages.length-shaped.length,pages_out_of_range:shaped.length-pages.length,pages_omitted:0,chunks_omitted:0,chunks_repositioned:0,native_facts_omitted:0,native_fact_duplicates:0,native_fields_rejected:0,semantic_findings_invalid:product_understanding?.selection.invalid_findings||0,semantic_finding_duplicates:product_understanding?.selection.duplicate_findings||0,semantic_findings_omitted:product_understanding?.selection.omitted_findings||0,semantic_source_rejected:d.product_understanding&&!product_understanding?1:0,budget_incomplete_fields:0};
  const prepared=pages.map(p=>{
-  const raw=Array.isArray(p.facts)?p.facts:[];
+  const raw=(Array.isArray(p.facts)?p.facts:[]).map(f=>{
+   if(models.length!==1||!f||sourceNamesModel(p.chunks,f.quote,models[0]))return f;
+   const linked=tableRowEvidence(p,f,models[0]);return linked?{...f,...linked}:f;
+  });
   const valid=raw.filter(f=>f&&NATIVE_FIELDS.has(f.field)&&f.kind==='source_excerpt'&&materialModelCodes(f.quote).every(model=>sourceNamesModel(p.chunks,f.quote,model)));
   selection.native_fields_rejected+=raw.length-valid.length;
   const nativeRank=f=>(f.quote.trim()&&p.chunks.some(c=>c.includes(f.quote))?8:0)+(models.some(m=>mentions({excerpt:f.quote},m))?4:0)+(requested(f)?2:0);
@@ -80,7 +88,9 @@ export function normalizeDocument(d,question=''){
   selection.native_facts_omitted+=Math.max(0,unique.length-facts.length);
   const semantic=(product_understanding?.findings||[]).filter(f=>f.page===p.page).sort((a,b)=>rank(b)-rank(a));
   const anchors=[...semantic.filter(supports).map(f=>({quote:f.quote,model:f.model||f.product,rank:rank(f)})),...facts.filter(f=>p.chunks.some(c=>c.includes(f.quote))).map(f=>({quote:f.quote,model:models.find(m=>mentions({excerpt:f.quote},m)),rank:nativeRank(f)}))].sort((a,b)=>b.rank-a.rank);
-  const score=Math.max(0,...semantic.filter(supports).map(rank),...facts.map(nativeRank));
+  const topic=models.length?{score:0,quote:''}:documentTopicMatch(p.chunks,question);
+  if(topic.score)anchors.unshift({quote:topic.quote,rank:topic.score*20});
+  const score=Math.max(0,...semantic.filter(supports).map(rank),...facts.map(nativeRank))+topic.score*20;
   return {page:p.page,location:String(p.location||'第'+p.page+'页').slice(0,140),kind:['sheet_cells','ocr','native_and_ocr','native_text'].includes(p.kind)?p.kind:'source_text',facts,rawChunks:p.chunks,anchors,score};
  });
  const chosen=prepared.sort((a,b)=>b.score-a.score).slice(0,6);

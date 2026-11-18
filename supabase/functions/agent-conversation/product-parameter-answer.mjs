@@ -1,4 +1,4 @@
-import {dimensionRows,dimensionPart} from './parameter-table.mjs';
+import {dimensionRows,dimensionPart,validatedSheetFinding} from './parameter-table.mjs';
 import {materialFields,materialModelCodes,materialVersion} from './product-input.mjs';
 import {sourceNamesModel} from './product-materials.mjs';
 const canonical=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[\s_/.-]+/g,'');
@@ -27,10 +27,12 @@ export function productParameterAnswer(data,question,native=null){
     const matching=wanted.filter(w=>f.field===w||materialFields(f.field||'').includes(w));
     for(const field of matching){
      if(field==='尺寸'&&/门厚|door\s*thickness/i.test(f.field))continue;
-     const rowValues=field==='尺寸'?dimensionRows(quote):[];
+     const sheet=field==='尺寸'?validatedSheetFinding(p,f):null;
+     if(field==='尺寸'&&p.kind==='sheet_cells'&&!sheet&&/ \| [A-Z]{1,3}[1-9][0-9]*=/.test(quote))continue;
+     const rowValues=sheet?[sheet.value]:field==='尺寸'?dimensionRows(quote):[];
      for(const value of rowValues.length?rowValues:[String(f.value||quote).trim()]){
      if(field==='尺寸'&&!acceptsPart(value))continue;
-     const item={value,source:a.name,page:p.page,version:a.versionLabel||'版本未标注',sha:doc.sha256};
+     const item={value,source:a.name,page:p.page,version:a.versionLabel||'版本未标注',sha:doc.sha256,cells:sheet?sheet.modelCell+' / '+sheet.valueCell:null};
      const list=values.get(field)||[];
      if(!list.some(x=>x.value===value&&x.sha===item.sha&&x.page===item.page))list.push(item);
      values.set(field,list);
@@ -63,7 +65,7 @@ export function productParameterAnswer(data,question,native=null){
   const parts=new Map();for(const value of grouped.keys()){const part=field==='尺寸'?dimensionPart(value):field;parts.set(part,(parts.get(part)||0)+1)}
   const conflict=[...parts.values()].some(n=>n>1);
   lines.push(`${field}${conflict?'（来源表述不同，分别列出，不能认定为同一配置）':''}：`);
-  for(const [value,refs] of grouped)lines.push(`- ${displayValue(field,value)}\n  来源：${refs.map(r=>`${r.source}${r.native?'':`，第 ${r.page} 页`}，${r.version}`).join('；')}`);
+  for(const [value,refs] of grouped)lines.push(`- ${displayValue(field,value)}\n  来源：${refs.map(r=>`${r.source}${r.native?'':`，第 ${r.page} 页`}，${r.version}${r.cells?'，单元格 '+r.cells:''}`).join('；')}`);
  }
  lines.push('以上依据本次有权读取的原页摘录整理，未经人工参数核验。'+(data.has_more?'仍有后续资料未读取，不代表完整参数清单。':''),'需要我打开对应画册给你核对吗？');
  return lines.join('\n');

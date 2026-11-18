@@ -1,3 +1,4 @@
+import {validatedSheetFinding} from './parameter-table.mjs';
 import {sourceNamesModel,findingModelMatchesProduct} from './product-materials.mjs';
 // Runs after authorized retrieval, before any material renderer or client payload.
 // Validates returned evidence structure, not source truth or live-file hashes.
@@ -32,7 +33,7 @@ export function gateMaterialEvidence(data){
      if(!quoted)diagnostics.semantic_quote_missing++;
      if(!numbers)diagnostics.semantic_number_missing++;
      if(!named)diagnostics.semantic_product_missing++;
-     if(!(quoted&&numbers&&named)){rejected++;return false}
+     if(!(quoted&&numbers&&named)||f.method==='sheet_columns'&&!validatedSheetFinding(page,f)){rejected++;return false}
      return true;
     }).map(f=>({...f,human_verified:false}));
     product_understanding={...u,findings,hidden_findings:hidden,human_verified:false};

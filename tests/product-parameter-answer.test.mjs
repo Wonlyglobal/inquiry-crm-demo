@@ -50,3 +50,24 @@ test('front or rear panel questions return only the requested component',()=>{
  const rear=productParameterAnswer(data,'TEST80 Pro后面板尺寸');
  assert.match(rear,/410mm/);assert.doesNotMatch(rear,/400mm/);
 });
+
+test('spreadsheet dimensions require source-bound model and value cells in the same column',()=>{
+ const sha='a'.repeat(64);
+ const quote='A5=型号 | B5= | C5=TEST80 Pro | D5=TEST90 Pro\nA12=尺寸 | B12= | C12=360 × 80 × 52 mm | D12=490 × 75 × 39 mm';
+ const finding={page:1,product:'TEST80 Pro',model:'TEST80 Pro',field:'尺寸',value:'360 × 80 × 52 mm',quote,method:'sheet_columns',modelCell:'C5',valueCell:'C12',fieldCell:'A12'};
+ function run(evidence, pageChunks=[quote], sourceHash=sha){
+  const question='TEST80 Pro 尺寸';
+  const document=normalizeDocument({status:'ready',sha256:sha,pages_total:1,
+   pages:[{page:1,kind:'sheet_cells',chunks:pageChunks,facts:[]}],
+   product_understanding:{schema:'local-product-v1',source_sha256:sourceHash,status:'partial',findings:[evidence]}},question);
+  return productParameterAnswer(gateMaterialEvidence({status:'available',assets:[{name:'Parameter table',isCurrentVersion:true,versionLabel:'V1',document}]}),question);
+ }
+ const answer=run(finding);
+ assert.match(answer,/360 × 80 × 52 mm/);
+ assert.match(answer,/单元格 C5 \/ C12/);
+ assert.doesNotMatch(answer,/490 × 75 × 39 mm/);
+ assert.equal(run({...finding,valueCell:'D12',value:'490 × 75 × 39 mm'}),null);
+ assert.equal(run({...finding,fieldCell:'A5'}),null);
+ assert.equal(run(finding,quote.split('\n')),null);
+ assert.equal(run(finding,[quote],'b'.repeat(64)),null);
+});

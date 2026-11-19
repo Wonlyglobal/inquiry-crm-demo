@@ -42,6 +42,7 @@ const due=new Date(Date.now()-60000).toISOString(),request=crypto.randomUUID();
 await call('record_personal_lead_activity',[saved[0].id,request,'已联系客户，安排复核','核对门洞尺寸',due,false]);
 await call('record_personal_lead_activity',[saved[0].id,request,'已联系客户，安排复核','核对门洞尺寸',due,false]);
 let detail=await call('personal_sales_lead_detail',[saved[0].id,0]);ok(detail.history_total===1&&detail.lead.next_action==='核对门洞尺寸');ok(detail.lead.recorded_at===before.lead.recorded_at);ok((await call('personal_sales_lead_list',['','due',0])).total===1);
+const savedReminder=await call('personal_followup_schedule',['prospect','today',0]);ok(savedReminder.total===1&&savedReminder.items[0].id===saved[0].id&&savedReminder.items[0].next_action==='核对门洞尺寸');ok((await call('personal_followup_schedule',['opportunity','today',0])).total===0);
 await reject(()=>call('record_personal_lead_activity',[saved[0].id,request,'不同的重试不能覆盖','核对门洞尺寸',due,false]));
 await reject(()=>call('record_personal_lead_activity',[saved[0].id,crypto.randomUUID(),'不允许缺少截止时间','核对门洞尺寸',null,false]));
 const profile={company:detail.lead.company,contact:detail.lead.contact,country:detail.lead.country,demand:detail.lead.demand};
@@ -54,6 +55,7 @@ const opportunity=await call('convert_sales_lead',[saved[0].id]);detail=await ca
 ok((await call('personal_followup_schedule',['prospect','today',0])).total===0);ok((await call('personal_followup_schedule',['opportunity','today',0])).total===1);
 await as('s2');ok((await call('personal_followup_schedule',['prospect','today',0])).total===0);ok((await call('personal_followup_schedule',['opportunity','today',0])).total===0);await as('s');
 await reject(()=>call('personal_followup_schedule',['other','today',0]));await reject(()=>call('personal_followup_schedule',['prospect','bad',0]));await reject(()=>call('personal_followup_schedule',['prospect','today',1]));
+await as('s');const reminderReadback=await call('personal_followup_schedule',['opportunity','today',0]);ok(reminderReadback.items[0].next_due_at===savedReminder.items[0].next_due_at);ok((await call('personal_sales_lead_detail',[saved[0].id,0])).lead.recorded_at===before.lead.recorded_at);
 await reject(()=>call('correct_personal_sales_lead',[saved[0].id,JSON.stringify(profile),JSON.stringify(profile)]));
 await call('record_personal_lead_activity',[saved[0].id,crypto.randomUUID(),'行动已经完成，等待客户反馈','核对门洞尺寸',due,true]);detail=await call('personal_sales_lead_detail',[saved[0].id,0]);ok(detail.history_total===2&&detail.lead.next_done_at);ok((await call('personal_sales_lead_list',['','due',0])).total===0);ok(detail.lead.recorded_at===before.lead.recorded_at&&detail.lead.source===before.lead.source);
 await reject(()=>db.exec('select * from private.sales_lead_events'));await db.exec('reset role');

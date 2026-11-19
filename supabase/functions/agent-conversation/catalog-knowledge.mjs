@@ -1,4 +1,5 @@
 import {normalizeProductInput,bareModel,materialVersion,materialModelCodes,catalogueFieldQuestion,catalogueNamedSubject} from './product-input.mjs';
+import {catalogueWordingAnswer,catalogueWordingQuestion} from './catalog-sales.mjs';
 import {selectionIntent,selectionAnswer} from './product-selection.mjs';
 import {inventoryIntent,inventoryAnswer} from './product-inventory.mjs';
 import {projectQuestion,projectIntent,projectAnswer} from './catalog-projects.mjs';
@@ -14,7 +15,7 @@ const CATEGORY_WORDS=[['smart_lock',/智能锁|指纹锁|人脸锁|门锁|smart 
 const SPEC_WORDS=/资料|产品信息|信息|产品介绍|了解|画册|型号|参数|规格|尺寸|厚度|等级|锁体|锁芯|门扇|门框|面板|颜色|配色|色号|认证|安装|维护|质保|适用|条件|标准|国标|功能|配置|开锁方式|屏幕|供电|电池|续航|区别|对比|差别|哪款|哪些|有什么|多少|是什么|介绍/;
 const FILE_REQUEST=/发(给)?我|发一下|下载|文件|资料包|链接|PDF|pdf|原图|图片|视频/;
 const fileDelivery=q=>FILE_REQUEST.test(q.replace(/视频存储|video storage/gi,''))&&!(/页码|出处|引用|来源|\bpages?\b|citations?|cite|references?/i.test(q)&&!/下载|发给|发送|发我|发一下|原图|资料包|链接|download|send/i.test(q));
-const FACT_TOPICS=[['patents',/专利/],['rnd',/研发(投入|团队|人员|中心|基地)?/],['capacity',/产能|年产/],['bases',/生产基地|工厂|基地/],['listing',/上市|股票|605268/],['brand_value',/品牌价值/],['awards',/获奖|奖项|红点|iF/i],['challenge',/开锁挑战|百万挑战|挑战/],['landmarks',/地标|标杆项目|案例|项目业绩/],['developers',/开发商|地产商|百强/],['service',/服务网点|售后|服务团队/],['lock_core',/锁芯|C级|GA\/T/],['triple_protection',/三防分离|三重防护/],['remote_sensing',/远感|雷达/],['standards',/标准/],['fire_window',/防火窗/],['coating',/涂装|附着力|磷化/],['founding',/成立|创立|哪一年/]];
+const FACT_TOPICS=[['patents',/专利/],['rnd',/研发(投入|团队|人员|中心|基地)?/],['capacity',/产能|年产/],['factory',/智能工厂|未来工厂|5G工厂/],['design_awards',/设计奖项|设计奖|设计荣誉/],['bases',/生产基地|工厂|基地/],['listing',/上市|股票|605268/],['brand_value',/品牌价值/],['awards',/获奖|奖项|红点|iF/i],['challenge',/开锁挑战|百万挑战|挑战/],['landmarks',/地标|标杆项目|案例|项目业绩/],['developers',/开发商|地产商|百强/],['service',/服务网点|售后|服务团队/],['lock_core',/锁芯|C级|GA\/T/],['triple_protection',/三防分离|三重防护/],['remote_sensing',/远感|雷达/],['standards',/标准/],['fire_window',/防火窗/],['coating',/涂装|附着力|磷化/],['founding',/成立|创立|哪一年/]];
 const CONFLICT_TOPICS={patents:/专利/,rnd_team:/研发(团队|人员|人数)/,users:/用户数|服务用户/,keyway:/钥匙槽|钥匙孔|键槽|keyway/i,lock_core_ratio:/锁芯|C级|A级|倍/,wood_leaf:/木门.*厚|门扇厚/,s80_colour:/S80/i};
 
 const norm=s=>String(s||'').toUpperCase().replace(/[\s\-_/]+/g,'');
@@ -50,6 +51,7 @@ export function catalogPrecheck(question){
  // The fixed August index cannot answer a request constrained to another edition.
  if(materialVersion(q))return false;
  if(fileDelivery(q))return false;
+ if(catalogueWordingQuestion(q))return true;
  if(projectQuestion(q))return true;
  if(/王力|我们|我司|wonly/i.test(q)&&FACT_TOPICS.some(([,re])=>re.test(q)))return true;
  if(bareModel(q))return true;
@@ -66,6 +68,12 @@ export function catalogIntent(question,catalog){
  const q=normalizeModelQuestion(question).slice(0,500);
  if(!catalog)return null;
  if(fileDelivery(q))return null;
+ if(catalogueWordingQuestion(q))return {kind:'wording',models:findModels(q,catalog)};
+ const brandTopics=/王力|wonly/i.test(q)?FACT_TOPICS.filter(([topic,pattern])=>
+  ['factory','design_awards','lock_core','fire_window'].includes(topic)&&pattern.test(q)).map(([topic])=>topic):[];
+ if(brandTopics.length&&(/智能工厂|未来工厂|5G工厂|设计奖|锁芯等级|防火窗资料/.test(q))&&!findModels(q,catalog).length){
+  return {kind:'facts',topics:brandTopics};
+ }
  const projects=projectIntent(q);if(projects)return projects;
  if(selectionIntent(q))return {kind:'selection'};
  if(inventoryIntent(q))return {kind:'inventory'};
@@ -137,6 +145,7 @@ function missingRequestedTopics(question,models,catalog){
 }
 export function catalogAnswer(intent,catalog,question=''){
  if(!intent||!catalog)return null;
+ if(intent.kind==='wording')return catalogueWordingAnswer(catalog,intent.models,question,ref);
  if(intent.kind==='projects')return projectAnswer(intent,catalog,{ref,head:HEAD,note:NOTE});
  if(intent.kind==='model_choices')return '画册中有这些相关型号：'+intent.models.join('、')+'。请点击下方型号选项。确认完整型号后，我会按对应画册页给出参数和资料入口，避免混用不同版本。';
  if(intent.kind==='inventory')return inventoryAnswer(catalog,question);
@@ -158,7 +167,12 @@ export function catalogAnswer(intent,catalog,question=''){
  if(intent.kind==='facts'){
   const facts=(catalog.facts||[]).filter(f=>intent.topics.includes(f.topic)).slice(0,6);if(!facts.length)return null;
   const warn=conflictLines(question,catalog,[]);
-  return [HEAD(catalog),facts.map(f=>`- 画册原文：“${f.text}”（${ref(f.catalog,f.page)}）`).join('\n'),...warn,'这些是画册里的公司宣传口径，对外引用时保持原文，不要改数字。'+NOTE].join('\n\n');
+  return [HEAD(catalog),facts.map(f=>{
+   const page=(catalog.pages||[]).find(p=>p.catalog===f.catalog&&p.page===f.page);
+   const normalize=value=>String(value).normalize('NFKC').replace(/\s+/g,'').toLowerCase();
+   const exact=normalize(page?.text||'').includes(normalize(f.text));
+   return `- ${exact?'画册原文':'画册索引摘要，原页待核对'}：“${f.text}”（${ref(f.catalog,f.page)}）`;
+  }).join('\n'),...warn,'这些是画册里的公司宣传口径，对外引用时保持原文，不要改数字。'+NOTE].join('\n\n');
  }
  if(intent.kind==='search'){
   const words=intent.words.map(w=>w.toLowerCase());

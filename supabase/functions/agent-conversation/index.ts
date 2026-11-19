@@ -1,3 +1,4 @@
+import {catalogueWordingQuestion} from './catalog-sales.mjs';
 import {woodTrainingQuestion} from './document-topic.mjs';
 import {targetedMaterialAnswer} from './targeted-material-answer.mjs';
 import {selectChatModel} from './model-routing.mjs';
@@ -413,7 +414,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    const resolvedMaterial=resolveMaterialTurn(input.question,catalogueHistory);
    const contextTurn=woodTrainingQuestion(resolvedMaterial.question)?resolvedMaterial:projectQuery||catalogueQuery?{question:projectQuery||catalogueQuery}:resolvedMaterial,catalogQuestion=(contextTurn.clarification?input.question:contextTurn.question).replace(/^物料：/,'');
    const scopedNamedMaterial=woodTrainingQuestion(contextTurn.question)||explicitMaterialDocument(contextTurn.question)||namedMaterialProducts(contextTurn.question).length>0;
-   const spec=guest||scopedNamedMaterial||materialVersion(catalogQuestion)||selectionIntent(catalogQuestion)?null:specIntent(catalogQuestion);
+   const spec=guest||scopedNamedMaterial||catalogueWordingQuestion(catalogQuestion)||materialVersion(catalogQuestion)||selectionIntent(catalogQuestion)?null:specIntent(catalogQuestion);
    if(spec){const catalog=await loadCatalog(admin);const answer=catalog&&!findModels(catalogQuestion,catalog).length?specAnswer(spec,catalog):null;if(answer){
     const fullSearch=fullCatalogueAnswer(null,catalog,catalogQuestion);
     const materials=gateMaterialEvidence(filterMaterialResults(await loadFullMaterials({...materialConfig,question:catalogQuestion}).catch(()=>({status:'unavailable',assets:[]})),catalogQuestion));
@@ -423,7 +424,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
     return json({answer:combined,materials:targeted?.materials||[],provider:'internal',model:'catalog-spec',context:{route:'catalog',material_question:'画册检索：'+catalogQuestion.slice(0,480),search_coverage:fullSearch?.coverage||null,material_search_status:materials.status},ticket:await ticket({user:user.id,persona:input.persona,text:'已核对可读取的内部索引，参数、来源和未确认项在窗口里。',expires:Date.now()+300000},key)});}}
 
    if(!guest&&catalogPrecheck(catalogQuestion)&&!scopedNamedMaterial){const catalog=await loadCatalog(admin);const intent=catalogIntent(catalogQuestion,catalog),fullSearch=fullCatalogueAnswer(intent,catalog,catalogQuestion);let answer=fullSearch?.answer||null;if(!catalog&&projectQuestion(catalogQuestion))answer=projectAnswer(projectIntent(catalogQuestion),null,{});if(!answer&&bareModel(catalogQuestion))answer=catalog?'本次画册索引没有匹配到这个完整型号。这不能证明产品不存在，请核对型号或打开相关画册页继续查。':'本次未能读取公司画册索引，暂时不能核对该型号，请稍后重试。';let supplementary:any=null;let related:any[]=[];let answeredFromPages=false;
-    if(answer&&intent?.kind!=='overview'&&intent?.kind!=='projects'&&!materialVersion(catalogQuestion)){
+    if(answer&&intent?.kind!=='overview'&&intent?.kind!=='projects'&&intent?.kind!=='wording'&&!materialVersion(catalogQuestion)){
      const result=await loadFullMaterials({...materialConfig,question:catalogQuestion}).catch(()=>({status:'unavailable',assets:[]}));
      supplementary=gateMaterialEvidence(filterMaterialResults(result,catalogQuestion));
      const targeted=targetedMaterialAnswer(supplementary,catalogQuestion);

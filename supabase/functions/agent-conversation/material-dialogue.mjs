@@ -2,7 +2,7 @@ import {trainingAnswer} from './training-answer.mjs';
 import {documentTopicTerms,woodTrainingQuestion} from './document-topic.mjs';
 import {productParameterAnswer} from './product-parameter-answer.mjs';
 import {visualQuestion,slideVisualText} from './slide-visual.mjs';
-import {normalizeProductInput,materialModelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts} from './product-input.mjs';
+import {normalizeProductInput,materialModelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts,catalogueFieldQuestion,catalogueNamedSubject} from './product-input.mjs';
 import {productLedger,productLedgerText} from './product-coverage.mjs';
 import {profileEvidence} from './knowledge-profile.mjs';
 import {materialQuery,coverageSummary} from './document-knowledge.mjs';
@@ -28,6 +28,12 @@ export function resolveMaterialTurn(question,history=[]){
  const followup=/^(那|它|这个|该型号|还有)/.test(q)||q.length<=60&&(properties.length>0||ids.length>0&&(/呢|怎么样|如何/.test(q)||bareModel(q)));
  if(!followup)return {question:q};
  // A literal named product has no model code; retain its file scope and name for short followups.
+ const priorNamed=catalogueNamedSubject(previous);
+ if(!ids.length&&!oldIds.length&&priorNamed&&catalogueFieldQuestion(q)&&/^(那|它|这个|该型号)/.test(q)&&!/对比|比较|以及|和另一款/.test(previous)){
+  const request=q.replace(/^(那|它|这个|该型号)+/,'').replace(/^的/,'').replace(/[呢。？?！!]+$/,'').trim();
+  const version=materialVersion(q)||materialVersion(previous);
+  return {question:`物料：${priorNamed} 的${request}${version&&!request.includes(version)?' '+version:''}`};
+ }
  if(!ids.length&&namedMaterialProducts(q).length)return {question:'物料：'+q.replace(/^(那|它|这个|该型号|还有)+/,'')};
  const named=namedMaterialProducts(previous);
  if(!ids.length&&oldIds.length<=1&&named.length===1&&!/对比|比较| versus | vs\.? /.test(previous)){

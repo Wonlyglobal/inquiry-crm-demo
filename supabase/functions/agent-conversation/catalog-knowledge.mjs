@@ -8,7 +8,7 @@ import {searchCatalogue,catalogueSearchCoverage,catalogueSearchFallback} from '.
 // Source: the four 2026-08 overseas catalogues, read by Claude under Chloe's 2026-09-28 authorisation.
 // The file lives only in the private storage bucket (service role). Answers are rendered locally,
 // never sent to Bailian or any external model, and always carry catalogue + PDF page references.
-export const PRIVATE_CATALOG={bucket:'agent-private-knowledge',path:'wonly-catalog-v1.json'};
+export const PRIVATE_CATALOG={bucket:'agent-private-knowledge',path:'wonly-catalog-v1-brand-20261119-36994441e578.json'};
 const CATALOG_NAMES={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 const CATEGORY_NAMES={smart_lock:'智能锁',smart_door:'智能门',security_door:'防盗门',wooden_door:'木门',hospital_door:'医院门',school_door:'学校门',refuge_door:'避难门',fire_window:'防火窗',lock_body:'锁体',lock_core:'锁芯',hinge:'合页',door_viewer:'猫眼',other:'其他'};
 const CATEGORY_WORDS=[['smart_lock',/智能锁|指纹锁|人脸锁|门锁|smart ?lock/i],['smart_door',/智能门|smart ?door/i],['security_door',/防盗门|入户门|钢门|security ?door/i],['wooden_door',/木门|静音门|室内门|wooden ?door/i],['hospital_door',/医院门|医疗门|病房门/],['school_door',/学校门|教室门/],['refuge_door',/避难门|避难间/],['fire_window',/防火窗/],['lock_body',/锁体/],['lock_core',/锁芯/],['hinge',/合页|铰链/],['door_viewer',/猫眼/]];

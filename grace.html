@@ -676,6 +676,7 @@
       .module-retry { margin-top:14px; }
       .module-loading-icon { animation:module-spin .9s linear infinite; }
       @keyframes module-spin { to { transform:rotate(360deg); } }
+      #prospect-reminders{padding:20px;margin-bottom:20px;border:1px solid var(--line);border-radius:20px;background:#fff} .prospect-reminder-tools{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin:16px 0}.prospect-reminder-tools label{display:grid;gap:8px}.prospect-reminder-tools button{min-height:44px} @media(max-width:640px){.prospect-reminder-tools>*{flex:1 1 150px}}
       .module-insights { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:11px; margin-bottom:14px; }
       .module-insight { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 15px; }
       button.module-insight { color:inherit; font:inherit; text-align:left; cursor:pointer; }
@@ -1900,6 +1901,7 @@
             <div id="website-intake-list" class="dashboard-table-scroll"></div>
           </section>
           <section id="role-guide-live" class="role-guide-live hidden" aria-label="角色指南实时更新"></section>
+          <section id="prospect-reminders" class="hidden"></section>
           <div id="module-insights" class="module-insights hidden"></div>
 
           <section id="sales360-framework" class="card hidden" style="padding:20px;margin-bottom:20px" aria-label="360评价体系">
@@ -2715,7 +2717,8 @@ import {recoveryIntent,recoveryRedirect,cleanRecoveryUrl,observePasswordRecovery
       import {bindResearchGenerateEntry} from "./assets/research-generate-entry.mjs?v=20261029-1";
       import {mountInquiryLeadHistory} from "./assets/inquiry-lead-history.mjs?v=20261117-closure1";
       let inquiryLeadHistory;
-      import {leadWorkspaceRoute} from "./assets/lead-workspace-route.mjs?v=20261117-details1";
+      import {mountProspectReminders} from "./assets/prospect-reminders.mjs?v=20261119-1";
+      import {leadWorkspaceRoute} from "./assets/lead-workspace-route.mjs?v=20261119-reminders1";
       import {openLeadWorkspaceFrame} from "./assets/lead-workspace-frame.mjs?v=20261029-1";
       import {mailboxState} from './assets/mailbox-multi.mjs?v=20261028';
       import {createDailyReportController} from './assets/daily-report-ui.mjs?v=20261028-flow1';
@@ -3467,6 +3470,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#module-empty").classList.remove("hidden"); $("#module-table").classList.add("hidden");
         icons();
       }
+      let prospectReminders=null;
       async function runModuleQuery(query, attempts = 3) {
         let lastError;
         for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -4721,7 +4725,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           customers: profile.role === "sales"
             ? ["客户管理", "本人客户档案按来源区分；日常客户线索单独录入与统计", "本人客户"]
             : ["客户管理", "按业务员查看权限范围内的客户，区分自主开发、官方分配和转介绍", "可见客户"],
-          "sales-today": ["今日工作台", "仅展示主管分配的询盘，以及已关联询盘的真实客户新回复", "销售任务"],
+          "sales-today": ["今日工作台", "查看潜客跟进提醒、主管分配询盘及已关联询盘的客户新回复", "销售任务"],
           "follow-calendar": ["跟进日历", "按天查看每位业务员的开发信、客户来信和邮件回复情况", "每日邮件跟进"],
           email: ["邮件分拣", "公共询盘邮箱自动接收（通常 60 秒内同步）；确认真实邮件后可一键转为官方询盘", "待分拣邮件"],
           communications: ["客户沟通记录", "汇总业务员发信、客户来信及 inquiry 公共邮箱同步结果；点击记录可查看所属询盘的完整沟通时间线", "全部收发信"],
@@ -4777,6 +4781,13 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         knowledgeCountState = null;
         $("#module-count").textContent = "—";
         $("#module-insights").classList.add("hidden");
+        const reminderHost=$("#prospect-reminders");
+        prospectReminders?.cancel();
+        reminderHost.classList.toggle("hidden",profile.role!=="sales"||!["sales-today","follow-calendar"].includes(view));
+        if(!reminderHost.classList.contains("hidden")){
+          prospectReminders=mountProspectReminders(reminderHost,{rpc:async args=>{const result=await runModuleQuery(supabase.rpc("personal_followup_schedule",args),2);if(result.error)throw result.error;return result.data}});
+          prospectReminders.refresh();
+        }
         $("#festival-calendar").classList.toggle("hidden",view!=="exhibition-calendar");
         $("#operations-settings").classList.toggle("hidden",view!=="settings");
         $("#followup-settings").classList.toggle("hidden",view!=="settings");

@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {reminderHref,reminderRows} from '../assets/prospect-reminders.mjs';
+test('prospects open personal lead and converted reminders open opportunity',()=>{assert.equal(reminderHref({id:'a'}),'/sales-leads.html?lead=a#lead-details');assert.equal(reminderHref({id:'a',inquiry_id:'b'}),'/#inquiry/b')});
+test('reminder display escapes customer facts and retains due time',()=>{const html=reminderRows([{id:'a',company:'<script>x</script>',next_action:'<img>',next_due_at:'2026-11-19T08:00:00Z',overdue:true}]);assert.doesNotMatch(html,/<script>|<img>/);assert.match(html,/&lt;script&gt;/);assert.match(html,/逾期/);assert.match(html,/16:00:00/)});

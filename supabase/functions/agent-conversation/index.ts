@@ -1,5 +1,7 @@
 import {latestWriting,restoredWriting,saveWriting} from './writing-session.mjs';
 import {workScenarioIntent,answerWorkScenario,writingContinuation,newWritingDraft,companyDraftResult} from './work-scenarios.mjs';
+import {sourceTaskPlan,sourceTaskAnswer,sourceTaskMaterials} from './source-task.mjs';
+import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
 import {presentMaterialAnswer} from './material-chinese.mjs';
 import {catalogueWordingQuestion} from './catalog-sales.mjs';
 import {woodTrainingQuestion} from './document-topic.mjs';
@@ -301,6 +303,17 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
    // Internal writing is owner-only through the existing eligible check and quota above.
+   const sourceTask=guest?null:sourceTaskPlan(input);
+   if(sourceTask){
+    const responses=await Promise.all(sourceTask.requests.map((retrieval:any)=>loadFullMaterials({...materialConfig,question:sourceTask.subject,retrieval,recoverConnection:true}).then(gateMaterialEvidence)));
+    const sourceData=sourceTaskMaterials(responses,sourceTask.constraints);
+    const native=sourceTask.models.length===1&&sourceData.assets.length?await loadPrivateProductEvidence(client,{model:sourceTask.models[0],edition:sourceTask.version,materials:sourceData}):null;
+    const result=sourceTaskAnswer(sourceTask,responses,{native});
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'source_first_task',topics:sourceTask.topics.map((t:any)=>t.id),lookups:responses.length,status:result.unavailable?'connection_unavailable':result.status,source_count:result.source_count||0,external_model_called:false},reason:'产品和售后任务先查询授权原页，不以固定模板或单次未命中断言资料缺失'});if(error)return json({error:'调用审计失败'},503);
+    if(result.unavailable)return json({error:'企业资料暂时连不上，可重试刚才的问题；不能据此判断资料缺失',code:'material_connection_unavailable'},503);
+    const answerText=sourceTask.companyRequested?'公司介绍：\n'+conciseCatalogFacts({kind:'facts',topics:['founding','listing']},await loadCatalog(admin),'王力公司介绍')+'\n\n产品说明：\n'+result.answer:result.answer;
+    return json({answer:presentMaterialAnswer(answerText,input.question),materials:result.materials,provider:'internal',model:'source-first-task',context:{route:'materials',status:result.status,material_question:('资料任务：'+sourceTask.subject).slice(0,500),source_count:result.source_count,incomplete:result.incomplete,receipts:native?.receipts||[]}});
+   }
    if(!guest&&(workScenarioIntent(input)||writingContinuation(input))){
     const previous=await latestWriting(admin,user.id);
     const supplied=(input.materialHistory||[]).find((x:string)=>x.startsWith('work-writing:v1.'));

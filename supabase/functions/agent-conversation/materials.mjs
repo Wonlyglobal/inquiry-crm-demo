@@ -7,10 +7,10 @@ const TRANSIENT_HTTP=new Set([502,503,504]);
 export function materialConnectionUnavailable(data){
  return data.status==='unavailable'&&(data.code==='connection_failed'||[...TRANSIENT_HTTP].some(status=>data.code==='http_'+status));
 }
-export async function loadFullMaterials({actor,privateJwk,serviceUrl,secret,question,exactName,recoverConnection=false},fetcher=fetch){
+export async function loadFullMaterials({actor,privateJwk,serviceUrl,secret,question,exactName,recoverConnection=false,retrieval=null},fetcher=fetch){
  if(!serviceUrl||!secret||!privateJwk||!actor)return {status:'not_configured',assets:[]};
  let url;try{url=new globalThis.URL(serviceUrl);if(url.protocol!=='https:'||!['file.foreverdoodle.com'].includes(url.hostname)||url.username||url.password)throw Error();url.pathname='/api/integrations/crm/knowledge';url.search='';url.hash=''}catch{return {status:'not_configured',assets:[]}}
- const {query,terms,page,constraints}=exactName?{query:exactName,terms:[],page:1,constraints:{}}:materialQuery(question);
+ const {query,terms,page,constraints}=exactName?{query:exactName,terms:[],page:1,constraints:{}}:retrieval||materialQuery(question);
  let stage='signing';const started=performance.now();let attemptNumber=0;
  try{const body=JSON.stringify({query,terms,page,constraints,catalogue:!exactName&&seriesIntent(question)});
  // Direct chat can wait for a third read if the origin was briefly unreachable.

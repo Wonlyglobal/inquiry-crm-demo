@@ -1,6 +1,8 @@
 import {customerCompanyAnswer,customerPurpose} from './customer-writing.mjs';
-import {writingRequestText,writingPrimaryTask} from './writing-request.mjs';
+import {writingRequestText,writingSourceName} from './writing-request.mjs';
 import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
+import {materialModelCodes,materialFields,explicitMaterialDocument} from './product-input.mjs';
+import {taskSubject} from './source-task.mjs';
 // Internal document-based writing. No model calls, arbitrary tools or client-supplied facts.
 // Compact authenticated state survives the existing query-only materialHistory channel.
 const PREFIX='work-writing:v1.';
@@ -17,16 +19,19 @@ const fact=(c,t)=>(c?.facts||[]).find(x=>x.topic===t&&x.catalog==='c2')||(c?.fac
 const safeNum=s=>String(s||'').match(/\d+(?:\.\d+)?/g)||[];
 export const newWritingDraft=q=>/(?:帮我写|给客户讲王力公司介绍|(?:^|[\n，。；])(?:先|请)?写)/.test(q);
 const independentWritingRequest=q=>/我会提供|需要提供什么|先告诉我|先说明判断|怎么避免|如何避免|(?:设计|列出|整理).{0,14}(?:清单|框架|流程)|(?:仅|只)内部/.test(q);
-export const writingContinuation=input=>input?.action==='chat'&&!input.voice&&!input.privateReportKey&&typeof input.question==='string'&&follow.test(input.question)&&!newWritingDraft(input.question)&&!independentWritingRequest(input.question);
+const independentClientTask=q=>!/这版|这段|这稿|刚才|上一版/.test(q)&&/WhatsApp|首次联系邮件|样品.{0,8}通知|新品预告|没回复.{0,20}(?:跟进|短信)|未回复.{0,20}(?:跟进|短信)/i.test(q);
+const modelFactRequest=q=>materialModelCodes(q).length>0&&materialFields(q).some(f=>!['来源','页码','版本'].includes(f));
+export const writingContinuation=input=>input?.action==='chat'&&!input.voice&&!input.privateReportKey&&typeof input.question==='string'&&!writingSourceName(input.question)&&!explicitMaterialDocument(input.question)&&!modelFactRequest(input.question)&&follow.test(input.question)&&!newWritingDraft(input.question)&&!independentWritingRequest(input.question)&&!independentClientTask(input.question);
 export function companyDraftResult(result){try{return JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).k==='company'&&JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).w!==0&&['en','es'].includes(result.context.language||JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).l)}catch{return false}}
 export function workScenarioIntent(input){
  if(input?.action!=='chat'||input.voice||input.privateReportKey||typeof input.question!=='string')return false;
  const q=input.question.trim();
+ if(modelFactRequest(q)||explicitMaterialDocument(q)||writingSourceName(q))return false;
  if((input.materialHistory||[]).some(x=>String(x).startsWith(PREFIX))&&follow.test(q))return true;
  return task.test(writingRequestText(q))&&domain.test(q)&&!/^打开|^下载|^同步|^删除|^记住/.test(q);
 }
 function kindOf(q){
- q=writingPrimaryTask(q);
+ q=taskSubject(q);
  if(/WhatsApp/i.test(q)&&/展会|跟进/.test(q))return 'exhibition_followup';
  if(/没回复|未回复/.test(q)&&/跟进|短信/.test(q))return 'quiet_followup';
  if(/样品/.test(q)&&/通知|物流单号|单号/.test(q))return 'sample_notice';
@@ -186,7 +191,7 @@ function guideAnswer(c,s){
 export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoAnswer,careAnswer}){
  if(!workScenarioIntent(input))return null;
  const q=input.question.trim();let s=null;
- const token=newWritingDraft(q)?null:(input.materialHistory||[]).find(x=>String(x).startsWith(PREFIX));
+ const token=newWritingDraft(q)||independentClientTask(q)?null:(input.materialHistory||[]).find(x=>String(x).startsWith(PREFIX));
  if(token){try{const [payload,signature]=token.slice(PREFIX.length).split('.');if(payload.length>500||!await verify('work-writing-v1|'+actor+'|'+payload,signature))throw Error();s=JSON.parse(decode(payload));if(s.v!==1||!s.k||!['en','zh','es'].includes(s.l)||!Number.isSafeInteger(s.r)||s.r<1||s.r>1000000)throw Error()}catch{return {answer:'这份稿件的上下文校验未完成，请重新提出公司介绍或写作要求；本次没有翻译。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'invalid_state'}}}}
  const digest=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({sources:catalog?.sources||[],facts:(catalog?.facts||[]).map(f=>[f.topic,f.text,f.catalog,f.page,f.zh])}))));
  if(s&&s.c!==digest)return {answer:'资料版本已变化，请重新核对英文稿并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'source_changed'}};

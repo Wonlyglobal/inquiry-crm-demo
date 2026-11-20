@@ -91,7 +91,7 @@ export function normalizeDocument(d,question=''){
   const topic=models.length?{score:0,quote:''}:documentTopicMatch(p.chunks,question);
   if(topic.score)anchors.unshift({quote:topic.quote,rank:topic.score*20});
   const score=Math.max(0,...semantic.filter(supports).map(rank),...facts.map(nativeRank))+topic.score*20;
-  return {page:p.page,location:String(p.location||'第'+p.page+'页').slice(0,140),kind:['sheet_cells','ocr','native_and_ocr','native_text'].includes(p.kind)?p.kind:'source_text',facts,rawChunks:p.chunks,anchors,score};
+  return {page:p.page,location:String(p.location||'第'+p.page+'页').slice(0,140),kind:['sheet_cells','ocr','native_and_ocr','native_text'].includes(p.kind)?p.kind:'source_text',...(p.truncated===true?{truncated:true}:{}),facts,rawChunks:p.chunks,anchors,score};
  });
  const chosen=prepared.sort((a,b)=>b.score-a.score).slice(0,6);
  selection.pages_omitted=Math.max(0,prepared.length-chosen.length);

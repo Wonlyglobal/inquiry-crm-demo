@@ -26,3 +26,5 @@ test('short care follow-up removes framing while preserving every source conditi
  const text='资料中的相关说明如下：\n\n请先核对涂层与厂家清洁说明，不能使用未经确认的清洁剂。\n来源：合成木门说明，第 2 页，2026版\n\n以上为本次找到的原页摘录。需要我打开对应资料给你核对吗？';
  const opts={...options,careAnswer:async()=>text};const a=await ask('客户问木门怎么保养，写成简洁说明',null,opts);const b=await ask('在不改变已核对事实的前提下，再精简一版，并保留出处。',a,opts);assert.ok(b.answer.length<a.answer.length);assert.match(b.answer,/请先核对涂层与厂家清洁说明，不能使用未经确认的清洁剂。/);assert.match(b.answer,/来源：合成木门说明，第 2 页，2026版/);assert.doesNotMatch(b.answer,/以上为本次找到/);
 });
+
+test('identical new drafts have independent confirmation identities',async()=>{const a=await ask(initial),b=await ask(initial);assert.equal(a.answer,b.answer);assert.notEqual(a.context.material_question,b.context.material_question)});

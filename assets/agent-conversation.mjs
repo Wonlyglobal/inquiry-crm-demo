@@ -1,3 +1,4 @@
+import {createWritingRecovery} from './agent-writing-recovery.mjs';
 import {privateReportQuestion,PRIVATE_REPORT_KEY} from './agent-private-report-context.mjs?v=20261105-context-fields1';
 import {mountPrivateIntelligence,privateReportButtons} from './agent-private-intelligence.mjs?v=20261027-private-input1';
 import {createConnectionCheck} from './agent-connection.mjs?v=20261019-connect1';
@@ -28,7 +29,7 @@ import {createWakeConversation} from './agent-wake.mjs?v=20261001-onewake';
 import {openCatalogViewer} from './agent-catalog-viewer.mjs?v=20261020-layout4';
 import {createTimeline,priceChart,dataChart} from './agent-timeline.mjs?v=20261023-stats1';
 // Explicit 百炼 dialogue only. Never receives CRM context or local assistant history.
-export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,onOpenRequest=null,getResponseCard=null,timelineRoot=null,materialRow=null,materialFile=null,crmAnswer=null,crmChart=null,autoVoice=true,phoneInputFactory=preparePhoneInput,phoneCapture=capturePhoneTurn,realtimeFactory=null,realtimeRequest=null}){
+export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTranscript,isAllowed,onSelectPersona,onStatus,onMaterials,onOpenRequest=null,getResponseCard=null,timelineRoot=null,materialRow=null,materialFile=null,crmAnswer=null,crmChart=null,autoVoice=true,restoreWritingDrafts=false,phoneInputFactory=preparePhoneInput,phoneCapture=capturePhoneTurn,realtimeFactory=null,realtimeRequest=null}){
  const el=(tag,text)=>{const n=document.createElement(tag);n.textContent=text;return n};
  let phone=null,phoneServiceReady=false;
  const bar=el('div','');bar.className='agent-conversation-tools';
@@ -121,12 +122,15 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   if(!ticket||version!==epoch)return;controller=new AbortController();busy=true;state(phone?.isActive()?'正在准备语音回复…':'','thinking');
   try{const blob=await call({action:'speech',persona,ticket},controller.signal);await playBlob(blob,epoch,controller.signal,onStart)}catch(e){if(version===epoch){busy=false;state(e.message)}if(wake?.isActive()||phone?.isActive())throw e}
  }
+ const writingRecovery=createWritingRecovery({load:()=>call({action:'writing-session',persona:getPersona()}),apply:draft=>{materialHistories.set(getPersona(),[draft.context.material_question]);onMessage('assistant',draft.answer)}});
+ async function restoreWriting(epoch=version){if(getPersona()==='Grace')try{await writingRecovery.restore(()=>epoch===version&&getPersona()==='Grace')}catch(e){if(e?.status===403){writingRecovery.skip();return}throw e}}
  async function ask(question,{voice=false,emotion=null,voiceProof=null,phoneSignal=null}={}){
   if(mode.value!=='bailian')return false;
   if(busy||recorder||player){state(recorder?'正在录音，请先结束录音':player?'正在播报，请先点击停止再提问':'正在处理上一条问题，请稍候或点击停止',recorder?'listening':player?'speaking':'thinking');return true}
   if(!ready){const epoch=version;state('正在重新连接…','thinking');await checkConnection({textOnly:true});if(epoch!==version||!ready)return true}
+  if(restoreWritingDrafts&&host.querySelector('#ai-assistant-messages')?.dataset?.newQuestion!=='true'){const resumeEpoch=version;try{await restoreWriting(resumeEpoch)}catch{state('稿件恢复未完成，请稍后重试');return true}if(resumeEpoch!==version)return true;if(busy||recorder||player){state('正在处理上一条问题，请稍候或点击停止','thinking');return true}}
   if(pending&&/^(?:好的?|可以|需要|打开|看看|看数据|看数据看板|查看详细回答|展开方案)[。！!\s]*$/.test(question.trim())){onMessage('user',question,{card:currentQuestionWindow(host.querySelector('#ai-assistant-messages'))});showPending();return true}
-  if(host.querySelector('#ai-assistant-messages')?.dataset?.newQuestion==='true'){histories.delete(getPersona());materialHistories.delete(getPersona());privateReports.delete(getPersona())}
+  if(host.querySelector('#ai-assistant-messages')?.dataset?.newQuestion==='true'){writingRecovery.skip();histories.delete(getPersona());materialHistories.delete(getPersona());privateReports.delete(getPersona())}
   pending=null;reveal.hidden=true;delete host.dataset.graceEvidenceCheck;delete host.dataset.gracePrivateKnowledgeCheck;
   stopAll({keepWake:voice,keepPhone:!!phoneSignal});const epoch=version,persona=getPersona(),askedAt=performance.now();controller=new AbortController();busy=true;lastTicket=null;state(voice?(phoneSignal?'听到了，正在整理…':''):'收到，正在整理回答…','thinking');const progress=setTimeout(()=>{if(version===epoch&&busy)state('仍在处理你的问题，完成后会立即显示；你可以随时停止','thinking')},4500);onMessage('user',question);onTranscript('');
   // Owner 2026-09-28: every request becomes a step in the Grace timeline; nothing opens a new browser window.
@@ -176,7 +180,7 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
   // Wake-triggered persona selection must not restart or cancel its own greeting.
   if(wakeTransition||getPersona()!=='Grace'||!isAllowed()||document.hidden)return;
   stopAll();const epoch=version;mode.value='bailian';ready=false;state('正在为 Grace 准备语音唤醒…');
-  await checkConnection();if(epoch!==version||!ready||document.hidden||!autoVoice)return;
+  await checkConnection();if(epoch!==version||!ready||document.hidden)return;if(restoreWritingDrafts)try{await restoreWriting(epoch)}catch{state('稿件恢复未完成，请稍后重试')}if(epoch!==version||document.hidden||!autoVoice)return;
   void greeting('Grace').catch(()=>{});void greeting('Grace','ack').catch(()=>{});void greeting('Grace','offer').catch(()=>{});installing=true;sync();
   try{if(await wake.needsDownload()){if(epoch===version)state(PACK_HINT);return}state('正在请求麦克风权限…');await prepareMicrophone(navigator.mediaDevices);if(epoch!==version||document.hidden)return;await wake.install();if(epoch!==version||document.hidden)return;await wake.start()}
   catch(e){if(epoch===version)state(/user gesture|downloadable/i.test(String(e.message))?'首次使用语音唤醒需要下载本机语音包：请点“语音与连接”里的“安装本机语音包”（只需一次）。现在也可以直接用文字提问。':e.message)}
@@ -222,5 +226,5 @@ export function mountConversation(host,{invoke,getPersona,onMessage,onMode,onTra
  // An explicitly started conversation continues across browser tab switches.
  for(const [node,name] of [[mode,'mode'],[status,'status'],[note,'privacy'],[startWake,'start-wake'],[installWake,'install'],[wakeButton,'wake'],[mic,'mic'],[stop,'stop'],[replay,'replay'],[check,'check'],[enroll,'enroll'],[forget,'forget'],[enrollmentStatus,'enrollment-status'],[vpNote,'voiceprint-status'],[reveal,'reveal'],[realtimeCheck,'realtime-check'],[phoneToggle,'phone'],[phoneInterrupt,'interrupt'],[phoneMute,'mute']])node.dataset.voiceTool=name;
  window.addEventListener('pagehide',stopConversation);if(!autoVoice)document.addEventListener('visibilitychange',()=>{if(document.hidden)stopConversation()});sync();
- return {ask,enter,record,phone,stop:stopConversation,checkConnection,loadTimeline:()=>timeline?.load(),beginTimeline:question=>timeline?.begin(question)||null,isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){privateReports.clear();pending=null;reveal.hidden=true;feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){pending=null;reveal.hidden=true;histories.delete(getPersona());materialHistories.delete(getPersona());privateReports.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
+ return {ask,enter,record,phone,stop:stopConversation,checkConnection,loadTimeline:()=>timeline?.load(),beginTimeline:question=>timeline?.begin(question)||null,isModel:()=>mode.value==='bailian',busy:()=>busy||!!recorder,reset(){writingRecovery.reset();histories.clear();materialHistories.clear();privateReports.clear();pending=null;reveal.hidden=true;feedback.hidden=true;stopAll({keepWake:wakeTransition});lastTicket=null;lastGreeting=null;sync()},clear(){writingRecovery.skip();pending=null;reveal.hidden=true;histories.delete(getPersona());materialHistories.delete(getPersona());privateReports.delete(getPersona());stopAll();lastTicket=null;lastGreeting=null;sync()}};
 }

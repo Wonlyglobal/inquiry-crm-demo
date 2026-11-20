@@ -1,0 +1,11 @@
+import {pathToFileURL} from 'node:url';const {PGlite}=await import(pathToFileURL(process.argv[2]).href);import fs from 'node:fs/promises';import assert from 'node:assert/strict';
+const db=new PGlite();await db.exec(`create role anon;create role authenticated;create role service_role;create table public.grace_chat_turns(actor uuid,thread_id text,turn_id uuid,created_at timestamptz default clock_timestamp(),question text,answer text,material_context text,memory_note text);create table public.audit_logs(actor_id uuid,entity_type text,entity_id uuid,action text,after_data jsonb,reason text);grant select,insert on public.grace_chat_turns,public.audit_logs to service_role;`);
+await db.exec(await fs.readFile(new URL('../supabase/migrations/20261120130000_grace_writing_resume.sql',import.meta.url),'utf8'));
+const actor='c43bd3c2-6e3a-4228-99c7-dc95f33643f2',thread='00000000-0000-4000-8000-000000000001';const run=(expected=null,a=actor)=>db.query('select public.save_grace_writing_turn($1,$2,$3,$4,$5,$6) ok',[a,expected,thread,'合成问题','合成稿件','work-writing:v1.synthetic']);
+for(const role of ['anon','authenticated']){await db.exec(`set role ${role}`);await assert.rejects(run());await db.exec('reset role')}
+await db.exec('set role service_role');assert.equal((await run()).rows[0].ok,true);assert.equal((await run()).rows[0].ok,false);
+const old=(await db.query('select turn_id from grace_chat_turns order by created_at desc limit 1')).rows[0].turn_id;
+assert.equal((await run(old)).rows[0].ok,true);assert.equal((await run(old)).rows[0].ok,false);await assert.rejects(run(null,'00000000-0000-4000-8000-000000000002'));
+assert.equal((await db.query('select count(*)::int n from grace_chat_turns')).rows[0].n,2);assert.equal((await db.query('select count(*)::int n from audit_logs')).rows[0].n,2);
+await db.exec('reset role');await db.exec('alter table audit_logs add constraint test_audit_failure check(false) not valid');await db.exec('set role service_role');const last=(await db.query('select turn_id from grace_chat_turns order by created_at desc limit 1')).rows[0].turn_id;await assert.rejects(run(last));assert.equal((await db.query('select count(*)::int n from grace_chat_turns')).rows[0].n,2);
+await db.close();console.log('PASS: own-actor CAS, stale confirmation rejection, role denial and audit rollback');

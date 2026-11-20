@@ -167,7 +167,7 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  if(s&&s.c!==digest)return {answer:'资料版本已变化，请重新核对英文稿并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'source_changed'}};
  if(s?.k==='company'&&s.h!==await draftHash(companyAnswer(catalog,{...s,l:'en'}).text))return {answer:'英文稿版本校验未完成，请重新生成并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'draft_changed'}};
  const continuing=!!s&&follow.test(q)&&!newWritingDraft(q)&&!/(?:我会提供|设计一份|另(?:外|一)(?:个|段|篇)|重新写|新的任务)/.test(q);
- if(!continuing){const k=kindOf(q);s={v:1,k,l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
+ if(!continuing){const k=kindOf(q);s={v:1,i:crypto.randomUUID().slice(0,12),k,l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
  const edit=continuing&&/删|改|缩|精简|口语|强调|核对刚才|去掉/.test(q);
  if(edit){s={...s,r:s.r+1,p:false,l:s.l==='es'?'en':s.l};if(/(?:删掉|去掉|不要)(?:.{0,3})产能/.test(q))s.o|=1;if(/(?:删掉|去掉|不要)(?:.{0,3})研发/.test(q))s.o|=2;if(/口语/.test(q))s.t=1;if(/精简|缩短|短一点|一百字/.test(q))s.n=120;}
  const negative=/未确认|没确认|还没|尚未|暂时不要|不要翻译|不翻译|先.*确认后|确认后再|等我确认|是否|如果|怎么|如何|吗[？?]?/.test(q);

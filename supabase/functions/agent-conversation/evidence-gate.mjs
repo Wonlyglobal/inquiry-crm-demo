@@ -41,7 +41,8 @@ export function gateMaterialEvidence(data){
    // Derived profiles cannot replace page evidence; avoid unsupported model/series claims.
    // Category labels only route public research; they are not shown as product claims.
    const research_categories=[...new Set((d.knowledge_profile?.categories||[]).map(x=>x?.value).filter(v=>['fire_door','security_door','medical_door','smart_lock'].includes(v)))];
-   const source_summaries=(d.knowledge_profile?.summary||[]).flatMap(summary=>{
+   const summaries=d.knowledge_profile?.summary;
+   const source_summaries=(Array.isArray(summaries)?summaries.slice(0,3):[]).flatMap(summary=>{
     if(typeof summary?.quote!=='string'||!summary.quote.trim())return [];
     const page=pages.find(p=>!p.truncated&&p.kind!=='sheet_cells'&&p.page===summary.page&&p.chunks.some(c=>c.includes(summary.quote)));
     return page?[{page:page.page,quote:summary.quote}]:[];

@@ -55,6 +55,7 @@ import {preferenceInstruction} from './response-preferences.mjs';
 import {signMaterialFileRequest,MATERIAL_ACTOR} from './material-file-proof.mjs';
 import {resolveMaterialTurn,conciseMaterialAnswer,videoSourceQuestion} from './material-dialogue.mjs';
 import {loadFullMaterials,fullMaterialAnswer,materialConnectionUnavailable} from './materials.mjs';
+import {answerVerifiedVideo,loadVerifiedVideoIndex} from './verified-video.mjs';
 import {outreachProductRequest,outreachEvidenceRequest,productCatalogueQueries,outreachProductEvidence,buildProductReviewDraft,PRODUCT_CATEGORIES} from './outreach-product-draft.mjs';
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
 import {loadWebKnowledge,sourceFooter} from './web-knowledge.mjs';
@@ -414,6 +415,19 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    const resolvedMaterial=resolveMaterialTurn(input.question,catalogueHistory);
    const contextTurn=woodTrainingQuestion(resolvedMaterial.question)?resolvedMaterial:projectQuery||catalogueQuery?{question:projectQuery||catalogueQuery}:resolvedMaterial,catalogQuestion=(contextTurn.clarification?input.question:contextTurn.question).replace(/^物料：/,'');
    const videoSources=videoSourceQuestion(input.question);
+   if(!guest&&profile.role==='owner'&&user.id===MATERIAL_ACTOR&&input.persona==='Grace'&&videoSources){
+    const verified=await answerVerifiedVideo(input.question,()=>loadVerifiedVideoIndex(admin),
+      exactName=>loadFullMaterials({...materialConfig,question:exactName,exactName}));
+    if(verified){
+     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,
+      after_data:{operation:'verified_video_source',provider:'internal',source_count:verified.count},
+      reason:'核对授权原视频版本并引用逐帧复核的画面时间码'});
+     if(error)return json({error:'暂时无法完成视频出处查询，请稍后重试。'},503);
+     return json({answer:verified.answer,materials:[],provider:'internal',model:'material-catalogue',
+      context:{route:'materials',material_question:input.question.slice(0,500)},
+      ticket:await ticket({user:user.id,persona:input.persona,text:verified.answer,expires:Date.now()+300000},key)});
+    }
+   }
    const scopedNamedMaterial=videoSources||woodTrainingQuestion(contextTurn.question)||explicitMaterialDocument(contextTurn.question)||namedMaterialProducts(contextTurn.question).length>0;
    const spec=guest||scopedNamedMaterial||catalogueWordingQuestion(catalogQuestion)||materialVersion(catalogQuestion)||selectionIntent(catalogQuestion)?null:specIntent(catalogQuestion);
    if(spec){const catalog=await loadCatalog(admin);const answer=catalog&&!findModels(catalogQuestion,catalog).length?specAnswer(spec,catalog):null;if(answer){

@@ -1,3 +1,4 @@
+import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
 import {normalizeProductInput,bareModel,materialVersion,materialModelCodes,catalogueFieldQuestion,catalogueNamedSubject} from './product-input.mjs';
 import {catalogueWordingAnswer,catalogueWordingQuestion} from './catalog-sales.mjs';
 import {selectionIntent,selectionAnswer} from './product-selection.mjs';
@@ -165,6 +166,7 @@ export function catalogAnswer(intent,catalog,question=''){
   return [HEAD(catalog),...blocks,'要看某个型号的参数，直接说型号，比如“X60 Pro 的参数”。'+NOTE].join('\n\n');
  }
  if(intent.kind==='facts'){
+  const concise=conciseCatalogFacts(intent,catalog,question);if(concise)return concise;
   const facts=(catalog.facts||[]).filter(f=>intent.topics.includes(f.topic)).slice(0,6);if(!facts.length)return null;
   const warn=conflictLines(question,catalog,[]);
   return [HEAD(catalog),facts.map(f=>{

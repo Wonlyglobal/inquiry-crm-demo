@@ -1,10 +1,11 @@
 import {customerCompanyAnswer,customerPurpose} from './customer-writing.mjs';
+import {writingRequestText,writingPrimaryTask} from './writing-request.mjs';
 import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
 // Internal document-based writing. No model calls, arbitrary tools or client-supplied facts.
 // Compact authenticated state survives the existing query-only materialHistory channel.
 const PREFIX='work-writing:v1.';
 const follow=/直接给|客户版|给客户|客户正文|直接发|不要再提|不要提|别提|文案|润色|优化|翻译|西班牙语|西语|^确认|现在确认|确认最新|刚才|上一(?:轮|版|稿)|最新(?:修订|确认|英文)|这(?:一)?(?:版|段|稿)|稿件|再精简|还没确认|已确认|确认了|暂时不要翻译|删掉产能|改得更口语/;
-const task=/直接给|能发|可发|客户版|(?:给客户|对客户|向客户).{0,12}(?:介绍|文案)|直接发|客户正文|润色|优化|排除选项|核验路径|合作价值|原因|写|改写|开场|提纲|讲解|故事|回答|证据|先说明判断|切入点|设计|清单|流程|框架|问法|追问|澄清|取舍|异议|礼貌纠正|沟通|怎样|如何|怎么向客户解释|先列出|需要提供什么|怎么避免|核对清单|先说明判断|如何处理|可以对外/;
+const task=/直接给|能发|可发|客户版|(?:给客户|对客户|向客户).{0,12}(?:介绍|文案)|直接发|客户正文|润色|优化|排除选项|核验路径|合作价值|原因|写|改写|改成|解释|整理|列出|先问|回复|通知|预告|短信|消息|模板|开场|提纲|讲解|故事|回答|证据|先说明判断|切入点|设计|清单|流程|框架|问法|追问|澄清|取舍|异议|礼貌纠正|沟通|怎样|如何|怎么向客户解释|先列出|需要提供什么|怎么避免|核对清单|先说明判断|如何处理|可以对外/;
 const domain=/王力|wonly|公司介绍|品牌|客户|经销|代理|项目|产品|智能锁|木门|认证|交货|交期|画册|英文稿|翻译|西语|西班牙语|竞品|保养|选型|选门|洞口|社媒|邮件|展会|培训|私有|检索日志/i;
 const books={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 const words=s=>(s.match(/\b[A-Za-z][A-Za-z’'-]*\b/g)||[]).length;
@@ -22,10 +23,14 @@ export function workScenarioIntent(input){
  if(input?.action!=='chat'||input.voice||input.privateReportKey||typeof input.question!=='string')return false;
  const q=input.question.trim();
  if((input.materialHistory||[]).some(x=>String(x).startsWith(PREFIX))&&follow.test(q))return true;
- return task.test(q.split(/\n/).at(-1))&&domain.test(q)&&!/^打开|^下载|^同步|^删除|^记住/.test(q);
+ return task.test(writingRequestText(q))&&domain.test(q)&&!/^打开|^下载|^同步|^删除|^记住/.test(q);
 }
 function kindOf(q){
- q=q.split(/\n/).at(-1);
+ q=writingPrimaryTask(q);
+ if(/WhatsApp/i.test(q)&&/展会|跟进/.test(q))return 'exhibition_followup';
+ if(/没回复|未回复/.test(q)&&/跟进|短信/.test(q))return 'quiet_followup';
+ if(/样品/.test(q)&&/通知|物流单号|单号/.test(q))return 'sample_notice';
+ if(/新品预告/.test(q))return 'product_preview';
  if(/不使用世界第一/.test(q))return 'why_us';
  if(/30秒/.test(q))return 'opening';
  if(/90秒/.test(q))return 'story';
@@ -142,6 +147,19 @@ const GUIDES={
  capacity:['先说明画册版本和页码，再只列与客户讨论相关的产能门类与原单位。','年产能是画册宣传口径，不代表实际产量、库存或订单交期。','数字与原页保持一致；未核实项不补写。']
 };
 function guideAnswer(c,s){
+ const messages={
+ exhibition_followup:'很高兴在展会上与您交流。您希望先了解哪类产品？我可以按您的需求整理相关资料，方便时我们再确认下一步。',
+ quiet_followup:'您好，跟进一下之前的沟通。您是否还有需要补充的产品资料？若目前不便推进也没关系，方便时回复即可。',
+ sample_notice:'您好，您的样品安排如下：型号［待确认］，寄出状态［待确认］，物流公司［待确认］，单号［待确认］。确认实际寄出后，我们会补齐信息，方便您跟踪。',
+ product_preview:'新品预告：王力［型号待确认］。产品特点［以确认资料补充］，发布日期［待确认］。欢迎告诉我们您关注的使用场景，我们会在资料确认后为您介绍。'
+ };
+ const englishMessages={
+ exhibition_followup:'It was a pleasure speaking with you at the exhibition. Which product category would you like to explore first? I can organise relevant information around your needs, and we can agree on a convenient next step.',
+ quiet_followup:'Hello, I wanted to follow up on our earlier conversation. Is there any product information that would help? If this is not the right time, no problem—please reply whenever convenient.',
+ sample_notice:'Hello, here is the sample update: model [to be confirmed], dispatch status [to be confirmed], carrier [to be confirmed], tracking number [to be confirmed]. We will complete these details after confirming the actual dispatch.',
+ product_preview:'New product preview: WONLY [model to be confirmed]. Features [add verified details]. Release date [to be confirmed]. Tell us about your application, and we can share more once the product information has been confirmed.'
+ };
+ if(messages[s.k])return {text:s.l==='en'?englishMessages[s.k]:messages[s.k],topics:[],customerFacing:true,internalAdvice:'沟通模板，未实际发送；占位项须核实后填写，不代表已寄样、已发布或已承诺。'};
  if(['company','opening','story','outline','three_facts','why_us'].includes(s.k)){
  const d=companyData(c);
  if(s.k==='opening')return {text:'三个切入点：①企业历程，适合初次了解；②研发背景，适合技术沟通；③客户需求，适合选型前沟通。\n先选客户需求切入，避免一开始堆数字。\n\n您好，先简单介绍一下王力。公司成立于'+d.y+'年，画册记录其于'+d.listingYear+'年在上交所主板上市。今天我更想先了解您的使用场景和安装条件，再一起看哪些产品资料值得重点核对。',topics:['founding','listing']};
@@ -175,7 +193,7 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  if(s?.k==='company'&&s.h!==await draftHash(companyAnswer(catalog,{...s,l:'en'}).text))return {answer:'英文稿版本校验未完成，请重新生成并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'draft_changed'}};
  if(s?.k==='company'&&customerPurpose(q)==='review'&&!/删|去掉|改|精简|缩|口语|优化|润色|强调/.test(q)){const review=companyAnswer(catalog,{...s,w:0,l:'zh'});return {answer:review.text+'\n\n'+citations(catalog,review.topics),provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'evidence_review',material_question:token}};}
  const continuing=!!s&&follow.test(q)&&!newWritingDraft(q)&&!/(?:我会提供|设计一份|另(?:外|一)(?:个|段|篇)|重新写|新的任务)/.test(q);
- if(!continuing){const k=kindOf(q);s={v:1,i:crypto.randomUUID().slice(0,12),k,...(['company','story','why_us','email'].includes(k)?{w:customerPurpose(q)==='customer'?2:0}:{}),l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
+ if(!continuing){const k=kindOf(q);s={v:1,i:crypto.randomUUID().slice(0,12),k,...(['company','story','why_us','email'].includes(k)?{w:customerPurpose(q)==='customer'?2:0}:{}),l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/不超过\s*80\s*字/.test(q)?80:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
  const copyEdit=!/可以吗|能发吗|是否|[？?]$/.test(q)&&/直接给|直接发|给客户|不要提|不要再提|别提/.test(q);
  const edit=continuing&&(/删|改|缩|精简|口语|强调|核对刚才|去掉|润色|优化/.test(q)||copyEdit);
  if(edit){s={...s,r:s.r+1,p:false,l:s.l==='es'?'en':s.l,...(s.k==='company'&&customerPurpose(q)==='customer'?{w:2}:{})};if(/(?:删掉|去掉|不要)(?:.{0,3})产能/.test(q))s.o|=1;if(/(?:删掉|去掉|不要)(?:.{0,3})研发/.test(q))s.o|=2;if(/口语/.test(q))s.t=1;if(/精简|缩短|短一点|一百字/.test(q))s.n=120;}

@@ -1,15 +1,15 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import crypto from 'node:crypto';
 import {answerWorkScenario} from '../supabase/functions/agent-conversation/work-scenarios.mjs';
-const c={sources:[{id:'c2',edition:'synthetic-2026'}],facts:[{topic:'founding',catalog:'c2',page:3,text:'Founded in 1996.'},{topic:'listing',catalog:'c2',page:3,text:'Listed in 2021, code 605268.'},{topic:'rnd',catalog:'c2',page:3,text:'Synthetic research',zh:'研发投入超过8000万元，团队400人'},{topic:'capacity',catalog:'c2',page:3,text:'Synthetic capacity'}]};
+const c={sources:[{id:'c2',edition:'synthetic-2026'}],facts:[{topic:'bases',catalog:'c2',page:3,text:'Yongkang, Wuyi, Sichuan, Hangzhou, Hubei'},{topic:'founding',catalog:'c2',page:3,text:'Founded in 1996.'},{topic:'listing',catalog:'c2',page:3,text:'Listed in 2021, code 605268.'},{topic:'rnd',catalog:'c2',page:3,text:'Synthetic research',zh:'研发投入超过8000万元，团队400人'},{topic:'capacity',catalog:'c2',page:3,text:'Synthetic capacity'}]};
 const sign=async t=>crypto.createHmac('sha256','offline-test-signing-key').update(t).digest('hex');
 const options={actor:'fixture-owner',sign,verify:async(t,s)=>s===await sign(t)};
 const ask=(question,prev,opts=options,cat=c)=>answerWorkScenario({action:'chat',persona:'Grace',question,history:[],materialHistory:prev?[prev.context.material_question]:[]},cat,opts);
 const initial='帮我写约300词王力公司介绍，先英文给我确认，等我确认后翻译成西班牙语。';
 test('English first; edits remain English; only latest approved revision is translated',async()=>{
- const a=await ask(initial);assert.equal(a.context.language,'en');assert.equal(a.context.approved,false);assert.match(a.answer,/Manufacturing capacity/);
+ const a=await ask(initial);assert.equal(a.context.language,'en');assert.equal(a.context.approved,false);assert.match(a.answer,/Manufacturing capacity|manufacturing network|production bases/i);
  const early=await ask('请把这版翻译成西语',a);assert.equal(early.context.status,'awaiting_confirmation');assert.doesNotMatch(early.answer,/Gracias|Fundada/);
- const b=await ask('删掉产能部分，强调研发和合作沟通；还没确认。',a);assert.equal(b.context.language,'en');assert.equal(b.context.approved,false);assert.doesNotMatch(b.answer,/Manufacturing capacity/);assert.match(b.answer,/Research and development/);
- const t=await ask('现在确认最新英文版本，翻译成西语。',b);assert.equal(t.context.status,'translated');assert.equal(t.context.revision,b.context.revision);assert.doesNotMatch(t.answer,/capacidad de fabricación/i);assert.match(t.answer,/investigación/);
+ const b=await ask('删掉产能部分，强调研发和合作沟通；还没确认。',a);assert.equal(b.context.language,'en');assert.equal(b.context.approved,false);assert.doesNotMatch(b.answer,/Manufacturing capacity|manufacturing network|production bases/i);assert.match(b.answer,/Research and development/);
+ const t=await ask('现在确认最新英文版本，翻译成西语。',b);assert.equal(t.context.status,'translated');assert.equal(t.context.revision,b.context.revision);assert.doesNotMatch(t.answer,/capacidad de fabricación|bases de producción|red de fabricación/i);assert.match(t.answer,/investigación/);
  const edit=await ask('这版再改得口语一点，暂时不要翻译',t);assert.equal(edit.context.language,'en');assert.equal(edit.context.approved,false);
 });
 test('negated, conditional and question-shaped confirmation never approve',async()=>{const a=await ask(initial);for(const q of ['这版英文还没确认，翻译成西班牙语','这版如果确认了再翻译成西语','这版确认了吗？请翻译成西语','这版暂时不要翻译成西班牙语']){const r=await ask(q,a);assert.equal(r.context.status,'awaiting_confirmation',q);assert.doesNotMatch(r.answer,/Gracias|Fundada/,q)}});

@@ -1,0 +1,69 @@
+{
+  "catalog": {
+    "sources": [
+      {
+        "id": "c2",
+        "edition": "test-2026"
+      }
+    ],
+    "products": [
+      {
+        "category": "security_door"
+      },
+      {
+        "category": "smart_lock"
+      },
+      {
+        "category": "wooden_door"
+      }
+    ],
+    "facts": [
+      {
+        "topic": "founding",
+        "catalog": "c2",
+        "page": 3,
+        "text": "Founded in 1996."
+      },
+      {
+        "topic": "listing",
+        "catalog": "c2",
+        "page": 3,
+        "text": "Listed in 2021, code 605268."
+      },
+      {
+        "topic": "rnd",
+        "catalog": "c2",
+        "page": 3,
+        "text": "Research",
+        "zh": "研发投入超过8000万元，团队400人"
+      },
+      {
+        "topic": "capacity",
+        "catalog": "c2",
+        "page": 3,
+        "text": "Steel doors, smart locks, wooden doors"
+      },
+      {
+        "topic": "bases",
+        "catalog": "c2",
+        "page": 3,
+        "text": "Yongkang, Wuyi, Sichuan, Hangzhou, Hubei"
+      }
+    ]
+  },
+  "state": {
+    "v": 1,
+    "i": "89c9f60c-139",
+    "k": "company",
+    "l": "en",
+    "n": 300,
+    "o": 0,
+    "t": 0,
+    "r": 1,
+    "p": false,
+    "c": "6583dce93c9b8ed5126187c19d23622cf0a1aa8c15231432440afaec49e5208b",
+    "m": "",
+    "a": "",
+    "h": "fab6427fb8a5061fcba3509d9e66b0c5ba1fef3906d39ed19e6787306d7d3cd0"
+  }
+}

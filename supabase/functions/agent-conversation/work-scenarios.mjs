@@ -1,9 +1,10 @@
+import {customerCompanyAnswer,customerPurpose} from './customer-writing.mjs';
 import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
 // Internal document-based writing. No model calls, arbitrary tools or client-supplied facts.
 // Compact authenticated state survives the existing query-only materialHistory channel.
 const PREFIX='work-writing:v1.';
-const follow=/翻译|西班牙语|西语|^确认|现在确认|确认最新|刚才|上一(?:轮|版|稿)|最新(?:修订|确认|英文)|这(?:一)?(?:版|段|稿)|稿件|再精简|还没确认|已确认|确认了|暂时不要翻译|删掉产能|改得更口语/;
-const task=/排除选项|核验路径|合作价值|原因|写|改写|开场|提纲|讲解|故事|回答|证据|先说明判断|切入点|设计|清单|流程|框架|问法|追问|澄清|取舍|异议|礼貌纠正|沟通|怎样|如何|怎么向客户解释|先列出|需要提供什么|怎么避免|核对清单|先说明判断|如何处理|可以对外/;
+const follow=/直接给|客户版|给客户|客户正文|直接发|不要再提|不要提|别提|文案|润色|优化|翻译|西班牙语|西语|^确认|现在确认|确认最新|刚才|上一(?:轮|版|稿)|最新(?:修订|确认|英文)|这(?:一)?(?:版|段|稿)|稿件|再精简|还没确认|已确认|确认了|暂时不要翻译|删掉产能|改得更口语/;
+const task=/直接给|能发|可发|客户版|(?:给客户|对客户|向客户).{0,12}(?:介绍|文案)|直接发|客户正文|润色|优化|排除选项|核验路径|合作价值|原因|写|改写|开场|提纲|讲解|故事|回答|证据|先说明判断|切入点|设计|清单|流程|框架|问法|追问|澄清|取舍|异议|礼貌纠正|沟通|怎样|如何|怎么向客户解释|先列出|需要提供什么|怎么避免|核对清单|先说明判断|如何处理|可以对外/;
 const domain=/王力|wonly|公司介绍|品牌|客户|经销|代理|项目|产品|智能锁|木门|认证|交货|交期|画册|英文稿|翻译|西语|西班牙语|竞品|保养|选型|选门|洞口|社媒|邮件|展会|培训|私有|检索日志/i;
 const books={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 const words=s=>(s.match(/\b[A-Za-z][A-Za-z’'-]*\b/g)||[]).length;
@@ -14,8 +15,9 @@ const decode=s=>decodeURIComponent(escape(atob(s.replaceAll('-','+').replaceAll(
 const fact=(c,t)=>(c?.facts||[]).find(x=>x.topic===t&&x.catalog==='c2')||(c?.facts||[]).find(x=>x.topic===t);
 const safeNum=s=>String(s||'').match(/\d+(?:\.\d+)?/g)||[];
 export const newWritingDraft=q=>/(?:帮我写|给客户讲王力公司介绍|(?:^|[\n，。；])(?:先|请)?写)/.test(q);
-export const writingContinuation=input=>input?.action==='chat'&&!input.voice&&!input.privateReportKey&&typeof input.question==='string'&&follow.test(input.question)&&!newWritingDraft(input.question);
-export function companyDraftResult(result){try{return JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).k==='company'&&['en','es'].includes(result.context.language||JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).l)}catch{return false}}
+const independentWritingRequest=q=>/我会提供|需要提供什么|先告诉我|先说明判断|怎么避免|如何避免|(?:设计|列出|整理).{0,14}(?:清单|框架|流程)|(?:仅|只)内部/.test(q);
+export const writingContinuation=input=>input?.action==='chat'&&!input.voice&&!input.privateReportKey&&typeof input.question==='string'&&follow.test(input.question)&&!newWritingDraft(input.question)&&!independentWritingRequest(input.question);
+export function companyDraftResult(result){try{return JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).k==='company'&&JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).w!==0&&['en','es'].includes(result.context.language||JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).l)}catch{return false}}
 export function workScenarioIntent(input){
  if(input?.action!=='chat'||input.voice||input.privateReportKey||typeof input.question!=='string')return false;
  const q=input.question.trim();
@@ -33,6 +35,7 @@ function kindOf(q){
  if(/指令|检索日志|全部客户资料/.test(q))return 'injection';
  if(/第\s*62\s*页/.test(q))return 'page62';
  if(/三条|3条/.test(q)&&/视频|时间码/.test(q))return 'video';
+ if(newWritingDraft(q)&&customerPurpose(q)==='customer'&&/公司介绍|品牌.{0,8}介绍|介绍.{0,8}王力/.test(q)&&!/提纲|清单|故事|30秒|90秒/.test(q))return 'company';
  if(/全球销量第一|世界第一|排名/.test(q))return 'claim';
  if(/报价|降价|价格太贵|便宜|预算/.test(q))return /冲突|马上交货|便宜.*耐用/.test(q)?'tradeoff':'price';
  if(/年产能|第3页/.test(q))return 'capacity';
@@ -59,7 +62,7 @@ function kindOf(q){
  if(/核对清单|型号.*日期.*单位/.test(q))return 'translation_check';
  if(/两段公司介绍|怎么避免翻错/.test(q))return 'version_check';
  if(/上一轮输出了英文|默认应该用什么语言/.test(q))return 'language_check';
- if(/先写一段英文公司介绍|公司介绍|王力.*发展历程|介绍王力|公司.*提纲|介绍.*王力|为什么.*选|为什么要选|合作是否靠谱|公司年产能|画册第3页/.test(q))return /年产能|第3页/.test(q)?'capacity':'company';
+ if(/客户.{0,5}介绍|品牌.{0,8}(?:介绍|竞争优势)|产品竞争优势|(?:公司|品牌)简介|先写一段英文公司介绍|公司介绍|王力.*发展历程|介绍王力|公司.*提纲|介绍.*王力|为什么.*选|为什么要选|合作是否靠谱|公司年产能|画册第3页/.test(q))return /年产能|第3页/.test(q)?'capacity':'company';
  return 'discovery';
 }
 function metadata(q){
@@ -96,6 +99,8 @@ function companyParagraphs(c,s){
  return pairs;
 }
 function companyAnswer(c,s){
+ if(s.w===2)return customerCompanyAnswer(c,s,companyData(c));
+ if(s.w===0){const d=companyData(c);return {text:[`可核事实：成立于${d.y||'待核年份'}年；${d.listingYear||'待核年份'}年在上交所主板上市，代码${d.code||'待核代码'}。`,d.investment&&d.team?`研发：年投入超过${d.investment}百万元，团队${d.team}人。`:'研发投入和团队人数本次未完整核实。','表达建议：产品组合与客户应用的连接属于写作建议。','未核结论：具体型号认证、性能、报价、交期及相对竞品优势不能从公司背景直接推出。'].join('\n'),topics:['founding','listing','rnd'],customerFacing:false};}
  const pairs=companyParagraphs(c,s);if(!pairs)return {text:'本次未能核对公司介绍所需的成立与上市资料，请先补齐有出处的事实。',topics:[]};
  const language=s.l,idx=language==='es'?1:0;
  if(language==='zh'){
@@ -141,9 +146,10 @@ function guideAnswer(c,s){
  const d=companyData(c);
  if(s.k==='opening')return {text:'三个切入点：①企业历程，适合初次了解；②研发背景，适合技术沟通；③客户需求，适合选型前沟通。\n先选客户需求切入，避免一开始堆数字。\n\n您好，先简单介绍一下王力。公司成立于'+d.y+'年，画册记录其于'+d.listingYear+'年在上交所主板上市。今天我更想先了解您的使用场景和安装条件，再一起看哪些产品资料值得重点核对。',topics:['founding','listing']};
  if(s.k==='outline')return {text:'先讲：客户希望解决什么问题，再用成立于'+d.y+'年、'+d.listingYear+'年主板上市（'+d.code+'）两项背景建立共同认识。\n接着讲：相关产品类别和需要查看的资料，不把公司规模当产品性能证明。\n留到追问：研发、生产规模及历史细节，按问题提供原页。\n收尾：确认使用位置、安装限制与下一步资料需求。',topics:['founding','listing']};
+ if(s.k==='why_us'&&s.w===2)return {text:`王力成立于${d.y}年，${d.listingYear}年在上交所主板上市，研发团队${d.team||'人数待核'}人。我们将制造经验、研发资源和产品组合结合起来，希望从您的使用场景和功能重点出发，介绍相关的产品方向。您目前最想解决的是哪一类使用需求？`,topics:['founding','listing','rnd'],customerFacing:true};
  if(s.k==='three_facts'||s.k==='why_us')return {text:'可先核对三项公司信息：成立于'+d.y+'年；'+d.listingYear+'年在上海证券交易所主板上市，代码'+d.code+'；画册记载研发团队'+(d.team||'人数本次未核实')+'人。\n这些背景不能代替产品适用性核验。您最需要解决的是哪类使用或安装问题？我们可以从相关型号的资料开始核对。',topics:['founding','listing','rnd']};
  const result=companyAnswer(c,s);
- if(s.k==='story')result.text+='\n\n叙事安排：从成立、上市到研发背景，再转入客户需求；未添加创始人经历。';
+ if(s.k==='story'){if(result.customerFacing)result.internalAdvice='叙事安排：从成立、上市到研发背景，再转入客户需求；未添加创始人经历。';else result.text+='\n\n叙事安排：从成立、上市到研发背景，再转入客户需求；未添加创始人经历。';}
  return result;
  }
  if(s.k==='page62'){
@@ -151,6 +157,7 @@ function guideAnswer(c,s){
  const [body,tail]=raw.split('来源：');
  return {text:body.replace(/^- /gm,'').replace(/。\n?/g,'；').replace(/；$/,'')+'。\n'+(tail?'来源：'+tail.split('\n')[0]:'')+'\n仅按这版画册口径引用，不同画册的倍数勿混用。',topics:[],hasCitation:true};
  }
+ if(s.k==='email'&&s.w===2)return {text:"Hello,\n\nI'm reaching out to introduce WONLY and learn about your product needs. Could you share the applications and functions that matter most to your customers or project? We can then focus on relevant products and configurations.\n\nWould you prefer a brief company introduction or a conversation about a particular product category?",topics:[],customerFacing:true,internalAdvice:'角度一：从使用需求切入。角度二：从产品组合与合作下一步切入。草稿未发送。'};
  if(s.k==='email')return {text:s.n<=120?'Hello,\n\nThank you for your interest in WONLY. Could you share the intended application, installation conditions, and the functions most important to you? We can then identify the relevant product category and review the available specifications together. Any certification, quotation, or delivery arrangement will need separate confirmation.\n\nWould you prefer to begin with product information or a short introductory discussion?':'角度一：从使用场景和需核对的资料切入。角度二：从客户关心的功能与合作下一步切入。\n\nHello,\n\nThank you for your interest in WONLY. Could you share the intended application and the functions most important to you? We can then identify a relevant product category and review the available documents together. Any certification, quotation, or delivery arrangement needs separate confirmation.\n\nWould you prefer product information or a short introductory discussion?',topics:[]};
  if(s.k==='invitation')return {text:'Hello, welcome. May I ask what type of project or product you are considering? If useful, we can look at the relevant catalogue and check the specifications together.\n\nIf the customer declines: Of course. Thank you for your time. Please let us know if you would like any specific information later.',topics:[]};
  const lines=GUIDES[s.k]||GUIDES.discovery;
@@ -162,16 +169,18 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  if(!workScenarioIntent(input))return null;
  const q=input.question.trim();let s=null;
  const token=newWritingDraft(q)?null:(input.materialHistory||[]).find(x=>String(x).startsWith(PREFIX));
- if(token){try{const [payload,signature]=token.slice(PREFIX.length).split('.');if(payload.length>500||!await verify('work-writing-v1|'+actor+'|'+payload,signature))throw Error();s=JSON.parse(decode(payload));if(s.v!==1||!s.k||!['en','zh','es'].includes(s.l)||s.r>30)throw Error()}catch{return {answer:'这份稿件的上下文校验未完成，请重新提出公司介绍或写作要求；本次没有翻译。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'invalid_state'}}}}
+ if(token){try{const [payload,signature]=token.slice(PREFIX.length).split('.');if(payload.length>500||!await verify('work-writing-v1|'+actor+'|'+payload,signature))throw Error();s=JSON.parse(decode(payload));if(s.v!==1||!s.k||!['en','zh','es'].includes(s.l)||!Number.isSafeInteger(s.r)||s.r<1||s.r>1000000)throw Error()}catch{return {answer:'这份稿件的上下文校验未完成，请重新提出公司介绍或写作要求；本次没有翻译。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'invalid_state'}}}}
  const digest=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({sources:catalog?.sources||[],facts:(catalog?.facts||[]).map(f=>[f.topic,f.text,f.catalog,f.page,f.zh])}))));
  if(s&&s.c!==digest)return {answer:'资料版本已变化，请重新核对英文稿并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'source_changed'}};
  if(s?.k==='company'&&s.h!==await draftHash(companyAnswer(catalog,{...s,l:'en'}).text))return {answer:'英文稿版本校验未完成，请重新生成并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'draft_changed'}};
+ if(s?.k==='company'&&customerPurpose(q)==='review'&&!/删|去掉|改|精简|缩|口语|优化|润色|强调/.test(q)){const review=companyAnswer(catalog,{...s,w:0,l:'zh'});return {answer:review.text+'\n\n'+citations(catalog,review.topics),provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'evidence_review',material_question:token}};}
  const continuing=!!s&&follow.test(q)&&!newWritingDraft(q)&&!/(?:我会提供|设计一份|另(?:外|一)(?:个|段|篇)|重新写|新的任务)/.test(q);
- if(!continuing){const k=kindOf(q);s={v:1,i:crypto.randomUUID().slice(0,12),k,l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
- const edit=continuing&&/删|改|缩|精简|口语|强调|核对刚才|去掉/.test(q);
- if(edit){s={...s,r:s.r+1,p:false,l:s.l==='es'?'en':s.l};if(/(?:删掉|去掉|不要)(?:.{0,3})产能/.test(q))s.o|=1;if(/(?:删掉|去掉|不要)(?:.{0,3})研发/.test(q))s.o|=2;if(/口语/.test(q))s.t=1;if(/精简|缩短|短一点|一百字/.test(q))s.n=120;}
+ if(!continuing){const k=kindOf(q);s={v:1,i:crypto.randomUUID().slice(0,12),k,...(['company','story','why_us','email'].includes(k)?{w:customerPurpose(q)==='customer'?2:0}:{}),l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
+ const copyEdit=!/可以吗|能发吗|是否|[？?]$/.test(q)&&/直接给|直接发|给客户|不要提|不要再提|别提/.test(q);
+ const edit=continuing&&(/删|改|缩|精简|口语|强调|核对刚才|去掉|润色|优化/.test(q)||copyEdit);
+ if(edit){s={...s,r:s.r+1,p:false,l:s.l==='es'?'en':s.l,...(s.k==='company'&&customerPurpose(q)==='customer'?{w:2}:{})};if(/(?:删掉|去掉|不要)(?:.{0,3})产能/.test(q))s.o|=1;if(/(?:删掉|去掉|不要)(?:.{0,3})研发/.test(q))s.o|=2;if(/口语/.test(q))s.t=1;if(/精简|缩短|短一点|一百字/.test(q))s.n=120;}
  const negative=/未确认|没确认|还没|尚未|暂时不要|不要翻译|不翻译|先.*确认后|确认后再|等我确认|是否|如果|怎么|如何|吗[？?]?/.test(q);
- const approved=continuing&&s.k==='company'&&s.l==='en'&&!edit&&!negative&&/已确认|确认了|确认无误|^确认(?:[，,。 ]|$)|^现在确认|^可以[，, ]*(?:翻译|译)|^没问题[，, ]*(?:翻译|译)/.test(q);
+ const approved=continuing&&s.k==='company'&&s.w!==0&&s.l==='en'&&!edit&&!negative&&/已确认|确认了|确认无误|^确认(?:[，,。 ]|$)|^现在确认|^可以[，, ]*(?:翻译|译)|^没问题[，, ]*(?:翻译|译)/.test(q);
  if(approved)s={...s,p:true};
  if(continuing&&/未确认|没确认|撤销确认|暂时不要翻译|不要翻译/.test(q))s={...s,p:false,l:s.l==='es'?'en':s.l};
  if(continuing&&/西班牙语|西语|Spanish|español/i.test(q)&&!edit){if(!s.p){if(s.k==='company')s.h=await draftHash(companyAnswer(catalog,{...s,l:'en'}).text);
@@ -179,14 +188,15 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  const care=s.k==='care'?await careAnswer?.():null;
  const careText=care&&s.n<=120?care.replace(/^资料中的相关说明如下：\s*/, '').replace(/\s*以上为本次找到的原页摘录。需要我打开对应资料给你核对吗？\s*$/, ''):care;
  const result=care?{text:careText+'\n资料未明确的清洁剂、保养周期或保修条件不自行补写。',topics:[],hasCitation:true}:s.k==='video'?{text:(await videoAnswer?.())?.answer||'这次无法核对原视频时间码，暂不列出。',topics:[],hasCitation:true}:guideAnswer(catalog,s);
- let answer=result.text+(result.hasCitation?'':'\n\n'+citations(catalog,result.topics));
+ const evidence=result.hasCitation?'':citations(catalog,result.topics)+(result.internalAdvice?'\n'+result.internalAdvice:'')+(result.customerFacing&&/认证|保证|两周|全球.*第一|世界第一|报价/.test(q)?'\n未加入未经核实的认证、排名、报价或交付承诺。':'')+(result.customerFacing&&/核对|核验|哪些是资料事实/.test(q)?(result.topics.length?'\n事实与建议：正文中的公司数字和产品功能来自所列出处；产品组合与沟通安排属于表达建议。':'\n正文为沟通建议，没有添加客户背景或未经核实的产品承诺。'):'');
+ let answer=result.customerFacing?'客户正文（'+(s.l==='es'?'西班牙语':s.l==='en'?'英文':'中文')+'）：\n\n'+result.text+'\n\n——\n内部核对信息（不随客户正文发送）：\n'+evidence:result.text+(evidence?'\n\n'+evidence:'');
  if(s.k==='video')answer+='\n这些片段只能证明所引画面文字，不能证明产能兑现、产品认证或锁芯性能。';
  if(['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='en')answer+='\n\n英文稿（'+words(result.text)+'词）。'+(s.p?'已确认，可继续要求翻译成西班牙语。':'请确认或提出修改；确认后再翻译成西班牙语。');
  else if(['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='es')answer+='\n\n已按最新确认英文稿翻译。';
  else if(continuing&&/核对刚才/.test(q))answer+='\n\n核对：上面的方法、问法与沟通安排属于建议；具体公司/产品数字只以列出的资料出处为据。未给出未经核验的价格、交期或认证承诺。';
- if((s.m||s.a)&&s.n>120)answer+='\n\n沟通对象：'+[s.m,s.a].filter(Boolean).join(' / ')+'；当地适用要求仍需单独核验。';
+ if(!result.customerFacing&&(s.m||s.a)&&s.n>120)answer+='\n\n沟通对象：'+[s.m,s.a].filter(Boolean).join(' / ')+'；当地适用要求仍需单独核验。';
  if(s.k==='company')s.h=await draftHash(companyAnswer(catalog,{...s,l:'en'}).text);
  const payload=encode(JSON.stringify(s)),sig=await sign('work-writing-v1|'+actor+'|'+payload),material=PREFIX+payload+'.'+sig;
  if(material.length>500)throw Error('Writing state exceeds context bound');
- return {answer,provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:s.l==='es'?'translated':['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='en'?'awaiting_confirmation':'draft',revision:s.r,language:s.l,approved:s.p,material_question:material}};
+ return {answer,...(result.customerFacing?{customer_text:result.text,internal_notes:evidence}:{}),provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:s.l==='es'?'translated':['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='en'?'awaiting_confirmation':'draft',revision:s.r,language:s.l,approved:s.p,material_question:material}};
 }

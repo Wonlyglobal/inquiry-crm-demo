@@ -41,7 +41,13 @@ export function gateMaterialEvidence(data){
    // Derived profiles cannot replace page evidence; avoid unsupported model/series claims.
    // Category labels only route public research; they are not shown as product claims.
    const research_categories=[...new Set((d.knowledge_profile?.categories||[]).map(x=>x?.value).filter(v=>['fire_door','security_door','medical_door','smart_lock'].includes(v)))];
-   a.document={...d,pages,product_understanding,research_categories,knowledge_profile:null,warnings:[...(d.warnings||[]),'仅核对本次授权检索的页码摘录；未独立复验原文件当前哈希或产品事实。']};
+   const summaries=d.knowledge_profile?.summary;
+   const source_summaries=(Array.isArray(summaries)?summaries.slice(0,3):[]).flatMap(summary=>{
+    if(typeof summary?.quote!=='string'||!summary.quote.trim())return [];
+    const page=pages.find(p=>!p.truncated&&p.kind!=='sheet_cells'&&p.page===summary.page&&p.chunks.some(c=>c.includes(summary.quote)));
+    return page?[{page:page.page,quote:summary.quote}]:[];
+   });
+   a.document={...d,pages,product_understanding,research_categories,source_summaries,knowledge_profile:null,warnings:[...(d.warnings||[]),'仅核对本次授权检索的页码摘录；未独立复验原文件当前哈希或产品事实。']};
   }
   if(a.video){const usable=['ready','partial'].includes(a.video.status);a.video={...a.video,segments:usable?(a.video.segments||[]).filter(s=>Number.isFinite(s.start)&&s.start>=0&&typeof s.text==='string'&&s.text.trim()&&['speech','screen_text','visual_inference'].includes(s.kind)):[]};}
   return a;

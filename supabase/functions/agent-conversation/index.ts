@@ -1,4 +1,5 @@
-import {workScenarioIntent,answerWorkScenario} from './work-scenarios.mjs';
+import {latestWriting,restoredWriting,saveWriting} from './writing-session.mjs';
+import {workScenarioIntent,answerWorkScenario,writingContinuation,newWritingDraft,companyDraftResult} from './work-scenarios.mjs';
 import {presentMaterialAnswer} from './material-chinese.mjs';
 import {catalogueWordingQuestion} from './catalog-sales.mjs';
 import {woodTrainingQuestion} from './document-topic.mjs';
@@ -119,6 +120,16 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
   let input:any,form:FormData|null=null;
   if(type.startsWith('multipart/form-data')){form=await new Response(bytes,{headers:{'Content-Type':type}}).formData();input={action:form.get('action')==='voiceprint'?'voiceprint':'transcribe',persona:form.get('persona'),op:form.get('op')}}
   else input=JSON.parse(new TextDecoder().decode(bytes));
+  if(input.action==='writing-session'){
+   if(Object.keys(input).some(k=>!['action','persona'].includes(k))||input.persona!=='Grace')return json({error:'稿件角色无效'},400);
+   const db=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+   const {count,error:rateError}=await db.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','agent_writing_resume').gte('created_at',new Date(Date.now()-60000).toISOString());
+   if(rateError)return json({error:'稿件恢复限额核验失败'},503);if((count||0)>=12)return json({error:'稿件读取较多，请稍后重试'},429);
+   const row=await latestWriting(db,user.id);
+   const {error}=await db.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_writing_resume',after_data:{available:!!row,turn:row?.turn_id||null},reason:'本人刷新或重新打开后恢复最近保存稿件；不发送外部模型'});
+   if(error)return json({error:'稿件恢复审计失败'},503);
+   return json({draft:restoredWriting(row)});
+  }
   if(input.action==='material-file'){
    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.asset_id||'')||!['preview','download'].includes(input.operation))return json({error:'资料请求无效'},400);
    const privateJwk=Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK');if(!privateJwk)return json({error:'资料直达服务尚未配置'},503);
@@ -290,11 +301,22 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
    // Internal writing is owner-only through the existing eligible check and quota above.
-   if(!guest&&workScenarioIntent(input)){
+   if(!guest&&(workScenarioIntent(input)||writingContinuation(input))){
+    const previous=await latestWriting(admin,user.id);
+    const continuation=writingContinuation(input);
+    if(continuation&&previous){
+     const supplied=(input.materialHistory||[]).find((x:string)=>x.startsWith('work-writing:v1.'));
+     if(supplied!==previous.material_context){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'writing_version_conflict'},reason:'旧页面或空上下文未确认最新稿，恢复最新版本而不翻译旧稿'});if(error)return json({error:'调用审计失败'},503);return json(restoredWriting(previous,'version_conflict'));}
+    }
+
     const answer=await answerWorkScenario(input,await loadCatalog(admin),{actor:user.id,sign:t=>mac(t,key),verify:async(t,sig)=>{
      if(typeof sig!=='string'||!/^[a-f0-9]{64}$/.test(sig))return false;
      const expected=await mac(t,key);let mismatch=0;for(let i=0;i<64;i++)mismatch|=expected.charCodeAt(i)^sig.charCodeAt(i);return mismatch===0;
     },careAnswer:async()=>{const question='木门日常使用、维护和保养';const materials=gateMaterialEvidence(await loadFullMaterials({...materialConfig,question}));const answer=targetedMaterialAnswer(materials,question)?.answer;return answer?presentMaterialAnswer(answer,question):null;},videoAnswer:()=>answerVerifiedVideo('三条品牌视频时间码',()=>loadVerifiedVideoIndex(admin),exactName=>loadFullMaterials({...materialConfig,question:exactName,exactName}))});
+    if(answer&&companyDraftResult(answer)&&answer.context.material_question!==previous?.material_context){
+     if(!await saveWriting(admin,user.id,previous,input,answer,newWritingDraft(input.question))){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'writing_concurrent_conflict'},reason:'并行稿件已更新，拒绝发布过期确认或译稿'});if(error)return json({error:'调用审计失败'},503);return json(restoredWriting(await latestWriting(admin,user.id),'version_conflict'));}
+     return json(answer);
+    }
     if(answer){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'internal_work_writing',provider:'internal',status:answer.context?.status,revision:answer.context?.revision,external_model_called:false},reason:'用户主动生成或修改资料内写作草稿；确认后翻译最新版本，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json(answer);}
    }
    // Verify the original signed transcript first. Canonical spelling is used only for routing.

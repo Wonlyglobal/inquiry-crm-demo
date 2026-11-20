@@ -13,6 +13,9 @@ const encode=s=>btoa(unescape(encodeURIComponent(s))).replaceAll('+','-').replac
 const decode=s=>decodeURIComponent(escape(atob(s.replaceAll('-','+').replaceAll('_','/'))));
 const fact=(c,t)=>(c?.facts||[]).find(x=>x.topic===t&&x.catalog==='c2')||(c?.facts||[]).find(x=>x.topic===t);
 const safeNum=s=>String(s||'').match(/\d+(?:\.\d+)?/g)||[];
+export const newWritingDraft=q=>/(?:帮我写|给客户讲王力公司介绍|(?:^|[\n，。；])(?:先|请)?写)/.test(q);
+export const writingContinuation=input=>input?.action==='chat'&&!input.voice&&!input.privateReportKey&&typeof input.question==='string'&&follow.test(input.question)&&!newWritingDraft(input.question);
+export function companyDraftResult(result){try{return JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).k==='company'&&['en','es'].includes(result.context.language||JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).l)}catch{return false}}
 export function workScenarioIntent(input){
  if(input?.action!=='chat'||input.voice||input.privateReportKey||typeof input.question!=='string')return false;
  const q=input.question.trim();
@@ -158,12 +161,12 @@ function guideAnswer(c,s){
 export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoAnswer,careAnswer}){
  if(!workScenarioIntent(input))return null;
  const q=input.question.trim();let s=null;
- const token=(input.materialHistory||[]).find(x=>String(x).startsWith(PREFIX));
+ const token=newWritingDraft(q)?null:(input.materialHistory||[]).find(x=>String(x).startsWith(PREFIX));
  if(token){try{const [payload,signature]=token.slice(PREFIX.length).split('.');if(payload.length>500||!await verify('work-writing-v1|'+actor+'|'+payload,signature))throw Error();s=JSON.parse(decode(payload));if(s.v!==1||!s.k||!['en','zh','es'].includes(s.l)||s.r>30)throw Error()}catch{return {answer:'这份稿件的上下文校验未完成，请重新提出公司介绍或写作要求；本次没有翻译。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'invalid_state'}}}}
  const digest=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({sources:catalog?.sources||[],facts:(catalog?.facts||[]).map(f=>[f.topic,f.text,f.catalog,f.page,f.zh])}))));
  if(s&&s.c!==digest)return {answer:'资料版本已变化，请重新核对英文稿并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'source_changed'}};
  if(s?.k==='company'&&s.h!==await draftHash(companyAnswer(catalog,{...s,l:'en'}).text))return {answer:'英文稿版本校验未完成，请重新生成并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'draft_changed'}};
- const continuing=!!s&&follow.test(q)&&!/(?:我会提供|设计一份|另(?:外|一)(?:个|段|篇)|重新写|新的任务)/.test(q);
+ const continuing=!!s&&follow.test(q)&&!newWritingDraft(q)&&!/(?:我会提供|设计一份|另(?:外|一)(?:个|段|篇)|重新写|新的任务)/.test(q);
  if(!continuing){const k=kindOf(q);s={v:1,k,l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
  const edit=continuing&&/删|改|缩|精简|口语|强调|核对刚才|去掉/.test(q);
  if(edit){s={...s,r:s.r+1,p:false,l:s.l==='es'?'en':s.l};if(/(?:删掉|去掉|不要)(?:.{0,3})产能/.test(q))s.o|=1;if(/(?:删掉|去掉|不要)(?:.{0,3})研发/.test(q))s.o|=2;if(/口语/.test(q))s.t=1;if(/精简|缩短|短一点|一百字/.test(q))s.n=120;}
@@ -178,7 +181,7 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  const result=care?{text:careText+'\n资料未明确的清洁剂、保养周期或保修条件不自行补写。',topics:[],hasCitation:true}:s.k==='video'?{text:(await videoAnswer?.())?.answer||'这次无法核对原视频时间码，暂不列出。',topics:[],hasCitation:true}:guideAnswer(catalog,s);
  let answer=result.text+(result.hasCitation?'':'\n\n'+citations(catalog,result.topics));
  if(s.k==='video')answer+='\n这些片段只能证明所引画面文字，不能证明产能兑现、产品认证或锁芯性能。';
- if(['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='en')answer+='\n\n英文初稿（'+words(result.text)+'词）。请确认或提出修改；确认后再翻译成西班牙语。';
+ if(['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='en')answer+='\n\n英文稿（'+words(result.text)+'词）。'+(s.p?'已确认，可继续要求翻译成西班牙语。':'请确认或提出修改；确认后再翻译成西班牙语。');
  else if(['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='es')answer+='\n\n已按最新确认英文稿翻译。';
  else if(continuing&&/核对刚才/.test(q))answer+='\n\n核对：上面的方法、问法与沟通安排属于建议；具体公司/产品数字只以列出的资料出处为据。未给出未经核验的价格、交期或认证承诺。';
  if((s.m||s.a)&&s.n>120)answer+='\n\n沟通对象：'+[s.m,s.a].filter(Boolean).join(' / ')+'；当地适用要求仍需单独核验。';

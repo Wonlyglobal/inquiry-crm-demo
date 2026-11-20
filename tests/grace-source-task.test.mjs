@@ -13,6 +13,7 @@ test('product/after-sales work requests search source topics; output restriction
  assert.equal(sourceTaskPlan({action:'chat',question:'那它的安装条件呢',materialHistory:['画册检索：X60 Pro']}),null);
  assert.equal(plan('查询X60 Pro产品信息，并说明安装条件'),null);
  assert.equal(plan('请按《安装说明.pdf》说明智能锁安装步骤').constraints.exactDocument,'安装说明.pdf');
+ const named=plan('请按《木门测试培训资料.pptx》回答木门保养');assert.ok(named.requests.every(r=>!/[.](pdf|pptx?)$/i.test(r.query)));assert.ok(named.requests.every(r=>r.terms.includes('木门测试培训资料.pptx')));
  assert.equal(plan('客户要英文邮件说明售后服务').constraints.english,false);
  assert.equal(plan('查英文产品手册中的保修依据').constraints.english,true);
  const resumed=sourceTaskPlan({action:'chat',question:'在不改变已核对事实的前提下，再精简一版，并保留出处。',materialHistory:['资料任务：客户问木门怎么保养']});assert.equal(resumed.topics[0].id,'care');assert.equal(resumed.product,'木门');assert.equal(resumed.continuing,true);
@@ -51,4 +52,8 @@ test('an explicit source-language requirement cannot be satisfied with an unrela
 });
 test('a named document cannot borrow the matching paragraph from another file',()=>{
  const p=plan('按《安装说明.pdf》回答智能锁安装条件');const data=source('安装前应核对测试场景和洞口条件，不把其他产品说明套用到本项目。');const wrong=sourceTaskAnswer(p,[data]);assert.equal(wrong.status,'source_match_unconfirmed');assert.doesNotMatch(wrong.answer,/安装前应核对测试场景/);data.assets[0].name='安装说明.pdf';const exact=sourceTaskAnswer(p,[data]);assert.equal(exact.status,'source_excerpt');assert.match(exact.answer,/安装前应核对测试场景/);
+});
+test('an unspecified model cannot inherit battery values merely because the paragraph omitted its model heading',()=>{
+ const p=plan('客户担心智能锁没电，先核对供电和应急说明');const r=sourceTaskAnswer(p,[source('供电说明：测试容量9876mAh，仅适用于文件标题中指定的型号。',{model:'S60 Max'})]);assert.equal(r.status,'source_located_unverified');assert.doesNotMatch(r.answer,/9876/);assert.match(r.answer,/请先说明所问型号/);
+ const generic=sourceTaskAnswer(p,[source('供电说明：该产品的测试容量9876mAh，只能按明确型号核对，不能泛化。',{model:'通用智能锁画册'})]);assert.equal(generic.status,'source_located_unverified');assert.doesNotMatch(generic.answer,/9876/);assert.match(generic.answer,/请先说明所问型号/);
 });

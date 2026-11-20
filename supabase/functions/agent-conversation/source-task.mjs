@@ -46,7 +46,10 @@ export function sourceTaskPlan(input){
  const version=materialVersion(q);
  const constraints={...materialConstraints(q),exactDocument:sourceName};constraints.english=/(?:英文|英语|English).{0,6}(?:手册|画册|资料|报告|证书|原文)|(?:手册|画册|资料|报告|证书).{0,6}(?:英文|英语|English)/i.test(q);
  const searches=topics.map(([, ,search])=>search);if(topics.length===1){const alternate=topics[0][3].find(term=>term!==topics[0][2]);if(alternate)searches.push(alternate);}
- return {question:full,subject:q,models,product,version,constraints,companyRequested:/公司介绍|品牌.{0,8}介绍|介绍.{0,5}王力/.test(q),overflow:matched.length>2,topics:topics.map(([id,,search,terms])=>({id,search,terms})),requests:searches.slice(0,2).map(search=>({query:sourceName||[models[0]||product,search].filter(Boolean).join(' '),terms:[...(models.length?[models[0]]:!sourceName&&product?[product]:[]),search],page:1,constraints}))};
+ // The live adapter treats a query ending in a filename as a whole-file lookup
+ // and returns its first six pages. Keep the filename in the AND terms, and the
+ // content topic in query, so a late matching page is selected before that cap.
+ return {question:full,subject:q,models,product,version,constraints,companyRequested:/公司介绍|品牌.{0,8}介绍|介绍.{0,5}王力/.test(q),overflow:matched.length>2,topics:topics.map(([id,,search,terms])=>({id,search,terms})),requests:searches.slice(0,2).map(search=>({query:[models[0]||product,search].filter(Boolean).join(' '),terms:[...(sourceName?[sourceName]:[]),...(models.length?[models[0]]:!sourceName&&product?[product]:[]),search],page:1,constraints}))};
 }
 const canon=s=>String(s||'').normalize('NFKC').toUpperCase().replace(/[\s_/.-]+/g,'');
 const ref=(a,p)=>`${a.name}，${a.versionLabel||'版本未标注'}，第${p.page}页`;

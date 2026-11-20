@@ -13,6 +13,7 @@ test('product/after-sales work requests search source topics; output restriction
  assert.equal(sourceTaskPlan({action:'chat',question:'那它的安装条件呢',materialHistory:['画册检索：X60 Pro']}),null);
  assert.equal(plan('查询X60 Pro产品信息，并说明安装条件'),null);
  assert.equal(plan('请按《安装说明.pdf》说明智能锁安装步骤').constraints.exactDocument,'安装说明.pdf');
+ const named=plan('请按《木门测试培训资料.pptx》回答木门保养');assert.ok(named.requests.every(r=>!/[.](pdf|pptx?)$/i.test(r.query)));assert.ok(named.requests.every(r=>r.terms.includes('木门测试培训资料.pptx')));
  assert.equal(plan('客户要英文邮件说明售后服务').constraints.english,false);
  assert.equal(plan('查英文产品手册中的保修依据').constraints.english,true);
  const resumed=sourceTaskPlan({action:'chat',question:'在不改变已核对事实的前提下，再精简一版，并保留出处。',materialHistory:['资料任务：客户问木门怎么保养']});assert.equal(resumed.topics[0].id,'care');assert.equal(resumed.product,'木门');assert.equal(resumed.continuing,true);

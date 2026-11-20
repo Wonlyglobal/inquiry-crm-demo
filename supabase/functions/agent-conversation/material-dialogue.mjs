@@ -2,9 +2,8 @@ import {trainingAnswer} from './training-answer.mjs';
 import {documentTopicTerms,woodTrainingQuestion} from './document-topic.mjs';
 import {productParameterAnswer} from './product-parameter-answer.mjs';
 import {visualQuestion,slideVisualText} from './slide-visual.mjs';
-import {normalizeProductInput,materialModelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts} from './product-input.mjs';
-import {productLedger,productLedgerText} from './product-coverage.mjs';
-import {profileEvidence} from './knowledge-profile.mjs';
+import {normalizeProductInput,materialModelCodes,bareModel,materialFields,materialVersion,namedMaterialProducts,catalogueFieldQuestion,catalogueNamedSubject} from './product-input.mjs';
+import {productLedger} from './product-coverage.mjs';
 import {materialQuery,coverageSummary} from './document-knowledge.mjs';
 const modelIds=materialModelCodes;
 const fields=materialFields;
@@ -28,6 +27,12 @@ export function resolveMaterialTurn(question,history=[]){
  const followup=/^(那|它|这个|该型号|还有)/.test(q)||q.length<=60&&(properties.length>0||ids.length>0&&(/呢|怎么样|如何/.test(q)||bareModel(q)));
  if(!followup)return {question:q};
  // A literal named product has no model code; retain its file scope and name for short followups.
+ const priorNamed=catalogueNamedSubject(previous);
+ if(!ids.length&&!oldIds.length&&priorNamed&&catalogueFieldQuestion(q)&&/^(那|它|这个|该型号)/.test(q)&&!/对比|比较|以及|和另一款/.test(previous)){
+  const request=q.replace(/^(那|它|这个|该型号)+/,'').replace(/^的/,'').replace(/[呢。？?！!]+$/,'').trim();
+  const version=materialVersion(q)||materialVersion(previous);
+  return {question:`物料：${priorNamed} 的${request}${version&&!request.includes(version)?' '+version:''}`};
+ }
  if(!ids.length&&namedMaterialProducts(q).length)return {question:'物料：'+q.replace(/^(那|它|这个|该型号|还有)+/,'')};
  const named=namedMaterialProducts(previous);
  if(!ids.length&&oldIds.length<=1&&named.length===1&&!/对比|比较| versus | vs\.? /.test(previous)){
@@ -87,11 +92,34 @@ export function directMaterialParameterAnswer(data,question){
  lines.push('以上为内部机器提取，尚未人工核验。'+(data.has_more||matches.length>chosen.length?'还有未展示的候选证据。':''));
  return lines.join('\n');
 }
+export function videoSourceQuestion(question){
+ return /(?:时间码|画面文字|转写时间)|(?:视频|宣传片)[\s？?。！!]*$/u.test(question)&&!/^(?:请)?(?:帮我)?(?:生成|制作|设计|编写|剪辑)/u.test(question);
+}
+function materialExcerpt(value){
+ const line=String(value||'').replace(/\s+/gu,' ').trim();
+ if(!line||/```|^[[{]|["'][\w .-]{1,60}["']\s*:|^(?:function\s|const\s+\w+\s*=|<\w+\b)/u.test(line))return '';
+ return line.length>180?line.slice(0,177)+'…':line;
+}
+function videoTime(seconds){
+ const total=Math.floor(seconds);
+ return Math.floor(total/60)+':'+String(total%60).padStart(2,'0');
+}
+function conciseVideoSources(assets){
+ const evidence=assets.filter(a=>['ready','partial'].includes(a.video?.status)).flatMap(a=>{
+  const segment=(a.video.segments||[]).find(s=>['screen_text','speech'].includes(s.kind)&&Number.isFinite(s.start)&&s.start>=0&&materialExcerpt(s.text));
+  if(!segment)return [];
+  const start=videoTime(segment.start);
+  const end=Number.isFinite(segment.end)&&segment.end>=segment.start?videoTime(segment.end):start;
+  return [a.name+' ['+start+(end===start?'':'–'+end)+' '+(segment.kind==='speech'?'语音转写':'画面文字')+'] '+materialExcerpt(segment.text)];
+ }).slice(0,3);
+ return evidence.length?evidence.join('\n'):'这次没查到可引用的视频时间码。你可以提供视频名称或画面里的关键词。';
+}
 export function conciseMaterialAnswer(data,question){
  const parameterAnswer=productParameterAnswer(data,question);if(parameterAnswer)return parameterAnswer;
  const training=trainingAnswer(data,question);if(training)return training;
  const direct=directMaterialParameterAnswer(data,question);if(direct)return direct;
  if(/知识覆盖|解析进度|学了多少|了解多少/.test(question))return coverageSummary(data.document_coverage)+'内部资料仅在公司系统内处理。你可以按型号查询参数、安装要求或资料出处。';
+ if(videoSourceQuestion(question))return conciseVideoSources(data.assets);
  if(!data.assets.length&&data.relevance_filtered)return '本次检索没有找到同时满足你所提条件的资料。未将其他门类、未标注英文或非手册文件充当结果。'+(data.has_more?'本页候选未匹配，仍有后续候选，可说“下一页”继续核对。':'这不代表公司一定没有该资料；可能缺少语言标注或尚未入库。');
  if(!data.assets.length)return '在本次有权检索的资料中没有找到匹配内容，不能据此判断该产品不存在。请提供完整型号，或减少关键词后重试。\n'+coverageSummary(data.document_coverage);
  if(visualQuestion(question))return data.assets.slice(0,3).map(a=>`${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n更新时间：${a.updatedAt||'未标注'}；本次读取：${data.read_at||'未标注'}\n`+(a.document?.visual_understanding?slideVisualText(a.document.visual_understanding):'尚未取得本文件的图片/图表阅读证据，不能据此猜测图示含义或产品参数。')).join('\n\n');
@@ -103,16 +131,17 @@ export function conciseMaterialAnswer(data,question){
    if(targetMatches(f)&&(!requested.length||requested.some(w=>f.field===w||fields(f.field).includes(w)))){refs.push(`[第${f.page}页｜${f.field}，机器解释未人工核验] ${f.value}\n原文依据：${f.quote}`);for(const w of requested)if(f.field===w||fields(f.field).includes(w))covered.add(w)};
    if(refs.length>=3)break;
   }
-  const profile=profileEvidence(a.document?.knowledge_profile);if(!refs.length&&!requested.length&&profile)refs.push(profile);if(a.video){for(const segment of (a.video.segments||[]).slice(0,2))refs.push(`[${Math.floor(segment.start/60)}:${String(Math.floor(segment.start%60)).padStart(2,'0')} ${segment.kind==='speech'?'语音转写':segment.kind==='screen_text'?'画面文字':'画面推测'}] ${segment.text.slice(0,420)}`);if(!refs.length)refs.push('视频尚无可引用片段；状态：'+({queued:'排队中',processing:'处理中',failed:'失败',partial:'部分解析',ready:'采样完成'}[a.video.status]||'未解析'))}for(const p of a.document?.pages||[]){
+  const profile=(a.document?.knowledge_profile?.summary||[]).find(r=>materialExcerpt(r.quote));if(!refs.length&&!requested.length&&profile)refs.push('['+(profile.location||'第'+profile.page+'页')+'] '+materialExcerpt(profile.quote));if(a.video){for(const segment of (a.video.segments||[]).slice(0,2))refs.push(`[${Math.floor(segment.start/60)}:${String(Math.floor(segment.start%60)).padStart(2,'0')} ${segment.kind==='speech'?'语音转写':segment.kind==='screen_text'?'画面文字':'画面推测'}] ${segment.text.slice(0,420)}`);if(!refs.length)refs.push('视频尚无可引用片段；状态：'+({queued:'排队中',processing:'处理中',failed:'失败',partial:'部分解析',ready:'采样完成'}[a.video.status]||'未解析'))}for(const p of a.document?.pages||[]){
    for(const f of p.facts||[])if(refs.length<3&&(!wanted.length||wanted.some(w=>f.quote.includes(w)||f.field===w))&&(namedTargets.length!==1||f.quote.toLowerCase().includes(namedTargets[0].toLowerCase()))&&p.chunks.join('\n').includes(f.quote)){refs.push(`[${p.location}] ${f.quote}`);for(const w of requested)if(f.field===w||f.quote.includes(w))covered.add(w)}
-   if(!refs.length&&!requested.length&&p.chunks.length)refs.push(`[${p.location}] ${p.chunks[0].slice(0,420)}`);
+   if(!refs.length&&!requested.length){const excerpt=p.chunks.map(materialExcerpt).find(Boolean);if(excerpt)refs.push(`[${p.location}] ${excerpt}`);}
    if(refs.length>=3)break;
   }
   const missing=requested.filter(w=>!covered.has(w));
-  blocks.push(`${blocks.length+1}. ${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n更新时间：${a.updatedAt||'未标注'}；本次读取：${data.read_at||'未标注'}\n`+(refs.length?refs.slice(0,3).join('\n'):requested.length?'本次返回证据未明确覆盖所问参数，不能据此补充数值或条件。':a.excerpt?'现有索引摘录：'+a.excerpt.slice(0,420):'暂无可用于回答的正文证据。')+(refs.length&&missing.length?'\n本次证据未明确覆盖：'+missing.join('、')+'；保留缺口，不补充推断。':'')+(a.document?.status==='partial'?'\n此资料仅部分解析，仍有缺口。':''));
+  blocks.push(`${blocks.length+1}. ${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n更新时间：${a.updatedAt||'未标注'}；本次读取：${data.read_at||'未标注'}\n`+(refs.length?refs.slice(0,3).join('\n'):requested.length?'本次返回证据未明确覆盖所问参数，不能据此补充数值或条件。':materialExcerpt(a.excerpt)?'现有索引摘录：'+materialExcerpt(a.excerpt):'暂无可用于回答的正文证据。')+(refs.length&&missing.length?'\n本次证据未明确覆盖：'+missing.join('、')+'；保留缺口，不补充推断。':'')+(a.document?.status==='partial'?'\n此资料仅部分解析，仍有缺口。':''));
  }
- const differences=evidenceDifferences(data.assets),ledgerData=productLedger(data);
  const specific=wanted.some(x=>!['来源','页码','版本'].includes(x));
- const ledger=specific&&ledgerData?.products.length?'产品理解状态（内部机器提取，均未人工核验，不是完整产品理解）\n'+ledgerData.products.slice(0,5).map(p=>`${p.name}：${p.states.coverage}；${p.states.extraction}`).join('\n'):productLedgerText(ledgerData);
- return `已找到本页 ${data.assets.length} 项相关资料，先列出 ${blocks.length} 项证据。以下是原文摘录，不是已核验的产品结论。\n\n`+(ledger?ledger+'\n':'')+blocks.join('\n\n')+(differences?'\n\n'+differences:'')+'\n\n可继续问某型号的具体参数，或说“展开”查看本页详细证据。'+(data.has_more?'说“下一页”继续相同关键词。':'');
+ const differences=evidenceDifferences(data.assets),ledgerData=specific?productLedger(data):null;
+ const hidden=ledgerData?.hidden_findings?'另有 '+ledgerData.hidden_findings+' 条摘录缺少原页，已隐藏。\n':'';
+ const ledger=specific&&ledgerData?.products.length?'产品理解状态（内部机器提取，均未人工核验，不是完整产品理解）\n'+ledgerData.products.slice(0,5).map(p=>`${p.name}：${p.states.coverage}；${p.states.extraction}`).join('\n'):'';
+ return `已找到本页 ${data.assets.length} 项相关资料，先列出 ${blocks.length} 项证据。以下是原文摘录，不是已核验的产品结论。\n\n`+(ledger?ledger+'\n':'')+hidden+blocks.join('\n\n')+(differences?'\n\n'+differences:'')+'\n\n可继续问某型号的具体参数，或说“展开”查看本页详细证据。'+(data.has_more?'说“下一页”继续相同关键词。':'');
 }

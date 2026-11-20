@@ -22,3 +22,23 @@ test('source/page and version followups preserve model, edition, full conditions
  assert.equal(knowledgeRoute('TX60 Pro dimensions and warranty').materials,true);
  assert.equal(knowledgeRoute('请列出型号目录').materials,true);
 });
+
+test('video sources show an indexed transcript and time without document dumps',()=>{
+ const video={name:'Synthetic factory',video:{status:'ready',segments:[
+  {start:11,kind:'visual_inference',text:'Model guesses ownership'},
+  {start:18.65,end:20.65,kind:'speech',text:'Factory statement'}]}};
+ const text=conciseMaterialAnswer({assets:[asset('unrelated','尺寸：900 mm'),video]},'物料：未来工厂视频时间码');
+ assert.match(text,/Synthetic factory \[0:18–0:20 语音转写\] Factory statement/);
+ assert.doesNotMatch(text,/900 mm|Model guesses|产品理解状态|检索范围/);
+});
+
+test('automatic material excerpts suppress raw structures but retain original page reference',()=>{
+ const doc={name:'Synthetic catalogue',document:{pages:[{location:'第3页',chunks:[
+  '{"Colour":"black","internal_code":"hidden"}',
+  'const raw = 20;',
+  'Annual output is 900 units.',
+ ]}]}};
+ const text=conciseMaterialAnswer({assets:[doc]},'物料：产能');
+ assert.match(text,/\[第3页\] Annual output is 900 units/);
+ assert.doesNotMatch(text,/internal_code|const raw|产品理解状态/);
+});

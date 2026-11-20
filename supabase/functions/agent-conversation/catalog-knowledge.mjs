@@ -1,4 +1,6 @@
-import {normalizeProductInput,bareModel,materialVersion} from './product-input.mjs';
+import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
+import {normalizeProductInput,bareModel,materialVersion,materialModelCodes,catalogueFieldQuestion,catalogueNamedSubject} from './product-input.mjs';
+import {catalogueWordingAnswer,catalogueWordingQuestion} from './catalog-sales.mjs';
 import {selectionIntent,selectionAnswer} from './product-selection.mjs';
 import {inventoryIntent,inventoryAnswer} from './product-inventory.mjs';
 import {projectQuestion,projectIntent,projectAnswer} from './catalog-projects.mjs';
@@ -7,14 +9,14 @@ import {searchCatalogue,catalogueSearchCoverage,catalogueSearchFallback} from '.
 // Source: the four 2026-08 overseas catalogues, read by Claude under Chloe's 2026-09-28 authorisation.
 // The file lives only in the private storage bucket (service role). Answers are rendered locally,
 // never sent to Bailian or any external model, and always carry catalogue + PDF page references.
-export const PRIVATE_CATALOG={bucket:'agent-private-knowledge',path:'wonly-catalog-v1.json'};
+export const PRIVATE_CATALOG={bucket:'agent-private-knowledge',path:'wonly-catalog-v1-brand-20261119-36994441e578.json'};
 const CATALOG_NAMES={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 const CATEGORY_NAMES={smart_lock:'智能锁',smart_door:'智能门',security_door:'防盗门',wooden_door:'木门',hospital_door:'医院门',school_door:'学校门',refuge_door:'避难门',fire_window:'防火窗',lock_body:'锁体',lock_core:'锁芯',hinge:'合页',door_viewer:'猫眼',other:'其他'};
 const CATEGORY_WORDS=[['smart_lock',/智能锁|指纹锁|人脸锁|门锁|smart ?lock/i],['smart_door',/智能门|smart ?door/i],['security_door',/防盗门|入户门|钢门|security ?door/i],['wooden_door',/木门|静音门|室内门|wooden ?door/i],['hospital_door',/医院门|医疗门|病房门/],['school_door',/学校门|教室门/],['refuge_door',/避难门|避难间/],['fire_window',/防火窗/],['lock_body',/锁体/],['lock_core',/锁芯/],['hinge',/合页|铰链/],['door_viewer',/猫眼/]];
 const SPEC_WORDS=/资料|产品信息|信息|产品介绍|了解|画册|型号|参数|规格|尺寸|厚度|等级|锁体|锁芯|门扇|门框|面板|颜色|配色|色号|认证|安装|维护|质保|适用|条件|标准|国标|功能|配置|开锁方式|屏幕|供电|电池|续航|区别|对比|差别|哪款|哪些|有什么|多少|是什么|介绍/;
 const FILE_REQUEST=/发(给)?我|发一下|下载|文件|资料包|链接|PDF|pdf|原图|图片|视频/;
-const fileDelivery=q=>FILE_REQUEST.test(q)&&!(/页码|出处|引用|来源|\bpages?\b|citations?|cite|references?/i.test(q)&&!/下载|发给|发送|发我|发一下|原图|资料包|链接|download|send/i.test(q));
-const FACT_TOPICS=[['patents',/专利/],['rnd',/研发(投入|团队|人员|中心|基地)?/],['capacity',/产能|年产/],['bases',/生产基地|工厂|基地/],['listing',/上市|股票|605268/],['brand_value',/品牌价值/],['awards',/获奖|奖项|红点|iF/i],['challenge',/开锁挑战|百万挑战|挑战/],['landmarks',/地标|标杆项目|案例|项目业绩/],['developers',/开发商|地产商|百强/],['service',/服务网点|售后|服务团队/],['lock_core',/锁芯|C级|GA\/T/],['triple_protection',/三防分离|三重防护/],['remote_sensing',/远感|雷达/],['standards',/标准/],['fire_window',/防火窗/],['coating',/涂装|附着力|磷化/],['founding',/成立|创立|哪一年/]];
+const fileDelivery=q=>FILE_REQUEST.test(q.replace(/视频存储|video storage/gi,''))&&!(/页码|出处|引用|来源|\bpages?\b|citations?|cite|references?/i.test(q)&&!/下载|发给|发送|发我|发一下|原图|资料包|链接|download|send/i.test(q));
+const FACT_TOPICS=[['patents',/专利/],['rnd',/研发(投入|团队|人员|中心|基地)?/],['capacity',/产能|年产/],['factory',/智能工厂|未来工厂|5G工厂/],['design_awards',/设计奖项|设计奖|设计荣誉/],['bases',/生产基地|工厂|基地/],['listing',/上市|股票|605268/],['brand_value',/品牌价值/],['awards',/获奖|奖项|红点|iF/i],['challenge',/开锁挑战|百万挑战|挑战/],['landmarks',/地标|标杆项目|案例|项目业绩/],['developers',/开发商|地产商|百强/],['service',/服务网点|售后|服务团队/],['lock_core',/锁芯|C级|GA\/T/],['triple_protection',/三防分离|三重防护/],['remote_sensing',/远感|雷达/],['standards',/标准/],['fire_window',/防火窗/],['coating',/涂装|附着力|磷化/],['founding',/成立|创立|哪一年/]];
 const CONFLICT_TOPICS={patents:/专利/,rnd_team:/研发(团队|人员|人数)/,users:/用户数|服务用户/,keyway:/钥匙槽|钥匙孔|键槽|keyway/i,lock_core_ratio:/锁芯|C级|A级|倍/,wood_leaf:/木门.*厚|门扇厚/,s80_colour:/S80/i};
 
 const norm=s=>String(s||'').toUpperCase().replace(/[\s\-_/]+/g,'');
@@ -36,7 +38,7 @@ export function findModels(question,catalog){
  const models=[...new Set((catalog?.products||[]).map(p=>p.model).filter(Boolean))].sort((a,b)=>norm(b).length-norm(a).length);
  const hits=[];
  for(const m of models){
-  const n=norm(m);if(n.length<3)continue;
+  const n=norm(m);if(n.length<3&&(!/^[A-Z]\d$/.test(n)||!catalogueFieldQuestion(q)))continue;
   const pat=m.trim().split(/[\s\-_/]+/).map(esc).join('[\\s\\-_/]*');
   const re=new RegExp('(^|[^A-Za-z0-9])('+pat+')(?![A-Za-z0-9]|[\\s_/.\\-]+(?:PRO|MAX|PLUS|ULTRA|LITE|BASIC|STANDARD)\\b)','i');const r=q.match(re);
   if(r){hits.push(m);const at=r.index+r[1].length;q=q.slice(0,at)+' '.repeat(r[2].length)+q.slice(at+r[2].length)}
@@ -50,6 +52,7 @@ export function catalogPrecheck(question){
  // The fixed August index cannot answer a request constrained to another edition.
  if(materialVersion(q))return false;
  if(fileDelivery(q))return false;
+ if(catalogueWordingQuestion(q))return true;
  if(projectQuestion(q))return true;
  if(/王力|我们|我司|wonly/i.test(q)&&FACT_TOPICS.some(([,re])=>re.test(q)))return true;
  if(bareModel(q))return true;
@@ -58,6 +61,7 @@ export function catalogPrecheck(question){
  // CRM records, platform metrics and analytical workflows retain their own authorized sources.
  const operational=/询盘|客户|商机|合同|报价|员工|利润|营收|成本|统计|SEO|GSC|GA4|社媒|帖子|粉丝|tiktok|instagram|facebook|youtube|市场|营销|策略|计划|增长|投放|广告|\binquir(?:y|ies)\b|\bcustomers?\b|\bcontracts?\b|\bquotes?\b|\bstatistics\b|\bmarketing\b|\bstrategy\b|\bcampaigns?\b|operating system|computer software|操作系统/i.test(q);
  if(!operational&&((/王力|我们|我司|wonly/i.test(q)&&/什么|哪些|多少|哪年|哪里|介绍|说明|有没有|是否|情况|设计|工艺|材料|制造|技术|功能|\bwhat\b|\bwhich\b|\bwhere\b|\bwhen\b|describe|explain|technology|manufactur|design|materials?/i.test(q))||(/门|锁|门窗|五金|\bdoors?\b|\blocks?\b|\bwindows?\b|\bhardware\b/i.test(q)&&/设计|材质|材料|性能|工艺|参数|规格|型号|制造|技术|功能|厚度|尺寸|隔音|隔声|认证|安装|维护|质保|耐火|防火|design|materials?|performance|specifications?|parameters?|dimensions?|thickness|manufactur|technology|functions?/i.test(q))))return true;
+ if(!operational&&catalogueFieldQuestion(q)&&(materialModelCodes(q).length>0||catalogueNamedSubject(q)))return true;
  return /画册/.test(q)||(/\b[A-Za-z]{1,3}-?\d{2,4}[A-Za-z]?\b/.test(q)&&SPEC_WORDS.test(q))||(CATEGORY_WORDS.some(([,re])=>re.test(q))&&/型号|有哪些|哪几款|系列|产品线|参数|规格/.test(q));
 }
 
@@ -65,6 +69,12 @@ export function catalogIntent(question,catalog){
  const q=normalizeModelQuestion(question).slice(0,500);
  if(!catalog)return null;
  if(fileDelivery(q))return null;
+ if(catalogueWordingQuestion(q))return {kind:'wording',models:findModels(q,catalog)};
+ const brandTopics=/王力|wonly/i.test(q)?FACT_TOPICS.filter(([topic,pattern])=>
+  ['factory','design_awards','lock_core','fire_window'].includes(topic)&&pattern.test(q)).map(([topic])=>topic):[];
+ if(brandTopics.length&&(/智能工厂|未来工厂|5G工厂|设计奖|锁芯等级|防火窗资料/.test(q))&&!findModels(q,catalog).length){
+  return {kind:'facts',topics:brandTopics};
+ }
  const projects=projectIntent(q);if(projects)return projects;
  if(selectionIntent(q))return {kind:'selection'};
  if(inventoryIntent(q))return {kind:'inventory'};
@@ -97,12 +107,20 @@ function card(model,catalog){
  const main=rows[0];
  const head=`【${main.model}】${main.name&&norm(main.name)!==norm(main.model)&&norm(main.name)!==norm(main.series)?main.name+'｜':''}${main.series?main.series+'｜':''}${CATEGORY_NAMES[main.category]||main.category}`;
  const lines=Object.entries(main.specs||{}).slice(0,16).map(([k,v])=>`- ${k}：${v}`);
- const diffs=[];
- for(const other of rows.slice(1))for(const [k,v] of Object.entries(other.specs||{}))if(main.specs?.[k]&&norm(main.specs[k])!==norm(v))diffs.push(`- ${k}：${ref(other.catalog,other.page)} 写作“${v}”`);
+ const diffs=[],supplemental=[];
+ const fields=new Map(Object.entries(main.specs||{}).map(([field,value])=>[norm(field),new Set([norm(value)])]));
+ for(const other of rows.slice(1))for(const [field,value] of Object.entries(other.specs||{})){
+  if(typeof value!=='string'||!value.trim())continue;
+  const key=norm(field),values=fields.get(key);
+  if(values?.has(norm(value)))continue;
+  const source=ref(other.catalog,other.page);
+  if(values){values.add(norm(value));diffs.push(`- ${field}：${source} 写作“${value}”`);}
+  else{fields.set(key,new Set([norm(value)]));supplemental.push(`- ${field}：${value}（${source}）`);}
+ }
  const claims=[...new Set(rows.flatMap(r=>r.claims||[]))].slice(0,4).map(c=>`- 画册原文：${c}`);
  const unread=[...new Set(main.unreadable||[])];
  const others=[...new Set(rows.slice(1).map(r=>ref(r.catalog,r.page)))].filter(x=>x!==ref(main.catalog,main.page));
- return [head,...(lines.length?lines:['- 该页只印了型号与外观，未印参数。']),...claims,
+ return [head,...(lines.length?lines:['- 该页只印了型号与外观，未印参数。']),...supplemental.slice(0,16),...claims,
   main.leaf_options?.length?`- 门扇形式：${main.leaf_options.join(' / ')}`:null,
   unread.length?`- 画册中看不清、未收录：${unread.join('、')}`:null,
   diffs.length?'画册之间写法不一致（以最新版或产品负责人确认为准）：\n'+diffs.slice(0,4).join('\n'):null,
@@ -128,6 +146,7 @@ function missingRequestedTopics(question,models,catalog){
 }
 export function catalogAnswer(intent,catalog,question=''){
  if(!intent||!catalog)return null;
+ if(intent.kind==='wording')return catalogueWordingAnswer(catalog,intent.models,question,ref);
  if(intent.kind==='projects')return projectAnswer(intent,catalog,{ref,head:HEAD,note:NOTE});
  if(intent.kind==='model_choices')return '画册中有这些相关型号：'+intent.models.join('、')+'。请点击下方型号选项。确认完整型号后，我会按对应画册页给出参数和资料入口，避免混用不同版本。';
  if(intent.kind==='inventory')return inventoryAnswer(catalog,question);
@@ -147,9 +166,15 @@ export function catalogAnswer(intent,catalog,question=''){
   return [HEAD(catalog),...blocks,'要看某个型号的参数，直接说型号，比如“X60 Pro 的参数”。'+NOTE].join('\n\n');
  }
  if(intent.kind==='facts'){
+  const concise=conciseCatalogFacts(intent,catalog,question);if(concise)return concise;
   const facts=(catalog.facts||[]).filter(f=>intent.topics.includes(f.topic)).slice(0,6);if(!facts.length)return null;
   const warn=conflictLines(question,catalog,[]);
-  return [HEAD(catalog),facts.map(f=>`- 画册原文：“${f.text}”（${ref(f.catalog,f.page)}）`).join('\n'),...warn,'这些是画册里的公司宣传口径，对外引用时保持原文，不要改数字。'+NOTE].join('\n\n');
+  return [HEAD(catalog),facts.map(f=>{
+   const page=(catalog.pages||[]).find(p=>p.catalog===f.catalog&&p.page===f.page);
+   const normalize=value=>String(value).normalize('NFKC').replace(/\s+/g,'').toLowerCase();
+   const exact=normalize(page?.text||'').includes(normalize(f.text));
+   return `- ${exact?'画册原文':'画册索引摘要，原页待核对'}：“${f.text}”（${ref(f.catalog,f.page)}）`;
+  }).join('\n'),...warn,'这些是画册里的公司宣传口径，对外引用时保持原文，不要改数字。'+NOTE].join('\n\n');
  }
  if(intent.kind==='search'){
   const words=intent.words.map(w=>w.toLowerCase());

@@ -41,3 +41,7 @@ test('production enum roles compare as text and CSV is aggregated without quadra
  assert.match(compat,/string_agg/);assert.match(compat,/order by dataset.key,item.ordinality,field.key/);
  assert.doesNotMatch(compat,/csv:=csv\|\|/);
 });
+
+const automatic=readFileSync(new URL('../supabase/migrations/20261120180000_company_export_auto_approval.sql',import.meta.url),'utf8');
+test('automatic authorization is a private opt-in with immutable audit and unchanged risk gates',()=>{assert.match(automatic,/auto_approve boolean not null default false/);assert.match(automatic,/new.auto_approved,new.direct_download/);assert.match(automatic,/g:=private.company_export_check/);assert.match(automatic,/'auto_authorized'/);assert.match(automatic,/grant_version<>g.version/);assert.doesNotMatch(automatic,/update public.profiles|alter policy|update private.company_export_grants/);assert.match(automatic,/not between 1 and 1000/)});
+test('dedicated export UI accepts short reasons and labels automatic authorization truthfully',()=>{assert.doesNotMatch(ui,/minlength="8"|至少8字/);assert.match(ui,/自动通过/);assert.match(ui,/auto_authorized:'按授权自动通过'/);assert.match(ui,/authorization_changed/)});

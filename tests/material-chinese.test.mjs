@@ -16,3 +16,17 @@ test('curated fact meanings keep their edition and do not alter source data',()=
  const a=presentMaterialAnswer('- 画册原文：“Synthetic fact.”\n来源：2026-08，零售画册 PDF第3页。','品牌介绍',c);
  assert.match(a,/合成事实/);assert.match(a,/2026-08/);assert.equal(c.facts[0].text,'Synthetic fact.');
 });
+import {resolveMaterialTurn} from '../supabase/functions/agent-conversation/material-dialogue.mjs';
+test('an explicit company fact request does not inherit a previous product',()=>{
+ const q='王力有哪些研发投入与团队？请按画册简洁说明并注明出处。';
+ assert.equal(resolveMaterialTurn(q,['私有产品：S50 Pro 标准功能']).question,q.normalize('NFKC'));
+});
+test('an explicitly named different catalogue does not inherit a product or edition',()=>{
+ const q='工程画册防火窗的耐火和隔音参数是什么？';
+ assert.equal(resolveMaterialTurn(q,['私有产品：S50 Pro V9 参数']).question,q.normalize('NFKC'));
+});
+test('the explicit fire-window catalogue request uses the cited fact path before generic specs',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const s=await readFile(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');
+ assert.match(s,/const spec=guest\|\|scopedNamedMaterial\|\|\(\/防火窗\/\.test\(catalogQuestion\)&&\/画册\/\.test\(catalogQuestion\)\)/);
+});

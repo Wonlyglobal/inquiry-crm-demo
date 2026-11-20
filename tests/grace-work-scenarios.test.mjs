@@ -21,3 +21,8 @@ test('bare translation request cannot skip approval',async()=>{const a=await ask
 test('the approved draft hash must match the rendered English, including after a renderer change',async()=>{
  const a=await ask(initial);const prefix='work-writing:v1.';const [payload]=a.context.material_question.slice(prefix.length).split('.');const state=JSON.parse(Buffer.from(payload,'base64url').toString());state.h='0'.repeat(64);const changed=Buffer.from(JSON.stringify(state)).toString('base64url');const signed=prefix+changed+'.'+await sign('work-writing-v1|'+options.actor+'|'+changed);const fake={context:{material_question:signed}};assert.equal((await ask('现在确认最新英文稿，翻译成西语',fake)).context.status,'draft_changed');
 });
+
+test('short care follow-up removes framing while preserving every source condition and reference',async()=>{
+ const text='资料中的相关说明如下：\n\n请先核对涂层与厂家清洁说明，不能使用未经确认的清洁剂。\n来源：合成木门说明，第 2 页，2026版\n\n以上为本次找到的原页摘录。需要我打开对应资料给你核对吗？';
+ const opts={...options,careAnswer:async()=>text};const a=await ask('客户问木门怎么保养，写成简洁说明',null,opts);const b=await ask('在不改变已核对事实的前提下，再精简一版，并保留出处。',a,opts);assert.ok(b.answer.length<a.answer.length);assert.match(b.answer,/请先核对涂层与厂家清洁说明，不能使用未经确认的清洁剂。/);assert.match(b.answer,/来源：合成木门说明，第 2 页，2026版/);assert.doesNotMatch(b.answer,/以上为本次找到/);
+});

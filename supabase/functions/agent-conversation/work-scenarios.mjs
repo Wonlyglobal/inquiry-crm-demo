@@ -174,13 +174,14 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  if(continuing&&/西班牙语|西语|Spanish|español/i.test(q)&&!edit){if(!s.p){if(s.k==='company')s.h=await draftHash(companyAnswer(catalog,{...s,l:'en'}).text);
  const payload=encode(JSON.stringify(s)),sig=await sign('work-writing-v1|'+actor+'|'+payload);return {answer:'请先确认最新英文稿；确认前我不会翻译成西班牙语。如需修改，请直接说明要改哪里。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'awaiting_confirmation',material_question:PREFIX+payload+'.'+sig}}}s={...s,l:'es'};}
  const care=s.k==='care'?await careAnswer?.():null;
- const result=care?{text:care+'\n资料未明确的清洁剂、保养周期或保修条件不自行补写。',topics:[],hasCitation:true}:s.k==='video'?{text:(await videoAnswer?.())?.answer||'这次无法核对原视频时间码，暂不列出。',topics:[],hasCitation:true}:guideAnswer(catalog,s);
+ const careText=care&&s.n<=120?care.replace(/^资料中的相关说明如下：\s*/, '').replace(/\s*以上为本次找到的原页摘录。需要我打开对应资料给你核对吗？\s*$/, ''):care;
+ const result=care?{text:careText+'\n资料未明确的清洁剂、保养周期或保修条件不自行补写。',topics:[],hasCitation:true}:s.k==='video'?{text:(await videoAnswer?.())?.answer||'这次无法核对原视频时间码，暂不列出。',topics:[],hasCitation:true}:guideAnswer(catalog,s);
  let answer=result.text+(result.hasCitation?'':'\n\n'+citations(catalog,result.topics));
  if(s.k==='video')answer+='\n这些片段只能证明所引画面文字，不能证明产能兑现、产品认证或锁芯性能。';
  if(['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='en')answer+='\n\n英文初稿（'+words(result.text)+'词）。请确认或提出修改；确认后再翻译成西班牙语。';
  else if(['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='es')answer+='\n\n已按最新确认英文稿翻译。';
  else if(continuing&&/核对刚才/.test(q))answer+='\n\n核对：上面的方法、问法与沟通安排属于建议；具体公司/产品数字只以列出的资料出处为据。未给出未经核验的价格、交期或认证承诺。';
- if(s.m||s.a)answer+='\n\n沟通对象：'+[s.m,s.a].filter(Boolean).join(' / ')+'；当地适用要求仍需单独核验。';
+ if((s.m||s.a)&&s.n>120)answer+='\n\n沟通对象：'+[s.m,s.a].filter(Boolean).join(' / ')+'；当地适用要求仍需单独核验。';
  if(s.k==='company')s.h=await draftHash(companyAnswer(catalog,{...s,l:'en'}).text);
  const payload=encode(JSON.stringify(s)),sig=await sign('work-writing-v1|'+actor+'|'+payload),material=PREFIX+payload+'.'+sig;
  if(material.length>500)throw Error('Writing state exceeds context bound');

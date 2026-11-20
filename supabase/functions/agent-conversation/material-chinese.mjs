@@ -18,7 +18,7 @@ export function chineseMaterialText(value){
 const residue=s=>s.replace(/\b(?:WONLY|AI|PDF|PPT|PVC|APP|Max|Pro|Plus|Ultra|Basic|Standard|EN|BS|GB|GA|IEC|IP|CE|UL|RC|EI|Rw|HD|USB|WiFi|Wi-Fi|mm|cm|m|kg|dB|min|V|Hz|GHz|W|H|D|T)\b/gi,'').replace(/\b[A-Z]{1,8}[-\d][\w.-]*\b/g,'');
 export function presentMaterialAnswer(answer,question='',catalog=null){
  if(typeof answer!=='string'||wantsFactOriginal(question))return answer;
- let text=answer;
+ let text=answer.replace(/对外报价或投标前[^\n]+/g,'画册摘录，待产品负责人确认。').replace(/这些是画册里的公司宣传口径[^\n]+/g,'画册宣传口径，待产品负责人确认。');
  for(const f of catalog?.facts||[])if(typeof f.zh==='string'&&f.zh.length<=500&&/[\u3400-\u9fff]/u.test(f.zh))text=text.split(f.text).join(f.zh);
  const refs=[...new Set(text.match(/(?:工程画册|零售画册|静音木门画册|真智能锁画册)\s*(?:PDF)?第[\d、]+页/g)||[])];
  let missing=false;const lines=[];
@@ -27,15 +27,17 @@ export function presentMaterialAnswer(answer,question='',catalog=null){
   if(/```|^\s*[{}]|console\.|export function/.test(raw)){missing=true;continue;}
   // File names and source identifiers are evidence, not English prose to translate.
   if(/^(?:\s*来源|\s*出处|《.*》\s*\d+:)/.test(raw)){lines.push(raw);continue;}
-  let s=chineseMaterialText(raw).replace(/画册原文[：:]?[“”"]?/g,'画册释义：').replace(/[“”]/g,'');
+  let s=chineseMaterialText(raw).replace(/(\d)-英寸/g,'$1英寸').replace(/画册原文[：:]?[“”"]?/g,'画册释义：').replace(/[“”]/g,'');
   if(/[a-z]{3,}/i.test(residue(s))){missing=true;continue;}
   lines.push(s);
  }
- const details=lines.filter(l=>/^\s*[-•]/.test(l));
+ let details=lines.filter(l=>/^\s*[-•]/.test(l));
+ const asked=['标准功能','开锁方式','尺寸','厚度','颜色','供电','材质','锁体','锁芯','特色功能'].filter(word=>question.includes(word));
+ if(/[A-Z]{1,5}[- ]?\d/i.test(question)&&asked.length){const focused=details.filter(l=>asked.some(word=>l.includes(word)));if(focused.length)details=focused;}
  const priority=line=>/标准功能|开锁方式|尺寸|厚度|材质|供电|耐火|隔声|防盗|锁体|锁芯|特色功能/.test(line)?0:/标记|类型|版本|颜色/.test(line)?2:1;
  const keep=[...details].sort((a,b)=>priority(a)-priority(b)).slice(0,4);let limited=details.length>keep.length;
  const output=lines.filter(l=>!/^\s*[-•]/.test(l)||keep.includes(l));
- if(refs.length&&!output.some(l=>/来源|出处/.test(l)))output.push('来源：'+refs.join('；')+'。');
+ if(refs.length&&!output.some(l=>/来源|出处|PDF第\d+页|第\s*\d+\s*页/.test(l)))output.push('来源：'+refs.join('；')+'。');
  if(missing)output.push('部分内容的中文释义尚待核对，可要求查看原文。');
  if(limited)output.push('先列主要内容，可指定参数继续问。');
  return output.join('\n').replace(/\n{3,}/g,'\n\n');

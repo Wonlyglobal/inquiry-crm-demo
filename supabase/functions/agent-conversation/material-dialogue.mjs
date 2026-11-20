@@ -125,6 +125,18 @@ export function conciseMaterialAnswer(data,question){
  if(!data.assets.length)return '在本次有权检索的资料中没有找到匹配内容，不能据此判断该产品不存在。请提供完整型号，或减少关键词后重试。\n'+coverageSummary(data.document_coverage);
  if(visualQuestion(question))return data.assets.slice(0,3).map(a=>`${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n更新时间：${a.updatedAt||'未标注'}；本次读取：${data.read_at||'未标注'}\n`+(a.document?.visual_understanding?slideVisualText(a.document.visual_understanding):'尚未取得本文件的图片/图表阅读证据，不能据此猜测图示含义或产品参数。')).join('\n\n');
  const wanted=fields(question),blocks=[],namedTargets=namedMaterialProducts(question),codeTargets=materialModelCodes(question);
+ const lookup=materialQuery(question);
+ const term=lookup.terms.length===1?String(lookup.terms[0]).trim():'';
+ const isLiteralLookup=/^物料\s*[:：]/u.test(question)&&/^[\p{Script=Han}]{6,14}$/u.test(term);
+ if(isLiteralLookup&&!wanted.length&&!namedTargets.length&&!codeTargets.length){
+  const matches=data.assets.flatMap(asset=>(asset.isCurrentVersion===true?asset.document?.source_summaries||[]:[])
+   .filter(source=>source.quote.includes(term)).map(source=>({asset,source})));
+  if(matches.length===1){
+   const {asset,source}=matches[0];
+   return `${materialExcerpt(source.quote)}\n来源：${asset.name}，${asset.versionLabel||'版次未标注'}，第${source.page}页。`;
+  }
+ }
+
  const targetMatches=f=>namedTargets.length===1?f.product.toLowerCase()===namedTargets[0].toLowerCase():codeTargets.length===1?f.product.toUpperCase()===codeTargets[0]:true;
  for(const a of data.assets.slice(0,3)){
   const refs=[],covered=new Set(),requested=wanted.filter(x=>!['来源','页码','版本'].includes(x));

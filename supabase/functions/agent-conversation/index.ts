@@ -1,3 +1,4 @@
+import {workScenarioIntent,answerWorkScenario} from './work-scenarios.mjs';
 import {presentMaterialAnswer} from './material-chinese.mjs';
 import {catalogueWordingQuestion} from './catalog-sales.mjs';
 import {woodTrainingQuestion} from './document-topic.mjs';
@@ -251,7 +252,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
   }
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
   const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey),Date.now(),{authorization,materialConfig});return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts,video_index:result.video_index},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
-  if(input.action==='chat'&&input.voice!==true&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
+  if(input.action==='chat'&&input.voice!==true&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
    validateDialogue(input);return await privateReply();
   }
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});
@@ -288,6 +289,14 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    validateDialogue(input);
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
+   // Internal writing is owner-only through the existing eligible check and quota above.
+   if(!guest&&workScenarioIntent(input)){
+    const answer=await answerWorkScenario(input,await loadCatalog(admin),{actor:user.id,sign:t=>mac(t,key),verify:async(t,sig)=>{
+     if(typeof sig!=='string'||!/^[a-f0-9]{64}$/.test(sig))return false;
+     const expected=await mac(t,key);let mismatch=0;for(let i=0;i<64;i++)mismatch|=expected.charCodeAt(i)^sig.charCodeAt(i);return mismatch===0;
+    },careAnswer:async()=>{const question='木门日常使用、维护和保养';const materials=gateMaterialEvidence(await loadFullMaterials({...materialConfig,question}));const answer=targetedMaterialAnswer(materials,question)?.answer;return answer?presentMaterialAnswer(answer,question):null;},videoAnswer:()=>answerVerifiedVideo('三条品牌视频时间码',()=>loadVerifiedVideoIndex(admin),exactName=>loadFullMaterials({...materialConfig,question:exactName,exactName}))});
+    if(answer){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'internal_work_writing',provider:'internal',status:answer.context?.status,revision:answer.context?.revision,external_model_called:false},reason:'用户主动生成或修改资料内写作草稿；确认后翻译最新版本，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json(answer);}
+   }
    // Verify the original signed transcript first. Canonical spelling is used only for routing.
    input.question=normalizeProductInput(input.question);
    const researchTurn=researchProfileTurn(input.question,input.materialHistory||[]);

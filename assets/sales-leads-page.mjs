@@ -1,4 +1,4 @@
-import {mountPersonalLeadWorkflow} from './personal-lead-workflow.mjs?v=20261118-spacing1';
+import {mountPersonalLeadWorkflow} from './personal-lead-workflow.mjs?v=20261119-reminders1';
 import {visibleLeadRows,receiptDestination,leadInformationHtml} from './lead-detail-ui.mjs?v=20261117-details1';
 import {mountDevelopmentMetrics} from './lead-development-metrics.mjs?v=20261102-1';
 import {decodeCustomerCsv} from './customer-csv-reader.mjs?v=20261029-encoding1';
@@ -9,6 +9,8 @@ import {renderLeadFileState,bindLeadFilePicker,clearLeadImportSelection} from '.
 import {leadStageLabel,formatStageSummary} from './sales-lead-stages.mjs';
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=t=>$('#status').textContent=t,stamp=t=>t?new Date(t).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
+const requestedLead=new URLSearchParams(location.search).get("lead");
+let requestedLeadOpened=false;
 let personalWorkflow,weeklyReview,contactTarget,estimateTarget,developmentMetrics,selectedLeadId=null,pendingSavedFocus=null;
 const progressDrafts=new Map();let focusedLeadIds=new Set();
 let selectedImportFile=null,importRecords=[];
@@ -39,6 +41,7 @@ async function load({refreshPersonal=true}={}){
   if(refreshPersonal)try{await personalWorkflow.refresh()}catch(error){personalFailure='本人线索列表';status('个人线索加载失败，可独立重试：'+leadRequestMessage(error))}
  }
  render();
+ if(personalWorkflow&&!requestedLeadOpened&&requestedLead&&/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestedLead)){requestedLeadOpened=true;await personalWorkflow.open(requestedLead)}
  if(pendingSavedFocus){const id=pendingSavedFocus;pendingSavedFocus=null;if(personalWorkflow)await personalWorkflow.open(id);else showLead(id)}
  $('#rules').textContent=data.rules.map(r=>`${r.effective_on}起：工作日${r.daily_min}条，${r.remind_at}提醒，周${r.weekly_day} ${r.weekly_at}统计；${r.reason}`).join('\n');
  weeklyReview ||= mountWeeklyCustomerReview($('#weekly-customer'),{rpc});

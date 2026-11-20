@@ -19,5 +19,5 @@ test('curated fact meanings keep their edition and do not alter source data',()=
 import {resolveMaterialTurn} from '../supabase/functions/agent-conversation/material-dialogue.mjs';
 test('an explicit company fact request does not inherit a previous product',()=>{
  const q='王力有哪些研发投入与团队？请按画册简洁说明并注明出处。';
- assert.equal(resolveMaterialTurn(q,['私有产品：S50 Pro 标准功能']).question,q);
+ assert.equal(resolveMaterialTurn(q,['私有产品：S50 Pro 标准功能']).question,q.normalize('NFKC'));
 });

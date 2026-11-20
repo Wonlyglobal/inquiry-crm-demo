@@ -11,7 +11,7 @@ export function resolveMaterialTurn(question,history=[]){
  const q=normalizeProductInput(question).trim(),previous=normalizeProductInput(history.at(-1)||'');
  if(!previous&&/^(那它|它|这个型号|该型号)/.test(q)&&fields(q).length)return {question:'物料：'+q,clarification:'请告诉我具体产品型号，或选择上一个型号后继续查询。新需求不会沿用上一段对话的型号。'};
  if(!previous||/换个话题|新话题|不查资料|天气|天空|社媒|网站|询盘|营销|新闻/.test(q))return {question:q};
- if(/王力|WONLY|我司|我们公司/i.test(q)&&/研发|产能|生产基地|未来工厂|品牌价值|设计奖|专利|上市|成立|服务网点|开锁挑战|参与标准|三防分离|远感技术|锁芯等级/.test(q)&&!modelIds(q).length)return {question:q};
+ if(/王力|WONLY|我司|我们公司/i.test(q)&&/防火窗|研发|产能|生产基地|未来工厂|品牌价值|设计奖|获奖|奖项|地标|标杆项目|项目业绩|开发商|涂装|专利|上市|成立|服务网点|开锁挑战|参与标准|三防分离|远感技术|锁芯等级/.test(q)&&!modelIds(q).length)return {question:q};
  const prior=materialQuery(previous),ids=modelIds(q),oldIds=modelIds(previous),properties=fields(q);
  if(/^(下一页|下页|继续看下一页|物料下一页)[。？?！!]*$/.test(q))return {question:`物料：${prior.query} 第${Math.min(10000,prior.page+1)}页`};
  if(/^第\s*\d+\s*页[。？?]*$/.test(q))return {question:`物料：${prior.query} ${q}`};

@@ -26,6 +26,6 @@ test('raw code and unaligned summaries cannot masquerade as original text',()=>{
  const c={...fixture,facts:[{...facts[0],text:'{"raw":"code"}'}]};
  assert.doesNotMatch(fullCatalogueAnswer(catalogIntent('王力锁芯等级',c),c,'王力锁芯等级').answer,/raw|code/);
  const d={...fixture,pages:[]};
- const a=fullCatalogueAnswer(catalogIntent('王力锁芯等级',d),d,'王力锁芯等级').answer;
+ const a=fullCatalogueAnswer(catalogIntent('王力锁芯等级原文',d),d,'王力锁芯等级原文').answer;
  assert.match(a,/原页待核对/);assert.doesNotMatch(a,/画册原文/);
 });

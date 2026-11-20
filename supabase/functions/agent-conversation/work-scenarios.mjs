@@ -7,6 +7,7 @@ const task=/排除选项|核验路径|合作价值|原因|写|改写|开场|提�
 const domain=/王力|wonly|公司介绍|品牌|客户|经销|代理|项目|产品|智能锁|木门|认证|交货|交期|画册|英文稿|翻译|西语|西班牙语|竞品|保养|选型|选门|洞口|社媒|邮件|展会|培训|私有|检索日志/i;
 const books={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 const words=s=>(s.match(/\b[A-Za-z][A-Za-z’'-]*\b/g)||[]).length;
+const draftHash=async text=>hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)));
 const hex=b=>Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');
 const encode=s=>btoa(unescape(encodeURIComponent(s))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
 const decode=s=>decodeURIComponent(escape(atob(s.replaceAll('-','+').replaceAll('_','/'))));
@@ -161,6 +162,7 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  if(token){try{const [payload,signature]=token.slice(PREFIX.length).split('.');if(payload.length>500||!await verify('work-writing-v1|'+actor+'|'+payload,signature))throw Error();s=JSON.parse(decode(payload));if(s.v!==1||!s.k||!['en','zh','es'].includes(s.l)||s.r>30)throw Error()}catch{return {answer:'这份稿件的上下文校验未完成，请重新提出公司介绍或写作要求；本次没有翻译。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'invalid_state'}}}}
  const digest=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({sources:catalog?.sources||[],facts:(catalog?.facts||[]).map(f=>[f.topic,f.text,f.catalog,f.page,f.zh])}))));
  if(s&&s.c!==digest)return {answer:'资料版本已变化，请重新核对英文稿并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'source_changed'}};
+ if(s?.k==='company'&&s.h!==await draftHash(companyAnswer(catalog,{...s,l:'en'}).text))return {answer:'英文稿版本校验未完成，请重新生成并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'draft_changed'}};
  const continuing=!!s&&follow.test(q)&&!/(?:我会提供|设计一份|另(?:外|一)(?:个|段|篇)|重新写|新的任务)/.test(q);
  if(!continuing){const k=kindOf(q);s={v:1,k,l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
  const edit=continuing&&/删|改|缩|精简|口语|强调|核对刚才|去掉/.test(q);
@@ -169,7 +171,8 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  const approved=continuing&&s.k==='company'&&s.l==='en'&&!edit&&!negative&&/已确认|确认了|确认无误|^确认(?:[，,。 ]|$)|^现在确认|^可以[，, ]*(?:翻译|译)|^没问题[，, ]*(?:翻译|译)/.test(q);
  if(approved)s={...s,p:true};
  if(continuing&&/未确认|没确认|撤销确认|暂时不要翻译|不要翻译/.test(q))s={...s,p:false,l:s.l==='es'?'en':s.l};
- if(continuing&&/西班牙语|西语|Spanish|español/i.test(q)&&!edit){if(!s.p){const payload=encode(JSON.stringify(s)),sig=await sign('work-writing-v1|'+actor+'|'+payload);return {answer:'请先确认最新英文稿；确认前我不会翻译成西班牙语。如需修改，请直接说明要改哪里。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'awaiting_confirmation',material_question:PREFIX+payload+'.'+sig}}}s={...s,l:'es'};}
+ if(continuing&&/西班牙语|西语|Spanish|español/i.test(q)&&!edit){if(!s.p){if(s.k==='company')s.h=await draftHash(companyAnswer(catalog,{...s,l:'en'}).text);
+ const payload=encode(JSON.stringify(s)),sig=await sign('work-writing-v1|'+actor+'|'+payload);return {answer:'请先确认最新英文稿；确认前我不会翻译成西班牙语。如需修改，请直接说明要改哪里。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'awaiting_confirmation',material_question:PREFIX+payload+'.'+sig}}}s={...s,l:'es'};}
  const care=s.k==='care'?await careAnswer?.():null;
  const result=care?{text:care+'\n资料未明确的清洁剂、保养周期或保修条件不自行补写。',topics:[],hasCitation:true}:s.k==='video'?{text:(await videoAnswer?.())?.answer||'这次无法核对原视频时间码，暂不列出。',topics:[],hasCitation:true}:guideAnswer(catalog,s);
  let answer=result.text+(result.hasCitation?'':'\n\n'+citations(catalog,result.topics));
@@ -178,6 +181,7 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  else if(['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='es')answer+='\n\n已按最新确认英文稿翻译。';
  else if(continuing&&/核对刚才/.test(q))answer+='\n\n核对：上面的方法、问法与沟通安排属于建议；具体公司/产品数字只以列出的资料出处为据。未给出未经核验的价格、交期或认证承诺。';
  if(s.m||s.a)answer+='\n\n沟通对象：'+[s.m,s.a].filter(Boolean).join(' / ')+'；当地适用要求仍需单独核验。';
+ if(s.k==='company')s.h=await draftHash(companyAnswer(catalog,{...s,l:'en'}).text);
  const payload=encode(JSON.stringify(s)),sig=await sign('work-writing-v1|'+actor+'|'+payload),material=PREFIX+payload+'.'+sig;
  if(material.length>500)throw Error('Writing state exceeds context bound');
  return {answer,provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:s.l==='es'?'translated':['company','opening','story','outline','three_facts','why_us'].includes(s.k)&&s.l==='en'?'awaiting_confirmation':'draft',revision:s.r,language:s.l,approved:s.p,material_question:material}};

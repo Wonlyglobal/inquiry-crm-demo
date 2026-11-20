@@ -303,9 +303,9 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    // Internal writing is owner-only through the existing eligible check and quota above.
    if(!guest&&(workScenarioIntent(input)||writingContinuation(input))){
     const previous=await latestWriting(admin,user.id);
-    const continuation=writingContinuation(input);
+    const supplied=(input.materialHistory||[]).find((x:string)=>x.startsWith('work-writing:v1.'));
+    const continuation=writingContinuation(input)&&(supplied?companyDraftResult({context:{material_question:supplied}}):!(input.materialHistory||[]).length&&/英文|西语|西班牙语|稿|确认|翻译|删掉产能|改得更口语/.test(input.question));
     if(continuation&&previous){
-     const supplied=(input.materialHistory||[]).find((x:string)=>x.startsWith('work-writing:v1.'));
      if(supplied!==previous.material_context){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'writing_version_conflict'},reason:'旧页面或空上下文未确认最新稿，恢复最新版本而不翻译旧稿'});if(error)return json({error:'调用审计失败'},503);return json(restoredWriting(previous,'version_conflict'));}
     }
 

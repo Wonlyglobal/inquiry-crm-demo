@@ -21,3 +21,7 @@ test('an explicit company fact request does not inherit a previous product',()=>
  const q='王力有哪些研发投入与团队？请按画册简洁说明并注明出处。';
  assert.equal(resolveMaterialTurn(q,['私有产品：S50 Pro 标准功能']).question,q.normalize('NFKC'));
 });
+test('an explicitly named different catalogue does not inherit a product or edition',()=>{
+ const q='工程画册防火窗的耐火和隔音参数是什么？';
+ assert.equal(resolveMaterialTurn(q,['私有产品：S50 Pro V9 参数']).question,q.normalize('NFKC'));
+});

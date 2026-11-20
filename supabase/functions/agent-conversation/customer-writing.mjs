@@ -2,6 +2,7 @@
 // Only server-loaded facts are used; no model call or external transmission.
 const fact=(c,t)=>(c?.facts||[]).find(f=>f.topic===t&&f.catalog==='c2')||(c?.facts||[]).find(f=>f.topic===t);
 export function customerPurpose(q){
+ q=String(q).split(/\n/).at(-1);
  if(/(?:不要|不用|先不).{0,5}(?:写|生成).{0,8}(?:介绍|文案)|(?:内部|仅|只).{0,5}(?:核对|核验|查证|审查)/.test(q))return 'review';
  return /核对|核验|查证|审查/.test(q)&&!/给客户|客户正文|直接发|写|改写|文案/.test(q)?'review':'customer';
 }

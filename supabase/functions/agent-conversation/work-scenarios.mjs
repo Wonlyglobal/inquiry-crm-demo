@@ -15,7 +15,8 @@ const decode=s=>decodeURIComponent(escape(atob(s.replaceAll('-','+').replaceAll(
 const fact=(c,t)=>(c?.facts||[]).find(x=>x.topic===t&&x.catalog==='c2')||(c?.facts||[]).find(x=>x.topic===t);
 const safeNum=s=>String(s||'').match(/\d+(?:\.\d+)?/g)||[];
 export const newWritingDraft=q=>/(?:帮我写|给客户讲王力公司介绍|(?:^|[\n，。；])(?:先|请)?写)/.test(q);
-export const writingContinuation=input=>input?.action==='chat'&&!input.voice&&!input.privateReportKey&&typeof input.question==='string'&&follow.test(input.question)&&!newWritingDraft(input.question);
+const independentWritingRequest=q=>/我会提供|需要提供什么|先告诉我|先说明判断|怎么避免|如何避免|(?:设计|列出|整理).{0,14}(?:清单|框架|流程)|(?:仅|只)内部/.test(q);
+export const writingContinuation=input=>input?.action==='chat'&&!input.voice&&!input.privateReportKey&&typeof input.question==='string'&&follow.test(input.question)&&!newWritingDraft(input.question)&&!independentWritingRequest(input.question);
 export function companyDraftResult(result){try{return JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).k==='company'&&JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).w!==0&&['en','es'].includes(result.context.language||JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).l)}catch{return false}}
 export function workScenarioIntent(input){
  if(input?.action!=='chat'||input.voice||input.privateReportKey||typeof input.question!=='string')return false;
@@ -168,11 +169,11 @@ export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoA
  if(!workScenarioIntent(input))return null;
  const q=input.question.trim();let s=null;
  const token=newWritingDraft(q)?null:(input.materialHistory||[]).find(x=>String(x).startsWith(PREFIX));
- if(token){try{const [payload,signature]=token.slice(PREFIX.length).split('.');if(payload.length>500||!await verify('work-writing-v1|'+actor+'|'+payload,signature))throw Error();s=JSON.parse(decode(payload));if(s.v!==1||!s.k||!['en','zh','es'].includes(s.l)||s.r>30)throw Error()}catch{return {answer:'这份稿件的上下文校验未完成，请重新提出公司介绍或写作要求；本次没有翻译。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'invalid_state'}}}}
+ if(token){try{const [payload,signature]=token.slice(PREFIX.length).split('.');if(payload.length>500||!await verify('work-writing-v1|'+actor+'|'+payload,signature))throw Error();s=JSON.parse(decode(payload));if(s.v!==1||!s.k||!['en','zh','es'].includes(s.l)||!Number.isSafeInteger(s.r)||s.r<1||s.r>1000000)throw Error()}catch{return {answer:'这份稿件的上下文校验未完成，请重新提出公司介绍或写作要求；本次没有翻译。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'invalid_state'}}}}
  const digest=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({sources:catalog?.sources||[],facts:(catalog?.facts||[]).map(f=>[f.topic,f.text,f.catalog,f.page,f.zh])}))));
  if(s&&s.c!==digest)return {answer:'资料版本已变化，请重新核对英文稿并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'source_changed'}};
  if(s?.k==='company'&&s.h!==await draftHash(companyAnswer(catalog,{...s,l:'en'}).text))return {answer:'英文稿版本校验未完成，请重新生成并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'draft_changed'}};
- if(s?.k==='company'&&customerPurpose(q)==='review'&&!/删|去掉|改写|修改/.test(q)){const review=companyAnswer(catalog,{...s,w:0,l:'zh'});return {answer:review.text+'\n\n'+citations(catalog,review.topics),provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'evidence_review',material_question:token}};}
+ if(s?.k==='company'&&customerPurpose(q)==='review'&&!/删|去掉|改|精简|缩|口语|优化|润色|强调/.test(q)){const review=companyAnswer(catalog,{...s,w:0,l:'zh'});return {answer:review.text+'\n\n'+citations(catalog,review.topics),provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'evidence_review',material_question:token}};}
  const continuing=!!s&&follow.test(q)&&!newWritingDraft(q)&&!/(?:我会提供|设计一份|另(?:外|一)(?:个|段|篇)|重新写|新的任务)/.test(q);
  if(!continuing){const k=kindOf(q);s={v:1,i:crypto.randomUUID().slice(0,12),k,...(['company','story','why_us','email'].includes(k)?{w:customerPurpose(q)==='customer'?2:0}:{}),l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
  const copyEdit=!/可以吗|能发吗|是否|[？?]$/.test(q)&&/直接给|直接发|给客户|不要提|不要再提|别提/.test(q);

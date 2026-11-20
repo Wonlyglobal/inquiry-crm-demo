@@ -15,6 +15,8 @@ test('real handler restores persisted draft, rejects stale confirmation, and doe
  casConflict=true;const race=await ask('现在确认最新英文版本，翻译成西语',current);assert.equal(race.context.status,'version_conflict');assert.doesNotMatch(race.answer,/Gracias|Fundada/);casConflict=false;
  const approved=await ask('现在确认最新英文版本，翻译成西语',current);assert.match(approved.answer,/Gracias/);assert.doesNotMatch(approved.answer,/capacidad de fabricación|bases de producción|red de fabricación/i);assert.equal(approved.context.approved,true);
  const guide=await ask('客户说价格太贵，给三个可能原因以及每种原因下一步应该问什么');const guideFollow=await ask('请核对刚才的稿件：哪些是资料事实，哪些是表达建议？删掉没有依据的承诺。',guide.context.material_question);assert.notEqual(guideFollow.context.status,'version_conflict');assert.doesNotMatch(guideFollow.answer,/Founded in/);
+ const independent=await ask('我会提供一段已确认英文稿，请只翻成西班牙语，目前先告诉我需要提供什么');assert.notEqual(independent.context.status,'version_conflict');assert.match(independent.answer,/提供.*完整英文/);
+ const languagePlan=await ask('上一轮输出英文，这次给客户看的短一点默认应该用什么语言？先说明判断，再改写。');assert.notEqual(languagePlan.context.status,'version_conflict');assert.match(languagePlan.answer,/默认.*中文/);
  const again=(await call({action:'writing-session'})).draft;const edit=await ask('这版删掉研发，还没确认',again.context.material_question);assert.equal(edit.context.approved,false);assert.equal(edit.context.language,'en');const before=stored.answer;const no=await ask('翻译成西语',edit.context.material_question);assert.match(no.answer,/请先确认/);assert.equal(stored.answer,before,'a blocked request cannot replace the saved English with a prompt');
  }finally{globalThis.Deno=saved.Deno;globalThis.fetch=saved.fetch;globalThis.__writingTestClient=saved.client}
 });

@@ -38,7 +38,7 @@ export function conciseCatalogFacts(intent,catalog,question=''){
   if(!exact)unaligned=true;
   refs.add(`${NAMES[f.catalog]} PDF第${f.page}页`);
   if(original)return `- ${exact?'画册原文':'索引摘要（原页待核对）'}：“${f.text}”`;
-  const chinese=factChinese(f.text);
+  const chinese=typeof f.zh==='string'&&f.zh.length<=500&&/[\u3400-\u9fff]/u.test(f.zh)?f.zh:factChinese(f.text);
   return chinese?`- ${chinese}${exact?'':'（索引摘要，原页待核对）'}`:'- 该项中文释义尚待核对，可要求查看英文原文。';
  });
  const edition=catalog.sources?.find(s=>s.id===shown[0].catalog)?.edition||'已收录版本';

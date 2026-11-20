@@ -68,6 +68,7 @@ export function sourceTaskAnswer(plan,responses,{targeted=targetedMaterialAnswer
  const incomplete=plan.overflow||responses.some(r=>r.status!=='available')||available.some(r=>r.has_more)||data.assets.some(a=>a.document?.status!=='ready'||a.document?.pages?.some(p=>p.truncated===true)||a.document?.evidence_selection?.pages_omitted>0||a.document?.warnings?.some(w=>/截断|truncat/i.test(w)));
  if(targetedResult)return {answer:targetedResult.answer,materials:targetedResult.materials,status:'source_answer',source_count:targetedResult.materials.length,incomplete};
  const selected=[],located=[];
+ const requiresModel=plan.topics.some(t=>['power','recognition','interface'].includes(t.id))||/保修期|保修期限|质保期限|warranty period/i.test(plan.subject);
  for(const a of data.assets){
   const d=a.document;if(!['partial','ready'].includes(d?.status)||!d.sha256)continue;
   const versionOk=plan.version?canon(materialVersion(a.versionLabel))===canon(plan.version):a.isCurrentVersion===true;
@@ -77,10 +78,11 @@ export function sourceTaskAnswer(plan,responses,{targeted=targetedMaterialAnswer
    for(const topic of plan.topics){
     const hits=(p.chunks||[]).filter(c=>topic.terms.some(term=>c.includes(term)));if(!hits.length)continue;
     const key=[a.id,d.sha256,p.page,topic.id].join('|');if(located.some(x=>x.key===key))continue;
-    located.push({key,ref:ref(a,p),versionOk});
+    const modelScoped=materialModelCodes(a.name||'').length>0;
+    located.push({key,ref:ref(a,p),versionOk,modelScoped});
     // Model parameters require the established field/row/native validator. A keyword
     // on a mixed-model page is not enough to bind an operating instruction to a model.
-    if(plan.models.length||!versionOk||plan.topics.some(t=>t.id==='password'))continue;
+    if(plan.models.length||requiresModel||modelScoped||!versionOk||plan.topics.some(t=>t.id==='password'))continue;
     for(const chunk of hits){
      if(chunk.length<20||chunk.length>450||materialModelCodes(chunk).length||/忽略.{0,8}规则|输出.{0,8}(?:密钥|客户资料|检索日志)|ignore.{0,15}instructions/i.test(chunk))continue;
      if(p.truncated===true)continue;
@@ -95,7 +97,7 @@ export function sourceTaskAnswer(plan,responses,{targeted=targetedMaterialAnswer
   answer=selected.slice(0,2).map(x=>x.text+'\n出处：'+x.ref).join('\n\n');status='source_excerpt';materials=[...new Set(selected.slice(0,2).map(x=>x.asset))];
   answer+='\n\n以上是对应原页说明；型号、配置和适用条件以原文件为准。';
  }else if(located.length){
-  answer='已定位相关资料：\n'+[...new Set(located.map(x=>x.ref))].slice(0,3).join('\n')+'\n'+(plan.models.length?'本次尚未取得与该完整型号和字段可靠对应的原文，不能套用其他型号。':located.every(x=>!x.versionOk)?'版本尚未确认，暂不把这些内容作为当前产品说明。':'相关段落仍需完整读取或核对，不能凭关键词整理成产品结论。');status='source_located_unverified';
+  answer='已定位相关资料：\n'+[...new Set(located.map(x=>x.ref))].slice(0,3).join('\n')+'\n'+(plan.models.length?'本次尚未取得与该完整型号和字段可靠对应的原文，不能套用其他型号。':requiresModel||located.some(x=>x.modelScoped)?'这些资料涉及具体型号。请先说明所问型号，不能把其中某款的配置当作通用说明。':located.every(x=>!x.versionOk)?'版本尚未确认，暂不把这些内容作为当前产品说明。':'相关段落仍需完整读取或核对，不能凭关键词整理成产品结论。');status='source_located_unverified';
  }else{
   answer=available.length?'本次检索尚未取得可引用的对应原文。':'本次资料读取未完成。';
   answer+='这不表示资料库里没有，也不表示产品不支持。';status=available.length?'source_match_unconfirmed':'source_unavailable';

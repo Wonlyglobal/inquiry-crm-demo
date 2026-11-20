@@ -53,3 +53,7 @@ test('an explicit source-language requirement cannot be satisfied with an unrela
 test('a named document cannot borrow the matching paragraph from another file',()=>{
  const p=plan('按《安装说明.pdf》回答智能锁安装条件');const data=source('安装前应核对测试场景和洞口条件，不把其他产品说明套用到本项目。');const wrong=sourceTaskAnswer(p,[data]);assert.equal(wrong.status,'source_match_unconfirmed');assert.doesNotMatch(wrong.answer,/安装前应核对测试场景/);data.assets[0].name='安装说明.pdf';const exact=sourceTaskAnswer(p,[data]);assert.equal(exact.status,'source_excerpt');assert.match(exact.answer,/安装前应核对测试场景/);
 });
+test('an unspecified model cannot inherit battery values merely because the paragraph omitted its model heading',()=>{
+ const p=plan('客户担心智能锁没电，先核对供电和应急说明');const r=sourceTaskAnswer(p,[source('供电说明：测试容量9876mAh，仅适用于文件标题中指定的型号。',{model:'S60 Max'})]);assert.equal(r.status,'source_located_unverified');assert.doesNotMatch(r.answer,/9876/);assert.match(r.answer,/请先说明所问型号/);
+ const generic=sourceTaskAnswer(p,[source('供电说明：该产品的测试容量9876mAh，只能按明确型号核对，不能泛化。',{model:'通用智能锁画册'})]);assert.equal(generic.status,'source_located_unverified');assert.doesNotMatch(generic.answer,/9876/);assert.match(generic.answer,/请先说明所问型号/);
+});

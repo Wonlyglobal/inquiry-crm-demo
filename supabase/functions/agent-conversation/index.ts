@@ -430,7 +430,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
     }
    }
    const scopedNamedMaterial=videoSources||woodTrainingQuestion(contextTurn.question)||explicitMaterialDocument(contextTurn.question)||namedMaterialProducts(contextTurn.question).length>0;
-   const spec=guest||scopedNamedMaterial||catalogueWordingQuestion(catalogQuestion)||materialVersion(catalogQuestion)||selectionIntent(catalogQuestion)?null:specIntent(catalogQuestion);
+   const spec=guest||scopedNamedMaterial||(/防火窗/.test(catalogQuestion)&&/画册/.test(catalogQuestion))||catalogueWordingQuestion(catalogQuestion)||materialVersion(catalogQuestion)||selectionIntent(catalogQuestion)?null:specIntent(catalogQuestion);
    if(spec){const catalog=await loadCatalog(admin);const answer=catalog&&!findModels(catalogQuestion,catalog).length?specAnswer(spec,catalog):null;if(answer){
     const fullSearch=fullCatalogueAnswer(null,catalog,catalogQuestion);
     const materials=gateMaterialEvidence(filterMaterialResults(await loadFullMaterials({...materialConfig,question:catalogQuestion}).catch(()=>({status:'unavailable',assets:[]})),catalogQuestion));

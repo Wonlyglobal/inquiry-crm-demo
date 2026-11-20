@@ -25,3 +25,8 @@ test('an explicitly named different catalogue does not inherit a product or edit
  const q='工程画册防火窗的耐火和隔音参数是什么？';
  assert.equal(resolveMaterialTurn(q,['私有产品：S50 Pro V9 参数']).question,q.normalize('NFKC'));
 });
+test('the explicit fire-window catalogue request uses the cited fact path before generic specs',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const s=await readFile(new URL('../supabase/functions/agent-conversation/index.ts',import.meta.url),'utf8');
+ assert.match(s,/const spec=guest\|\|scopedNamedMaterial\|\|\(\/防火窗\/\.test\(catalogQuestion\)&&\/画册\/\.test\(catalogQuestion\)\)/);
+});

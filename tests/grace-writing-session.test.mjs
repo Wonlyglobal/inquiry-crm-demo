@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {latestWriting,restoredWriting,saveWriting} from '../supabase/functions/agent-conversation/writing-session.mjs';
 import {answerWorkScenario,writingContinuation,newWritingDraft} from '../supabase/functions/agent-conversation/work-scenarios.mjs';
 import crypto from 'node:crypto';
-const catalog={sources:[{id:'c2',edition:'test-v1'}],facts:[{topic:'founding',catalog:'c2',page:3,text:'Founded in 1996.'},{topic:'listing',catalog:'c2',page:3,text:'Listed in 2021, stock 605268.'},{topic:'rnd',catalog:'c2',page:3,text:'Test R&D',zh:'研发投入超过8000万元，团队400人'},{topic:'capacity',catalog:'c2',page:3,text:'Test capacity'}]};
+const catalog={sources:[{id:'c2',edition:'test-v1'}],facts:[{topic:'bases',catalog:'c2',page:3,text:'Yongkang, Wuyi, Sichuan, Hangzhou, Hubei'},{topic:'founding',catalog:'c2',page:3,text:'Founded in 1996.'},{topic:'listing',catalog:'c2',page:3,text:'Listed in 2021, stock 605268.'},{topic:'rnd',catalog:'c2',page:3,text:'Test R&D',zh:'研发投入超过8000万元，团队400人'},{topic:'capacity',catalog:'c2',page:3,text:'Test capacity'}]};
 const options={actor:'owner',sign:async s=>crypto.createHmac('sha256','test-only').update(s).digest('hex')};options.verify=async(s,v)=>v===await options.sign(s);
 const draftInput={action:'chat',persona:'Grace',question:'帮我写300词英文公司介绍，等我确认后翻译成西语',history:[]};
 test('persisted signed draft resumes after a fresh controller and invalidates approval on edit',async()=>{
@@ -11,8 +11,8 @@ test('persisted signed draft resumes after a fresh controller and invalidates ap
  let reopened=restoredWriting(await latestWriting(db,'owner'));assert.match(reopened.answer,/Founded in/);
  const edit={...draftInput,question:'删掉产能，强调研发；还没确认',materialHistory:[reopened.context.material_question]};const b=await answerWorkScenario(edit,catalog,options);const prev=await latestWriting(db,'owner');assert.equal(await saveWriting(db,'owner',prev,edit,b,false),true);
  assert.equal(await saveWriting(db,'owner',prev,edit,b,false),false,'stale tab cannot append');
- reopened=restoredWriting(await latestWriting(db,'owner'));assert.doesNotMatch(reopened.answer,/Manufacturing capacity/);
- const r=await answerWorkScenario({...draftInput,question:'现在确认最新英文版本，翻译成西语',materialHistory:[reopened.context.material_question]},catalog,options);assert.match(r.answer,/Gracias/);assert.doesNotMatch(r.answer,/capacidad de fabricación/i);
+ reopened=restoredWriting(await latestWriting(db,'owner'));assert.doesNotMatch(reopened.answer,/Manufacturing capacity|manufacturing network|production bases/i);
+ const r=await answerWorkScenario({...draftInput,question:'现在确认最新英文版本，翻译成西语',materialHistory:[reopened.context.material_question]},catalog,options);assert.match(r.answer,/Gracias/);assert.doesNotMatch(r.answer,/capacidad de fabricación|bases de producción|red de fabricación/i);
  assert.equal(b.context.approved,false);assert.equal(r.context.revision,b.context.revision);
 });
 test('new draft intent is separate from confirm/edit continuation',()=>{assert.equal(writingContinuation({...draftInput,question:'确认最新英文稿并翻译成西语'}),true);assert.equal(writingContinuation(draftInput),false);assert.equal(newWritingDraft(draftInput.question),true)});

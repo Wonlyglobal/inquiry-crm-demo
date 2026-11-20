@@ -13,9 +13,9 @@ const fixture={
 };
 const run=(q,c=fixture)=>fullCatalogueAnswer(catalogIntent(q,c),c,q).answer;
 test('brand fact lookup distinguishes factory designation from locations and marks unaligned quotes',()=>{
- assert.equal(catalogPrecheck('王力的智能工厂，画册怎么介绍？'),true);
- assert.match(run('王力的智能工厂，画册怎么介绍？'),/画册原文[\s\S]*Future Factory[\s\S]*PDF第3页/);
- assert.match(run('王力的产能，画册怎么介绍？'),/原页待核对[\s\S]*PDF第3页/);
+ assert.equal(catalogPrecheck('王力的智能工厂，画册原文怎么介绍？'),true);
+ assert.match(run('王力的智能工厂，画册原文怎么介绍？'),/画册原文[\s\S]*Future Factory[\s\S]*PDF第3页/);
+ assert.match(run('王力的产能，画册原文怎么介绍？'),/原页待核对[\s\S]*PDF第3页/);
 });
 test('catalogue wording keeps source limitations and leaves unrelated drafting alone',()=>{
  assert.equal(catalogueWordingQuestion('帮我写一段催款话术'),false);

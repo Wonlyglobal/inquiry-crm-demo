@@ -1,8 +1,9 @@
 // Customer-facing language is separate from the internal evidence and workflow notes.
 // Only server-loaded facts are used; no model call or external transmission.
+import {writingPrimaryTask} from './writing-request.mjs';
 const fact=(c,t)=>(c?.facts||[]).find(f=>f.topic===t&&f.catalog==='c2')||(c?.facts||[]).find(f=>f.topic===t);
 export function customerPurpose(q){
- q=String(q).split(/\n/).at(-1);
+ q=writingPrimaryTask(q);
  if(/(?:不要|不用|先不).{0,5}(?:写|生成).{0,8}(?:介绍|文案)|(?:内部|仅|只).{0,5}(?:核对|核验|查证|审查)/.test(q))return 'review';
  return /核对|核验|查证|审查/.test(q)&&!/给客户|客户正文|直接发|写|改写|文案/.test(q)?'review':'customer';
 }
@@ -16,6 +17,7 @@ export function customerCompanyAnswer(c,s,d){
  if(!d.y||!d.listingYear||!d.code)return {text:'本次未能核对公司介绍所需的成立与上市资料，暂时不能生成可对外使用的介绍。',topics:[],customerFacing:false};
  const p=portfolio(c),base=bases(c),remote=!!fact(c,'remote_sensing');
  if(s.l==='zh'){
+ if(s.n<=80)return {text:`王力成立于${d.y}年，${d.listingYear}年在上交所主板上市，产品涵盖${p.zh}。欢迎交流您的使用场景和产品需求。`,topics:['founding','listing','capacity'],customerFacing:true};
  const lines=[`王力成立于${d.y}年，${d.listingYear}年在上海证券交易所主板上市，股票代码${d.code}，产品涵盖${p.zh}。`,
  '我们的优势来自持续积累的制造经验、研发资源和多品类产品组合。对经销商而言，不同品类可以围绕客户需求形成相互补充的产品布局；对项目客户而言，也能从使用位置、设计风格和功能需求出发，选择适合进一步了解的产品。',
  !(s.o&2)&&d.investment&&d.team?`王力每年研发投入超过${Number(d.investment)*100}万元，拥有${d.team}人的研发团队，为产品开发提供持续的技术资源。`:'',

@@ -6,3 +6,4 @@ export function writingRequestText(value){
  return lines.join('\n');
 }
 export const writingPrimaryTask=value=>writingRequestText(value).split('\n')[0]||'';
+export function writingSourceName(value){const q=String(value||'');return q.match(/《([^》]{1,180}\.(?:pdf|pptx?|docx?|xlsx?))》/i)?.[1]||q.match(/物料[:：]\s*([^\n，。；?？]{1,180}\.(?:pdf|pptx?|docx?|xlsx?))(?:\s|$|[，])/i)?.[1]||'';}

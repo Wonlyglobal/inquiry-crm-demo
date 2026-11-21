@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
-import {pipelineMessage,nextStep,safeProduct,safeCountry,safeQuantity,STAGES} from '../supabase/functions/_shared/pipeline-feishu-message.mjs';
+import {pipelineMessage,nextStep,safeProduct,safeCountry,safeQuantity,STAGES,mentionRecipient} from '../supabase/functions/_shared/pipeline-feishu-message.mjs';
 import {pipelineHandler} from '../supabase/functions/_shared/pipeline-feishu-handler.mjs';
 const item={id:'synthetic',lease_token:'lease',mode:'basic_demand',occurred_at:'2026-11-02T02:00:00Z',payload:{kind:'inquiry',inquiry_id:'11111111-1111-4111-8111-111111111111',inquiry_no:42,status:'contacted',from_status:'qualified',validity:'valid',owner_set:true,owner_name:'模拟业务员',actor_name:'模拟市场',raw_product:'fire_door',raw_country:'US',raw_quantity:'200 sets',changed_fields:['status']}};
 const hook='https://open.feishu.cn/open-apis/bot/v2/hook/00000000-0000-0000-0000-000000000000';
@@ -22,3 +22,24 @@ test('queue errors do not post and receipt errors are reported as uncertain',asy
 test('legacy entry points switch to transactional receipt and never reuse the new hook',async()=>{for(const file of ['group-notify','feishu-notify']){const source=await readFile(new URL(`../supabase/functions/${file}/index.ts`,import.meta.url),'utf8');assert.match(source,/CRM_PIPELINE_FEISHU_ENABLED/);assert.match(source,/pipeline_feishu_receipt/);assert.ok(!source.includes('CRM_PIPELINE_FEISHU_WEBHOOK_URL'))}});
 
 test('nurture/recycled items go to market and completed first contact is not requested again',()=>{assert.match(nextStep({...item.payload,nurture_status:'nurturing',market_name:'模拟市场'}),/^模拟市场：按培育计划/);assert.match(nextStep({...item.payload,status:'received',first_contact_done:true}),/跟进客户反馈/)});
+
+test('only an explicit trusted Open ID binding can create a single real mention',()=>{
+ const recipient={open_id:'ou_'+'a'.repeat(32),name:'模拟主管'};
+ const message=pipelineMessage(item,recipient).content.text;
+ assert.ok(message.startsWith('提醒：<at user_id="'+recipient.open_id+'">模拟主管</at>'));
+ assert.equal((message.match(/<at /g)||[]).length,1);
+ const injected=pipelineMessage({...item,payload:{...item.payload,mention:recipient,mention_open_id:recipient.open_id}}).content.text;
+ assert.ok(!injected.includes('<at '));
+ assert.equal(mentionRecipient(undefined,undefined),null);
+ for(const invalid of [{...recipient,open_id:'all'},{...recipient,open_id:'11111111-1111-4111-8111-111111111111'},{...recipient,open_id:'ou_abc'},{...recipient,name:'<at user_id="all">'},{...recipient,name:'模拟\n主管'},{open_id:recipient.open_id},{name:recipient.name}])assert.throws(()=>pipelineMessage(item,invalid));
+});
+test('worker gets mention only from server configuration, never request or event fields',async()=>{
+ const s=setup({env:{CRM_PIPELINE_FEISHU_MENTION_OPEN_ID:'ou_'+'b'.repeat(32),CRM_PIPELINE_FEISHU_MENTION_NAME:'模拟主管'}});
+ assert.equal((await s.handler(request())).status,200);assert.match(s.posts[0].body.content.text,/<at user_id="ou_b{32}">模拟主管<\/at>/);
+ const invalid=setup({env:{CRM_PIPELINE_FEISHU_MENTION_OPEN_ID:'all',CRM_PIPELINE_FEISHU_MENTION_NAME:'所有人'}});
+ const response=await invalid.handler(request());assert.equal(response.status,503);assert.equal(invalid.creates(),0);assert.equal(invalid.posts.length,0);
+});
+test('mention connection check accurately describes its one real recipient',()=>{
+ const text=pipelineMessage({...item,payload:{kind:'connection_test'}},{open_id:'ou_'+'c'.repeat(32),name:'模拟主管'}).content.text;
+ assert.match(text,/仅验收指定成员提及/);assert.ok(!text.includes('无真实客户、人员或业绩'));
+});

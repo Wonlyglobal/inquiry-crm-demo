@@ -28,7 +28,16 @@ export function companyDirectAnswer(rows,q){
  }
  if(!out.length)out.push('本次资料未返回该问题可直接核对的答案，暂不作推断。');
  for(const [n] of wanted)if(!hits.includes(n))out.push(n+'：当前已读资料未定位到明确答案，保持未知。');
- const source=(d.sections||[]).filter(s=>/企业文化公司知识/.test(s.title)).map(s=>String(s.body).split('\n')[0]);
- out.push('\n来源：'+[...new Set(source)].join('\n'),'资料生成日期：'+d.generated_at,'缺口：原表摘录未新增人工事实核验；公司主体、现行状态及未载字段需按原件核对。当前仅检查最近5份授权证据，不代表全库覆盖。',`知识编号：${row.id}\n知识键：${d.key}\n版本校验：${row.digest}`);
+ const files=new Set();
+ for(const section of d.sections||[]){
+  if(!/企业文化公司知识/.test(section.title))continue;
+  const header=String(section.body||'').split('\n')[0];
+  const location=header.match(/(?:来源\s*[:：]\s*)+([^；;\n]+?\.(?:xlsx|xls|pdf|docx|pptx))(?=\s*[；;，,。]|\s*SHA256\b|\s*$)/iu)?.[1];
+  if(location){
+   const name=location.split(/[\\/]/u).at(-1).trim();
+   if(name)files.add(name);
+  }
+ }
+ if(files.size)out.push('来源：'+[...files].join('、'));
  return out.join('\n\n');
 }

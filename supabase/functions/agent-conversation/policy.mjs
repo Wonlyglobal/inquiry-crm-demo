@@ -5,11 +5,6 @@ import {PRIVATE_REPORT_KEY} from './private-report-context.mjs';
 export const POLICY='bailian-public-dialogue-v1';
 export const PERSONAS={Grace:{role:'营销增长智能体，帮助分析公开市场、营销方案和渠道策略',voice:'Cherry'},Brian:{role:'销售智能体，帮助梳理通用销售方法、需求确认和推进策略',voice:'Ethan'},Jay:{role:'经营决策智能体，统筹Grace和Brian的分析，帮助比较方案、假设和取舍',voice:'Andre'}};
 export function eligible(user,profile){return !!user&&profile?.active===true&&profile.role==='owner'&&user.id==='c43bd3c2-6e3a-4228-99c7-dc95f33643f2'&&user.email?.toLowerCase()==='chloelee@wonlyglobal.com'}
-const GRACE_MEMBERS=new Set(['huyitai@wonlyglobal.com','lingzx@wonlyglobal.com']);
-export function eligibleMember(user,profile){
- const email=String(user?.email||'').trim().toLowerCase();
- return !!user&&profile?.active===true&&['owner','sales_manager','marketing','sales'].includes(profile.role)&&GRACE_MEMBERS.has(email);
-}
 export function validateDialogue(input){
  if(!input||Object.keys(input).some(k=>!['action','persona','question','history','voice','phone','voiceEmotion','voiceProof','materialHistory','privateReportKey','preferences'].includes(k)))throw Error('请求包含未批准的字段');
  if(input.privateReportKey!==undefined&&(typeof input.privateReportKey!=='string'||!PRIVATE_REPORT_KEY.test(input.privateReportKey)))throw Error('报告上下文格式不正确');

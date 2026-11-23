@@ -1,16 +1,24 @@
-import {validateDialogue,PERSONAS} from './policy.mjs';
+import {validateDialogue} from './policy.mjs';
+import {enterpriseSession} from './enterprise-session.mjs';
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
 import {loadCrmStats} from './crm-stats.mjs';
 import {crmStatisticQuestion,crmStatisticReply} from './data-charts.mjs';
 import {crmGuideIntent,crmGuideAnswer} from './crm-guide.mjs';
 
+// Account IDs are supplied by the deployment, never by the chat request.
+export function graceMemberAllowed(user,profile,accountIds=''){
+ return !!user?.email_confirmed_at && !!enterpriseSession(user,profile) &&
+  accountIds.split(',').map(id=>id.trim()).includes(user.id);
+}
+
 // Explicitly authorised members use only their caller-JWT RLS view plus generic dialogue.
 // Owner-private intelligence, social/SEO sources, memories, files and write actions stay denied.
 export async function memberDialogue({user,profile,input,client,audit,answerGeneral}){
- if(input.action!=='chat')return {status:403,body:{error:'当前成员仅可使用 Grace 问答入口'}};
- if(!PERSONAS[input.persona])return {status:400,body:{error:'智能体无效'}};
+ if(input.action!=='chat'||input.voice===true||input.phone===true)return {status:403,body:{error:'当前成员仅可使用 Grace 问答入口'}};
+ if(input.persona!=='Grace')return {status:400,body:{error:'智能体无效'}};
  const question=typeof input.question==='string'?input.question.trim():'';
  if(!question||question.length>3000)return {status:400,body:{error:'问题需为1—3000字'}};
+ try{validateDialogue(input)}catch{return {status:400,body:{error:'请缩短问题或历史内容，并移除敏感信息后重试'}}}
  const guide=crmGuideIntent(question);
  const statistics=!guide&&crmStatisticQuestion(question);
  const route=knowledgeRoute(question,input.history||[]);
@@ -25,6 +33,5 @@ export async function memberDialogue({user,profile,input,client,audit,answerGene
   if(!result)return {status:400,body:{error:'请补充需要统计的指标'}};
   return {status:200,body:{...result,provider:'internal',model:'crm-stat-summary',context:{route:'crm_stat_summary',crm_status:crm.status,crm_period:crm.period}}};
  }
- try{validateDialogue(input)}catch{return {status:400,body:{error:'请缩短问题或历史内容，并移除敏感信息后重试'}}}
- return {status:200,body:{answer:await answerGeneral(input),provider:'bailian',model:'qwen-plus',context:{route:'general'}}};
+ return {status:200,body:{answer:await answerGeneral({action:'chat',persona:'Grace',question,history:[]}),provider:'bailian',model:'qwen-plus',context:{route:'general'}}};
 }

@@ -1,14 +1,17 @@
-import {latestWriting,restoredWriting,saveWriting} from './writing-session.mjs';
-import {workScenarioIntent,answerWorkScenario,writingContinuation,newWritingDraft,companyDraftResult} from './work-scenarios.mjs';
 import {sourceTaskPlan,sourceTaskAnswer,sourceTaskMaterials} from './source-task.mjs';
 import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
+import {latestWriting,restoredWriting,saveWriting} from './writing-session.mjs';
+import {workScenarioIntent,answerWorkScenario,writingContinuation,newWritingDraft,companyDraftResult} from './work-scenarios.mjs';
 import {presentMaterialAnswer} from './material-chinese.mjs';
 import {catalogueWordingQuestion} from './catalog-sales.mjs';
 import {woodTrainingQuestion} from './document-topic.mjs';
 import {targetedMaterialAnswer} from './targeted-material-answer.mjs';
-import {memberDialogue} from './member-dialogue.mjs';
 import {selectChatModel} from './model-routing.mjs';
 import {conciseCatalogList} from './catalog-list-answer.mjs';
+import {writingInput,exhibitionChecklist} from './work-writing.mjs';
+import {threadOperation} from './grace-threads.ts';
+import {enterpriseSession} from './enterprise-session.mjs';
+import {graceMemberAllowed,memberDialogue} from './member-dialogue.mjs';
 import {seoStatQuestion,seoStatReply} from './seo-stat-report.mjs';
 import {seriesIntent,materialVersion,materialModelCodes,namedMaterialProducts,explicitMaterialDocument} from './product-input.mjs';
 import {syncDailySocial} from './social-daily.mjs';
@@ -49,7 +52,7 @@ import {personaFramework} from './persona-frameworks.mjs';
 import {memoryCommand,runMemoryCommand,loadMemories,memoryInstruction} from './memory.mjs';
 import {voiceprintCall,speakerOf,ignoredSpeaker,voiceProof,readVoiceProof,guestInstruction,enrollmentReply,sanitize as sanitizeVoiceprint} from './voiceprint.mjs';
 import {findModels} from './catalog-knowledge.mjs';
-import {catalogPrecheck,loadCatalog,catalogIntent,catalogAnswer,fullCatalogueAnswer,catalogSpokenReply,normalizeModelQuestion} from './catalog-knowledge.mjs';
+import {overviewFollowup,catalogPrecheck,loadCatalog,catalogIntent,catalogAnswer,fullCatalogueAnswer,catalogSpokenReply,normalizeModelQuestion} from './catalog-knowledge.mjs';
 import {seoIntent,seoOpportunities,seoFrameworkInstruction} from './seo-opportunities.mjs';
 import {analysisIntent,evidencePlan,deepAnalysisInstruction,marketingIntent,marketingFrameworkInstruction} from './deep-analysis.mjs';
 import {conversationStyle,courtesyReply,spokenReply,phoneSpokenReply,materialSpokenReply} from './conversation-style.mjs';
@@ -66,7 +69,7 @@ import {outreachProductRequest,outreachEvidenceRequest,productCatalogueQueries,o
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
 import {loadWebKnowledge,sourceFooter} from './web-knowledge.mjs';
 import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
-import {POLICY,PERSONAS,eligible,eligibleMember,validateDialogue,requestBody,outputText} from './policy.mjs';
+import {POLICY,PERSONAS,eligible,validateDialogue,requestBody,outputText} from './policy.mjs';
 import {CHAT_URL,TTS_URL,MODELS,providerJson,providerStream,speechBody,speechAudio,transcriptionBody,transcriptText} from './bailian.mjs';
 import {loadCrmStats} from './crm-stats.mjs';
 import {answerIssues,correctionMessage,safeMarketingFallback} from './answer-quality.mjs';
@@ -118,19 +121,61 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
   const url=Deno.env.get('SUPABASE_URL')||'',authorization=req.headers.get('authorization')||'';
   const client=createClient(url,envKey('SUPABASE_PUBLISHABLE_KEYS','SUPABASE_ANON_KEY'),{global:{headers:{Authorization:authorization}},auth:{persistSession:false}});
   const {data:{user},error}=await client.auth.getUser();if(error||!user)return json({error:'请重新登录'},401);
-  const {data:profile}=await client.from('profiles').select('active,role').eq('id',user.id).single();
+  const {data:profile}=await client.from('profiles').select('id,active,role').eq('id',user.id).single();
+
   const bytes=await readLimited(req,3*1024*1024),type=req.headers.get('content-type')||'';
   let input:any,form:FormData|null=null;
   if(type.startsWith('multipart/form-data')){form=await new Response(bytes,{headers:{'Content-Type':type}}).formData();input={action:form.get('action')==='voiceprint'?'voiceprint':'transcribe',persona:form.get('persona'),op:form.get('op')}}
   else input=JSON.parse(new TextDecoder().decode(bytes));
+  if(input.action==='enterprise-session'){
+   const membership=enterpriseSession(user,profile);
+   return membership?json({data:membership}):json({error:'当前 CRM 账号未启用或没有企业成员权限'},403);
+  }
+  const writing = writingInput(input);
+  if(writing){
+   if(!enterpriseSession(user,profile))return json({error:'当前账号没有企业成员权限'},403);
+   validateDialogue(writing);
+   const key=Deno.env.get('DASHSCOPE_API_KEY');
+   if(!key||Deno.env.get('BAILIAN_AGENT_POLICY')!==POLICY)return json({error:'通用写作服务暂不可用'},503);
+   const db=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+   const action='agent_bailian_request';
+   const {count,error:rateError}=await db.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action',action).gte('created_at',new Date(Date.now()-60000).toISOString());
+   if(rateError)return json({error:'无法核验调用限额'},503);
+   if((count||0)>=12)return json({error:'请求较多，请一分钟后重试'},429);
+   const {error}=await db.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'public_work_writing'},reason:'根据通用工作主题撰写，不传企业对话历史'});
+   if(error)return json({error:'调用审计失败'},503);
+   const checklist=exhibitionChecklist(writing);
+   if(checklist)return json({answer:checklist,provider:'internal',model:'work-checklist',context:{route:'general',material_question:'work-checklist:exhibition'}});
+   const body=requestBody(writing,'qwen-plus','');
+   body.messages[0].content=generalSystem(writing.persona)+'只围绕当前简报提供通用可执行草稿。不得自行添加真实品牌型号、客户案例、认证、法律要求、网址、成交数据或已发生的业务事实。缺少具体资料时使用待填写字段。';
+   const answer=outputText(await providerJson(CHAT_URL,body,key));
+   return json({answer,provider:'bailian',model:'qwen-plus',context:{route:'general'}});
+  }
+  if(input.action==='grace-thread'){
+   if(!enterpriseSession(user,profile))return json({error:'当前 CRM 账号未启用或没有企业成员权限'},403);
+   const db=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+   try{return json({data:await threadOperation(db,user.id,input)})}catch(e){return json({error:e instanceof Error?e.message:'会话服务暂不可用'},400)}
+  }
   if(!eligible(user,profile)){
-   if(!eligibleMember(user,profile))return json({error:'当前账号未获智能体对话授权'},403);
-   const auditDb=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
-   const result=await memberDialogue({user,profile,input,client,answerGeneral:async(dialogue:any)=>{const key=Deno.env.get('DASHSCOPE_API_KEY');if(!key||Deno.env.get('BAILIAN_AGENT_POLICY')!==POLICY)throw Error('通用问答尚未启用');const body=requestBody(dialogue,'qwen-plus','');body.messages[0].content=generalSystem(dialogue.persona);return outputText(onDelta&&input.voice!==true?await providerStream(body,key,onDelta,req.signal):await providerJson(CHAT_URL,body,key))},audit:async(record:any)=>{
-    const {count,error:limitError}=await auditDb.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','grace_member_query').gte('created_at',new Date(Date.now()-60000).toISOString());
-    if(limitError||count===null)throw Error('请求限额核验失败，请稍后重试');if(count>=12)throw Error('请求较多，请一分钟后重试');
-    const {error}=await auditDb.from('audit_logs').insert(record);if(error)throw Error('请求审计失败，请稍后重试');
-   }});
+   if(!graceMemberAllowed(user,profile,Deno.env.get('GRACE_MEMBER_ACCOUNT_IDS')))return json({error:'当前账号未获智能体对话授权'},403);
+   if(input.action==='status')return json({configured:true,enabled:true,grace_member:true});
+   const memberDb=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+   const result=await memberDialogue({user,profile,input,client,
+    audit:async(record:any)=>{
+     const {count,error}=await memberDb.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','grace_member_query').gte('created_at',new Date(Date.now()-60000).toISOString());
+     if(error||count===null)throw Error('请求限额核验失败，请稍后重试');
+     if(count>=12)throw Error('请求较多，请一分钟后重试');
+     const {error:auditError}=await memberDb.from('audit_logs').insert(record);
+     if(auditError)throw Error('请求审计失败，请稍后重试');
+    },
+    answerGeneral:async(dialogue:any)=>{
+     const key=Deno.env.get('DASHSCOPE_API_KEY');
+     if(!key||Deno.env.get('BAILIAN_AGENT_POLICY')!==POLICY)throw Error('通用问答尚未启用');
+     const body=requestBody(dialogue,'qwen-plus','');
+     body.messages[0].content=generalSystem('Grace');
+     return outputText(await providerJson(CHAT_URL,body,key));
+    }
+   });
    return json(result.body,result.status);
   }
   if(input.action==='writing-session'){
@@ -222,7 +267,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    const {error:auditError}=await svc.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action:'agent_catalog_view',after_data:{catalog:req.catalog,pages:req.paths.length},reason:'查看私有画册页面（30 分钟签名链接）'});
    if(auditError)return json({error:'画册访问审计失败'},503);
    // Whole-catalogue PDF (optional upload: catalog-pdf/cN.pdf); missing file just hides the download button.
-   const {data:pdfData}=await svc.storage.from('agent-private-knowledge').createSignedUrl(req.pdfPath,1800,{download:req.pdfName});
+   const {data:pdfData}=await svc.storage.from('grace-catalog-originals').createSignedUrl(req.pdfPath,1800,{download:req.pdfName});
    const found=await Promise.all(CATALOG_QUERIES[req.catalog].map(q=>loadFullMaterials({...materialConfig,question:q}).catch(()=>({assets:[]}))));
    const material=pickCatalogAsset(req.catalog,found.flatMap((f:any)=>f.assets||[]));
    return json({catalog:req.catalog,title:req.title,urls:data.map((d:any)=>typeof d?.signedUrl==='string'?d.signedUrl:null),pdf:typeof pdfData?.signedUrl==='string'?pdfData.signedUrl:null,material});
@@ -465,6 +510,13 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    const competitor=competitorIntent(input.question);
    const rec=guest?null:recordIntent(input.question);
    if(rec){const records=await resolveRecords(rec,client);const res=recordAnswer(rec,records);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_open_record',persona:input.persona,provider:'internal',kind:rec.kind,found:records.length},reason:'按用户要求打开CRM询盘详情；本人权限内查询，不记录客户名称，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json({answer:res.answer,actions:res.actions,provider:'internal',model:'agent-actions',context:{route:'actions'},ticket:await ticket({user:user.id,persona:input.persona,text:res.actions.length?actionsSpoken:'没有找到这条询盘，详情写在窗口里了。',expires:Date.now()+300000},key)});}
+   const offer = !guest && overviewFollowup(input.question,input.materialHistory);
+   if(offer && offer.choose){
+     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'catalog_choice',provider:'internal'},reason:'用户接受画册推荐，询问需要哪本'});
+     if(error)return json({error:'调用审计失败'},503);
+     return json({answer:'你想看哪本画册？可以选工程、零售、静音木门或智能锁。',provider:'internal',context:{route:'catalog',material_question:input.materialHistory.at(-1)}});
+   }
+   if(offer && offer.open)input.question=offer.open;
    const catalogRequestQuestion=catalogRequestTurn(input.question,input.materialHistory||[]);
    if(!guest&&!materialVersion(catalogRequestQuestion)&&catalogPageIntent(catalogRequestQuestion)){const catalog=await loadCatalog(admin);const models=catalog?findModels(catalogRequestQuestion,catalog):[];const named=catalogNameIntent(catalogRequestQuestion);if(!models.length&&named&&catalog){const total=catalog.sources?.find((x:any)=>x.id===named)?.pages||null;const answer=`好，打开${CATALOG_TITLES[named]}（共 ${total||'?'} 页），在下面的小窗口里可以翻页，也可以下载 PDF。`;const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_open_catalog_page',persona:input.persona,provider:'internal',catalog:named},reason:'打开私有画册（短时签名链接），不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json({answer,actions:[{type:'catalog_view',catalog:named,page:1,pages:total,label:CATALOG_TITLES[named]}],provider:'internal',model:'agent-actions',context:{route:'actions',material_question:catalogRequestQuestion.slice(0,500)},ticket:await ticket({user:user.id,persona:input.persona,text:answer,expires:Date.now()+300000},key)});}if(!models.length&&!named&&catalog&&/全部|所有|四本|画册\s*(?:pdf|PDF)|^\s*(?:打开|下载)(?:一下)?(?:海外)?画册/.test(catalogRequestQuestion)){const actions=(catalog.sources||[]).filter((x:any)=>CATALOG_TITLES[x.id]).map((x:any)=>({type:'catalog_view',catalog:x.id,page:1,pages:x.pages||null,label:`${CATALOG_TITLES[x.id]}（${x.pages||'?'} 页）`}));const answer='2026 年 8 月版海外画册有四本：'+actions.map((a:any)=>a.label).join('、')+'。第一本已在下面的小窗口打开，其他的点按钮切换；每本都可以下载 PDF。';const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_open_catalog_page',persona:input.persona,provider:'internal',catalog:'all'},reason:'打开私有画册（短时签名链接），不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json({answer,actions,provider:'internal',model:'agent-actions',context:{route:'actions',material_question:catalogRequestQuestion.slice(0,500)},ticket:await ticket({user:user.id,persona:input.persona,text:'四本画册放在下面了，可以直接翻看或下载。',expires:Date.now()+300000},key)});}if(models.length){const actions=await catalogPageActions(models,catalog);const answer=actions.length?`在下面的小窗口打开画册，翻到这一页，可以前后翻看整本，也可以下载 PDF：\n`+actions.map(a=>'- '+a.label).join('\n')+'\n\n画册只存在公司私有存储里，链接半小时内有效，没有发送给外部模型。':'画册页面图片还没有上传到私有存储，暂时打不开原页；可以先说“'+models[0]+' 的参数”看画册摘录。';const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'agent_open_catalog_page',persona:input.persona,provider:'internal',models:models.slice(0,4),pages:actions.length},reason:'打开私有画册原页（短时签名链接），不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json({answer,actions,provider:'internal',model:'agent-actions',context:{route:'actions',material_question:catalogRequestQuestion.slice(0,500)},ticket:await ticket({user:user.id,persona:input.persona,text:actions.length?'画册在下面的小窗口打开了，可以前后翻，也能下载 PDF。':'画册原页还没上传，我先把情况写在窗口里了。',expires:Date.now()+300000},key)});}}
    const act=guest?null:actionIntent(input.question);

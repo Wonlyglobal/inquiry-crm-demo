@@ -158,7 +158,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
   }
   if(!eligible(user,profile)){
    if(!graceMemberAllowed(user,profile,Deno.env.get('GRACE_MEMBER_ACCOUNT_IDS')))return json({error:'当前账号未获智能体对话授权'},403);
-   if(input.action==='status')return json({configured:true,enabled:true});
+   if(input.action==='status')return json({configured:true,enabled:true,grace_member:true});
    const memberDb=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
    const result=await memberDialogue({user,profile,input,client,
     audit:async(record:any)=>{

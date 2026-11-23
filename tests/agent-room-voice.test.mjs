@@ -93,3 +93,35 @@ test('Grace draft recovery supplies only signed context to chat, never private a
  const calls=[];const {model,messages}=setup(async body=>{calls.push(body);if(body.action==='status')return {enabled:true,configured:true};if(body.action==='writing-session')return {draft:{answer:'PRIVATE-SAVED-ENGLISH-DRAFT',context:{material_question:'work-writing:v1.signed-state'}}};return {answer:'Synthetic edited draft',provider:'internal',context:{route:'work_writing',material_question:'work-writing:v1.next-state'}}},{autoVoice:false,restoreWritingDrafts:true});
  try{await model.enter();assert.equal(messages.at(-1).text,'PRIVATE-SAVED-ENGLISH-DRAFT');await model.ask('这版改得口语一点');const chat=calls.find(c=>c.action==='chat');assert.deepEqual(chat.materialHistory,['work-writing:v1.signed-state']);assert.deepEqual(chat.history,[]);assert.ok(!JSON.stringify(chat).includes('PRIVATE-SAVED'));}finally{model.stop()}
 });
+
+test('a material turn exits waiting if browser setup fails and can be retried',async()=>{
+ let fail=true,chats=0;
+ const {model,states}=setup(async body=>{
+  if(body.action==='status')return {enabled:true,configured:true};
+  chats++;
+  return {answer:'示例说明\n来源：示例资料，第2页。',provider:'internal',context:{route:'materials'}};
+ },{autoVoice:false,onTranscript(){if(fail){fail=false;throw Error('synthetic setup failure')}}});
+ try{
+  await model.enter();
+  await model.ask('物料：示例功能');
+  assert.equal(chats,0);
+  assert.equal(model.busy(),false);
+  assert.equal(states.at(-1),'回答未完成，可重试');
+  await model.ask('物料：示例功能');
+  assert.equal(chats,1);
+  assert.equal(states.at(-1),'回答完成');
+ }finally{model.stop()}
+});
+
+test('material transport timeout unblocks a browser turn even when the request never settles',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {model,states}=setup(body=>body.action==='chat'?new Promise(()=>{}):Promise.resolve({enabled:true,configured:true}),{autoVoice:false});
+ try{
+  await model.enter();
+  const pending=model.ask('物料：示例功能');
+  t.mock.timers.tick(70000);
+  await pending;
+  assert.equal(model.busy(),false);
+  assert.equal(states.at(-1),'回答未完成，可重试');
+ }finally{model.stop()}
+});

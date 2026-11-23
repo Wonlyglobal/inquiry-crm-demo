@@ -26,7 +26,7 @@ test('visual answers separate observations, OCR, native table and missing eviden
 test('specific visual question does not substitute native parameter findings',()=>{
  const doc=normalizeDocument({sha256:sha,status:'partial',visual_understanding:visual,pages:[]});
  const a=conciseMaterialAnswer({read_at:'now',assets:[{name:'Synthetic file',isCurrentVersion:true,updatedAt:'then',document:doc}]},'物料：Test Door 图片和图表');
- assert.ok(a.includes('Test page shows'));assert.ok(a.includes('更新时间：then'));assert.ok(a.includes('本次读取：now'));assert.ok(a.includes('未人工核验'));
+ assert.ok(a.includes('Test page shows'));assert.ok(a.includes('来源：Synthetic file'));assert.doesNotMatch(a,/更新时间|本次读取/);assert.ok(a.includes('未人工核验'));
  const no=conciseMaterialAnswer({assets:[{name:'Synthetic file',document:{}}]},'物料：Test Door 图示');assert.ok(no.includes('尚未取得'));assert.ok(no.includes('不能据此猜测'));
 });
 test('literal color and lock-option fields support followups',()=>{

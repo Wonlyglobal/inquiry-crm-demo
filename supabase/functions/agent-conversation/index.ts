@@ -6,6 +6,7 @@ import {presentMaterialAnswer} from './material-chinese.mjs';
 import {catalogueWordingQuestion} from './catalog-sales.mjs';
 import {woodTrainingQuestion} from './document-topic.mjs';
 import {targetedMaterialAnswer} from './targeted-material-answer.mjs';
+import {memberDialogue} from './member-dialogue.mjs';
 import {selectChatModel} from './model-routing.mjs';
 import {conciseCatalogList} from './catalog-list-answer.mjs';
 import {seoStatQuestion,seoStatReply} from './seo-stat-report.mjs';
@@ -65,7 +66,7 @@ import {outreachProductRequest,outreachEvidenceRequest,productCatalogueQueries,o
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
 import {loadWebKnowledge,sourceFooter} from './web-knowledge.mjs';
 import {createClient} from 'npm:@supabase/supabase-js@2.57.4';
-import {POLICY,PERSONAS,eligible,validateDialogue,requestBody,outputText} from './policy.mjs';
+import {POLICY,PERSONAS,eligible,eligibleMember,validateDialogue,requestBody,outputText} from './policy.mjs';
 import {CHAT_URL,TTS_URL,MODELS,providerJson,providerStream,speechBody,speechAudio,transcriptionBody,transcriptText} from './bailian.mjs';
 import {loadCrmStats} from './crm-stats.mjs';
 import {answerIssues,correctionMessage,safeMarketingFallback} from './answer-quality.mjs';
@@ -118,11 +119,20 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
   const client=createClient(url,envKey('SUPABASE_PUBLISHABLE_KEYS','SUPABASE_ANON_KEY'),{global:{headers:{Authorization:authorization}},auth:{persistSession:false}});
   const {data:{user},error}=await client.auth.getUser();if(error||!user)return json({error:'请重新登录'},401);
   const {data:profile}=await client.from('profiles').select('active,role').eq('id',user.id).single();
-  if(!eligible(user,profile))return json({error:'当前账号未获智能体对话授权'},403);
   const bytes=await readLimited(req,3*1024*1024),type=req.headers.get('content-type')||'';
   let input:any,form:FormData|null=null;
   if(type.startsWith('multipart/form-data')){form=await new Response(bytes,{headers:{'Content-Type':type}}).formData();input={action:form.get('action')==='voiceprint'?'voiceprint':'transcribe',persona:form.get('persona'),op:form.get('op')}}
   else input=JSON.parse(new TextDecoder().decode(bytes));
+  if(!eligible(user,profile)){
+   if(!eligibleMember(user,profile))return json({error:'当前账号未获智能体对话授权'},403);
+   const auditDb=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});
+   const result=await memberDialogue({user,profile,input,client,answerGeneral:async(dialogue:any)=>{const key=Deno.env.get('DASHSCOPE_API_KEY');if(!key||Deno.env.get('BAILIAN_AGENT_POLICY')!==POLICY)throw Error('通用问答尚未启用');const body=requestBody(dialogue,'qwen-plus','');body.messages[0].content=generalSystem(dialogue.persona);return outputText(onDelta&&input.voice!==true?await providerStream(body,key,onDelta,req.signal):await providerJson(CHAT_URL,body,key))},audit:async(record:any)=>{
+    const {count,error:limitError}=await auditDb.from('audit_logs').select('id',{count:'exact',head:true}).eq('actor_id',user.id).eq('action','grace_member_query').gte('created_at',new Date(Date.now()-60000).toISOString());
+    if(limitError||count===null)throw Error('请求限额核验失败，请稍后重试');if(count>=12)throw Error('请求较多，请一分钟后重试');
+    const {error}=await auditDb.from('audit_logs').insert(record);if(error)throw Error('请求审计失败，请稍后重试');
+   }});
+   return json(result.body,result.status);
+  }
   if(input.action==='writing-session'){
    if(Object.keys(input).some(k=>!['action','persona'].includes(k))||input.persona!=='Grace')return json({error:'稿件角色无效'},400);
    const db=createClient(url,envKey('SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),{auth:{persistSession:false}});

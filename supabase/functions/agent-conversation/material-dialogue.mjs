@@ -85,7 +85,7 @@ export function directMaterialParameterAnswer(data,question){
  const hidden=(data.assets||[]).some(a=>Number(a.document?.product_understanding?.hidden_findings)>0);
  if(!matches.length)return `${target}的${requested.join('、')}：本次返回证据未明确覆盖所问参数，暂不能确定。\n来源缺口：当前返回的资料没有可用于这一回答的参数证据。${hidden?'未通过来源校验的证据已隐藏。':''}`;
  const chosen=matches.slice(0,3);for(const m of chosen)for(const w of m.relevant)covered.add(w);
- const lines=chosen.map(({f,a})=>`${target}｜${f.field}：${f.value}\n来源：${a.name}，第${f.page}页，${a.versionLabel||'版次未标注'}；资料更新：${a.updatedAt||'未返回'}。`);
+ const lines=chosen.map(({f,a})=>`${target}｜${f.field}：${f.value}\n来源：${a.name}，第${f.page}页，${a.versionLabel||'版次未标注'}${a.updatedAt?'，资料更新 '+a.updatedAt.slice(0,10):''}。`);
  const missing=requested.filter(w=>!covered.has(w));
  if(missing.length)lines.push('本次证据未明确覆盖：'+missing.join('、')+'。');
  if(hidden)lines.push('未通过来源校验的证据已隐藏。');
@@ -123,8 +123,8 @@ export function conciseMaterialAnswer(data,question){
  if(videoSourceQuestion(question))return conciseVideoSources(data.assets);
  if(!data.assets.length&&data.relevance_filtered)return '本次检索没有找到同时满足你所提条件的资料。未将其他门类、未标注英文或非手册文件充当结果。'+(data.has_more?'本页候选未匹配，仍有后续候选，可说“下一页”继续核对。':'这不代表公司一定没有该资料；可能缺少语言标注或尚未入库。');
  if(!data.assets.length)return '在本次有权检索的资料中没有找到匹配内容，不能据此判断该产品不存在。请提供完整型号，或减少关键词后重试。\n'+coverageSummary(data.document_coverage);
- if(visualQuestion(question))return data.assets.slice(0,3).map(a=>`${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n更新时间：${a.updatedAt||'未标注'}；本次读取：${data.read_at||'未标注'}\n`+(a.document?.visual_understanding?slideVisualText(a.document.visual_understanding):'尚未取得本文件的图片/图表阅读证据，不能据此猜测图示含义或产品参数。')).join('\n\n');
- const wanted=fields(question),blocks=[],namedTargets=namedMaterialProducts(question),codeTargets=materialModelCodes(question);
+ if(visualQuestion(question))return data.assets.slice(0,3).map(a=>(a.document?.visual_understanding?slideVisualText(a.document.visual_understanding):'尚未取得可引用的图片或图表内容，不能据此猜测。')+`\n来源：${a.name}，${a.versionLabel||'版次未标注'}。`).join('\n\n');
+ const wanted=fields(question),namedTargets=namedMaterialProducts(question),codeTargets=materialModelCodes(question);
  const lookup=materialQuery(question);
  const term=lookup.terms.length===1?String(lookup.terms[0]).trim():'';
  const isLiteralLookup=/^物料\s*[:：]/u.test(question)&&/^[\p{Script=Han}]{6,14}$/u.test(term);
@@ -135,26 +135,78 @@ export function conciseMaterialAnswer(data,question){
    const {asset,source}=matches[0];
    return `${materialExcerpt(source.quote)}\n来源：${asset.name}，${asset.versionLabel||'版次未标注'}，第${source.page}页。`;
   }
+  if(matches.length>1)return '多份当前资料包含这段内容，请指定要核对的文件。\n来源：'+matches.slice(0,3)
+   .map(({asset,source})=>`${asset.name}，${asset.versionLabel||'版次未标注'}，第${source.page}页`).join('；')+'。';
+  if(data.assets.length&&data.assets.every(asset=>asset.isCurrentVersion===false))
+   return '这次只找到历史版本，暂不能确认当前版本的说明。';
+
  }
 
+ const requested=wanted.filter(x=>!['来源','页码','版本'].includes(x));
  const targetMatches=f=>namedTargets.length===1?f.product.toLowerCase()===namedTargets[0].toLowerCase():codeTargets.length===1?f.product.toUpperCase()===codeTargets[0]:true;
- for(const a of data.assets.slice(0,3)){
-  const refs=[],covered=new Set(),requested=wanted.filter(x=>!['来源','页码','版本'].includes(x));
-  for(const f of a.document?.product_understanding?.findings||[]){
-   if(targetMatches(f)&&(!requested.length||requested.some(w=>f.field===w||fields(f.field).includes(w)))){refs.push(`[第${f.page}页｜${f.field}，机器解释未人工核验] ${f.value}\n原文依据：${f.quote}`);for(const w of requested)if(f.field===w||fields(f.field).includes(w))covered.add(w)};
-   if(refs.length>=3)break;
+ const covered=new Set(), answers=new Map();
+ const add=(a,text,location,unverified=false)=>{
+  const value=materialExcerpt(text).replace(/(\d+)\s*S\b/g,'$1秒');
+  if(!value)return false;
+  const key=value.replace(/[\s。；，、]+/gu,'');
+  const row=answers.get(key)||{value,sources:new Set(),unverified:false};
+  if(answers.size>=3&&!answers.has(key))return false;
+  row.sources.add([a.name,a.versionLabel||'版次未标注',location].filter(Boolean).join('，'));
+  row.unverified||=unverified;
+  answers.set(key,row);
+  return true;
+ };
+ // Prefer findings that answer a literal function lookup before considering
+ // other findings from the same document.
+ const assets=data.assets.slice(0,3);
+ const findings=assets.flatMap(a=>(a.document?.product_understanding?.findings||[])
+  .filter(f=>targetMatches(f)&&(!requested.length||requested.some(w=>f.field===w||fields(f.field).includes(w))))
+  .map(f=>({a,f})));
+ const literal=isLiteralLookup?findings.filter(({f})=>[f.field,f.value,f.quote].some(text=>text?.includes(term))):[];
+ for(const {a,f} of literal.length?literal:findings){
+  if(add(a,f.value,`第${f.page}页「${f.field}」`,true)){
+   for(const w of requested)if(f.field===w||fields(f.field).includes(w))covered.add(w);
   }
-  const profile=(a.document?.knowledge_profile?.summary||[]).find(r=>materialExcerpt(r.quote));if(!refs.length&&!requested.length&&profile)refs.push('['+(profile.location||'第'+profile.page+'页')+'] '+materialExcerpt(profile.quote));if(a.video){for(const segment of (a.video.segments||[]).slice(0,2))refs.push(`[${Math.floor(segment.start/60)}:${String(Math.floor(segment.start%60)).padStart(2,'0')} ${segment.kind==='speech'?'语音转写':segment.kind==='screen_text'?'画面文字':'画面推测'}] ${segment.text.slice(0,420)}`);if(!refs.length)refs.push('视频尚无可引用片段；状态：'+({queued:'排队中',processing:'处理中',failed:'失败',partial:'部分解析',ready:'采样完成'}[a.video.status]||'未解析'))}for(const p of a.document?.pages||[]){
-   for(const f of p.facts||[])if(refs.length<3&&(!wanted.length||wanted.some(w=>f.quote.includes(w)||f.field===w))&&(namedTargets.length!==1||f.quote.toLowerCase().includes(namedTargets[0].toLowerCase()))&&p.chunks.join('\n').includes(f.quote)){refs.push(`[${p.location}] ${f.quote}`);for(const w of requested)if(f.field===w||f.quote.includes(w))covered.add(w)}
-   if(!refs.length&&!requested.length){const excerpt=p.chunks.map(materialExcerpt).find(Boolean);if(excerpt)refs.push(`[${p.location}] ${excerpt}`);}
-   if(refs.length>=3)break;
-  }
-  const missing=requested.filter(w=>!covered.has(w));
-  blocks.push(`${blocks.length+1}. ${a.name}｜${a.versionLabel||'版本未标注'}｜${a.isCurrentVersion?'当前版本':'历史版本'}\n更新时间：${a.updatedAt||'未标注'}；本次读取：${data.read_at||'未标注'}\n`+(refs.length?refs.slice(0,3).join('\n'):requested.length?'本次返回证据未明确覆盖所问参数，不能据此补充数值或条件。':materialExcerpt(a.excerpt)?'现有索引摘录：'+materialExcerpt(a.excerpt):'暂无可用于回答的正文证据。')+(refs.length&&missing.length?'\n本次证据未明确覆盖：'+missing.join('、')+'；保留缺口，不补充推断。':'')+(a.document?.status==='partial'?'\n此资料仅部分解析，仍有缺口。':''));
  }
- const specific=wanted.some(x=>!['来源','页码','版本'].includes(x));
- const differences=evidenceDifferences(data.assets),ledgerData=specific?productLedger(data):null;
- const hidden=ledgerData?.hidden_findings?'另有 '+ledgerData.hidden_findings+' 条摘录缺少原页，已隐藏。\n':'';
- const ledger=specific&&ledgerData?.products.length?'产品理解状态（内部机器提取，均未人工核验，不是完整产品理解）\n'+ledgerData.products.slice(0,5).map(p=>`${p.name}：${p.states.coverage}；${p.states.extraction}`).join('\n'):'';
- return `已找到本页 ${data.assets.length} 项相关资料，先列出 ${blocks.length} 项证据。以下是原文摘录，不是已核验的产品结论。\n\n`+(ledger?ledger+'\n':'')+hidden+blocks.join('\n\n')+(differences?'\n\n'+differences:'')+'\n\n可继续问某型号的具体参数，或说“展开”查看本页详细证据。'+(data.has_more?'说“下一页”继续相同关键词。':'');
+ if(!literal.length)for(const a of assets){
+  const profile=(a.document?.knowledge_profile?.summary||[]).find(r=>materialExcerpt(r.quote));
+  if(!answers.size&&!requested.length&&profile)add(a,profile.quote,profile.location||'第'+profile.page+'页');
+  for(const p of a.document?.pages||[]){
+   for(const f of p.facts||[]){
+    if(!wanted.length||wanted.some(w=>f.quote.includes(w)||f.field===w)){
+     if((namedTargets.length!==1||f.quote.toLowerCase().includes(namedTargets[0].toLowerCase()))&&
+        p.chunks.join('\n').includes(f.quote)&&!findings.some(row=>row.a===a&&row.f.quote===f.quote)&&
+        add(a,f.quote,p.location)){
+      for(const w of requested)if(f.field===w||f.quote.includes(w))covered.add(w);
+     }
+    }
+   }
+   if(!answers.size&&!requested.length&&!namedTargets.length&&!codeTargets.length){
+    const excerpt=p.chunks.map(materialExcerpt).find(Boolean);
+    if(excerpt)add(a,excerpt,p.location);
+   }
+   if(answers.size>=3)break;
+  }
+ }
+ if(!answers.size){
+  const video=conciseVideoSources(assets);
+  if(assets.some(a=>a.video?.segments?.some(s=>['speech','screen_text'].includes(s.kind)))&&
+     !video.startsWith('这次没查到'))return video;
+  if(!requested.length&&namedTargets.length===0&&codeTargets.length===0){
+   for(const a of assets)if(a.excerpt)add(a,a.excerpt,'索引摘录');
+  }
+ }
+ const hidden=requested.length&&assets.some(a=>Number(a.document?.product_understanding?.hidden_findings)>0);
+ if(!answers.size)return (requested.length?'本次资料未明确覆盖'+requested.join('、')+'。':'这次未找到可引用的正文。')+
+  (hidden?'未通过来源校验的证据已隐藏。':'')+(data.has_more?'还有后续资料，可继续查下一页。':'');
+ const lines=[...answers.values()].map(({value,sources})=>value+(/[。！？.!?]$/u.test(value)?'':'。')+'\n来源：'+[...sources].join('；')+'。');
+ const missing=requested.filter(w=>!covered.has(w));
+ if(missing.length)lines.push('本次资料未明确说明'+missing.join('、')+'。');
+ if([...answers.values()].some(row=>row.unverified))lines.push('资料为机器提取，尚未人工核验。');
+ if(/对比|比较|差异/.test(question)){
+  const differences=evidenceDifferences(data.assets);
+  if(differences)lines.push(differences);
+ }
+ if(data.has_more)lines.push('还有后续资料，可继续查下一页。');
+ return lines.join('\n');
 }

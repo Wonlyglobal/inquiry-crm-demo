@@ -39,6 +39,23 @@ test('automatic material excerpts suppress raw structures but retain original pa
   'Annual output is 900 units.',
  ]}]}};
  const text=conciseMaterialAnswer({assets:[doc]},'物料：产能');
- assert.match(text,/\[第3页\] Annual output is 900 units/);
+ assert.match(text,/^Annual output is 900 units\.\n来源：Synthetic catalogue，版次未标注，第3页。/);
  assert.doesNotMatch(text,/internal_code|const raw|产品理解状态/);
+});
+
+test('function lookup answers once with a source and omits retrieval metadata',()=>{
+ const quote='2、徘徊侦测：检测人体徘徊逗留后唤醒摄像头，抓拍后休眠，默认10S，可设置10S、30S、60S';
+ const value='检测人体徘徊逗留后唤醒摄像头，抓拍后休眠，默认10S，可设置10S、30S、60S';
+ const asset={id:'synthetic-camera',name:'示例猫眼说明书.pdf',versionLabel:'V1',isCurrentVersion:true,updatedAt:'2026-11-20T08:00:00Z',document:{
+  status:'partial', pages:[{location:'第2页',chunks:[quote],facts:[{field:'徘徊侦测',quote}]}],
+  product_understanding:{findings:[
+   {product:'示例猫眼',field:'待机',value:'闲置时待机',page:1,quote:'闲置时待机'},
+   {product:'示例猫眼',field:'徘徊侦测',value,page:2,quote},
+  ]},
+ }};
+ const text=conciseMaterialAnswer({status:'available',assets:[asset],read_at:'2026-11-23T00:00:00Z'},'物料：检测人体徘徊逗留');
+ assert.match(text,/^检测人体徘徊逗留后唤醒摄像头，抓拍后休眠，默认10秒，可设置10秒、30秒、60秒。/);
+ assert.match(text,/来源：示例猫眼说明书\.pdf，V1，第2页「徘徊侦测」。/);
+ assert.equal(text.match(/检测人体徘徊逗留/g)?.length,1);
+ assert.doesNotMatch(text,/原文依据|本次读取|更新时间|闲置时待机/);
 });

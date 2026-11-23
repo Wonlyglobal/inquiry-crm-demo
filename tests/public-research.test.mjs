@@ -82,3 +82,12 @@ test('ledger names sourced competitor products even without overlapping dimensio
  assert.match(t,/公开公司｜公开产品/);assert.match(t,/可对标维度：耐火等级/);assert.match(t,/缺少同维度参数/);assert.match(t,/https:\/\/example.com\/a.pdf/);
  assert.equal(l.products[0].comparisons.length,0);assert.ok(!/优于|胜出/.test(t));
 });
+
+test('brand directory answers list brand and localized indexed markets',()=>{
+ const intent=competitorIntent('王力的竞品有哪些品牌，');
+ assert.equal(intent.directory,true);
+ const answer=competitorAnswer(intent);
+ assert.match(answer,/ASSA ABLOY｜阿拉伯联合酋长国/);
+ assert.doesNotMatch(answer,/https:|原文：|耐火等级|访问/);
+ assert.equal(competitorIntent('沙特防火门竞品有哪些耐火等级').directory,undefined);
+});

@@ -50,3 +50,29 @@ export function restoreHistoryQuestion(host,question,windows,onRetry){
  const retry=document.createElement('button');retry.type='button';retry.className='question-retry';retry.textContent='按当前资料重新查询';retry.onclick=async()=>{retry.disabled=true;retry.textContent='正在重新查询…';try{await onRetry?.(question)}catch{retry.textContent='重新查询失败，请重试'}finally{retry.disabled=false;if(retry.textContent==='正在重新查询…')retry.textContent='按当前资料重新查询'}};card.querySelector('.question-window-body').append(retry);
  if(windows?.children.length)card.querySelector('.question-window-body').append(windows);return card;
 }
+
+// Move standalone citations out of the answer body after a turn is complete.
+export function foldQuestionSources(node){
+ if(!node?.replaceChildren)return;
+ const lines=node.textContent.split('\n'),body=[],sources=[];
+ for(let i=0;i<lines.length;i++){
+  const match=lines[i].match(/^\s*(?:来源|出处|参考来源)\s*[:：]\s*(.*)$/u);
+  if(!match){body.push(lines[i]);continue}
+  let source=match[1].replace(/^(?:(?:来源|出处)\s*[:：]\s*)+/u,'');
+  const legacy=source.match(/^(.+?\.(?:xlsx|xls|pdf|docx|pptx))\s*[；;]?\s*SHA256\b/iu);
+  if(legacy)source=legacy[1].split(/[\\/]/u).at(-1).trim();
+  if(source)sources.push(source);
+  while(/^\s*https:\/\/\S+\s*$/u.test(lines[i+1]||''))sources.push(lines[++i].trim());
+ }
+ if(!sources.length)return;
+ const details=document.createElement('details');
+ details.className='grace-answer-sources';
+ const summary=document.createElement('summary');
+ summary.textContent='查看出处';
+ const citations=document.createElement('div');
+ citations.textContent=[...new Set(sources)].join('\n');
+ citations.style.whiteSpace='pre-wrap';
+ citations.style.overflowWrap='anywhere';
+ details.append(summary,citations);
+ node.replaceChildren(body.filter(line=>!/^\s*(?:资料生成日期|知识编号|知识键|版本校验)\s*[:：]/u.test(line)).join('\n').replace(/\n{3,}/gu,'\n\n').trim(),details);
+}

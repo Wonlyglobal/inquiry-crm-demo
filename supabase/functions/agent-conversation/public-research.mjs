@@ -108,11 +108,29 @@ export function competitorIntent(question){
  const categories=[...new Set(CATEGORY_WORDS.filter(([re])=>re.test(q)).map(([,c])=>c))];
  const markets=[...new Set(MARKET_WORDS.filter(([re])=>re.test(q)).flatMap(([,m])=>m))];
  const dimension=Object.entries(DIMENSIONS).find(([,d])=>d.match.test(q))?.[0]||null;
- return {categories:categories.length?categories:Object.keys(CATEGORIES),markets,dimension,explicitCategory:categories.length>0,companies};
+ const directory=!dimension&&!/参数|规格|标准|证书|详情|详细|比较|对比|区别|优劣|分析|打开|调出|原文|链接|来源/.test(q)&&
+  /(?:竞品|竞争对手|对标品牌|同行).{0,14}(?:有哪些|哪[些几](?:个|家)?|哪些品牌|什么品牌|名单|清单|有哪些国家)|(?:列出|罗列|只列).{0,16}(?:竞品|竞争对手)|(?:竞品品牌|候选对标).{0,10}(?:国家|市场)/u.test(q);
+ return {categories:categories.length?categories:Object.keys(CATEGORIES),markets,dimension,explicitCategory:categories.length>0,companies,...(directory?{directory:true}:{})};
 }
 export function competitorAnswer(intent,evidence=PUBLIC_EVIDENCE){
  let rows=evidence.filter(e=>intent.categories.includes(e.category)&&(!intent.dimension||e.dimension===intent.dimension)&&(!intent.companies?.length||intent.companies.includes(e.company)));
  const inMarket=intent.markets.length?rows.filter(e=>intent.markets.includes(e.market)):rows;
+ if(intent.directory){
+  const markets=new Intl.DisplayNames(['zh-Hans'],{type:'region'});
+  const brands=new Map();
+  for(const item of inMarket){
+   const name=baseCompany(item.company);
+   if(!name||/王力|wonly/i.test(name))continue;
+   const locations=brands.get(name)||new Set();
+   locations.add(markets.of(item.market)||item.market);
+   brands.set(name,locations);
+  }
+  if(!brands.size)return '所选范围暂无已收录的竞品品牌。';
+  const selected=[...brands].slice(0,12);
+  const lines=selected.map(([name,locations])=>name+'｜'+[...locations].join('、'));
+  if(brands.size>selected.length)lines.push('另有 '+(brands.size-selected.length)+' 个已收录品牌，可按国家或品类继续查。');
+  return lines.join('\n');
+ }
  const scope=(intent.companies?.length?[...new Set(intent.companies.map(baseCompany))].join('、')+' · ':'')+(intent.explicitCategory||!intent.companies?.length?intent.categories.map(c=>CATEGORIES[c]).join('、'):'全部门类')+(intent.dimension?'·'+DIMENSIONS[intent.dimension].label:'');
  const head=`以下只来自已收录的公开官方资料（${evidence.length}条，${[...new Set(evidence.map(e=>e.accessed))].sort().at(-1)||'无'}访问），均为候选对标，不代表已确认在同一项目竞争；没有引用本公司内部资料，也没有联网补充。`;
  if(!rows.length)return `${head}\n\n${scope}目前没有收录公开竞品证据，不能据此判断没有竞品。可以让我补充指定门类和市场的官方资料，或问“${intent.categories.map(c=>CATEGORIES[c])[0]}竞品最新动态”走联网检索。`;

@@ -46,6 +46,56 @@ export function findModels(question,catalog){
  const seen=new Set();return hits.filter(m=>{const k=norm(m);if(seen.has(k))return false;seen.add(k);return true}).slice(0,4);
 }
 
+export function overviewQuestion(value) {
+ const q=String(value).normalize('NFKC').replace(/[，,。？！?!、\s]/g,'')
+  .replace(/^(?:你好|您好)/,'').replace(/^(?:请问一下|请问|请|麻烦|帮我)/,'')
+  .replace(/^(?:把|将)/,'').replace(/(?:全部|所有|完整的?|主要|分别)/g,'')
+  .replace(/(?:都)?列出来?|列一下|列给我|介绍一下|介绍下|介绍/g,'').replace(/[呢吗呀啊]$/,'');
+ const subject='(?:(?:我们|咱们|贵司|我司|你们|公司|王力|WONLY)(?:公司)?(?:的)?)?';
+ const noun='(?:产品(?:系列|类别|分类|种类|线|清单|目录)?|品类)';
+ const ask='(?:都有|有)?(?:哪些|什么|哪几类|哪几种|哪几个系列)';
+ return new RegExp('^'+subject+'(?:生产|销售|主营|经营|提供|做|卖)?(?:的)?(?:'+ask+')?'+noun+'(?:'+ask+'|有什么|是什么|都有啥)?$','i').test(q)
+  || new RegExp('^'+subject+'(?:生产|销售|主营|经营|提供|做|卖)(?:什么|哪些)$','i').test(q);
+}
+export function overviewFollowup(question,history=[]) {
+  const previous = String(history.at(-1)||'').replace(/^画册检索：/,'');
+  if (!overviewQuestion(previous)) return null;
+  const q = question.trim().replace(/[。！？?!]$/,'');
+  if (/^(需要|要|好|好的|可以|需要画册|发我画册)$/.test(q)) return {choose:true};
+  const choice = q.match(/^(?:我要|请发我|发我|要)?(工程|零售|静音木门|木门|智能锁)(?:画册)?$/);
+  return choice ? {open:'打开'+choice[1]+'画册'} : null;
+}
+const seriesNames = {
+  'Minimalist Series':'极简系列', 'Solid Wood Series':'实木系列', 'Custom Series':'定制系列',
+  'Aluminum Alloy Series':'铝合金系列', 'PVC Series':'PVC 系列',
+  'Cast Aluminium Door':'铸铝门', 'Cast Aluminium Series':'铸铝系列', 'Steel-Wood Armoured Series':'钢木装甲系列',
+  'Etched Series':'蚀刻系列', 'Roll-Textured Series':'辊压纹理系列', 'Inlay Series':'镶嵌系列', 'Transfer-Print Series':'转印系列',
+  'Lock Collections':'锁具合集', 'Locks & Hardware':'锁具与五金', 'Remote-Sensing True Smart Lock':'远感真智能锁',
+  '3D Face Recognition Series':'3D 人脸识别系列', 'Fingerprint Lock Series':'指纹锁系列',
+  'Common-Area Doors':'公共区域用门', 'Robotic Security Door':'机器人防盗门', 'Smart Door Series':'智能门系列',
+  'Hospital Doors':'医院门', 'School Doors':'学校门', 'Refuge Doors':'避难门', 'Fire Windows':'防火窗',
+  'Lock Bodies':'锁体', 'Lock Cores':'锁芯'
+};
+function overviewAnswer(catalog) {
+  const groups = new Map();
+  for (const product of catalog.products) {
+    const category = product.category || 'other';
+    if (!groups.has(category)) groups.set(category, new Set());
+    const series = product.series?.trim();
+    if (series) groups.get(category).add(seriesNames[series] || series.replace(/^Smart Door (?=\d)/,'智能门 ').replace(/^Security Door (?=\d)/,'防盗门 '));
+  }
+  const lines = Array.from(groups, ([category, names]) => {
+    const label = CATEGORY_NAMES[category] || category;
+    if (!names.size) return label + '（画册未标系列名）';
+    if (names.size === 1 && names.has(label)) return label;
+    return label + '：' + [...names].join('、');
+  });
+  if (!lines.length) return '这版画册里没有查到可核对的系列目录。';
+  return '按 2026 年 8 月版海外画册，收录的产品类别和系列如下：\n\n' +
+    lines.map((line,i) => (i+1) + '. ' + line).join('\n') +
+    '\n\n需要我发画册给你吗？你可以选工程、零售、静音木门或智能锁画册。';
+}
+
 // Cheap pre-check before the private file is downloaded.
 export function catalogPrecheck(question){
  const q=normalizeModelQuestion(question).slice(0,500);
@@ -53,7 +103,7 @@ export function catalogPrecheck(question){
  if(materialVersion(q))return false;
  if(fileDelivery(q))return false;
  if(catalogueWordingQuestion(q))return true;
- if(projectQuestion(q))return true;
+ if(overviewQuestion(q)||projectQuestion(q))return true;
  if(/王力|我们|我司|wonly/i.test(q)&&FACT_TOPICS.some(([,re])=>re.test(q)))return true;
  if(bareModel(q))return true;
  if(inventoryIntent(q)||selectionIntent(q))return true;
@@ -75,6 +125,9 @@ export function catalogIntent(question,catalog){
  if(brandTopics.length&&(/智能工厂|未来工厂|5G工厂|设计奖|锁芯等级|防火窗资料/.test(q))&&!findModels(q,catalog).length){
   return {kind:'facts',topics:brandTopics};
  }
+ if(overviewQuestion(q))return {kind:"overview"};
+ const seriesCategory = CATEGORY_WORDS.find(([,word]) => word.test(q));
+ if(seriesCategory && /^(?:只看|只想看|请列出)?(?:静音木门|木门|智能锁|防盗门|智能门)(?:有哪些|都有哪几种|的全部|的所有|的)?(?:产品)?系列(?:有哪些)?[？?。]*$/.test(q))return {kind:"overview",categories:[seriesCategory[0]]};
  const projects=projectIntent(q);if(projects)return projects;
  if(selectionIntent(q))return {kind:'selection'};
  if(inventoryIntent(q))return {kind:'inventory'};
@@ -94,7 +147,7 @@ export function catalogIntent(question,catalog){
 export function fullCatalogueAnswer(intent,catalog,question=''){
  if(!catalog)return {status:'unavailable',answer:'本次未能读取公司私有画册索引，检索尚未完成，不能据此判断有无对应产品、参数或项目；不会改用外部模型猜测内部资料。',coverage:null,coverage_text:'画册索引未能读取，不能记为检索成功。'};
  const search=searchCatalogue(question,catalog,{models:intent?.models||[]});
- const answer=catalogAnswer(intent,catalog,question);
+ const answer=intent?.kind==="overview"?overviewAnswer(intent.categories ? {...catalog,products:catalog.products.filter(p=>intent.categories.includes(p.category))} : catalog):catalogAnswer(intent,catalog,question);
  return {status:'available',answer:answer||[HEAD(catalog),catalogueSearchFallback(search,{ref}),NOTE].join('\n\n'),coverage:search.coverage,coverage_text:catalogueSearchCoverage(search)};
 }
 

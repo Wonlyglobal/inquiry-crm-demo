@@ -69,6 +69,7 @@ import {POLICY,PERSONAS,eligible,validateDialogue,requestBody,outputText} from '
 import {CHAT_URL,TTS_URL,MODELS,providerJson,providerStream,speechBody,speechAudio,transcriptionBody,transcriptText} from './bailian.mjs';
 import {loadCrmStats} from './crm-stats.mjs';
 import {answerIssues,correctionMessage,safeMarketingFallback} from './answer-quality.mjs';
+import {socialWeekPeriod,socialWeekReply} from './social-week.mjs';
 import {loadSocial,loadSocialPosts,loadSocialLibrary,requestedPostPage,loadSocialMetrics} from './social.mjs';
 import {loadSeo} from './seo.mjs';
 import {loadResearch} from './research.mjs';
@@ -265,7 +266,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
   }
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
   const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey),Date.now(),{authorization,materialConfig});return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts,video_index:result.video_index},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
-  if(input.action==='chat'&&input.voice!==true&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
+  if(input.action==='chat'&&input.voice!==true&&!socialWeekPeriod(input.question)&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
    validateDialogue(input);return await privateReply();
   }
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});
@@ -355,6 +356,12 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
     }});
     const choices=combined.results.find((r:any)=>r.result?.context?.kind==='model_choices')?.result.context;
     return json({answer:combined.answer,provider:'internal',model:'compound-requests',materials:combined.results.flatMap((r:any)=>r.result?.materials||[]).slice(0,20),actions:combined.results.flatMap((r:any)=>r.result?.actions||[]).slice(0,8),context:{route:'compound',tasks:combined.results.map((r:any)=>({question:r.question,status:r.ok?'answered':'failed'})),...(combined.materialHistory.length?{material_question:combined.materialHistory[0]}:{}),...(choices?{kind:'model_choices',model_choices:choices.model_choices,material_question:input.question.slice(0,500)}:{})},ticket:await ticket({user:user.id,persona:input.persona,text:'我按你提出的各项要求分别整理了结果，未完成的项目也单独说明了，详细内容在窗口里。',expires:Date.now()+300000},key)});
+   }
+   const socialWeek=!guest&&input.persona==='Grace'&&socialWeekPeriod(input.question);
+   if(socialWeek){
+    const report=socialWeekReply(socialWeek,await loadSocialLibrary(authorization));
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'social_week_publishing',status:report.status,start:new Date(socialWeek.start).toISOString(),end:new Date(socialWeek.end).toISOString(),platforms:socialWeek.platforms},reason:'按北京时间筛选原授权的已发布社媒记录，不调用外部模型'});if(error)return json({error:'来源读取审计失败'},503);
+    return json({answer:report.answer,provider:'internal',model:'social-week-publishing',context:{route:'social_week_publishing',status:report.status}});
    }
    if(privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))){
     if(guest)return json({answer:'内部周报与私有证据只供已授权本人查询。',provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:[]}});

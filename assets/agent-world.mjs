@@ -1,7 +1,10 @@
 import {progressBlock} from './agent-material-progress.mjs?v=20261003-progress';
 import {loadHologram,createHologram,drawPedestal,drawRoomHud,createRain,speechLevel} from './agent-hologram.mjs?v=20261012-face';
 export function canUseAgentWorld(profile,user){
- return Boolean(profile?.active && profile.role==='owner' && profile.id==='c43bd3c2-6e3a-4228-99c7-dc95f33643f2' && user?.id===profile.id && String(user?.email||'').toLowerCase()==='chloelee@wonlyglobal.com');
+ const email=String(user?.email||'').trim().toLowerCase();
+ const owner=profile?.role==='owner'&&profile.id==='c43bd3c2-6e3a-4228-99c7-dc95f33643f2'&&email==='chloelee@wonlyglobal.com';
+ const approvedMember=new Set(['huyitai@wonlyglobal.com','lingzx@wonlyglobal.com']).has(email);
+ return Boolean(profile?.active&&user?.id===profile.id&&(owner||approvedMember));
 }
 export function mountAgentWorld(host,{onSelect,onAnalysis,onLeave,isAllowed,getLive}){
  if(!isAllowed())throw new Error('当前账号无权进入智能体世界');

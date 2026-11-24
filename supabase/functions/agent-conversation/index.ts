@@ -64,6 +64,7 @@ import {preferenceInstruction} from './response-preferences.mjs';
 import {signMaterialFileRequest,MATERIAL_ACTOR} from './material-file-proof.mjs';
 import {resolveMaterialTurn,conciseMaterialAnswer,videoSourceQuestion} from './material-dialogue.mjs';
 import {loadFullMaterials,fullMaterialAnswer,materialConnectionUnavailable} from './materials.mjs';
+import {doorWindowCatalogueRequest,doorWindowCatalogueReply} from './door-window-catalogues.mjs';
 import {answerVerifiedVideo,loadVerifiedVideoIndex} from './verified-video.mjs';
 import {outreachProductRequest,outreachEvidenceRequest,productCatalogueQueries,outreachProductEvidence,buildProductReviewDraft,PRODUCT_CATEGORIES} from './outreach-product-draft.mjs';
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
@@ -358,6 +359,18 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    validateDialogue(input);
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
+   const directoryRequest=guest||input.persona!=='Grace'?null:doorWindowCatalogueRequest(input.question,input.materialHistory?.at(-1));
+   if(directoryRequest){
+    const data=await loadFullMaterials({...materialConfig,question:'门窗画册',retrieval:{query:'门窗画册',terms:[],page:1,constraints:{}},recoverConnection:true});
+    const reply=doorWindowCatalogueReply(data,directoryRequest);
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,
+     after_data:{operation:'door_window_catalogue_files',provider:'internal',persona:input.persona,status:data.status,source_count:reply?.materials.length||0},
+     reason:'查询当前权限内的门窗画册文件，不读取对话历史正文或发送外部模型'});
+    if(error)return json({error:'调用审计失败'},503);
+    if(!reply)return json({error:'暂时连不上物料库，请重试刚才的问题。',code:'material_connection_unavailable'},503);
+    return json({...reply,provider:'internal',model:'material-catalogue',
+     ticket:await ticket({user:user.id,persona:input.persona,text:reply.answer,expires:Date.now()+300000},key)});
+   }
    // Internal writing is owner-only through the existing eligible check and quota above.
    const sourceTask=guest?null:sourceTaskPlan(input);
    if(sourceTask){

@@ -1,4 +1,6 @@
 // Concise, page-scoped facts from the existing private catalogue. No model call.
+import {withoutPresentationTail} from './writing-request.mjs';
+
 const NAMES={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
 const normalized=value=>String(value||'').normalize('NFKC').replace(/\s+/g,'').toLowerCase();
 const safe=value=>typeof value==='string'&&value.length<=500&&!/[{}]|```|\b(?:export|import)\s|console\.|\bSELECT\b.*\bFROM\b/i.test(value);
@@ -20,8 +22,20 @@ export function wantsFactOriginal(question){
  const q=String(question);
  return !/不要.{0,5}(?:英文|原文)|不用.{0,5}(?:英文|原文)|只.{0,3}中文/.test(q)&&/原文|英文|\boriginal\b|\bin English\b/i.test(q);
 }
+export function catalogueReferenceRequest(question){
+ const q=withoutPresentationTail(String(question||'').normalize('NFKC'));
+ if(q.length>135||/写一|起草|发给客户|竞品|比较|对比|现售|最新版|第\s*[一二三四五六七八九十\d]+\s*版/u.test(q))return null;
+ if(/画册/u.test(q)&&/锁芯|防技术开启/u.test(q)&&/所有.{0,8}(?:锁|型号).{0,10}(?:海外|国际)认证/u.test(q)&&/能否|能不能|可以|是否|等于/u.test(q))return {topic:'lock_core',certificationBoundary:true,question:q};
+ const topics=[];
+ if(/(?:画册|王力|WONLY)/iu.test(q)&&/品牌价值/u.test(q)&&!(/(?:19|20)\d{2}/u.test(q)&&!q.includes('2025')))topics.push('brand_value');
+ if(/画册/u.test(q)&&/远感.*雷达|雷达.*远感/u.test(q)&&/频率|GHz/iu.test(q)&&!/[A-Z]{1,3}\d{2,}/i.test(q))topics.push('remote_sensing');
+ if(/\bBOM\b/iu.test(q)&&/数据产品/u.test(q)&&/挂牌|交易所/u.test(q)&&/王力|WONLY|画册/iu.test(q))topics.push('data_listing');
+ if(topics.length!==1)return null;
+ const format=q.replace(/原文明确出处后[，,]?\s*再用中文/u,'核对出处后用中文');
+ return {topic:topics[0],question:format};
+}
 export function conciseCatalogFacts(intent,catalog,question=''){
- if(intent?.kind!=='facts'||!catalog||!intent.topics.every(topic=>['capacity','factory','lock_core','standards','design_awards'].includes(topic)))return null;
+ if(intent?.kind!=='facts'||!catalog||!intent.topics.every(topic=>['capacity','factory','lock_core','standards','design_awards','brand_value','remote_sensing','data_listing'].includes(topic)))return null;
  const q=String(question).normalize('NFKC');
  const pageMatch=q.match(/第\s*(\d{1,3})\s*页|\bpage\s*(\d{1,3})\b/i);
  const page=pageMatch?Number(pageMatch[1]||pageMatch[2]):null;

@@ -1,5 +1,5 @@
 import {customerCompanyAnswer,customerPurpose} from './customer-writing.mjs';
-import {writingRequestText,writingSourceName} from './writing-request.mjs';
+import {withoutPresentationTail,writingRequestText,writingSourceName} from './writing-request.mjs';
 import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
 import {materialModelCodes,materialFields,explicitMaterialDocument} from './product-input.mjs';
 import {taskSubject} from './source-task.mjs';
@@ -7,6 +7,14 @@ import {taskSubject} from './source-task.mjs';
 // Compact authenticated state survives the existing query-only materialHistory channel.
 const PREFIX='work-writing:v1.';
 const follow=/直接给|客户版|给客户|客户正文|直接发|不要再提|不要提|别提|文案|润色|优化|翻译|西班牙语|西语|^确认|现在确认|确认最新|刚才|上一(?:轮|版|稿)|最新(?:修订|确认|英文)|这(?:一)?(?:版|段|稿)|稿件|再精简|还没确认|已确认|确认了|暂时不要翻译|删掉产能|改得更口语/;
+const removeCapacity=/(?:删(?:除|掉)|去掉|移除|不要)(?:.{0,3})产能|把(?:年)?产能(?:部分|内容|段落)?(?:删除|删掉|去掉|移除)/u;
+const removeResearch=/(?:删(?:除|掉)|去掉|移除|不要)(?:.{0,3})研发|把研发(?:部分|内容|段落)?(?:删除|删掉|去掉|移除)/u;
+const draftFollow=q=>follow.test(q)||removeCapacity.test(q)||removeResearch.test(q);
+function requestedEnglishWords(q){
+ const match=String(q).normalize('NFKC').match(/(?:约\s*|不超过\s*|控制在\s*)?(\d{2,3})\s*(?:个?(?:英文)?单词|词|words?\b)/iu);
+ const budget=Number(match?.[1]);
+ return budget>=60&&budget<=350?budget:null;
+}
 const task=/直接给|能发|可发|客户版|(?:给客户|对客户|向客户).{0,12}(?:介绍|文案)|直接发|客户正文|润色|优化|排除选项|核验路径|合作价值|原因|写|改写|改成|解释|整理|列出|先问|回复|通知|预告|短信|消息|模板|开场|提纲|讲解|故事|回答|证据|先说明判断|切入点|设计|清单|流程|框架|问法|追问|澄清|取舍|异议|礼貌纠正|沟通|怎样|如何|怎么向客户解释|先列出|需要提供什么|怎么避免|核对清单|先说明判断|如何处理|可以对外/;
 const domain=/王力|wonly|公司介绍|品牌|客户|经销|代理|项目|产品|智能锁|木门|认证|交货|交期|画册|英文稿|翻译|西语|西班牙语|竞品|保养|选型|选门|洞口|社媒|邮件|展会|培训|私有|检索日志/i;
 const books={c1:'工程画册',c2:'零售画册',c3:'静音木门画册',c4:'真智能锁画册'};
@@ -21,13 +29,13 @@ export const newWritingDraft=q=>/(?:帮我写|给客户讲王力公司介绍|(?:
 const independentWritingRequest=q=>/我会提供|需要提供什么|先告诉我|先说明判断|怎么避免|如何避免|(?:设计|列出|整理).{0,14}(?:清单|框架|流程)|(?:仅|只)内部/.test(q);
 const independentClientTask=q=>!/这版|这段|这稿|刚才|上一版/.test(q)&&/WhatsApp|首次联系邮件|样品.{0,8}通知|新品预告|没回复.{0,20}(?:跟进|短信)|未回复.{0,20}(?:跟进|短信)/i.test(q);
 const modelFactRequest=q=>materialModelCodes(q).length>0&&materialFields(q).some(f=>!['来源','页码','版本'].includes(f));
-export const writingContinuation=input=>input?.action==='chat'&&!input.voice&&!input.privateReportKey&&typeof input.question==='string'&&!writingSourceName(input.question)&&!explicitMaterialDocument(input.question)&&!modelFactRequest(input.question)&&follow.test(input.question)&&!newWritingDraft(input.question)&&!independentWritingRequest(input.question)&&!independentClientTask(input.question);
+export const writingContinuation=input=>input?.action==='chat'&&!input.voice&&!input.privateReportKey&&typeof input.question==='string'&&!writingSourceName(input.question)&&!explicitMaterialDocument(input.question)&&!modelFactRequest(input.question)&&draftFollow(input.question)&&!newWritingDraft(input.question)&&!independentWritingRequest(input.question)&&!independentClientTask(input.question);
 export function companyDraftResult(result){try{return JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).k==='company'&&JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).w!==0&&['en','es'].includes(result.context.language||JSON.parse(decode(result.context.material_question.slice(PREFIX.length).split('.')[0])).l)}catch{return false}}
 export function workScenarioIntent(input){
  if(input?.action!=='chat'||input.voice||input.privateReportKey||typeof input.question!=='string')return false;
- const q=input.question.trim();
+ const q=withoutPresentationTail(input.question);
  if(modelFactRequest(q)||explicitMaterialDocument(q)||writingSourceName(q))return false;
- if((input.materialHistory||[]).some(x=>String(x).startsWith(PREFIX))&&follow.test(q))return true;
+ if((input.materialHistory||[]).some(x=>String(x).startsWith(PREFIX))&&draftFollow(q))return true;
  return task.test(writingRequestText(q))&&domain.test(q)&&!/^打开|^下载|^同步|^删除|^记住/.test(q);
 }
 function kindOf(q){
@@ -190,18 +198,19 @@ function guideAnswer(c,s){
 }
 export async function answerWorkScenario(input,catalog,{sign,verify,actor,videoAnswer,careAnswer}){
  if(!workScenarioIntent(input))return null;
- const q=input.question.trim();let s=null;
+ const q=withoutPresentationTail(input.question);let s=null;
  const token=newWritingDraft(q)||independentClientTask(q)?null:(input.materialHistory||[]).find(x=>String(x).startsWith(PREFIX));
  if(token){try{const [payload,signature]=token.slice(PREFIX.length).split('.');if(payload.length>500||!await verify('work-writing-v1|'+actor+'|'+payload,signature))throw Error();s=JSON.parse(decode(payload));if(s.v!==1||!s.k||!['en','zh','es'].includes(s.l)||!Number.isSafeInteger(s.r)||s.r<1||s.r>1000000)throw Error()}catch{return {answer:'这份稿件的上下文校验未完成，请重新提出公司介绍或写作要求；本次没有翻译。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'invalid_state'}}}}
  const digest=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({sources:catalog?.sources||[],facts:(catalog?.facts||[]).map(f=>[f.topic,f.text,f.catalog,f.page,f.zh])}))));
  if(s&&s.c!==digest)return {answer:'资料版本已变化，请重新核对英文稿并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'source_changed'}};
  if(s?.k==='company'&&s.h!==await draftHash(companyAnswer(catalog,{...s,l:'en'}).text))return {answer:'英文稿版本校验未完成，请重新生成并确认后再翻译；本次没有使用旧稿。',provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'draft_changed'}};
  if(s?.k==='company'&&customerPurpose(q)==='review'&&!/删|去掉|改|精简|缩|口语|优化|润色|强调/.test(q)){const review=companyAnswer(catalog,{...s,w:0,l:'zh'});return {answer:review.text+'\n\n'+citations(catalog,review.topics),provider:'internal',model:'work-scenarios',context:{route:'work_writing',status:'evidence_review',material_question:token}};}
- const continuing=!!s&&follow.test(q)&&!newWritingDraft(q)&&!/(?:我会提供|设计一份|另(?:外|一)(?:个|段|篇)|重新写|新的任务)/.test(q);
+ const continuing=!!s&&draftFollow(q)&&!newWritingDraft(q)&&!/(?:我会提供|设计一份|另(?:外|一)(?:个|段|篇)|重新写|新的任务)/.test(q);
  if(!continuing){const k=kindOf(q);s={v:1,i:crypto.randomUUID().slice(0,12),k,...(['company','story','why_us','email'].includes(k)?{w:customerPurpose(q)==='customer'?2:0}:{}),l:/英文|英语|\bEnglish\b/i.test(q)||k==='email'||k==='invitation'?'en':'zh',n:/不超过\s*80\s*字/.test(q)?80:/30秒/.test(q)?120:/90秒/.test(q)?220:300,o:0,t:0,r:1,p:false,c:digest,...metadata(q)};}
+ if(!continuing&&s.k==='company'&&s.l==='en'&&s.w===2){const budget=requestedEnglishWords(q);if(budget)s.b=budget;}
  const copyEdit=!/可以吗|能发吗|是否|[？?]$/.test(q)&&/直接给|直接发|给客户|不要提|不要再提|别提/.test(q);
  const edit=continuing&&(/删|改|缩|精简|口语|强调|核对刚才|去掉|润色|优化/.test(q)||copyEdit);
- if(edit){s={...s,r:s.r+1,p:false,l:s.l==='es'?'en':s.l,...(s.k==='company'&&customerPurpose(q)==='customer'?{w:2}:{})};if(/(?:删掉|去掉|不要)(?:.{0,3})产能/.test(q))s.o|=1;if(/(?:删掉|去掉|不要)(?:.{0,3})研发/.test(q))s.o|=2;if(/口语/.test(q))s.t=1;if(/精简|缩短|短一点|一百字/.test(q))s.n=120;}
+ if(edit){s={...s,r:s.r+1,p:false,l:s.l==='es'?'en':s.l,...(s.k==='company'&&customerPurpose(q)==='customer'?{w:2}:{})};if(removeCapacity.test(q))s.o|=1;if(removeResearch.test(q))s.o|=2;if(/口语/.test(q))s.t=1;if(/精简|缩短|短一点|一百字/.test(q)){s.n=120;if(s.b)s.b=Math.min(s.b,120);}const budget=s.k==='company'&&s.l==='en'&&s.w===2?requestedEnglishWords(q):null;if(budget)s.b=budget;}
  const negative=/未确认|没确认|还没|尚未|暂时不要|不要翻译|不翻译|先.*确认后|确认后再|等我确认|是否|如果|怎么|如何|吗[？?]?/.test(q);
  const approved=continuing&&s.k==='company'&&s.w!==0&&s.l==='en'&&!edit&&!negative&&/已确认|确认了|确认无误|^确认(?:[，,。 ]|$)|^现在确认|^可以[，, ]*(?:翻译|译)|^没问题[，, ]*(?:翻译|译)/.test(q);
  if(approved)s={...s,p:true};

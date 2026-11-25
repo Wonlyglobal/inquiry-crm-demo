@@ -7,7 +7,7 @@ import {readPrivateProjects} from './private-projects.mjs';
 import {sourceTaskPlan,sourceTaskAnswer,sourceTaskMaterials} from './source-task.mjs';
 import {productModelClarification} from './product-model-clarification.mjs';
 import {loadParameterMaterials} from './product-parameter-search.mjs';
-import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
+import {catalogueReferenceRequest,conciseCatalogFacts} from './catalog-fact-answer.mjs';
 import {latestWriting,restoredWriting,saveWriting} from './writing-session.mjs';
 import {workScenarioIntent,answerWorkScenario,writingContinuation,newWritingDraft,companyDraftResult} from './work-scenarios.mjs';
 import {presentMaterialAnswer} from './material-chinese.mjs';
@@ -332,7 +332,8 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
   const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey),Date.now(),{authorization,materialConfig});return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts,video_index:result.video_index,...(result.answer_kind==='company_fact'?{answer_kind:'company_fact',material_question:('企业事实：'+input.question).slice(0,500)}:{})},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
   const namedFile=input.action==='chat'&&input.persona==='Grace'&&!input.privateReportKey?namedMaterialRequest(input.question):null;
-  if(!namedFile&&input.action==='chat'&&input.voice!==true&&!socialWeekPeriod(input.question)&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
+  const catalogueReference=input.action==='chat'&&input.persona==='Grace'&&!input.privateReportKey?catalogueReferenceRequest(input.question):null;
+  if(!namedFile&&!catalogueReference&&input.action==='chat'&&input.voice!==true&&!socialWeekPeriod(input.question)&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
    validateDialogue(input);return await privateReply();
   }
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});
@@ -376,6 +377,14 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
     if(error)return json({error:'调用审计失败'},503);
     if(!result)return json({error:'物料库暂时未能读取，请稍后重试。',code:'material_connection_unavailable'},503);
     return json({...result,provider:'internal',model:'named-material',context:{route:'materials',material_question:input.question.slice(0,500)},ticket:await ticket({user:user.id,persona:input.persona,text:'资料查找结果已显示。',expires:Date.now()+300000},key)});
+   }
+   if(!guest&&catalogueReference){
+    const answer=catalogueReference.certificationBoundary
+     ?'不能。单项锁芯测试指标不能证明所有型号都取得海外认证。请按具体型号、配置和目标市场核对有效证书或检测报告。'
+     :conciseCatalogFacts({kind:'facts',topics:[catalogueReference.topic]},await loadCatalog(admin),catalogueReference.question)||'本次暂未取得可引用的画册资料。';
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'catalogue_fact_reference',topic:catalogueReference.topic,external_model_called:false},reason:'按授权画册核对明确事实或说明认证证据边界'});
+    if(error)return json({error:'调用审计失败'},503);
+    return json({answer,provider:'internal',model:'wonly-catalog',context:{route:'catalog',material_question:'画册检索：'+input.question.slice(0,480)}});
    }
    const companyListing=guest||input.persona!=='Grace'?null:companyListingTurn(input.question,input.materialHistory||[]);
    if(companyListing){
@@ -448,7 +457,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    if(!guest&&(workScenarioIntent(input)||writingContinuation(input))){
     const previous=await latestWriting(admin,user.id);
     const supplied=(input.materialHistory||[]).find((x:string)=>x.startsWith('work-writing:v1.'));
-    const continuation=writingContinuation(input)&&(supplied?companyDraftResult({context:{material_question:supplied}}):!(input.materialHistory||[]).length&&/英文|西语|西班牙语|稿|确认|翻译|删掉产能|改得更口语/.test(input.question));
+    const continuation=writingContinuation(input)&&(supplied?companyDraftResult({context:{material_question:supplied}}):!(input.materialHistory||[]).length&&/英文|西语|西班牙语|稿|确认|翻译|产能|研发|改得更口语/.test(input.question));
     if(continuation&&previous){
      if(supplied!==previous.material_context){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'writing_version_conflict'},reason:'旧页面或空上下文未确认最新稿，恢复最新版本而不翻译旧稿'});if(error)return json({error:'调用审计失败'},503);return json(restoredWriting(previous,'version_conflict'));}
     }

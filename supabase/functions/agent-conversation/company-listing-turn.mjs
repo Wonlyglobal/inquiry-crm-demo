@@ -1,16 +1,17 @@
 const OWN=/王力|WONLY|WANGLI|我司|本公司|我们公司/iu;
 const FOREIGN=/竞品|客户|对手|别的公司|其他公司|另一家|比较|对比/iu;
-const FIELD=/(股票代码|证券代码|上市代码|股票编号|上市(?:时间|日期|年份|在哪|的年份)|(?:什么时候|何时|哪年|哪一年)上市|交易所|哪家交易所)/u;
+const WHEN=/(?:什么时候|何时|哪年|哪一年)(?:在[^？?，。]{1,18})?上市|上市(?:时间|日期|年份|的年份)/u;
+const FIELD=/股票代码|证券代码|上市代码|股票编号|上市在哪|交易所/u;
 
 export function companyListingTurn(question,history=[]){
  const q=String(question||'').normalize('NFKC').trim();
- if(q.length>120||!FIELD.test(q)||FOREIGN.test(q)||/翻译|写|介绍|和.*分别|公司.*(?:成立|愿景|使命).*(?:股票|上市)|(?:股票|上市).*?(?:成立|愿景|使命)/u.test(q))return null;
+ if(q.length>120||(!FIELD.test(q)&&!WHEN.test(q))||FOREIGN.test(q)||/翻译|写|介绍|和.*分别|公司.*(?:成立|愿景|使命).*(?:股票|上市)|(?:股票|上市).*?(?:成立|愿景|使命)/u.test(q))return null;
  const previous=String(history.at(-1)||'').replace(/^(?:画册检索|事实核对|公司资料)：/u,'');
  if(!OWN.test(q)){
-  if(!/^(?:那|它|这家公司|股票代码|证券代码|上市时间|上市年份|交易所)/u.test(q)||!OWN.test(previous)||FOREIGN.test(previous)||
+  if(!/^(?:那|它|这家公司|股票代码|证券代码|上市时间|上市年份|交易所|后面帮我查一下它的)/u.test(q)||!OWN.test(previous)||FOREIGN.test(previous)||
    !/上市|股票代码|(?:什么时候|何时|哪年|哪一年)成立|成立(?:时间|日期|年份)/u.test(previous))return null;
  }
- const field=/代码|编号/u.test(q)?'code':/交易所|上市在哪/u.test(q)?'exchange':'date';
+ const field=/代码|编号/u.test(q)?'code':WHEN.test(q)?'date':/交易所|上市在哪/u.test(q)?'exchange':'date';
  return {field,context:`公司资料：王力${field==='code'?'股票代码':field==='exchange'?'上市交易所':'上市时间'}`};
 }
 

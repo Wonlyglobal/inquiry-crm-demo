@@ -1,3 +1,4 @@
+import {readPrivateProjects} from './private-projects.mjs';
 import {sourceTaskPlan,sourceTaskAnswer,sourceTaskMaterials} from './source-task.mjs';
 import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
 import {latestWriting,restoredWriting,saveWriting} from './writing-session.mjs';
@@ -555,6 +556,10 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    // Owner 2026-10-03: spec questions without a model code answer from WONLY's catalogue or say "画册未写明" (never generic numbers).
    const catalogueHistory=(input.materialHistory||[]).map((q:string)=>q.replace(/^画册检索：/,''));
    const projectQuery=projectTurn(input.question,catalogueHistory),catalogueQuery=catalogueTurn(input.question,input.materialHistory||[]);
+   if(!guest&&profile.role==='owner'&&user.id===MATERIAL_ACTOR&&input.persona==='Grace'&&projectQuery&&!/画册|PDF|原页/.test(input.question)){
+    const result=await readPrivateProjects(client,projectQuery);
+    if(result)return json({answer:result.answer,provider:'internal',model:'private-projects',context:{route:'catalog',material_question:projectQuery,project_receipts:result.receipts}});
+   }
    const resolvedMaterial=resolveMaterialTurn(input.question,catalogueHistory);
    const contextTurn=woodTrainingQuestion(resolvedMaterial.question)?resolvedMaterial:projectQuery||catalogueQuery?{question:projectQuery||catalogueQuery}:resolvedMaterial,catalogQuestion=(contextTurn.clarification?input.question:contextTurn.question).replace(/^物料：/,'');
    const videoSources=videoSourceQuestion(input.question);

@@ -1,4 +1,5 @@
-import {mountPersonalLeadWorkflow} from './personal-lead-workflow.mjs?v=20261119-reminders1';
+import {countryView,countryChoices,compareCountries} from './country-view.mjs?v=20261125-1';
+import {mountPersonalLeadWorkflow} from './personal-lead-workflow.mjs?v=20261125-country1';
 import {visibleLeadRows,receiptDestination,leadInformationHtml} from './lead-detail-ui.mjs?v=20261117-details1';
 import {mountDevelopmentMetrics} from './lead-development-metrics.mjs?v=20261102-1';
 import {decodeCustomerCsv} from './customer-csv-reader.mjs?v=20261029-encoding1';
@@ -74,9 +75,11 @@ function render(){
 function renderLeadDetails(){
  if(personalWorkflow)return;
  const names=Object.fromEntries(data.people.map(p=>[p.id,p.full_name]));
- const rows=visibleLeadRows(data.leads,$('#sales').value,$('#lead-search').value,$('#lead-state').value);
+ const selectedCountry=$('#lead-country').value;$('#lead-country').innerHTML='<option value="">全部国家 / 地区</option>'+countryChoices(data.leads.filter(l=>!$('#sales').value||l.sales_id===$('#sales').value).map(l=>l.country)).map(c=>`<option value="${esc(c.key)}">${esc(c.label)}</option>`).join('');$('#lead-country').value=selectedCountry;
+ const rows=visibleLeadRows(data.leads,$('#sales').value,$('#lead-search').value,$('#lead-state').value).filter(l=>!selectedCountry||countryView(l.country).key===selectedCountry);
+ if($('#lead-sort').value==='country')rows.sort((a,b)=>compareCountries(a.country,b.country)||String(a.id).localeCompare(String(b.id)));
  $('#lead-visible-count').textContent=`${rows.length} 条`;
- $('#leads').innerHTML=rows.map(l=>`<tr data-lead-id="${esc(l.id)}" class="${focusedLeadIds.has(l.id)?'lead-focused':''}"><td><button class="lead-customer-button" data-lead-view="${esc(l.id)}">${esc(l.company||l.contact||'客户线索')}</button><small>${esc(l.contact)} · ${esc(names[l.sales_id])}</small><small>录入 ${esc(stamp(l.recorded_at))}</small></td><td>${esc(l.country)}<small>${esc(l.email||l.phone||'联系方式待补充')}</small></td><td>${esc(sources[l.source]||l.source)}<small>${esc(l.demand)}</small></td><td>${esc(leadStageLabel(l))}<small>${esc(l.progress_note||'尚未记录跟进')} · ${esc(stamp(l.progress_at))}</small><small>${esc(l.estimated_amount??'—')} ${esc(l.currency||'')}</small></td><td><button data-lead-view="${esc(l.id)}" class="button-secondary">查看客户信息</button>${l.sales_id===data.actor.id&&data.actor.role==='sales'?`<button data-progress="${esc(l.id)}" class="button-secondary">记录跟进</button>${!l.inquiry_id&&(l.email||l.phone)?`<button data-convert="${esc(l.id)}">转为个人商机</button>`:''}`:''}${l.inquiry_id&&data.actor.role!=='marketing'?`<a href="/#inquiry/${esc(l.inquiry_id)}" target="_top">打开商机</a>`:''}</td></tr>`).join('')||'<tr><td colspan="5">当前日期或筛选条件下暂无线索，请检查日期范围或清空搜索。</td></tr>';
+ $('#leads').innerHTML=rows.map(l=>`<tr data-lead-id="${esc(l.id)}" class="${focusedLeadIds.has(l.id)?'lead-focused':''}"><td><button class="lead-customer-button" data-lead-view="${esc(l.id)}">${esc(l.company||l.contact||'客户线索')}</button><small>${esc(l.contact)} · ${esc(names[l.sales_id])}</small><small>录入 ${esc(stamp(l.recorded_at))}</small></td><td>${esc(countryView(l.country).label)}<small title="原始填写">${esc(l.country)}</small><small>${esc(l.email||l.phone||'联系方式待补充')}</small></td><td>${esc(sources[l.source]||l.source)}<small>${esc(l.demand)}</small></td><td>${esc(leadStageLabel(l))}<small>${esc(l.progress_note||'尚未记录跟进')} · ${esc(stamp(l.progress_at))}</small><small>${esc(l.estimated_amount??'—')} ${esc(l.currency||'')}</small></td><td><button data-lead-view="${esc(l.id)}" class="button-secondary">查看客户信息</button>${l.sales_id===data.actor.id&&data.actor.role==='sales'?`<button data-progress="${esc(l.id)}" class="button-secondary">记录跟进</button>${!l.inquiry_id&&(l.email||l.phone)?`<button data-convert="${esc(l.id)}">转为个人商机</button>`:''}`:''}${l.inquiry_id&&data.actor.role!=='marketing'?`<a href="/#inquiry/${esc(l.inquiry_id)}" target="_top">打开商机</a>`:''}</td></tr>`).join('')||'<tr><td colspan="5">当前日期或筛选条件下暂无线索，请检查日期范围或清空搜索。</td></tr>';
  const lead=rows.find(l=>l.id===selectedLeadId),panel=$('#lead-information');panel.hidden=!lead;
  if(lead){panel.innerHTML=leadInformationHtml(lead,{actor:data.actor,names,sources,draft:progressDrafts.get(lead.id)||'',stage:leadStageLabel(lead)});
   panel.querySelector('[data-close-lead]').onclick=()=>{selectedLeadId=null;renderLeadDetails()};
@@ -112,7 +115,7 @@ function prepareSavedLeads(receipts){
  if($('#lead-save-result')){$('#lead-save-result').hidden=false;$('#lead-save-result').textContent=`保存结果已返回，重复线索由服务器去重。${destination?.changed?'已切换到该线索的实际录入日期。':''}可直接查看客户信息、记录跟进或转为个人商机。`;}
  return destination?.id;
 }
-$('#lead-search').oninput=$('#lead-state').onchange=()=>{selectedLeadId=null;renderLeadDetails()};
+$('#lead-search').oninput=$('#lead-state').onchange=$('#lead-country').onchange=$('#lead-sort').onchange=()=>{selectedLeadId=null;renderLeadDetails()};
 window.addEventListener('beforeunload',event=>{if(progressDrafts.size||personalWorkflow?.hasUnsaved()||unsavedForms()||pendingRows.length){event.preventDefault();event.returnValue=''}});
 $('#lead-form').onsubmit=e=>{e.preventDefault();action(async()=>{const row=normalizeLead(Object.fromEntries(new FormData(e.target)));const issues=leadIssues(row);if(issues.length)throw Error(issues.join('；'));const receipt=await rpc('record_sales_leads',{rows:[{...row,request_id:requestId}],entry_method:'manual'});const focusId=prepareSavedLeads(receipt);requestId=crypto.randomUUID();e.target.reset();e.target.elements.acquired_on.value=localDay();rememberForm('lead-form');try{await load();if(!focusId)$('#lead-details').scrollIntoView({block:'start'})}catch(error){$('#lead-details').scrollIntoView({block:'start'});status('线索已保存，但列表刷新失败。请刷新数据核对：'+leadRequestMessage(error))}})};
 $('#estimate-cancel').onclick=()=>{$('#estimate-edit').hidden=true;estimateTarget=null};

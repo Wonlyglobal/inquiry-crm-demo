@@ -27,7 +27,7 @@ export function companyDirectAnswer(rows,q){
    }
   }
  }
- if(!out.length)out.push('本次资料未返回该问题可直接核对的答案，暂不作推断。');
+ if(!out.length&&!wanted.length)out.push('本次资料未返回该问题可直接核对的答案，暂不作推断。');
  for(const [n] of wanted)if(!hits.includes(n))out.push(n+'：当前已读资料未定位到明确答案，保持未知。');
  const files=new Set();
  for(const section of d.sections||[]){

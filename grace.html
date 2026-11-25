@@ -519,13 +519,16 @@
       .trend-tab { border:1px solid var(--line); background:#fff; color:var(--muted); padding:7px 12px; border-radius:9px; font-weight:700; cursor:pointer; }
       .trend-tab.active { background:var(--green); border-color:var(--green); color:#fff; }
       .trend-charts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:14px; }
-      .trend-chart { border:1px solid var(--line); border-radius:13px; padding:13px; min-width:0; }
+      .trend-chart { position:relative; border:1px solid var(--line); border-radius:13px; padding:13px; min-width:0; }
       .trend-chart-head { display:flex; justify-content:space-between; gap:8px; align-items:baseline; margin-bottom:8px; }
       .trend-chart-head span { color:var(--muted); font-size:11px; }
       .trend-chart svg { width:100%; height:150px; overflow:visible; }
       .trend-axis { stroke:#dce4df; stroke-width:1; }
       .trend-line { fill:none; stroke:var(--green); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
       .trend-area { fill:rgba(80,126,100,.10); }
+      .trend-tooltip { position:absolute; z-index:3; left:12px; right:12px; top:45px; pointer-events:none; white-space:pre-line; background:#18342b; color:white; border-radius:9px; padding:10px 12px; font-size:12px; line-height:1.6; box-shadow:0 4px 16px #0002; }
+      .trend-hit { fill:transparent; pointer-events:all; cursor:crosshair; }
+      .trend-hit:focus { outline:none; fill:#18342b12; }
       .trend-dot { fill:#fff; stroke:var(--green); stroke-width:2; }
       .trend-labels { display:flex; justify-content:space-between; color:var(--muted); font-size:9px; margin-top:4px; }
       .sales-workbench { margin-bottom:14px; }
@@ -2714,6 +2717,7 @@
 import {readAnswerStream} from './assets/grace-answer-stream.mjs';
 import {recoveryIntent,recoveryRedirect,cleanRecoveryUrl,observePasswordRecovery} from "./assets/password-recovery.mjs?v=20261116-recovery1";
       import {loadBrowserScript} from "./assets/browser-dependency.mjs?v=20261105-local1";
+      import {trendPointText,bindTrendTooltips} from "./assets/trend-tooltip.mjs?v=20261125-1";
       import {inquiryCountryText} from "./assets/inquiry-country-display.mjs?v=20261125-1";
       import {bindResearchGenerateEntry} from "./assets/research-generate-entry.mjs?v=20261029-1";
       import {mountInquiryLeadHistory} from "./assets/inquiry-lead-history.mjs?v=20261117-closure1";
@@ -6000,8 +6004,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         rows.forEach(x=>{const created=map.get(keyFor(x.created_at));if(created)created.inquiries++;const assigned=map.get(keyFor(x.assigned_at));if(x.validity==="valid"&&assigned&&x.assigned_at){assigned.assigned++;if(x.first_valid_contact_at&&new Date(x.first_valid_contact_at)-new Date(x.assigned_at)<=1800000)assigned.fast++}const won=map.get(keyFor(x.won_at||x.created_at));if(won&&x.status==="won")won.sales+=amountCny(x,true)||0});
         if($("#dashboard-data-scope")?.value!=="legacy") historicalOrdersForFilters().forEach(order=>{const bucket=order.ordered_at&&map.get(keyFor(order.ordered_at));if(bucket)bucket.sales+=Number(order.amount_wan||0)*10000});
         const charts=[{title:"新增询盘",unit:"条",values:buckets.map(x=>x.inquiries),format:v=>`${Math.round(v)} 条`},{title:"首次响应率",unit:"%",values:buckets.map(x=>x.assigned?x.fast/x.assigned*100:0),format:v=>`${v.toFixed(1)}%`},{title:"成交额",unit:"CNY",values:buckets.map(x=>x.sales),format:v=>money(v,"CNY")}];
-        const chartHtml=chart=>{const w=420,h=150,p=12,max=Math.max(...chart.values,1),points=chart.values.map((v,i)=>({x:p+(w-p*2)*(chart.values.length===1?0:i/(chart.values.length-1)),y:h-p-(h-p*2)*v/max,v})),line=points.map(q=>`${q.x},${q.y}`).join(" "),area=`${p},${h-p} ${line} ${w-p},${h-p}`,latest=chart.values.at(-1)||0,labels=[buckets[0]?.label,buckets[Math.floor((buckets.length-1)/2)]?.label,buckets.at(-1)?.label];return `<div class="trend-chart"><div class="trend-chart-head"><b>${chart.title}</b><span>最新 ${chart.format(latest)}</span></div><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${chart.title}趋势"><line class="trend-axis" x1="${p}" y1="${h-p}" x2="${w-p}" y2="${h-p}"/><polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${line}"/>${points.map(q=>`<circle class="trend-dot" cx="${q.x}" cy="${q.y}" r="3"><title>${chart.format(q.v)}</title></circle>`).join("")}</svg><div class="trend-labels"><span>${labels[0]||""}</span><span>${labels[1]||""}</span><span>${labels[2]||""}</span></div></div>`};
+        const chartHtml=chart=>{const w=420,h=150,p=12,max=Math.max(...chart.values,1),points=chart.values.map((v,i)=>({x:p+(w-p*2)*(chart.values.length===1?0:i/(chart.values.length-1)),y:h-p-(h-p*2)*v/max,v})),line=points.map(q=>`${q.x},${q.y}`).join(" "),area=`${p},${h-p} ${line} ${w-p},${h-p}`,latest=chart.values.at(-1)||0,labels=[buckets[0]?.label,buckets[Math.floor((buckets.length-1)/2)]?.label,buckets.at(-1)?.label];return `<div class="trend-chart"><div class="trend-chart-head"><b>${chart.title}</b><span>最新 ${chart.format(latest)}</span></div><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${chart.title}趋势"><line class="trend-axis" x1="${p}" y1="${h-p}" x2="${w-p}" y2="${h-p}"/><polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${line}"/>${points.map((q,i)=>`<circle class="trend-dot" cx="${q.x}" cy="${q.y}" r="3"/><rect class="trend-hit" x="${i===0?0:(points[i-1].x+q.x)/2}" y="0" width="${(i===points.length-1?w:(q.x+points[i+1].x)/2)-(i===0?0:(points[i-1].x+q.x)/2)}" height="${h}" tabindex="0" role="img" aria-label="${esc(trendPointText(chart,buckets[i],q.v))}" data-trend-tip="${esc(trendPointText(chart,buckets[i],q.v))}"/>`).join("")}</svg><div class="trend-tooltip" role="status" hidden></div><div class="trend-labels"><span>${labels[0]||""}</span><span>${labels[1]||""}</span><span>${labels[2]||""}</span></div></div>`};
         $("#dashboard-trend-charts").innerHTML=charts.map(chartHtml).join("");
+        bindTrendTooltips($("#dashboard-trend-charts"));
         $$(".trend-tab").forEach(button=>button.classList.toggle("active",button.dataset.trendGrain===grain));
       }
       function latestInboundTasks(rows){

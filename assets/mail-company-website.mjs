@@ -28,3 +28,15 @@ export function mailCompanyWebsite(text='',companyName=''){
  const links=unique([...source.matchAll(/(?:https?:\/\/|\bwww\.)[^\s<>"']+/gi)].filter(m=>!/[\w@]/.test(source[m.index-1]||'')).map(m=>normalize(m[0])).filter(Boolean));
  return choose(unique([...explicit,...links]),explicit.length?'body_website_field':'body_or_signature_url');
 }
+
+// Saved research evidence is a candidate source, never proof of sender identity.
+export function researchWebsiteCandidate(text='',companyName='',sources=[]){
+ const mail=mailCompanyWebsite(text,companyName);
+ if(mail.status!=='missing')return mail;
+ const urls=(Array.isArray(sources)?sources:[]).map(s=>typeof s==='string'?s:s?.url||s?.source_url||'');
+ const evidence=mailCompanyWebsite(urls.join('\n'),companyName);
+ const ranked=evidence.ranking||[];
+ // Require a company-name match as well as a single winning domain.
+ if(evidence.domain&&ranked[0]?.score>0)return {...evidence,source:'saved_research_evidence'};
+ return {...evidence,domain:'',source:'saved_research_evidence',status:ranked.length?'conflict':'missing'};
+}

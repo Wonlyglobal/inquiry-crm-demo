@@ -2409,7 +2409,7 @@
           </div>
           <div class="detail-grid">
             <div class="field"><label>公司名称</label><input id="detail-research-company" class="input" /></div>
-            <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /><small>从邮件正文或签名提取候选官网，不以邮箱域名推定；多个候选需人工核实。</small><a id="detail-research-domain-link" class="table-action hidden" target="_blank" rel="noopener noreferrer" style="display:none;margin-top:8px">打开官网 ↗</a></div>
+            <div class="field"><label>公司域名/官网</label><input id="detail-research-domain" class="input" /><small id="detail-research-domain-hint">优先自动填写邮件正文/签名中的官网；无网址时从已保存背调来源匹配候选。候选不代表身份已核验，多个候选需确认。</small><a id="detail-research-domain-link" class="table-action hidden" target="_blank" rel="noopener noreferrer" style="display:none;margin-top:8px">打开官网 ↗</a></div>
           <div class="field" style="grid-column:1/-1"><label>其他官方/历史域名（来源记录）</label><textarea id="detail-research-domain-aliases" class="input" rows="2" placeholder="每行一个域名；不会替代主官网参与自动匹配"></textarea></div>
             <div class="field"><label for="detail-research-type">客户类型（选填）</label><input id="detail-research-type" class="input" list="customer-type-options" placeholder="暂不确定可留空，后续补充" /><datalist id="customer-type-options"><option value="代理商"></option><option value="经销商"></option><option value="分销商"></option><option value="进口商"></option><option value="批发商"></option><option value="制造商"></option><option value="建筑承包商"></option><option value="其他"></option></datalist></div>
             <div class="field"><label>风险等级 <button class="metric-help" data-metric="research_risk_level" type="button">?</button></label><select id="detail-research-risk" class="input"><option value="normal">正常</option><option value="medium">中风险</option><option value="high">高风险</option><option value="critical">严重风险</option></select></div>
@@ -7049,8 +7049,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#company-identity-candidates")?.remove();
         const originalText = String(inquiry.original_message || "");
         const senderEmail = String(intake?.sender_email || "").trim().toLowerCase();
-        const {mailCompanyWebsite}=await import("./assets/mail-company-website.mjs?v=20261024-1");
-        const websiteCandidate=mailCompanyWebsite(originalText, company.name || originalText.match(/(?:^|\n)\s*company(?:[ _]name)?\s*:\s*([^\n]+)/i)?.[1] || "");
+        const {researchWebsiteCandidate}=await import("./assets/mail-company-website.mjs?v=20261125-2");
+        const websiteCandidate=researchWebsiteCandidate(originalText, company.name || originalText.match(/(?:^|\n)\s*company(?:[ _]name)?\s*:\s*([^\n]+)/i)?.[1] || "",company.research_evidence_sources);
         const namedCompany = originalText.match(/\bat\s+([A-Z][A-Za-z0-9&.' -]{1,80}?)\s+(?:in\s+[A-Z]|[,.\n])/i)?.[1]?.trim();
         currentInquiry.webformProviderIdentityBlocked = isWebsiteFormServiceCompany(company.name) || isWebsiteFormServiceDomain(company.domain);
         const websiteLead = inquiry.source === "website" || isWebsiteFormServiceDomain(senderEmail) || isWebsiteFormServiceDomain(intake?.parsed_data?.transport_sender);
@@ -7060,6 +7060,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const {researchCompanyDomain}=await import("./assets/business-public-research.mjs?v=20261022-2");
         if(currentInquiry?.id!==id||autonomousResearchInquiryId)return;
         $("#detail-research-domain").value = researchCompanyDomain(company.domain || "") || websiteCandidate.domain;
+        $("#detail-research-domain-hint").textContent = websiteCandidate.source === "saved_research_evidence" && websiteCandidate.domain && !company.domain ? "已从保存的背调来源自动填写候选官网；公司及发件人身份仍待核验。" : "自动提取邮件正文/签名中的候选官网，不以邮箱域名推定；多个候选需确认。";
         $("#detail-research-domain").title = websiteCandidate.status === "conflict" ? "正文或签名有多个候选网站，请人工核实；邮箱域名不参与推定" : "正文/签名网址仅为客户提供的候选，需核验官网身份；邮箱域名不参与推定";
         const savedResearchBrief = company.research_sales_brief || {};
         const domainAliases = Array.isArray(savedResearchBrief.domain_aliases) ? savedResearchBrief.domain_aliases : [];

@@ -21,3 +21,13 @@ test('multiple candidates select unique highest company match, never break ties 
  assert.equal(extract('https://acme.ae https://acme.com','Acme LLC').domain,'');
  assert.equal(extract('https://first.ae https://second.ae','Trading LLC').domain,'');
 });
+
+import {researchWebsiteCandidate} from '../assets/mail-company-website.mjs';
+test('saved research fills a uniquely name-matched candidate, retaining provenance',()=>{
+ const result=researchWebsiteCandidate('No website supplied','MSB Company',[{url:'https://www.msbholding.com.sa/'},{url:'https://www.msbholding.com.sa/copy-of-our-companies'},{url:'https://sa.linkedin.com/company/msb-holding'}]);
+ assert.equal(result.domain,'msbholding.com.sa');
+ assert.equal(result.source,'saved_research_evidence');
+ assert.equal(result.status,'candidate');
+ assert.equal(researchWebsiteCandidate('Website: supplied.sa','MSB Company',[{url:'https://msbholding.com.sa'}]).domain,'supplied.sa');
+ for(const sources of [[{url:'https://fincen.gov'}],[{url:'https://msbholding.com.sa'},{url:'https://msb.com'}]])assert.equal(researchWebsiteCandidate('','MSB Company',sources).domain,'');
+});

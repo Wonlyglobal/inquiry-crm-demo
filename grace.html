@@ -1936,7 +1936,7 @@
             <div class="table-head"><div class="module-table-heading"><strong id="module-table-title">数据列表</strong><small id="module-table-context">按最新创建时间排列</small></div><span id="module-count" class="tag">0 条</span></div>
             <div id="module-toolbar" class="module-table-toolbar hidden">
               <div class="module-search-wrap"><i data-lucide="search"></i><input id="module-search" class="module-search" type="search" autocomplete="off" placeholder="搜索当前列表"><button id="module-search-clear" class="module-search-clear hidden" type="button" aria-label="清除搜索">×</button></div>
-              <div id="inquiry-filter-group" class="module-filter-group hidden"><select id="inquiry-unread-filter" class="module-filter-select" aria-label="筛选未读更新"><option value="">全部询盘</option><option value="unread">只看未读更新</option></select><select id="inquiry-validity-filter" class="module-filter-select" aria-label="筛选有效性"><option value="">全部有效性</option><option value="pending">待确认</option><option value="valid">有效</option><option value="invalid">无效</option></select><select id="inquiry-source-filter" class="module-filter-select" aria-label="筛选来源"><option value="">全部来源</option></select></div>
+              <div id="inquiry-filter-group" class="module-filter-group hidden"><select id="inquiry-unread-filter" class="module-filter-select" aria-label="筛选未读更新"><option value="">全部询盘</option><option value="unread">只看未读更新</option></select><select id="inquiry-validity-filter" class="module-filter-select" aria-label="筛选有效性"><option value="">全部有效性</option><option value="pending">待确认</option><option value="valid">有效</option><option value="invalid">无效</option></select><select id="inquiry-source-filter" class="module-filter-select" aria-label="筛选来源"><option value="">全部来源</option></select><select id="inquiry-country-filter" class="module-filter-select" aria-label="筛选国家地区"><option value="">全部国家 / 地区</option></select><select id="inquiry-country-sort" class="module-filter-select" aria-label="询盘排序"><option value="recent">最近创建</option><option value="country">按国家 / 地区</option></select></div>
               <select id="personal-mailbox-filter" class="module-filter-select hidden" aria-label="筛选个人邮箱"><option value="">全部个人邮箱</option></select>
               <div id="member-filter-group" class="module-filter-group hidden"><select id="member-mailbox-filter" class="module-filter-select" aria-label="筛选成员邮箱连接"><option value="">全部连接状态</option><option value="connected">已连接</option><option value="not_connected">未连接</option></select></div>
               <div id="knowledge-filter-group" class="module-filter-group hidden"><select id="knowledge-kind-filter" class="module-filter-select" aria-label="筛选知识形式"><option value="">全部形式</option><option value="material">物料文件</option><option value="article">文字知识</option></select><select id="knowledge-category-filter" class="module-filter-select" aria-label="筛选分类或类型"><option value="">全部分类 / 类型</option></select><select id="knowledge-topic-filter" class="module-filter-select" aria-label="筛选素材分类"><option value="">全部素材分类</option></select><select id="knowledge-folder-filter" class="module-filter-select" aria-label="筛选文件夹"><option value="">全部文件夹</option></select><select id="knowledge-uploader-filter" class="module-filter-select" aria-label="筛选上传人"><option value="">全部上传人</option></select><select id="knowledge-language-filter" class="module-filter-select" aria-label="筛选语言"><option value="">全部语言</option></select></div>
@@ -2722,12 +2722,13 @@ import {readAnswerStream} from './assets/grace-answer-stream.mjs';
 import {recoveryIntent,recoveryRedirect,cleanRecoveryUrl,observePasswordRecovery} from "./assets/password-recovery.mjs?v=20261116-recovery1";
       import {loadBrowserScript} from "./assets/browser-dependency.mjs?v=20261105-local1";
       import {trendPointText,bindTrendTooltips} from "./assets/trend-tooltip.mjs?v=20261125-2";
-      import {inquiryCountryText} from "./assets/inquiry-country-display.mjs?v=20261125-1";
+      import {countryView,countryChoices,compareCountries} from "./assets/country-view.mjs?v=20261125-1";
+      import {inquiryCountryText,claimedInquiryCountry} from "./assets/inquiry-country-display.mjs?v=20261125-1";
       import {bindResearchGenerateEntry} from "./assets/research-generate-entry.mjs?v=20261029-1";
       import {mountInquiryLeadHistory} from "./assets/inquiry-lead-history.mjs?v=20261117-closure1";
       let inquiryLeadHistory;
       import {mountProspectReminders} from "./assets/prospect-reminders.mjs?v=20261119-1";
-      import {leadWorkspaceRoute} from "./assets/lead-workspace-route.mjs?v=20261119-reminders1";
+      import {leadWorkspaceRoute} from "./assets/lead-workspace-route.mjs?v=20261125-country1";
       import {openLeadWorkspaceFrame} from "./assets/lead-workspace-frame.mjs?v=20261029-1";
       import {mailboxState} from './assets/mailbox-multi.mjs?v=20261028';
       import {createDailyReportController} from './assets/daily-report-ui.mjs?v=20261028-flow1';
@@ -2750,7 +2751,7 @@ import {recoveryIntent,recoveryRedirect,cleanRecoveryUrl,observePasswordRecovery
       }
       import {savedWebsiteSignals,signalFieldText,signalSaveFields,generatedWebsiteSignals,renderWebsiteSignalEvidence} from './assets/website-english-signals.mjs?v=20261102-en1';
       import {officialInquiryRows,inquiryOrigins} from './assets/official-inquiries.mjs?v=20261104-directory1';
-      import {buildCustomerDirectory,mountCustomerDirectory} from './assets/customer-directory.mjs?v=20261117-details1';
+      import {buildCustomerDirectory,mountCustomerDirectory} from './assets/customer-directory.mjs?v=20261125-country1';
       import {createRealtimeClient} from './assets/agent-realtime-client.mjs?v=20261019-connect3';
       import { mountConversation } from './assets/agent-conversation.mjs?v=20261125-factual-boundary1';
       import { crmLiveAnswer } from './assets/agent-crm-live.mjs?v=20261103-navigation';
@@ -3015,7 +3016,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         nigeria:["尼日利亚","Nigeria"],尼日利亚:["尼日利亚","Nigeria"],russia:["俄罗斯","Russia"],俄罗斯:["俄罗斯","Russia"]
       };
       function displayInquiryCountry(inquiry){return inquiryCountryText(inquiry,countryBilingualNames,displayCountry);}
-      function displayCountry(value){const raw=String(value||"").trim();if(!raw)return "—";if(/\s\/\s/.test(raw))return raw;const pair=countryBilingualNames[raw.toLowerCase()]||countryBilingualNames[raw];return pair?`${pair[0]} / ${pair[1]}`:raw;}
+      function displayCountry(value){const raw=String(value||"").trim();if(!raw)return "—";if(/\s\/\s/.test(raw))return raw;const pair=countryBilingualNames[raw.toLowerCase()]||countryBilingualNames[raw];return pair?`${pair[0]} / ${pair[1]}`:countryView(raw).label;}
       function setMemberAvatar(element, member, fallback = "成") {
         if (!element) return;
         element.replaceChildren();
@@ -3523,6 +3524,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const query = $("#module-search").value.trim().toLocaleLowerCase();
         const validity = activeModuleView === "inquiries"&&!activeInquiryArchive ? $("#inquiry-validity-filter").value : "";
         const source = activeModuleView === "inquiries"&&!activeInquiryArchive ? $("#inquiry-source-filter").value : "";
+        const country = activeModuleView === "inquiries"&&!activeInquiryArchive ? $("#inquiry-country-filter").value : "";
+        const countrySort = activeModuleView === "inquiries"&&!activeInquiryArchive && $("#inquiry-country-sort").value === "country";
         const memberMailbox = activeModuleView === "settings" ? $("#member-mailbox-filter").value : "";
         const knowledgeKind=activeModuleView==="knowledge"?$("#knowledge-kind-filter").value:"",knowledgeCategory=activeModuleView==="knowledge"?$("#knowledge-category-filter").value:"",knowledgeUploader=activeModuleView==="knowledge"?$("#knowledge-uploader-filter").value:"",knowledgeLanguage=activeModuleView==="knowledge"?$("#knowledge-language-filter").value:"",knowledgeTopic=activeModuleView==="knowledge"?$("#knowledge-topic-filter").value:"",knowledgeFolder=activeModuleView==="knowledge"?$("#knowledge-folder-filter").value:"";
         $("#module-search-clear").classList.toggle("hidden", !query);
@@ -3531,14 +3534,15 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           const matchesStage = activeInquiryArchive || !activeInquiryScope || activeInquiryScope === "all" || (activeInquiryScope === "open" ? row.meta?.validity === "valid" && !["won","lost"].includes(row.meta?.status) : activeInquiryScope === "risk" ? row.meta?.risk : row.meta?.status === activeInquiryScope);
           const matchesTodayCategory = activeModuleView !== "sales-today" || activeTodayCategory === "all" || row.meta?.category === activeTodayCategory;
           const matchesKnowledge=activeModuleView!=="knowledge"||(!knowledgeKind||row.meta?.knowledgeKind===knowledgeKind)&&(!knowledgeCategory||row.meta?.knowledgeCategory===knowledgeCategory)&&(!knowledgeUploader||row.meta?.knowledgeUploader===knowledgeUploader)&&(!knowledgeLanguage||row.meta?.knowledgeLanguage===knowledgeLanguage)&&(!knowledgeTopic||row.meta?.knowledgeTopic===knowledgeTopic)&&(!knowledgeFolder||row.meta?.knowledgeFolder===knowledgeFolder);
-          return (!unreadOnly || inquiryUnreadItems.has(row.id)) && matchesQuery && matchesStage && matchesTodayCategory && matchesKnowledge && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source) && (!memberMailbox || row.meta?.memberMailbox === memberMailbox);
+          return (!unreadOnly || inquiryUnreadItems.has(row.id)) && matchesQuery && matchesStage && matchesTodayCategory && matchesKnowledge && (!validity || row.meta?.validity === validity) && (!source || row.meta?.source === source) && (!country || countryView(row.meta?.country).key === country) && (!memberMailbox || row.meta?.memberMailbox === memberMailbox);
         });
-        const hasFilter = Boolean(unreadOnly || query || validity || source || memberMailbox || knowledgeKind || knowledgeCategory || knowledgeUploader || knowledgeLanguage || knowledgeTopic || knowledgeFolder || (activeInquiryScope && activeInquiryScope !== "all") || (activeModuleView === "sales-today" && activeTodayCategory !== "all"));
+        if(countrySort)filteredRows.sort((a,b)=>compareCountries(a.meta?.country,b.meta?.country)||a.id.localeCompare(b.id));
+        const hasFilter = Boolean(unreadOnly || query || validity || source || country || memberMailbox || knowledgeKind || knowledgeCategory || knowledgeUploader || knowledgeLanguage || knowledgeTopic || knowledgeFolder || (activeInquiryScope && activeInquiryScope !== "all") || (activeModuleView === "sales-today" && activeTodayCategory !== "all"));
         renderModuleTable(moduleColumns, filteredRows, moduleRowClick, hasFilter);
         $("#module-filter-summary").classList.toggle("hidden", !hasFilter);
         $("#module-reset-filters").classList.toggle("hidden", !hasFilter);
         if (hasFilter) $("#module-filter-summary").textContent = `显示 ${filteredRows.length} / ${moduleRows.length} 条`;
-        $("#module-table-context").textContent = hasFilter ? "已应用筛选 · 点击任意记录查看完整详情" : activeInquiryArchive ? "回收站 · 仅老板可见 · 可恢复，不执行物理删除" : activeModuleView === "sales-today" ? "按紧急程度与计划时间排列 · 点击任务进入处理" : "按最新创建时间排列 · 点击记录查看完整详情";
+        $("#module-table-context").textContent = countrySort ? "按国家 / 地区排序 · 官方询盘与业务员客户线索分开统计" : hasFilter ? "已应用筛选 · 点击任意记录查看完整详情" : activeInquiryArchive ? "回收站 · 仅老板可见 · 可恢复，不执行物理删除" : activeModuleView === "sales-today" ? "按紧急程度与计划时间排列 · 点击任务进入处理" : "按最新创建时间排列 · 点击记录查看完整详情";
         if (hasFilter && !filteredRows.length) setModuleState("filtered");
       }
       function renderKnowledgeFilters(rows){
@@ -3571,6 +3575,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const sources = [...new Set(rows.map((row) => row.meta?.source).filter(Boolean))];
         sourceSelect.innerHTML = `<option value="">全部来源</option>${sources.map((value) => `<option value="${esc(value)}">${esc(sourceNames[value] || value)}</option>`).join("")}`;
         sourceSelect.value = sources.includes(selected) ? selected : "";
+        const countrySelect=$("#inquiry-country-filter"),countrySelected=countrySelect.value,countries=countryChoices(rows.map(r=>r.meta?.country));
+        countrySelect.innerHTML=`<option value="">全部国家 / 地区</option>${countries.map(c=>`<option value="${esc(c.key)}">${esc(c.label)}（${c.count}条）</option>`).join("")}`;
+        countrySelect.value=countries.some(c=>c.key===countrySelected)?countrySelected:"";
       }
       async function toggleInquiryPipelinePreview(inquiry,button,parentRow){
         const existing=parentRow.nextElementSibling;
@@ -4844,7 +4851,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#member-filter-group").classList.toggle("hidden",view!=="settings");
         if(!preserveMemberFilters)$("#member-mailbox-filter").value="";
         $("#inquiry-validity-filter").value = "";
-        $("#inquiry-source-filter").innerHTML = '<option value="">全部来源</option>';
+        $("#inquiry-source-filter").innerHTML = '<option value="">全部来源</option>';$("#inquiry-country-filter").innerHTML='<option value="">全部国家 / 地区</option>';$("#inquiry-country-sort").value="recent";
         $("#knowledge-kind-filter").value="";$("#knowledge-category-filter").innerHTML='<option value="">全部分类 / 类型</option>';$("#knowledge-uploader-filter").innerHTML='<option value="">全部上传人</option>';$("#knowledge-topic-filter").innerHTML='<option value="">全部素材分类</option>';$("#knowledge-folder-filter").innerHTML='<option value="">全部文件夹</option>';$("#knowledge-language-filter").innerHTML='<option value="">全部语言</option>';
         $("#module-table-context").textContent = "按最新创建时间排列";
         setModuleState("loading");
@@ -5054,7 +5061,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
             $("#module-filter-summary").classList.remove("hidden");
           }
           columns = view === "public-pool" ? ["编号", "询盘主题", "国家/地区", "进入公海", "公海时长", "释放原因", "当前阶段", "操作"] : view === "nurture" ? ["编号","询盘主题","国家/地区","优先级","成熟度","退回原因","建议复联","培育状态","操作"] : view === "quotes" ? ["编号","客户/询盘","阶段","报价金额","报价时间","下次跟进","操作"] : view === "assignment" ? ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间", "操作"] : ["编号", "询盘主题", "国家/地区", "负责人", "阶段", "有效性", "来源", "创建时间", "操作"];
-          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写",requests=publicPoolRequests.filter(r=>r.inquiry_id===x.id),mine=requests.find(r=>r.requested_by===profile.id&&r.request_type==="claim"),actions=[];if(profile.role==="sales")actions.push(mine?{label:"领取申请待审核",onClick:()=>toast("该客户的领取申请正在等待主管审核")}:{label:"申请领取",onClick:()=>requestPublicPoolAction(x.id,"claim")});else{const pending=requests[0];if(pending&&["owner","sales_manager"].includes(profile.role))actions.push({label:`审核${pending.request_type==="claim"?"领取":"释放"}`,onClick:()=>reviewPublicPoolRequest(pending)});actions.push({label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)})}return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryCountry(x),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryCountry(x),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : view === "quotes" ? (x)=>({id:x.id,quoteInquiry:x,meta:{status:x.status,validity:x.validity,risk:x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryStage(x),x.estimated_amount?`${x.currency||""} ${Number(x.estimated_amount).toLocaleString()}`:"待填写",x.quoted_at?fmtDate(x.quoted_at):"待报价",x.next_follow_up_at?fmtDate(x.next_follow_up_at):"待安排"],actions:[{label:"报价单",onClick:()=>openQuoteManager(x)},{label:"询盘详情",onClick:()=>openInquiryDetail(x.id)}]}) : view === "assignment" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,source:x.source},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryCountry(x),ownerNames[x.owner_id]||"待主管分配",displayInquiryStage(x),{pending:"待确认",valid:"有效",invalid:"无效"}[x.validity]||x.validity,sourceNames[x.source]||x.source,fmtDate(x.created_at)],actions:[{label:"智能分配",onClick:()=>openDirectAssignment(x.id)},{label:"查看详情",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source, risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayInquiryCountry(x), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)], actions: [{label:"展开流水线",onClick:(button,row)=>toggleInquiryPipelinePreview(x,button,row)},...directAssignmentActions(x)] });
+          mapper = view === "public-pool" ? (x) => {const entered=x.public_pool_entered_at||x.updated_at,days=entered?Math.max(0,Math.floor((Date.now()-new Date(entered))/86400000)):0,reason=String(x.last_change_reason||"").replace(/^释放到客户公海[:：]\s*/,"")||"历史记录未填写",requests=publicPoolRequests.filter(r=>r.inquiry_id===x.id),mine=requests.find(r=>r.requested_by===profile.id&&r.request_type==="claim"),actions=[];if(profile.role==="sales")actions.push(mine?{label:"领取申请待审核",onClick:()=>toast("该客户的领取申请正在等待主管审核")}:{label:"申请领取",onClick:()=>requestPublicPoolAction(x.id,"claim")});else{const pending=requests[0];if(pending&&["owner","sales_manager"].includes(profile.role))actions.push({label:`审核${pending.request_type==="claim"?"领取":"释放"}`,onClick:()=>reviewPublicPoolRequest(pending)});actions.push({label:["owner","sales_manager"].includes(profile.role)?"打开并分配":"查看详情",onClick:()=>openPublicPoolInquiry(x.id)})}return {id:x.id,meta:{status:x.status,validity:x.validity,source:x.source,risk:days>=30},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryCountry(x),fmtDate(entered),`${days} 天`,reason,displayInquiryStage(x)],actions}} : view === "nurture" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,risk:x.nurture_next_at&&new Date(x.nurture_next_at)<new Date()},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryCountry(x),x.lead_priority||"P2",`${x.qualification_score||0} 分`,x.recycle_reason||"未填写",x.nurture_next_at?fmtDate(x.nurture_next_at):"待安排",{inactive:"待安排",nurturing:"培育中",ready:"可重提"}[x.nurture_status]||x.nurture_status],actions:[{label:"制定计划",onClick:()=>openInquiryDetail(x.id)}]}) : view === "quotes" ? (x)=>({id:x.id,quoteInquiry:x,meta:{status:x.status,validity:x.validity,risk:x.quoted_at&&Date.now()-new Date(x.quoted_at)>7*86400000},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryStage(x),x.estimated_amount?`${x.currency||""} ${Number(x.estimated_amount).toLocaleString()}`:"待填写",x.quoted_at?fmtDate(x.quoted_at):"待报价",x.next_follow_up_at?fmtDate(x.next_follow_up_at):"待安排"],actions:[{label:"报价单",onClick:()=>openQuoteManager(x)},{label:"询盘详情",onClick:()=>openInquiryDetail(x.id)}]}) : view === "assignment" ? (x)=>({id:x.id,meta:{status:x.status,validity:x.validity,source:x.source},cells:[String(x.inquiry_no).padStart(6,"0"),x.title,displayInquiryCountry(x),ownerNames[x.owner_id]||"待主管分配",displayInquiryStage(x),{pending:"待确认",valid:"有效",invalid:"无效"}[x.validity]||x.validity,sourceNames[x.source]||x.source,fmtDate(x.created_at)],actions:[{label:"智能分配",onClick:()=>openDirectAssignment(x.id)},{label:"查看详情",onClick:()=>openInquiryDetail(x.id)}]}) : (x) => ({ id: x.id, meta: { status:x.status, validity:x.validity,source:x.source,country:x.target_country||claimedInquiryCountry(x,countryBilingualNames)?.country||"", risk:x.validity === "invalid" || x.status === "lost" }, cells: [String(x.inquiry_no).padStart(6, "0"), x.title, displayInquiryCountry(x), ownerNames[x.owner_id] || "", displayInquiryStage(x), {pending:"待确认",valid:"有效",invalid:"无效"}[x.validity] || x.validity, sourceNames[x.source] || x.source, fmtDate(x.created_at)], actions: [{label:"展开流水线",onClick:(button,row)=>toggleInquiryPipelinePreview(x,button,row)},...directAssignmentActions(x)] });
           if(activeInquiryArchive){columns=["编号","询盘主题","原负责人","归档时间","归档原因","操作"];mapper=x=>({id:x.id,meta:{searchText:`${x.inquiry_no} ${x.title} ${x.archive_reason||""}`},cells:[String(x.inquiry_no||"").padStart(6,"0"),x.title,x.owner_name||"—",fmtDate(x.archived_at),x.archive_reason||"—"],actions:[{label:"恢复询盘",onClick:()=>restoreArchivedInquiry(x)}]});}
           clickable = !activeInquiryArchive;
         } else if (view === "email") {
@@ -5285,6 +5292,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#inquiry-validity-filter").addEventListener("change", filterModuleRows);
       $("#inquiry-unread-filter").addEventListener("change", filterModuleRows);
       $("#inquiry-source-filter").addEventListener("change", filterModuleRows);
+      $("#inquiry-country-filter").addEventListener("change", filterModuleRows);
+      $("#inquiry-country-sort").addEventListener("change", filterModuleRows);
       $("#personal-mailbox-filter").addEventListener("change",()=>loadModule("mailbox"));
       $("#member-mailbox-filter").addEventListener("change", filterModuleRows);
       $$("#knowledge-filter-group select").forEach(select=>select.addEventListener("change",filterModuleRows));
@@ -5292,7 +5301,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#module-reset-filters").addEventListener("click", () => {
         $("#module-search").value = "";
         $("#inquiry-validity-filter").value = "";
-        $("#inquiry-source-filter").value = "";
+        $("#inquiry-source-filter").value = "";$("#inquiry-country-filter").value="";$("#inquiry-country-sort").value="recent";
         $("#inquiry-unread-filter").value = "";
         $("#member-mailbox-filter").value = "";
         $("#knowledge-kind-filter").value="";$("#knowledge-category-filter").value="";$("#knowledge-uploader-filter").value="";$("#knowledge-language-filter").value="";$("#knowledge-topic-filter").value="";$("#knowledge-folder-filter").value="";

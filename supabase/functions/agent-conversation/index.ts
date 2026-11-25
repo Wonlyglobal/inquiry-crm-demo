@@ -1,5 +1,7 @@
 import {readPrivateProjects} from './private-projects.mjs';
 import {sourceTaskPlan,sourceTaskAnswer,sourceTaskMaterials} from './source-task.mjs';
+import {productModelClarification} from './product-model-clarification.mjs';
+import {loadParameterMaterials} from './product-parameter-search.mjs';
 import {conciseCatalogFacts} from './catalog-fact-answer.mjs';
 import {latestWriting,restoredWriting,saveWriting} from './writing-session.mjs';
 import {workScenarioIntent,answerWorkScenario,writingContinuation,newWritingDraft,companyDraftResult} from './work-scenarios.mjs';
@@ -21,7 +23,7 @@ import {privateIntelligenceIntent,readPrivateIntelligence} from './private-intel
 import {socialAnalysisCoversParts} from './private-social-analysis.mjs';
 import {privateReportQuestion} from './private-report-context.mjs';
 import {questionPlan,runQuestionPlan} from './question-plan.mjs';
-import {normalizeProductInput,bareModel} from './product-input.mjs';
+import {normalizeProductInput,bareModel,materialFields} from './product-input.mjs';
 import {privateV9Turn} from './private-v9-turn.mjs';
 import {nativeProductTurn,loadPrivateProductEvidence,nativeProductAnswer,nativeGapText,nativeLookupText} from './private-product-knowledge.mjs';
 import {evidenceCheck,sourceStatusIntent,sourceStatusAnswer} from './acceptance-status.mjs';
@@ -389,6 +391,12 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
      ticket:await ticket({user:user.id,persona:input.persona,text:reply.answer,expires:Date.now()+300000},key)});
    }
    // Internal writing is owner-only through the existing eligible check and quota above.
+   const modelClarification=guest||input.persona!=='Grace'?null:productModelClarification(input.question);
+   if(modelClarification){
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'product_model_clarification',external_model_called:false},reason:'不完整型号先确认，保留所问字段，不推断产品别名'});
+    if(error)return json({error:'调用审计失败'},503);
+    return json({answer:modelClarification.answer,materials:[],provider:'internal',model:'product-model-clarification',context:{route:'materials',material_question:modelClarification.material_question}});
+   }
    const sourceTask=guest?null:sourceTaskPlan(input);
    if(sourceTask){
     const responses=await Promise.all(sourceTask.requests.map((retrieval:any)=>loadFullMaterials({...materialConfig,question:sourceTask.subject,retrieval,recoverConnection:true}).then(gateMaterialEvidence)));
@@ -398,7 +406,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'source_first_task',topics:sourceTask.topics.map((t:any)=>t.id),lookups:responses.length,status:result.unavailable?'connection_unavailable':result.status,source_count:result.source_count||0,external_model_called:false},reason:'产品和售后任务先查询授权原页，不以固定模板或单次未命中断言资料缺失'});if(error)return json({error:'调用审计失败'},503);
     if(result.unavailable)return json({error:'企业资料暂时连不上，可重试刚才的问题；不能据此判断资料缺失',code:'material_connection_unavailable'},503);
     const answerText=sourceTask.companyRequested?'公司介绍：\n'+conciseCatalogFacts({kind:'facts',topics:['founding','listing']},await loadCatalog(admin),'王力公司介绍')+'\n\n产品说明：\n'+result.answer:result.answer;
-    return json({answer:presentMaterialAnswer(answerText,input.question),materials:result.materials,provider:'internal',model:'source-first-task',context:{route:'materials',status:result.status,material_question:('资料任务：'+sourceTask.subject).slice(0,500),source_count:result.source_count,incomplete:result.incomplete,receipts:native?.receipts||[]}});
+    return json({answer:presentMaterialAnswer(answerText,input.question,null,{parameterAnswer:sourceTask.models.length===1&&materialFields(sourceTask.subject).some(f=>['供电','电池','材质','质保','尺寸','厚度'].includes(f))}),materials:result.materials,provider:'internal',model:'source-first-task',context:{route:'materials',status:result.status,material_question:('资料任务：'+sourceTask.subject).slice(0,500),source_count:result.source_count,incomplete:result.incomplete,receipts:native?.receipts||[]}});
    }
    if(!guest&&(workScenarioIntent(input)||writingContinuation(input))){
     const previous=await latestWriting(admin,user.id);
@@ -477,13 +485,14 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    const nativeTurn=guest?null:nativeProductTurn(input.question,input.materialHistory||[]);
    if(nativeTurn){
     const catalog=await loadCatalog(admin);
-    const materials=gateMaterialEvidence(await loadMarketMaterials(nativeTurn.question,nativeTurn.model,catalog,question=>loadFullMaterials({...materialConfig,question})));
+    const materials=await loadParameterMaterials(nativeTurn,retrieval=>loadFullMaterials({...materialConfig,question:nativeTurn.question,retrieval,recoverConnection:true}))||gateMaterialEvidence(await loadMarketMaterials(nativeTurn.question,nativeTurn.model,catalog,question=>loadFullMaterials({...materialConfig,question})));
     const native=await loadPrivateProductEvidence(client,{...nativeTurn,materials});
     const targeted=targetedMaterialAnswer(materials,nativeTurn.question,native);
-    if(targeted||native.receipts.length||native.retrieval_incomplete||native.status==='unavailable'){
+    if(targeted||native.receipts.length||native.retrieval_incomplete||native.status==='unavailable'||materialFields(nativeTurn.question).length){
      const report=nativeProductAnswer(native,nativeTurn);
      const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'private_product_native',provider:'internal',field_count:report.field_count,source_matched_count:report.source_matched_count},reason:'原用户私有产品原生页/区域证据与本次签名源核对，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);
-     return json({answer:presentMaterialAnswer(targeted?.answer||report.answer,input.question,catalog),materials:targeted?.materials||[],provider:'internal',model:'private-product-native',context:{route:'materials',material_question:report.material_question,receipts:report.receipts,native_fields:report.field_count,source_matched_fields:report.source_matched_count},ticket:await ticket({user:user.id,persona:input.persona,text:report.field_count?'带型号、页码和缺口的原生文字证据已放在窗口里，机器摘录仍需核对。':'私有产品补读尚未取得可用字段，读取范围和缺口已放在窗口里，不能据此判断没有参数。',expires:Date.now()+300000},key)});
+     const answer=presentMaterialAnswer(targeted?.answer||report.answer,input.question,catalog,{parameterAnswer:true})+(materials.parameter_search?.incomplete?'\n本次定向检索尚未覆盖全部结果，未核实的字段保持未知。':'');
+     return json({answer,materials:targeted?.materials||[],provider:'internal',model:'private-product-native',context:{route:'materials',material_question:report.material_question,receipts:report.receipts,native_fields:report.field_count,source_matched_fields:report.source_matched_count},ticket:await ticket({user:user.id,persona:input.persona,text:report.field_count?'带型号、页码和缺口的原生文字证据已放在窗口里，机器摘录仍需核对。':'私有产品补读尚未取得可用字段，读取范围和缺口已放在窗口里，不能据此判断没有参数。',expires:Date.now()+300000},key)});
     }
    }
    const v9Turn=guest?null:privateV9Turn(input.question,input.materialHistory||[]);

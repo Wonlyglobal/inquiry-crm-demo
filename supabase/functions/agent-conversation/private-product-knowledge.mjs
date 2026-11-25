@@ -1,4 +1,5 @@
 import {woodTrainingQuestion} from './document-topic.mjs';
+import {correctedProductQuestion} from './product-model-clarification.mjs';
 // Original-owner RPC only. Native private excerpts never enter a provider or speech prompt.
 import {materialModelCodes,materialVersion,normalizeProductInput,materialFields} from './product-input.mjs';
 import {nativeProductEvidence} from './product-native-evidence.mjs';
@@ -14,7 +15,9 @@ const gapLabels={source_edition_unknown:'原文版次未确认。',source_public
 export const nativeGapText=g=>gapLabels[g]||(/^[a-z_]+$/.test(g)?'原生区域结构或归属仍有校验缺口，相关字段未用于结论。':g);
 
 export function nativeProductTurn(question,history=[]){
- const q=normalizeProductInput(question).trim();
+ let q=correctedProductQuestion(question,history)||normalizeProductInput(question).trim();
+ const context=String(history.at(-1)||'');
+ if(context.startsWith(prefix)&&materialFields(context).includes('尺寸')&&/^(?:那|那么|还有|what about|and)?\s*(?:前面板|后面板|front panel|rear panel|back panel)(?:呢|的呢)?[？?。]*$/i.test(q))q+='尺寸';
  const models=materialModelCodes(q);
  const fieldQuestion=materialFields(q).length>0||/缺口|未覆盖|没写|未知/.test(q);
  if(/新需求|换个话题|新话题|不查资料|天气|新闻|CRM|社媒|网站|公司|企业/.test(q))return null;
@@ -25,7 +28,7 @@ export function nativeProductTurn(question,history=[]){
   const edition=materialVersion(q)||(prior&&/^(?:换成|改为|再看|那)/.test(q)?materialVersion(prior):'')||'';
   return {model:models[0],edition,question:models[0]+(edition?' '+edition:'')+'；'+q};
  }
- if(!prior||models.length||q.length>100||!(parameter.test(q)||fieldQuestion)||! /^(?:请问|请|那么|那|它|这款|这个|还有|再|来源|出处|原文|证据|缺口|门厚|厚度|多厚|安装|供电|电池|尺寸|材质|功能|配置|参数|质保|保修|认证|颜色|隔音|隔声|适用|用什么|什么材料|怎么|哪些|what|and|how)/i.test(q))return null;
+ if(!prior||models.length||q.length>100||!(parameter.test(q)||fieldQuestion)||! /^(?:请问|请|那么|那|它|这款|这个|还有|再|来源|出处|原文|证据|缺口|前面板|后面板|front panel|rear panel|back panel|门厚|厚度|多厚|安装|供电|电池|尺寸|材质|功能|配置|参数|质保|保修|认证|颜色|隔音|隔声|适用|用什么|什么材料|怎么|哪些|what|and|how|battery|power|material|warranty|size|dimensions?|source|reference)/i.test(q))return null;
  const priorQ=prior.slice(prefix.length),previous=materialModelCodes(priorQ);
  if(previous.length!==1)return null;
  const edition=materialVersion(q)||materialVersion(priorQ)||'';

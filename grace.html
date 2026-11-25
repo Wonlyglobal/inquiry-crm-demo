@@ -8733,7 +8733,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry || autonomousResearchInquiryId) return;
         const id=currentInquiry.id, button=$("#run-business-research");
-        const {mailCompanyIdentity,identitySummary}=await import("./assets/mail-company-identity.mjs?v=20261125-1");
+        const {mailCompanyIdentity,identitySummary}=await import("./assets/mail-company-identity.mjs?v=20261125-2");
         if(currentInquiry?.id!==id)return;
         const claimed=mailCompanyIdentity(currentInquiry.original_message||"");
         if(claimed.status==="missing"){

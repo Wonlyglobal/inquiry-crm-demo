@@ -7,7 +7,7 @@ export function mailCompanyIdentity(text=''){
  for(const m of body.matchAll(/\b(?:we are|greetings from)\s+([A-Z][A-Za-z0-9 &'’().-]{1,100}?\b(?:Company|Ltd\.?|Limited|LLC|Corporation|Trading|Group))(?=\s+(?:in|based)\b|[,;\n]|$)/gi))add(m[1]);
  const locations=[];
  for(const m of body.matchAll(/(?:^|\n)\s*(?:country|city|location|国家|城市|所在地)\s*[:：]\s*([^\n]+)/gi)){const v=m[1].trim();if(v.length<=100&&!/@|https?:/.test(v))locations.push(v)}
- for(const m of body.matchAll(/\b(?:in|based in)\s+([A-Z][A-Za-z .'-]{1,40},\s*(?:Kingdom of\s+)?[A-Z][A-Za-z .'-]{1,40})(?=[.\n;]|,\s*(?:actively|we))/g))locations.push(m[1].replace(/\.$/,''));
+ for(const m of body.matchAll(/\b(?:in|based in)\s+([A-Z][A-Za-z .'-]{1,40},\s*(?:Kingdom of\s+)?[A-Z][A-Za-z .'-]{1,40})(?=[.\n;]|,\s*(?:actively|we))/g))locations.push(m[1].replace(/\s+/g,' ').replace(/\.$/,''));
  return {company:names.length===1?names[0]:'',companies:names,location:[...new Set(locations)].join(' / '),status:names.length>1?'company_match_required':names.length?'self_reported':'missing',verification:'customer_claim'};
 }
 export function identitySummary(identity,result){

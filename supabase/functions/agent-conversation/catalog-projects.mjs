@@ -52,7 +52,7 @@ export function projectEvidence(intent,catalog){
  const facts=(catalog?.facts||[]).filter(f=>f.topic==='landmarks'&&sourceIds.has(f.catalog)&&Number.isInteger(f.page)&&typeof f.text==='string');
  const all=[...rows,...facts];const seen=new Set(),hits=[];
  for(const p of all){
-  const text=p.text.slice(0,40000),fact=facts.includes(p),projectPage=fact||PAGE_PROJECT.test(text)||facts.some(f=>f.catalog===p.catalog&&f.page===p.page);
+  const fact=facts.includes(p),text=(fact&&typeof p.zh==='string'&&p.zh.trim()?p.zh:p.text).slice(0,40000),projectPage=fact||PAGE_PROJECT.test(text)||facts.some(f=>f.catalog===p.catalog&&f.page===p.page);
   if(!projectPage)continue;
   const terms=intent.terms.filter(w=>has(text,w));if(intent.terms.length&&!terms.length)continue;
   // Keep whole source lines around the geography marker. Do not assign adjacent rows to it.

@@ -4,6 +4,7 @@ const {PGlite}=await import(process.argv[2]);const db=new PGlite();
 await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;
 create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
 grant usage on schema auth to authenticated;
+alter default privileges in schema public grant all on tables to service_role;
 create table profiles(id uuid primary key);create table inquiries(id uuid primary key,owner_id uuid);
 alter table inquiries enable row level security;grant select on inquiries to authenticated;
 create policy own on inquiries for select to authenticated using(owner_id=auth.uid());

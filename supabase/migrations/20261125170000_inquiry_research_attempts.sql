@@ -13,7 +13,7 @@ create table public.inquiry_research_attempts (
 );
 create index inquiry_research_attempts_latest on public.inquiry_research_attempts(inquiry_id,created_at desc);
 alter table public.inquiry_research_attempts enable row level security;
-revoke all on public.inquiry_research_attempts from public,anon,authenticated;
+revoke all on public.inquiry_research_attempts from public,anon,authenticated,service_role;
 grant select on public.inquiry_research_attempts to authenticated;
 grant select,insert on public.inquiry_research_attempts to service_role;
 create policy inquiry_research_attempts_read on public.inquiry_research_attempts for select to authenticated

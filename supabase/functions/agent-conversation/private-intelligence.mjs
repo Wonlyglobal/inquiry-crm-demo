@@ -34,7 +34,16 @@ export function privateIntelligenceQuery(q='',now=Date.now()){
 export function privateIntelligenceAnswer(result,question='',now=Date.now(),content=null,video=null){
  const rows=Array.isArray(result?.documents)?result.documents:[];
  if(!rows.length)return '私有知识库没有查到对应日期的已同步报告或证据。这不表示该期间没有业务或市场变化；请先导入对应报告。';
- if(companyQuestion(question)&&companyDocuments(rows).length)return companyDirectAnswer(rows,question);
+ if(companyDocuments(rows).length){
+  if(companyQuestion(question))return companyDirectAnswer(rows,question);
+  const follow=question.split('，').at(-1)||'';
+  if(/查看私有知识 evidence-/.test(question)&&/^(?:请|那)?(?:来源|出处|原表出处|来源与缺口|数据日期)(?:呢|吗)?[？?。]*$/.test(follow)){
+   const d=companyDocuments(rows)[0].document;
+   const files=(d.sections||[]).filter(s=>/企业文化公司知识/.test(s.title)).map(s=>String(s.body||'').split('\n')[0].match(/(?:来源\s*[:：]\s*)+([^；;\n]+?\.(?:xlsx|xls|pdf|docx|pptx))(?=\s*[；;，,。]|\s*SHA256\b|\s*$)/iu)?.[1]?.split(/[\\/]/u).at(-1)).filter(Boolean);
+   const refs=[...new Set([...files,...(d.evidence||[]).slice(0,3).map(e=>[e.title,e.url].filter(Boolean).join('：')).filter(Boolean)])];
+   return '依据：'+(refs.join('；')||'已同步企业知识；原文件定位未返回')+'。\n资料记录日期：'+(d.period?.to||'未知')+'；不等同原文件发布日期。\n'+((d.evidence||[]).map(e=>e.gap).filter(Boolean).slice(0,2).join('；')||'原表内容仍需人工核验。');
+  }
+ }
  const out=['以下来自公司私有知识库；报告与证据未发送给外部模型。'];
  for(const row of rows){const d=row.document;
   if(d.kind==='product'){

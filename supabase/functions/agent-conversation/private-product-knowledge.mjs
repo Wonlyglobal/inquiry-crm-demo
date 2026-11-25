@@ -125,6 +125,12 @@ export function nativeProductAnswer(result,turn){
  if(!requested.length)lines.push(selected.length?`${turn.model}：`+selected.slice(0,4).map(f=>f.value).join('；'):`${turn.model}：暂未取得可核实的同型号参数。`);
  const refs=[...new Set(selected.slice(0,4).map(f=>`${f.ref}（${f.edition||'版次未返回'}；${f.date||f.published_at||'日期未返回'}）`))];
  if(refs.length)lines.push('来源：'+refs.join('；')+'。','以上为同源文字摘录，实际供货配置尚未人工核验。');
- else lines.push(result.retrieval_incomplete||result.status==='unavailable'?'本次资料读取未完成；不代表物料库没有该参数。':'来源缺口：本次未取得通过型号、版本与页码核对的证据。');
+ else {
+  const codes=result.gaps||[];
+  const operational=codes.filter(g=>/^private_product_/.test(g));
+  const gaps=[...new Set((operational.length?operational:codes).map(nativeGapText))];
+  if(result.status==='unavailable'||codes.includes('private_product_read_failed'))lines.push('本次资料读取未完成；不代表物料库没有该参数。');
+  lines.push('来源缺口：'+(gaps.length?gaps.slice(0,2).join('；'):result.retrieval_incomplete||result.status==='unavailable'?'本次资料读取未完成；不代表物料库没有该参数。':'本次未取得通过型号、版本与页码核对的证据。'));
+ }
  return {answer:lines.join('\n'),evidence_report:out.join('\n'),material_question:prefix+turn.question,receipts:result.receipts||[],field_count:fields.length,source_matched_count:sourceMatched.length,status:result.status};
 }

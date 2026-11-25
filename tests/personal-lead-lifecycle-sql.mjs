@@ -31,6 +31,7 @@ await db.exec(await readFile(new URL('../supabase/migrations/20261112140000_sale
 await db.exec(await readFile(new URL('../supabase/migrations/20261117163000_unconverted_lead_progress.sql',import.meta.url),'utf8'));
 
 await db.exec(await readFile(new URL('../supabase/migrations/20261117173000_personal_lead_lifecycle.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20261125180000_personal_lead_country_sort.sql',import.meta.url),'utf8'));
 await db.exec('alter table public.inquiries add column archived_at timestamptz');
 await db.exec(await readFile(new URL('../supabase/migrations/20261119173000_personal_followup_schedule.sql',import.meta.url),'utf8'));
 await as('s');const today=(await db.query("select (clock_timestamp() at time zone 'Asia/Shanghai')::date::text d")).rows[0].d;
@@ -68,6 +69,14 @@ await db.query('update private.sales_leads set next_action=$2,next_due_at=$3,nex
 for(const k of ['m','o','boss','']){await as(k);await reject(()=>call('personal_followup_schedule',['prospect','today',0]))}
 await db.exec('reset role');for(const role of ['anon','service_role'])ok(!(await db.query("select has_function_privilege($1,'public.personal_followup_schedule(text,text,integer)','EXECUTE') allowed",[role])).rows[0].allowed);
 await db.query('update private.sales_leads set next_done_at=clock_timestamp() where id=$1',[saved[1].id]);await as('s');ok((await call('personal_followup_schedule',['prospect','week',0])).total===0);
+// Country grouping uses the entire own ledger before paging, never the current 50 rows.
+await db.exec('reset role');await db.exec("update private.sales_leads set country=case when company like '分页客户%' then case when right(company,1) in ('0','2','4','6','8') then 'Kenya' else '肯尼亚' end else '尼日利亚 拉各斯' end");
+await db.exec("select private.sales_lead_country_key('Ｋｅｎｙａ')");ok((await db.query("select private.sales_lead_country_key('Ｋｅｎｙａ') k")).rows[0].k==='肯尼亚');
+await as('s');const grouped=await call('personal_sales_lead_country_list',['','all',0,'肯尼亚','country']),grouped2=await call('personal_sales_lead_country_list',['','all',50,'肯尼亚','country']);ok(grouped.total===55&&grouped.items.length===50&&grouped2.items.length===5);ok(new Set([...grouped.items,...grouped2.items].map(x=>x.id)).size===55);ok(grouped.items.every(x=>['Kenya','肯尼亚'].includes(x.country)));ok(grouped.countries.some(c=>c.country==='尼日利亚 拉各斯'));ok((await call('personal_sales_lead_country_list',['','all',0,'尼日利亚','country'])).total===2);
+await reject(()=>call('personal_sales_lead_country_list',['','all',1,'','country']));await reject(()=>call('personal_sales_lead_country_list',['','all',0,'','bad']));
+await as('s2');const others=await call('personal_sales_lead_country_list',['','all',0,'','country']);ok(others.total===0&&others.countries.length===0);
+for(const actor of ['m','boss','o','']){await as(actor);await reject(()=>call('personal_sales_lead_country_list',['','all',0,'','country']))}
+await db.exec('reset role');for(const role of ['anon','service_role'])ok(!(await db.query("select has_function_privilege($1,'public.personal_sales_lead_country_list(text,text,integer,text,text)','EXECUTE') allowed",[role])).rows[0].allowed);
 await db.exec('reset role');await db.query('update public.profiles set active=false where id=$1',[ids.s]);await as('s');await reject(()=>call('personal_sales_lead_list',['','all',0]));await reject(()=>call('personal_sales_lead_detail',[saved[0].id,0]));
-await reject(()=>call('personal_followup_schedule',['prospect','today',0]));
+await reject(()=>call('personal_followup_schedule',['prospect','today',0]));await reject(()=>call('personal_sales_lead_country_list',['','all',0,'','country']));
 await db.close();console.log(`${checks} isolated lifecycle assertions passed`);

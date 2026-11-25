@@ -31,9 +31,9 @@ test('each existing sidebar action has one group and all six groups agree in bot
   }
 });
 test('new shortcuts retain the canonical workspace and precise anchors',()=>{
-  assert.equal(leadWorkspaceRoute('sales-leads','sales').href,'sales-leads.html?embed=1&v=20261119-reminders1#lead-dashboard');
-  assert.equal(leadWorkspaceRoute('sales-lead-entry','sales').href,'sales-leads.html?embed=1&v=20261119-reminders1#entry');
-  assert.equal(leadWorkspaceRoute('weekly-customers','sales').href,'sales-leads.html?embed=1&v=20261119-reminders1#weekly-customer');
+  assert.equal(leadWorkspaceRoute('sales-leads','sales').href,'sales-leads.html?embed=1&v=20261125-country1#lead-dashboard');
+  assert.equal(leadWorkspaceRoute('sales-lead-entry','sales').href,'sales-leads.html?embed=1&v=20261125-country1#entry');
+  assert.equal(leadWorkspaceRoute('weekly-customers','sales').href,'sales-leads.html?embed=1&v=20261125-country1#weekly-customer');
   for(const role of ['owner','marketing','sales_manager'])assert.equal(leadWorkspaceRoute('sales-lead-entry',role),null);
   assert.equal(leadWorkspaceRoute('settings','sales'),null);
 });

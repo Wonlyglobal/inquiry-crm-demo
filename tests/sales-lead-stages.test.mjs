@@ -57,5 +57,5 @@ test('both daily lead render paths use Chinese helpers and HTML invalidates the 
  assert.match(page,/esc\(leadStageLabel\(l\)\)/);
  assert.match(page,/formatStageSummary\(w\.summary\.stages\)/);
  assert.doesNotMatch(page,/JSON\.stringify\(w\.summary\.stages\)|esc\(l\.stage/);
- assert.match(html,/sales-leads-page\.mjs\?v=20261119-reminders1/);
+ assert.match(html,/sales-leads-page\.mjs\?v=20261125-country1/);
 });

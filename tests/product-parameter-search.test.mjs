@@ -36,6 +36,7 @@ test('dimension answer drops a bare duplicate only on the same source page',()=>
  const finding=value=>({product:'T80MAX',model:'T80MAX',field:'尺寸',value,page:4,quote});
  const asset={name:'Synthetic',isCurrentVersion:true,versionLabel:'V1',document:{sha256:'a'.repeat(64),pages:[{page:4,chunks:[quote],facts:[]}],product_understanding:{findings:[finding('400 × 80 × 50mm'),finding('前面板尺寸 400 × 80 × 50mm'),finding('后面板尺寸 400 × 80 × 70mm')]}}};
  const answer=productParameterAnswer({evidence_gate:{version:1},assets:[asset]},'T80 MAX尺寸');
+ assert.doesNotMatch(answer,/未经人工参数核验/);assert.match(answer,/来源：/);
  assert.equal((answer.match(/400 × 80 × 50mm/g)||[]).length,1);assert.match(answer,/后面板/);
  const separate=structuredClone(asset);separate.name='Other source';separate.document.sha256='b'.repeat(64);separate.document.product_understanding.findings=[finding('400 × 80 × 50mm')];
  assert.equal((productParameterAnswer({evidence_gate:{version:1},assets:[asset,separate]},'T80 MAX尺寸').match(/400 × 80 × 50mm/g)||[]).length,2);

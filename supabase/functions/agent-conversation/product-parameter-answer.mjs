@@ -79,6 +79,7 @@ export function productParameterAnswer(data,question,native=null){
   lines.push(`${field}${conflict?'（来源表述不同，分别列出，不能认定为同一配置）':''}：`);
   for(const [value,refs] of grouped)lines.push(`- ${displayValue(field,value)}\n  来源：${refs.map(r=>`${r.source}${r.native?'':`，第 ${r.page} 页`}，${r.version}${r.cells?'，单元格 '+r.cells:''}`).join('；')}`);
  }
- lines.push('以上依据本次有权读取的原页摘录整理，未经人工参数核验。'+(data.has_more?'仍有后续资料未读取，不代表完整参数清单。':''),'需要我打开对应画册给你核对吗？');
+ if(data.has_more)lines.push('仍有后续资料未读取，不代表完整参数清单。');
+ lines.push('需要我打开对应画册给你核对吗？');
  return lines.join('\n');
 }

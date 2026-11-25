@@ -65,6 +65,7 @@ import {signMaterialFileRequest,MATERIAL_ACTOR} from './material-file-proof.mjs'
 import {resolveMaterialTurn,conciseMaterialAnswer,videoSourceQuestion} from './material-dialogue.mjs';
 import {loadFullMaterials,fullMaterialAnswer,materialConnectionUnavailable} from './materials.mjs';
 import {doorWindowCatalogueRequest,doorWindowCatalogueReply} from './door-window-catalogues.mjs';
+import {materialDirectoryRequest,materialDirectoryReply} from './material-directory.mjs';
 import {answerVerifiedVideo,loadVerifiedVideoIndex} from './verified-video.mjs';
 import {outreachProductRequest,outreachEvidenceRequest,productCatalogueQueries,outreachProductEvidence,buildProductReviewDraft,PRODUCT_CATEGORIES} from './outreach-product-draft.mjs';
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
@@ -359,6 +360,21 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    validateDialogue(input);
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
+   const materialDirectory=guest||input.persona!=='Grace'?null:materialDirectoryRequest(input.question);
+   if(materialDirectory){
+    const responses=await Promise.all(materialDirectory.queries.map(query=>loadFullMaterials({
+      ...materialConfig,question:query,retrieval:{query,terms:[],page:1,constraints:{}},recoverConnection:true
+    })));
+    const reply=materialDirectoryReply(responses,materialDirectory);
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,
+     after_data:{operation:'material_directory_files',kind:materialDirectory.kind,provider:'internal',persona:input.persona,
+     status:responses.every(value=>value.status==='available')?'available':'incomplete',source_count:reply?.materials.length||0},
+     reason:'查询当前权限内的文件目录，不向外部模型发送资料'});
+    if(error)return json({error:'调用审计失败'},503);
+    if(!reply)return json({error:'暂时连不上物料库，请重试刚才的问题。',code:'material_connection_unavailable'},503);
+    return json({...reply,provider:'internal',model:'material-catalogue',
+     ticket:await ticket({user:user.id,persona:input.persona,text:reply.answer,expires:Date.now()+300000},key)});
+   }
    const directoryRequest=guest||input.persona!=='Grace'?null:doorWindowCatalogueRequest(input.question,input.materialHistory?.at(-1));
    if(directoryRequest){
     const data=await loadFullMaterials({...materialConfig,question:'门窗画册',retrieval:{query:'门窗画册',terms:[],page:1,constraints:{}},recoverConnection:true});
@@ -582,7 +598,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
     }
     if(answer){
      if(!answeredFromPages)answer=conciseCatalogList(intent,catalog,supplementary)||answer;
-     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'catalog_knowledge',persona:input.persona,provider:'internal',kind:intent?.kind||'model_lookup_unavailable',models:(intent?.models||[]).slice(0,4),categories:(intent?.categories||[]).slice(0,2)},reason:'读取私有海外画册摘录，本地展示，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json({answer:presentMaterialAnswer(answer,input.question,catalog),materials:related.map((r:any)=>r.asset),provider:'internal',model:'wonly-catalog',context:{route:'catalog',catalog_status:fullSearch?.status||'unavailable',material_search_status:supplementary?.status||null,search_coverage:fullSearch?.coverage||null,kind:intent?.kind||(fullSearch?'full_index_search':'model_lookup_unavailable'),edition:catalog?.sources?.[0]?.edition||null,material_question:'画册检索：'+catalogQuestion.slice(0,480),model_choices:intent?.kind==='model_choices'?intent.models:[]},ticket:await ticket({user:user.id,persona:input.persona,text:'内部检索范围、来源和缺口在窗口里。',expires:Date.now()+300000},key)});}}
+     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'catalog_knowledge',persona:input.persona,provider:'internal',kind:intent?.kind||'model_lookup_unavailable',models:(intent?.models||[]).slice(0,4),categories:(intent?.categories||[]).slice(0,2)},reason:'读取私有海外画册摘录，本地展示，不发送外部模型'});if(error)return json({error:'调用审计失败'},503);return json({answer:presentMaterialAnswer(answer,input.question,catalog,{projectNames:intent?.kind==='projects'}),materials:related.map((r:any)=>r.asset),provider:'internal',model:'wonly-catalog',context:{route:'catalog',catalog_status:fullSearch?.status||'unavailable',material_search_status:supplementary?.status||null,search_coverage:fullSearch?.coverage||null,kind:intent?.kind||(fullSearch?'full_index_search':'model_lookup_unavailable'),edition:catalog?.sources?.[0]?.edition||null,material_question:'画册检索：'+catalogQuestion.slice(0,480),model_choices:intent?.kind==='model_choices'?intent.models:[]},ticket:await ticket({user:user.id,persona:input.persona,text:'内部检索范围、来源和缺口在窗口里。',expires:Date.now()+300000},key)});}}
    materialTurn=contextTurn;route=knowledgeRoute(materialTurn.question,input.history);if(videoSources)route.materials=true;if(guest){route={...route,mode:'general',materials:false,crm:false,seo:false,social:false,research:false,knowledge:false};}if(route.materials){route.crm=route.seo=route.social=route.research=route.knowledge=false;route.publicQuery='';}const bgIntent=route.materials?{countries:[],company:false,market:false}:backgroundIntent(materialTurn.question);if(bgIntent.market&&route.mode==='business'){route.research=route.crm=route.knowledge=true;}const skipped={status:'not_requested'};
   if(route.materials){const {error:materialAuditError}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'chat',provider:'internal',model:'material-catalogue',persona:input.persona},reason:'物料问答仅内部检索，不读取无关记忆或调用外部模型'});if(materialAuditError)return json({error:'调用审计失败'},503);if(materialTurn.clarification)return json({answer:materialTurn.clarification,materials:[],provider:'internal',model:'material-catalogue',context:{route:'materials',material_question:input.materialHistory?.at(-1)||'',materials_status:'clarification'},ticket:await ticket({user:user.id,persona:input.persona,text:'请告诉我具体产品型号。',expires:Date.now()+300000},key)});const materialLookup=videoSources?materialTurn.question.replace(/(?:视频|宣传片)(?:\s*(?:时间码|出处|原片))?[\s？?。！!]*$/u,'').trim()||materialTurn.question:materialTurn.question;const materials=gateMaterialEvidence(filterMaterialResults(await loadFullMaterials({actor:user.id,privateJwk:Deno.env.get('MATERIAL_SIGNING_PRIVATE_JWK'),question:materialLookup,serviceUrl:Deno.env.get('MATERIAL_LIBRARY_URL'),secret:Deno.env.get('MATERIAL_LIBRARY_SECRET'),recoverConnection:true}),materialLookup));
    if(materialConnectionUnavailable(materials))return json({error:'企业资料暂时连不上，可重试刚才的问题',code:'material_connection_unavailable'},503);

@@ -194,7 +194,13 @@ Deno.serve(withReadOnlyGuard(async (req) => {
           items.push({title:plainText(field("title"),240),url:url.toString(),summary:plainText(field("description"),600),verification:"search_lead_unverified"});if(items.length>=5)break;
         }
       }catch{status="unavailable"}
-      return new Response(JSON.stringify({status,query,candidates:items,accessed_at:new Date().toISOString(),verification:"company_match_required",limits:"仅搜索候选，未读取原始页面；客户身份与采购授权未核验，不自动选择官网或写入公开库。"}),{headers:cors});
+      const result={status,query,candidates:items,accessed_at:new Date().toISOString(),verification:"company_match_required",limits:"仅搜索候选，未读取原始页面；客户身份与采购授权未核验，不自动选择官网或写入公开库。"};
+      const recordId=crypto.randomUUID();
+      const saved=await discoveryAdmin.from("inquiry_research_attempts").insert({id:recordId,inquiry_id:inquiry.id,actor_id:user.id,company_claim:companyName,location_claim:location,status,result});
+      if(saved.error)throw Error("检索已执行，但背调记录保存失败；请刷新核对后重试");
+      const readback=await client.from("inquiry_research_attempts").select("id,inquiry_id").eq("id",recordId).single();
+      if(readback.error||readback.data?.id!==recordId)throw Error("背调记录已提交但回读未确认，请刷新记录，不要重复提交");
+      return new Response(JSON.stringify({...result,record_id:recordId,saved:true}),{headers:cors});
     }
     const website = safeWebsite(input.website);
     const response = await fetch(website, {

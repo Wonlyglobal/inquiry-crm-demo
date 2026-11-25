@@ -94,3 +94,27 @@ test('regional and presentation followups return scoped content and real formats
 test('geographic task switches must not be swallowed as case followups',()=>{
  for(const q of ['法国天气呢','美国客户报价','埃及产品尺寸','法国适合什么产品','给我法国画册'])assert.equal(projectTurn(q,['海外工程案例']),null,q);
 });
+
+import {presentMaterialAnswer} from '../supabase/functions/agent-conversation/material-chinese.mjs';
+import {foldQuestionSources} from '../assets/agent-question-windows.mjs';
+test('project names survive the final Chinese presenter and citation folding across followups',()=>{
+ class Element {constructor(tag){this.tag=tag;this.children=[];this.style={};}append(...items){this.children.push(...items)}replaceChildren(...items){this.children=items}}
+ const priorDocument=globalThis.document;
+ globalThis.document={createElement:tag=>new Element(tag)};
+ try{
+  let previous='有哪些海外工程案例';
+  for(const q of [previous,'法国的呢','列成表格','只要项目名称','来源呢']){
+   const resolved=projectTurn(q,[previous])||q;previous=resolved;
+   const intent=catalogIntent(resolved,catalog);
+   assert.equal(intent.kind,'projects',q);
+   const raw=catalogAnswer(intent,catalog,resolved);
+   const visible=presentMaterialAnswer(raw,q,catalog,{projectNames:intent.kind==='projects'});
+   const node=new Element('div');node.textContent=visible;foldQuestionSources(node);
+   const body=node.children.length?node.children.filter(x=>typeof x==='string').join(''):visible;
+   assert.match(body,/Synthetic Paris project, France/,q);
+   assert.match(visible,/PDF第8页/,q);
+   if(q!=='有哪些海外工程案例')assert.doesNotMatch(body,/Cairo|Nairobi|Ghana/,q);
+   if(q==='列成表格')assert.match(body,/\| 项目 \| 来源 \|/);
+  }
+ }finally{globalThis.document=priorDocument}
+});

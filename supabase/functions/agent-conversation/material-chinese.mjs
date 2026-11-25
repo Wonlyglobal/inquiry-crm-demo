@@ -17,7 +17,7 @@ export function chineseMaterialText(value){
  return s;
 }
 const residue=s=>s.replace(/\b(?:WONLY|AI|PDF|PPT|PVC|APP|Max|Pro|Plus|Ultra|Basic|Standard|EN|BS|GB|GA|IEC|IP|CE|UL|RC|EI|Rw|HD|USB|WiFi|Wi-Fi|mm|cm|m|kg|dB|min|V|Hz|GHz|W|H|D|T)\b/gi,'').replace(/\b[A-Z]{1,8}[-\d][\w.-]*\b/g,'');
-export function presentMaterialAnswer(answer,question='',catalog=null){
+export function presentMaterialAnswer(answer,question='',catalog=null,{projectNames=false}={}){
  if(typeof answer!=='string'||wantsFactOriginal(question))return answer;
  let text=answer.replace(/对外报价或投标前[^\n]+/g,'画册摘录，待产品负责人确认。').replace(/这些是画册里的公司宣传口径[^\n]+/g,'画册宣传口径，待产品负责人确认。');
  for(const f of catalog?.facts||[])if(typeof f.zh==='string'&&f.zh.length<=500&&/[\u3400-\u9fff]/u.test(f.zh))text=text.split(f.text).join(f.zh);
@@ -28,6 +28,8 @@ export function presentMaterialAnswer(answer,question='',catalog=null){
   if(/```|^\s*[{}]|console\.|export function/.test(raw)){missing=true;continue;}
   // File names and source identifiers are evidence, not English prose to translate.
   if(/^(?:\s*来源|\s*出处|《.*》\s*\d+:)/.test(raw)){lines.push(raw);continue;}
+  // Cited project names are proper names: retain their original spelling, including tables.
+  if(projectNames&&(/PDF第[\d、]+页/u.test(raw)||/^\s*\|(?:\s*项目\s*\||[\s:|\-]+$)/u.test(raw))){lines.push(raw);continue;}
   let s=chineseMaterialText(raw).replace(/(\d)-英寸/g,'$1英寸').replace(/画册原文[：:]?[“”"]?/g,'画册释义：').replace(/[“”]/g,'');
   if(/[a-z]{3,}/i.test(residue(s))){missing=true;continue;}
   lines.push(s);

@@ -7,3 +7,8 @@ test('unverified, ambiguous dimensions and absent power do not become numerical 
 test('colloquial size and unlock followups preserve model but cannot switch to another model silently',()=>{const h=['私有产品：TEST80 PRO V9；参数'];assert.equal(nativeProductTurn('那它多宽呢',h)?.model,'TEST80 PRO');assert.equal(nativeProductTurn('那怎么开锁呢',h)?.model,'TEST80 PRO');assert.equal(nativeProductTurn('换成TEST81 Pro V9参数',h)?.model,'TEST81 PRO')});
 
 test('parameter answer excludes unrelated facts and audit dump while retaining report',()=>{const r=nativeProductAnswer({facts:[fact('Battery: synthetic 5 V'),fact('Unlock with fingerprint')],receipts:[],gaps:['synthetic gap']},{model:'TEST80 PRO',question:'TEST80 PRO；怎么供电'});assert.match(r.answer,/5 V/);assert.match(r.answer,/第3页/);assert.doesNotMatch(r.answer,/fingerprint|SHA-256|同源验证字段/);assert.ok(r.answer.length<350);assert.match(r.evidence_report,/fingerprint/);});
+
+test('bounded unread candidates are distinguished from connection failure in concise gaps',()=>{
+ const r=nativeProductAnswer({facts:[],receipts:[],retrieval_incomplete:true,gaps:['private_product_source_limit']},{model:'TEST80 PRO',question:'供电'});
+ assert.match(r.answer,/超过5个/);assert.doesNotMatch(r.answer,/连接失败|本次资料读取未完成/);assert.ok(r.answer.length<250);
+});

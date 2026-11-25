@@ -1,3 +1,5 @@
+import {factualScope,factualGap} from './factual-boundary.mjs';
+import {companyQuestion} from './company-question.mjs';
 import {readPrivateProjects} from './private-projects.mjs';
 import {sourceTaskPlan,sourceTaskAnswer,sourceTaskMaterials} from './source-task.mjs';
 import {productModelClarification} from './product-model-clarification.mjs';
@@ -325,7 +327,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    if(error)return json({error:'私有知识回读未完成'},400);return json(data);
   }
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
-  const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey),Date.now(),{authorization,materialConfig});return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts,video_index:result.video_index},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
+  const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey),Date.now(),{authorization,materialConfig});return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts,video_index:result.video_index,...(result.answer_kind==='company_fact'?{answer_kind:'company_fact',material_question:('企业事实：'+input.question).slice(0,500)}:{})},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
   if(input.action==='chat'&&input.voice!==true&&!socialWeekPeriod(input.question)&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
    validateDialogue(input);return await privateReply();
   }
@@ -363,6 +365,14 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    validateDialogue(input);
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
+   const factScope=guest||input.persona!=='Grace'?null:factualScope(input.question,input.materialHistory||[]);
+   const factReply=async()=>{const result=factualGap(factScope);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'factual_evidence_boundary',topic:factScope?.topic,external_model_called:false},reason:'未取得可引用事实时禁止通用模型补造，保留原问题范围'});return error?json({error:'调用审计失败'},503):json(result);};
+   if(factScope?.relation||factScope?.correction||factScope?.clarifyModel)return await factReply();
+   const projectQuery=guest?null:projectTurn(input.question,(input.materialHistory||[]).map((q:string)=>q.replace(/^画册检索：/,'')));
+   if(projectQuery&&profile.role==='owner'&&user.id===MATERIAL_ACTOR&&input.persona==='Grace'&&!/画册|PDF|原页/.test(input.question)){
+    const result=await readPrivateProjects(client,projectQuery);
+    if(result)return json({answer:result.answer,provider:'internal',model:'private-projects',context:{route:'catalog',material_question:projectQuery,project_receipts:result.receipts}});
+   }
    const materialDirectory=guest||input.persona!=='Grace'?null:materialDirectoryRequest(input.question);
    if(materialDirectory){
     const responses=await Promise.all(materialDirectory.queries.map(query=>loadFullMaterials({
@@ -564,11 +574,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    if(!guest&&companyLookupIntent(input.question)){const found=await lookupCompanies(input.question,{admin});const answer=companyAnswer(found);if(answer){const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'background_company_lookup',persona:input.persona,provider:'internal',matched_domains:found.matches.map(m=>m.domain).filter(Boolean).slice(0,3),match_count:found.matches.length,source:found.source},reason:'读取背调系统公司研究记录，本地展示，不发送外部模型、不展示联系人'});if(error)return json({error:'调用审计失败'},503);return json({answer,provider:'internal',model:'background-company-records',context:{route:'background_company',as_of:found.as_of},ticket:await ticket({user:user.id,persona:input.persona,text:'我在背调系统找到了相关公司记录，详细内容在窗口里。',expires:Date.now()+300000},key)});}}
    // Owner 2026-10-03: spec questions without a model code answer from WONLY's catalogue or say "画册未写明" (never generic numbers).
    const catalogueHistory=(input.materialHistory||[]).map((q:string)=>q.replace(/^画册检索：/,''));
-   const projectQuery=projectTurn(input.question,catalogueHistory),catalogueQuery=catalogueTurn(input.question,input.materialHistory||[]);
-   if(!guest&&profile.role==='owner'&&user.id===MATERIAL_ACTOR&&input.persona==='Grace'&&projectQuery&&!/画册|PDF|原页/.test(input.question)){
-    const result=await readPrivateProjects(client,projectQuery);
-    if(result)return json({answer:result.answer,provider:'internal',model:'private-projects',context:{route:'catalog',material_question:projectQuery,project_receipts:result.receipts}});
-   }
+   const catalogueQuery=catalogueTurn(input.question,input.materialHistory||[]);
    const resolvedMaterial=resolveMaterialTurn(input.question,catalogueHistory);
    const contextTurn=woodTrainingQuestion(resolvedMaterial.question)?resolvedMaterial:projectQuery||catalogueQuery?{question:projectQuery||catalogueQuery}:resolvedMaterial,catalogQuestion=(contextTurn.clarification?input.question:contextTurn.question).replace(/^物料：/,'');
    const videoSources=videoSourceQuestion(input.question);
@@ -624,6 +630,7 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
      return json({...result,provider:'internal',model:'crm-stat-summary',context:{route:'crm_stat_summary',crm_status:crm.status,crm_period:crm.period,answer_status:'current_aggregate'},ticket:await ticket({user:user.id,persona:input.persona,text:input.phone===true?phoneSpokenReply(result.answer):spokenReply(result.answer),expires:Date.now()+300000},key)});
     }
    }
+   if(factScope)return await factReply();
    const explicitSocialPage=/(?:社媒|帖子|内容).*?第\s*\d{1,4}\s*页/.test(input.question);
    const [research,crm,seo,social,socialPosts,socialLibrary]=await Promise.all([route.research?loadResearch():Promise.resolve(skipped),route.crm?loadCrmStats(client):Promise.resolve(skipped),route.seo?loadSeo({url:Deno.env.get('SEO_SUMMARY_URL'),keyId:Deno.env.get('SEO_SUMMARY_KEY_ID'),secret:Deno.env.get('SEO_SUMMARY_SECRET')}):Promise.resolve(skipped),route.social?loadSocial(authorization):Promise.resolve(skipped),route.social&&explicitSocialPage?loadSocialPosts(authorization,requestedPostPage(input.question)):Promise.resolve(skipped),route.social&&input.persona==='Grace'?loadSocialLibrary(authorization):Promise.resolve(skipped)]);qualityContext={seo,social,socialPosts,socialLibrary};const analysis=analysisIntent(input.question)?evidencePlan({research,crm,seo,social,socialPosts,socialLibrary}):null;contextMetadata={analysis_mode:analysis?'evidence_driven':'standard',evidence_plan:analysis,route:route.mode,crm_status:crm.status,crm_period:crm.period,research_status:research.status||'available',research_date:research.as_of||null,social_status:social.status,social_library_status:socialLibrary.status,social_library_records:socialLibrary.records_read||0,social_library_total:socialLibrary.total_records??null,social_library_platforms:socialLibrary.platform_counts||null,social_posts_status:socialPosts.status,social_posts_page:socialPosts.page||null,social_generated_at:social.generated_at||null,seo_status:seo.status,seo_generated_at:seo.generated_at||null,seo_freshness:seo.freshness||null};const background=route.mode==='business'?backgroundContext(materialTurn.question,{research,crm}):{countryBriefs:[],instruction:''};contextMetadata.background={countries:background.countryBriefs.map(b=>b.country),company_check:!!background.intent?.company};body=requestBody(input,model,JSON.stringify({...route.knowledge?{publicFeed,marketPlaybooks,marketingLearning,socialBusinessContext}:{},research,crm,seo,social,socialPosts,socialLibrary,...background.countryBriefs.length?{countryBriefs:background.countryBriefs}:{},...route.seo&&seoIntent(materialTurn.question)?{seoOpportunities:seoOpportunities(seo)}:{}}));if(background.instruction)body.messages[0].content+='\n'+background.instruction;if(route.mode==='business'&&input.persona==='Grace'&&marketingIntent(materialTurn.question))body.messages[0].content+='\n'+marketingFrameworkInstruction;if(route.seo&&seoIntent(materialTurn.question))body.messages[0].content+='\n'+seoFrameworkInstruction;
    crmForChart=crm;

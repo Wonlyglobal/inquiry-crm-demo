@@ -1,0 +1,12 @@
+// Build an owner-only preview from an already prepared full runtime package.
+import {cp,readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+const root=process.argv[2];if(!root)throw Error('Pass runtime root');
+const src=path.join(root,'supabase/functions/agent-conversation'),dst=path.join(root,'supabase/functions/agent-project-preview');
+await cp(src,dst,{recursive:true});
+let s=await readFile(path.join(dst,'index.ts'),'utf8');
+const marker="  const writing = writingInput(input);";
+if(!s.includes(marker))throw Error('Preview guard anchor missing');
+s=s.replace(marker,`  if(input.action!=='chat'||input.voice===true||input.persona!=='Grace'||!profile?.active||profile.role!=='owner'||user.id!==MATERIAL_ACTOR||!projectTurn(input.question,(input.materialHistory||[]).map((q:string)=>q.replace(/^画册检索：/,''))))return json({error:'此预览仅供原授权账号测试案例问答'},403);\n`+marker);
+s=s.replace(" const watchSecret=req.headers.get('x-watch-secret');"," if(req.headers.has('x-watch-secret'))return json({error:'forbidden'},403);\n const watchSecret=req.headers.get('x-watch-secret');");
+await writeFile(path.join(dst,'index.ts'),s);

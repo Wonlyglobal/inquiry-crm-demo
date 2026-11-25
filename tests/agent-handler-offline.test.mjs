@@ -24,6 +24,13 @@ test('authenticated handler preserves context, handles every clause and enforces
    const before=authCalls;const r=await request('介绍我们的CRM系统，并说明新员工跟进询盘的步骤');assert.equal(r.model,'compound-requests');assert.equal(r.context.tasks.length,2);assert.ok(r.context.tasks.every(x=>x.status==='answered'));assert.match(r.answer,/新员工跟进询盘步骤/);assert.equal(authCalls-before,3);assert.equal(r.provider,'internal');
    const p=await request('查询X60 Pro产品信息，并说明安装条件');assert.equal(p.context.tasks.length,2);assert.match(p.answer,/安装与维护：本次画册索引未取得/);assert.match(p.context.material_question,/X60 PRO/);
   });
+  await t.test('unsupported product relationships stay internal through correction and topic changes',async()=>{
+   let r=await request('A123Z就是A123 Pro吗？');assert.equal(r.http,200);assert.equal(r.model,'factual-evidence-boundary');assert.match(r.answer,/不能确认/);assert.doesNotMatch(r.answer,/CE|UKCA|GCC/);
+   const clarification=await request('那认证呢？',{materialHistory:[r.context.material_question]});assert.equal(clarification.model,'factual-evidence-boundary');assert.match(clarification.answer,/A123Z 还是 A123 PRO/);assert.doesNotMatch(clarification.answer,/请提供具体型号|CE|UKCA/);
+   r=await request('只说已核实的，不要推测型号关系或认证',{materialHistory:[r.context.material_question]});assert.equal(r.provider,'internal');assert.match(r.answer,/不应采信/);assert.match(r.answer,/A123Z/);
+   const fresh=await request('王力有多少家海外工厂');assert.equal(fresh.provider,'internal');assert.doesNotMatch(fresh.answer,/A123/);
+   assert.equal((await request('A123Z就是A123 Pro吗？',{},'invalid')).http,401);
+  });
   await t.test('unsigned voice cannot reach compound dispatch or model lookup',async()=>{
    const before=audits.length;const r=await request('介绍CRM，并说明新员工跟进步骤',{voice:true});assert.equal(r.ignored,'unverified');assert.equal(audits.length,before);
   });

@@ -514,3 +514,10 @@ Grace入口恢复最新已保存正文与签名状态，只放回materialHistory
 - 保护：服务端与前端双重身份校验；成员仅允许 `chat`；12 次/分钟审计限流；所有成员查询写审计；未新增数据库迁移、RLS、角色、密钥或业务数据写入。
 - 验证：本地 2769/2769 测试、语法和 diff 检查通过；PR #553 的 CRM regression、Secret scan 通过；合并提交 `e5d189c928fb26594c732b370b7bbc1076e52e1a`；Pages run `45104921522` 与主分支安全 run `45104921452` 成功；生产静态模块含两人邮箱；匿名调用生产函数返回 HTTP 401；函数已部署 ACTIVE v203。
 - 回滚：revert PR #553，并重新部署先前 `agent-conversation` 包/版本；无数据库迁移或业务数据需要回滚，保留审计记录。未使用两人的真实登录会话代登录验收；账号需处于 active 且邮箱精确匹配。
+
+
+## 2026-11-25 Factual answer boundary and followup scope — candidate
+
+Recognized company/product facts cannot fall through to unsupported model-generated claims. Model identity questions stay internal; ambiguous multi-model followups clarify the model and retain the requested field on selection. Natural project supply and short company-name followups retain their scopes. Company fact answers omit report-action controls; retry text is not duplicated. Source gaps remain explicit.
+
+Validation: 2,821 offline tests passed; browser syntax and diff checks passed. Owner-only preview browser and physical iPhone Safari checks cover a three-turn identity/certification/model-selection chain, company-name followup, project filtering/supply, known dimensions/panel followup and fresh query after refresh. This is bounded acceptance, not full knowledge coverage. No internal evidence or screenshots are committed. Preview preserves original caller authentication, RLS, source limits and voice validation. Production has not changed. Rollback uses the saved full pre-change runtime.

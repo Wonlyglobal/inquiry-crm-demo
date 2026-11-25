@@ -41,7 +41,7 @@ export function privateIntelligenceAnswer(result,question='',now=Date.now(),cont
    const d=companyDocuments(rows)[0].document;
    const files=(d.sections||[]).filter(s=>/企业文化公司知识/.test(s.title)).map(s=>String(s.body||'').split('\n')[0].match(/(?:来源\s*[:：]\s*)+([^；;\n]+?\.(?:xlsx|xls|pdf|docx|pptx))(?=\s*[；;，,。]|\s*SHA256\b|\s*$)/iu)?.[1]?.split(/[\\/]/u).at(-1)).filter(Boolean);
    const refs=[...new Set([...files,...(d.evidence||[]).slice(0,3).map(e=>[e.title,e.url].filter(Boolean).join('：')).filter(Boolean)])];
-   return '依据：'+(refs.join('；')||'已同步企业知识；原文件定位未返回')+'。\n资料记录日期：'+(d.period?.to||'未知')+'；不等同原文件发布日期。\n'+((d.evidence||[]).map(e=>e.gap).filter(Boolean).slice(0,2).join('；')||'原表内容仍需人工核验。');
+   return '依据：'+(refs.join('；')||'已同步企业知识；原文件定位未返回')+'。\n资料记录日期：'+(d.period?.to||'未知')+'；不等同原文件发布日期。\n'+((d.evidence||[]).map(e=>e.gap).filter(Boolean).slice(0,2).join('；')||'');
   }
  }
  const out=['以下来自公司私有知识库；报告与证据未发送给外部模型。'];
@@ -77,5 +77,5 @@ export async function readPrivateIntelligence(client,q,now=Date.now(),options={}
  const video=existingVideoIntent(q)&&documents.length?await loadExistingVideoIndex(options.materialConfig,q,options.fetcher||fetch,now):null;
  const content=!existingVideoIntent(q)&&socialContentIntent(q)&&documents.length?await loadSocialContent(options.authorization,options.fetcher||fetch,now):null;
  const note=platforms.length>1?'\n\n各平台分别读取各自已同步快照，不做跨平台排行榜。'+(missing.length?'未找到对应日期快照：'+missing.join('、')+'；不当作0或没有发布。':''):'';
- return {answer:privateIntelligenceAnswer({documents},q,now,content,video)+note,video_index:video?{status:video.status,read_at:video.read_at,pages:video.pages,projection_digest:video.digest,videos:video.videos.length,usable:video.videos.filter(v=>v.current&&v.segments.length).length}:null,receipts:documents.map(r=>({id:r.id,digest:r.digest,key:r.document.key,imported_at:r.imported_at}))};
+ return {answer_kind:companyDocuments(documents).length?'company_fact':null,answer:privateIntelligenceAnswer({documents},q,now,content,video)+note,video_index:video?{status:video.status,read_at:video.read_at,pages:video.pages,projection_digest:video.digest,videos:video.videos.length,usable:video.videos.filter(v=>v.current&&v.segments.length).length}:null,receipts:documents.map(r=>({id:r.id,digest:r.digest,key:r.document.key,imported_at:r.imported_at}))};
 }

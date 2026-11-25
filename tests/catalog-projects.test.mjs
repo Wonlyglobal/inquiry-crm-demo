@@ -80,3 +80,17 @@ test('overseas paraphrases and regional followups keep concise scoped answers',(
  assert.equal(i.overseas,true);assert.equal(i.geography,'埃及');
  const a=catalogAnswer(i,catalog,turn);assert.match(a,/Egypt/);assert.doesNotMatch(a,/Nairobi|France|检索范围|原页文字线索/);
 });
+test('regional and presentation followups return scoped content and real formats',()=>{
+ let prior='有哪些海外工程案例';
+ for(const q of ['法国的呢？','列成表格','只要项目名称','具体供货产品呢？','来源呢？']){
+  const turn=projectTurn(q,[prior]);assert.ok(turn);const i=projectIntent(turn);const a=catalogAnswer(i,catalog,turn);
+  assert.doesNotMatch(a,/Egypt|Nairobi|Ghana|检索范围/);
+  if(q==='列成表格')assert.match(a,/\| 项目 \| 来源 \|/);
+  if(q==='只要项目名称'){assert.match(a,/Paris/);assert.doesNotMatch(a,/\| 项目/);}
+  if(q==='具体供货产品呢？')assert.match(a,/尚未取得项目级证据/);
+  assert.match(a,/PDF第8页/);prior=turn;
+ }
+});
+test('geographic task switches must not be swallowed as case followups',()=>{
+ for(const q of ['法国天气呢','美国客户报价','埃及产品尺寸','法国适合什么产品','给我法国画册'])assert.equal(projectTurn(q,['海外工程案例']),null,q);
+});

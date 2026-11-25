@@ -65,6 +65,7 @@ import {signMaterialFileRequest,MATERIAL_ACTOR} from './material-file-proof.mjs'
 import {resolveMaterialTurn,conciseMaterialAnswer,videoSourceQuestion} from './material-dialogue.mjs';
 import {loadFullMaterials,fullMaterialAnswer,materialConnectionUnavailable} from './materials.mjs';
 import {doorWindowCatalogueRequest,doorWindowCatalogueReply} from './door-window-catalogues.mjs';
+import {materialDirectoryRequest,materialDirectoryReply} from './material-directory.mjs';
 import {answerVerifiedVideo,loadVerifiedVideoIndex} from './verified-video.mjs';
 import {outreachProductRequest,outreachEvidenceRequest,productCatalogueQueries,outreachProductEvidence,buildProductReviewDraft,PRODUCT_CATEGORIES} from './outreach-product-draft.mjs';
 import {knowledgeRoute,generalSystem} from './knowledge-routing.mjs';
@@ -359,6 +360,21 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    validateDialogue(input);
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
+   const materialDirectory=guest||input.persona!=='Grace'?null:materialDirectoryRequest(input.question);
+   if(materialDirectory){
+    const responses=await Promise.all(materialDirectory.queries.map(query=>loadFullMaterials({
+      ...materialConfig,question:query,retrieval:{query,terms:[],page:1,constraints:{}},recoverConnection:true
+    })));
+    const reply=materialDirectoryReply(responses,materialDirectory);
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,
+     after_data:{operation:'material_directory_files',kind:materialDirectory.kind,provider:'internal',persona:input.persona,
+     status:responses.every(value=>value.status==='available')?'available':'incomplete',source_count:reply?.materials.length||0},
+     reason:'查询当前权限内的文件目录，不向外部模型发送资料'});
+    if(error)return json({error:'调用审计失败'},503);
+    if(!reply)return json({error:'暂时连不上物料库，请重试刚才的问题。',code:'material_connection_unavailable'},503);
+    return json({...reply,provider:'internal',model:'material-catalogue',
+     ticket:await ticket({user:user.id,persona:input.persona,text:reply.answer,expires:Date.now()+300000},key)});
+   }
    const directoryRequest=guest||input.persona!=='Grace'?null:doorWindowCatalogueRequest(input.question,input.materialHistory?.at(-1));
    if(directoryRequest){
     const data=await loadFullMaterials({...materialConfig,question:'门窗画册',retrieval:{query:'门窗画册',terms:[],page:1,constraints:{}},recoverConnection:true});

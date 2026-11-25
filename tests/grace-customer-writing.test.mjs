@@ -1,9 +1,33 @@
 import test from 'node:test';import assert from 'node:assert/strict';import crypto from 'node:crypto';
 import {answerWorkScenario} from '../supabase/functions/agent-conversation/work-scenarios.mjs';
+import {customerPurpose} from '../supabase/functions/agent-conversation/customer-writing.mjs';
 const c={sources:[{id:'c2',edition:'test-2026'}],products:[{category:'security_door'},{category:'smart_lock'},{category:'wooden_door'}],facts:[{topic:'founding',catalog:'c2',page:3,text:'Founded in 1996.'},{topic:'listing',catalog:'c2',page:3,text:'Listed in 2021, code 605268.'},{topic:'rnd',catalog:'c2',page:3,text:'Research',zh:'研发投入超过8000万元，团队400人'},{topic:'capacity',catalog:'c2',page:3,text:'Steel doors, smart locks, wooden doors'},{topic:'bases',catalog:'c2',page:3,text:'Yongkang, Wuyi, Sichuan, Hangzhou, Hubei'}]};
 const sign=async t=>crypto.createHmac('sha256','test-only-customer-copy').update(t).digest('hex');const opts={actor:'owner',sign,verify:async(t,s)=>s===await sign(t)};
 const ask=(q,previous)=>answerWorkScenario({action:'chat',persona:'Grace',question:q,history:[],materialHistory:previous?[previous.context.material_question]:[]},c,opts);
 const screenshot='我要给客户介绍王力这个品牌和产品竞争优势，帮我写一段300字左右的英文介绍';
+test('excluding evidence notes still returns a sendable customer draft',async()=>{
+ const prompt='帮我写王力公司介绍发客户，正文避免提画册、索引和内部核对过程。';
+ assert.equal(customerPurpose(prompt),'customer');
+ const draft=await ask(prompt);
+ assert.match(draft.customer_text,/1996/);
+ assert.doesNotMatch(draft.customer_text,/画册|检索|内部核对/);
+ assert.match(draft.internal_notes,/零售画册/);
+});
+test('explicit English word budget survives revision and paired Spanish confirmation',async()=>{
+ const a=await ask('帮我写一段约200词、可以直接发给客户的王力英文公司介绍，先发英文给我审核，等我确认再翻译成西班牙语。');
+ const count=text=>(text.match(/\b[A-Za-z][A-Za-z’'-]*\b/g)||[]).length;
+ const digits=text=>text.match(/\d+/g)||[];
+ assert.ok(count(a.customer_text)>=180&&count(a.customer_text)<=200);
+ const edit=await ask('把产能部分删除，尚未确认。',a);
+ assert.equal(edit.context.revision,a.context.revision+1);
+ assert.notEqual(edit.context.approved,true);
+ assert.doesNotMatch(edit.customer_text,/production bases|manufacturing network/);
+ assert.ok(count(edit.customer_text)<=200);
+ const final=await ask('现在确认最新英文版本，翻译成西语。',edit);
+ assert.equal(final.context.revision,edit.context.revision);
+ assert.equal(final.context.language,'es');
+ assert.deepEqual(digits(final.customer_text),digits(edit.customer_text));
+});
 test('the actual reported request produces a sendable English introduction with separate provenance',async()=>{const r=await ask(screenshot);assert.ok(r.customer_text);const n=(r.customer_text.match(/\b[A-Za-z][A-Za-z’'-]*\b/g)||[]).length;assert.ok(n>=270&&n<=330,n);assert.match(r.customer_text,/1996/);assert.match(r.customer_text,/2021/);assert.match(r.customer_text,/security doors/);assert.match(r.customer_text,/smart locks/);assert.match(r.customer_text,/wooden doors/);assert.match(r.customer_text,/80 million/);assert.match(r.customer_text,/400/);assert.doesNotMatch(r.customer_text,/catalogue|document|refer to|should not be interpreted|not evidence|certification|quotation|delivery commitment/i);assert.match(r.internal_notes,/PDF第3页/);assert.match(r.answer,/内部核对信息（不随客户正文发送）/);assert.ok(r.answer.indexOf(r.customer_text)<r.answer.indexOf(r.internal_notes));});
 test('revision and confirmed Spanish keep customer-facing content and exact numeric facts',async()=>{const a=await ask(screenshot);const b=await ask('这版改得更口语，删掉产能部分；还没确认',a);assert.ok(b.customer_text);assert.doesNotMatch(b.customer_text,/production bases|manufacturing network/i);const no=await ask('翻译成西语',b);assert.doesNotMatch(no.answer,/Gracias|Fundada/);const es=await ask('现在确认最新英文版本，翻译成西班牙语',b);assert.match(es.customer_text,/Gracias por reunirse/);assert.doesNotMatch(es.customer_text,/catálogo|documentos|no demuestra|bases de producción|red de fabricación/i);assert.deepEqual(es.customer_text.match(/\d+/g),b.customer_text.match(/\d+/g));assert.match(es.internal_notes,/PDF第3页/)});
 test('an explicit internal fact review is not rendered as a client letter',async()=>{const r=await ask('仅内部核对王力公司介绍，不要写客户文案');assert.equal(r.customer_text,undefined);assert.match(r.answer,/可核事实/);assert.match(r.answer,/表达建议/);assert.match(r.answer,/未核结论/);assert.match(r.answer,/来源/)});

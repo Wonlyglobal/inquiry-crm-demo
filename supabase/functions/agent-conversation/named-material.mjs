@@ -1,3 +1,5 @@
+import {withoutPresentationTail} from './writing-request.mjs';
+
 const EXT='pdf|pptx?|docx?|xlsx?';
 const FILE=new RegExp(`[^\\n《》“”"！？?，。；;]{1,118}\\.(?:${EXT})(?![a-z0-9])`,'iu');
 const QUOTED=new RegExp(`[《“"]([^\\n《》“”"]{1,118}\\.(?:${EXT}))[》”"]`,'iu');
@@ -9,7 +11,7 @@ const MAX_QUOTE=180;
 const norm=value=>String(value||'').normalize('NFKC').toLowerCase().replace(/\s+/gu,'').trim();
 
 export function namedMaterialRequest(question=''){
- const q=String(question||'').trim().normalize('NFKC');
+ const q=withoutPresentationTail(String(question||'').normalize('NFKC'));
  const quoted=QUOTED.exec(q);
  const unquoted=quoted?null:FILE.exec(q);
  if(!quoted&&!unquoted)return null;

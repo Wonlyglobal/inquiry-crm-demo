@@ -1,3 +1,6 @@
+import {namedMaterialRequest,namedMaterialReply} from './named-material.mjs';
+import {companyListingTurn,companyListingAnswer} from './company-listing-turn.mjs';
+import {archivedCatalogField} from './catalog-field-turn.mjs';
 import {factualScope,factualGap} from './factual-boundary.mjs';
 import {companyQuestion} from './company-question.mjs';
 import {readPrivateProjects} from './private-projects.mjs';
@@ -328,7 +331,8 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
   }
   const key=Deno.env.get('DASHSCOPE_API_KEY')||'',enabled=Deno.env.get('BAILIAN_AGENT_POLICY')===POLICY;
   const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey),Date.now(),{authorization,materialConfig});return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts,video_index:result.video_index,...(result.answer_kind==='company_fact'?{answer_kind:'company_fact',material_question:('企业事实：'+input.question).slice(0,500)}:{})},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
-  if(input.action==='chat'&&input.voice!==true&&!socialWeekPeriod(input.question)&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
+  const namedFile=input.action==='chat'&&input.persona==='Grace'&&!input.privateReportKey?namedMaterialRequest(input.question):null;
+  if(!namedFile&&input.action==='chat'&&input.voice!==true&&!socialWeekPeriod(input.question)&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
    validateDialogue(input);return await privateReply();
   }
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});
@@ -365,6 +369,21 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    validateDialogue(input);
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
+   if(!guest&&namedFile){
+    const data=gateMaterialEvidence(await loadFullMaterials({...materialConfig,question:namedFile.kind==='content'?namedFile.subject:namedFile.name,exactName:namedFile.name,recoverConnection:true}));
+    const result=namedMaterialReply(data,namedFile,targetedMaterialAnswer);
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'named_material_lookup',kind:namedFile.kind,status:data.status,source_count:result?.materials.length||0,external_model_called:false},reason:'按现有物料权限查找用户指定的文件并引用可定位原文'});
+    if(error)return json({error:'调用审计失败'},503);
+    if(!result)return json({error:'物料库暂时未能读取，请稍后重试。',code:'material_connection_unavailable'},503);
+    return json({...result,provider:'internal',model:'named-material',context:{route:'materials',material_question:input.question.slice(0,500)},ticket:await ticket({user:user.id,persona:input.persona,text:'资料查找结果已显示。',expires:Date.now()+300000},key)});
+   }
+   const companyListing=guest||input.persona!=='Grace'?null:companyListingTurn(input.question,input.materialHistory||[]);
+   if(companyListing){
+    const answer=companyListingAnswer(companyListing,await loadCatalog(admin));
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'company_listing_reference',field:companyListing.field,external_model_called:false},reason:'依据授权画册回答企业上市信息及同主题追问'});
+    if(error)return json({error:'调用审计失败'},503);
+    return json({answer,provider:'internal',model:'wonly-catalog',context:{route:'catalog',material_question:companyListing.context}});
+   }
    const factScope=guest||input.persona!=='Grace'?null:factualScope(input.question,input.materialHistory||[]);
    const factReply=async()=>{const result=factualGap(factScope);const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'factual_evidence_boundary',topic:factScope?.topic,external_model_called:false},reason:'未取得可引用事实时禁止通用模型补造，保留原问题范围'});return error?json({error:'调用审计失败'},503):json(result);};
    if(factScope?.relation||factScope?.correction||factScope?.clarifyModel)return await factReply();
@@ -417,6 +436,14 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
     if(result.unavailable)return json({error:'企业资料暂时连不上，可重试刚才的问题；不能据此判断资料缺失',code:'material_connection_unavailable'},503);
     const answerText=sourceTask.companyRequested?'公司介绍：\n'+conciseCatalogFacts({kind:'facts',topics:['founding','listing']},await loadCatalog(admin),'王力公司介绍')+'\n\n产品说明：\n'+result.answer:result.answer;
     return json({answer:presentMaterialAnswer(answerText,input.question,null,{parameterAnswer:sourceTask.models.length===1&&materialFields(sourceTask.subject).some(f=>['供电','电池','材质','质保','尺寸','厚度'].includes(f))}),materials:result.materials,provider:'internal',model:'source-first-task',context:{route:'materials',status:result.status,material_question:('资料任务：'+sourceTask.subject).slice(0,500),source_count:result.source_count,incomplete:result.incomplete,receipts:native?.receipts||[]}});
+   }
+   if(!guest&&input.persona==='Grace'&&/画册(?:里|中)?(?:写|怎么写|记载|标注)|(?:只|仅|按)(?:看|用|照)?画册|产品类型|产品版本|产品标识|配置的智能锁/.test(input.question)){
+    const result=archivedCatalogField(input.question,await loadCatalog(admin));
+    if(result){
+     const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,after_data:{operation:'archived_catalogue_field',status:result.status,external_model_called:false},reason:'按授权画册及同型号字段回答，现售配置仍需独立核对'});
+     if(error)return json({error:'调用审计失败'},503);
+     return json({answer:result.answer,provider:'internal',model:'wonly-catalog',context:{route:'catalog',material_question:'画册检索：'+input.question.slice(0,480)}});
+    }
    }
    if(!guest&&(workScenarioIntent(input)||writingContinuation(input))){
     const previous=await latestWriting(admin,user.id);

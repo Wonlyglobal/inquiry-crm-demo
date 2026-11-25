@@ -8,9 +8,9 @@ const REGIONS=[
  {names:['欧洲','Europe'],countries:[['法国','France'],['德国','Germany'],['英国','United Kingdom','Britain'],['意大利','Italy'],['西班牙','Spain'],['葡萄牙','Portugal'],['荷兰','Netherlands'],['比利时','Belgium'],['波兰','Poland'],['希腊','Greece'],['瑞士','Switzerland'],['奥地利','Austria'],['瑞典','Sweden'],['挪威','Norway'],['芬兰','Finland'],['丹麦','Denmark'],['爱尔兰','Ireland'],['罗马尼亚','Romania'],['塞尔维亚','Serbia'],['乌克兰','Ukraine'],['白俄罗斯','Belarus']]},
  {names:['中东','Middle East'],countries:[['阿联酋','United Arab Emirates','UAE','Dubai','迪拜'],['沙特','Saudi Arabia'],['卡塔尔','Qatar'],['科威特','Kuwait'],['阿曼','Oman'],['巴林','Bahrain'],['约旦','Jordan'],['伊拉克','Iraq'],['伊朗','Iran'],['黎巴嫩','Lebanon'],['以色列','Israel'],['巴勒斯坦','Palestine'],['叙利亚','Syria'],['也门','Yemen']]},
  {names:['亚洲','Asia'],countries:[['中国','China'],['新加坡','Singapore'],['马来西亚','Malaysia'],['印度尼西亚','Indonesia'],['泰国','Thailand'],['越南','Vietnam'],['菲律宾','Philippines'],['柬埔寨','Cambodia'],['缅甸','Myanmar'],['老挝','Laos'],['印度','India'],['巴基斯坦','Pakistan'],['孟加拉','Bangladesh'],['斯里兰卡','Sri Lanka'],['尼泊尔','Nepal'],['日本','Japan'],['韩国','South Korea'],['蒙古','Mongolia'],['哈萨克斯坦','Kazakhstan'],['乌兹别克斯坦','Uzbekistan']]},
- {names:['北美','North America'],countries:[['美国','United States','USA'],['加拿大','Canada'],['墨西哥','Mexico']]},
+ {names:['北美','North America'],countries:[['美国','United States','USA'],['加拿大','Canada'],['墨西哥','Mexico'],['巴巴多斯','Barbados']]},
  {names:['南美','South America'],countries:[['巴西','Brazil'],['阿根廷','Argentina'],['智利','Chile'],['秘鲁','Peru'],['哥伦比亚','Colombia'],['厄瓜多尔','Ecuador'],['玻利维亚','Bolivia'],['乌拉圭','Uruguay'],['委内瑞拉','Venezuela']]},
- {names:['大洋洲','Oceania'],countries:[['澳大利亚','Australia'],['新西兰','New Zealand'],['斐济','Fiji'],['巴布亚新几内亚','Papua New Guinea']]}
+ {names:['大洋洲','Oceania'],countries:[['澳大利亚','Australia'],['新西兰','New Zealand'],['斐济','Fiji'],['瓦努阿图','Vanuatu'],['巴布亚新几内亚','Papua New Guinea']]}
 ];
 const PROJECT=/标杆|地标|案例|项目业绩|工程业绩|项目案例|工程案例|(?:哪些|什么|举|列|介绍|查询|查看).{0,16}项目|\b(?:landmarks?|reference projects?|project cases?|benchmark projects?)\b/i;
 const PAGE_PROJECT=/项目案例|案例项目|标杆|地标|工程业绩|\b(?:projects|landmarks?|references|case studies)\b/i;
@@ -28,12 +28,13 @@ export function projectTurn(question,history=[]){
  if(!projectQuestion(prior)||q.length>80)return null;
  const regions=REGIONS.flatMap(r=>[r.names,...r.countries]);
  const geography=regions.some(words=>words.some(w=>has(q,w)));
- const shortGeo=geography&&/^(?:那|只看|只要|换成|看看)?[^，。!?！？]{1,40}(?:的)?(?:呢|吗)?[？?。！!]*$/.test(q)&&! /尺寸|画册|报价|客户|产品|天气|推荐|适合/.test(q);
+ const geoPart=q.split(/[，,]/)[0];
+ const shortGeo=geography&&/^(?:那|只看|只要|换成|看看)?[^，。!?！？]{1,40}(?:的)?(?:呢|吗)?[？?。！!]*$/.test(geoPart)&&! /尺寸|画册|报价|客户|产品|天气|推荐|适合/.test(geoPart);
  const continuation=/^(?:来源|出处|页码|展开|详细|还有|只要项目名称|列成表格|简短一点|具体供货产品|不要国内的|没有就直说)/.test(q);
  if(!shortGeo&&!continuation)return null;
  if(shortGeo)return `画册 ${/海外|国外|境外|overseas|international/i.test(prior)?'海外 ':''}${q} 标杆项目`;
  // Replace presentation requests instead of accumulating contradictory old formats.
- const base=prior.replace(/ (?:只要项目名称|列成表格|简短一点|具体供货产品呢[？?]?|来源呢[？?]?|出处呢[？?]?|页码呢[？?]?)$/,'');
+ const base=prior.replace(/(?:只要项目名称|列成表格|简短一点|具体供货产品|来源|出处|页码)(?:呢)?[？?]?/g,'').replace(/[，,]\s*(?=标杆项目|$)/g,' ');
  return `${base} ${q}`.slice(0,500);
 }
 export function projectIntent(question){

@@ -1,0 +1,22 @@
+// Synthetic isolated database only; no production connection.
+import {readFile} from 'node:fs/promises';import assert from 'node:assert/strict';
+const {PGlite}=await import(process.argv[2]);const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+grant usage on schema auth to authenticated;
+create table profiles(id uuid primary key);create table inquiries(id uuid primary key,owner_id uuid);
+alter table inquiries enable row level security;grant select on inquiries to authenticated;
+create policy own on inquiries for select to authenticated using(owner_id=auth.uid());
+insert into profiles values('11111111-1111-4111-8111-111111111111'),('22222222-2222-4222-8222-222222222222');
+insert into inquiries values('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111'),('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','22222222-2222-4222-8222-222222222222');`);
+await db.exec(await readFile(new URL('../supabase/migrations/20261125170000_inquiry_research_attempts.sql',import.meta.url),'utf8'));
+const insert=`insert into inquiry_research_attempts(id,inquiry_id,actor_id,company_claim,status,result) values('cccccccc-cccc-4ccc-8ccc-cccccccccccc','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','Synthetic','completed','{"candidates":[]}')`;
+await db.exec('set role service_role');await db.exec(insert);await db.exec('reset role');
+await db.exec("select set_config('test.uid','11111111-1111-4111-8111-111111111111',false);set role authenticated");
+assert.equal((await db.query('select * from inquiry_research_attempts')).rows.length,1);
+for(const q of [insert,'update inquiry_research_attempts set company_claim=\'changed\'','delete from inquiry_research_attempts'])await assert.rejects(()=>db.exec(q));
+await db.exec("reset role;select set_config('test.uid','22222222-2222-4222-8222-222222222222',false);set role authenticated");assert.equal((await db.query('select * from inquiry_research_attempts')).rows.length,0);
+await db.exec("reset role;select set_config('test.uid','11111111-1111-4111-8111-111111111111',false);set role authenticated");assert.equal((await db.query('select verification from inquiry_research_attempts')).rows[0].verification,'company_match_required');
+await db.exec('reset role;set role anon');await assert.rejects(()=>db.exec('select * from inquiry_research_attempts'));
+await db.exec('reset role;set role service_role');await assert.rejects(()=>db.exec("update inquiry_research_attempts set verification='ready'"));
+await db.close();console.log('8 isolated persistence / scope / no-client-mutation checks passed');

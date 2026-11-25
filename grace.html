@@ -2356,6 +2356,7 @@
           </div>
           <p class="hint">先核验当前公开来源。动态官网可能只返回页面标题，此时需人工补充事实与来源；未经审核不会公开存入 Business。</p>
           <div id="research-loading" class="hint hidden" role="status" aria-live="polite"><progress aria-label="背调正在处理" style="width:100%"></progress><span id="research-loading-step">正在准备背调…</span><small>处理时间取决于官网响应；不会自动公开入库。请勿重复点击。</small></div>
+          <section id="research-attempt-history" class="hint" aria-live="polite"></section>
           <p id="detail-research-status" class="hint" aria-live="polite">背调状态：尚未执行</p>
           <section class="quality-panel" id="business-public-evidence-editor">
             <h4>Business 公开入库事实</h4>
@@ -7108,6 +7109,9 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#detail-research-reason").value = "";
         currentInquiry.businessResearch = null;
         $("#detail-research-status").textContent = company.ai_summary ? "背调状态：已有背调资料，可重新执行" : "背调状态：尚未执行";
+        const {loadAttemptHistory}=await import("./assets/research-attempt-history.mjs?v=20261125-1");
+        if(currentInquiry?.id!==inquiry.id)return;
+        loadAttemptHistory({client:supabase,inquiryId:inquiry.id,panel:$("#research-attempt-history"),isCurrent:()=>currentInquiry?.id===inquiry.id});
         renderResearchMonitor(company.research_health||{},company);
         $("#detail-research-evidence").classList.add("hidden");
         $("#detail-research-evidence").replaceChildren();
@@ -8762,9 +8766,13 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
             if(response.error||response.data?.error)throw Error("公开检索暂不可用");
             if(currentInquiry?.id!==id)return;
             const result=response.data;
+            if(!result.saved||!result.record_id)throw Error("检索结果尚未确认保存");
+            const {loadAttemptHistory}=await import("./assets/research-attempt-history.mjs?v=20261125-1");
+            await loadAttemptHistory({client:supabase,inquiryId:id,panel:$("#research-attempt-history"),isCurrent:()=>currentInquiry?.id===id});
+            if(currentInquiry?.id!==id)return;
             $("#detail-research-summary").value=identitySummary(claimed,result);
             $("#detail-research-deep-status").value="company_match_required";
-            $("#detail-research-status").textContent=result.status==="completed"?"公开候选检索完成，待人工核对；尚未独立验证公司身份或存入 Business。":"公开检索暂不可用，保留客户自述，稍后可重试；不能判断公司不存在。";
+            $("#detail-research-status").textContent=result.status==="completed"?"已保存待核验背调记录，刷新后可查看；尚未独立验证公司身份或存入 Business。":"公开检索暂不可用，保留客户自述，稍后可重试；不能判断公司不存在。";
             let panel=$("#company-identity-candidates");if(!panel){panel=document.createElement("section");panel.id="company-identity-candidates";$("#detail-research-status").after(panel)}
             panel.replaceChildren();const title=document.createElement("p");title.textContent="客户自述："+claimed.company+" · "+(claimed.location||"所在地未识别")+"（未核验）";panel.append(title);
             for(const item of result.candidates||[]){const url=safeExternalUrl(item.url);if(!url)continue;const row=document.createElement("p"),link=document.createElement("a"),note=document.createElement("small");link.href=url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title||url;note.textContent=" — 待核验候选："+(item.summary||"");row.append(link,note);panel.append(row)}

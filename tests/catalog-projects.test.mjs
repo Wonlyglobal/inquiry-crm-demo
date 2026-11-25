@@ -118,3 +118,15 @@ test('project names survive the final Chinese presenter and citation folding acr
   }
  }finally{globalThis.document=priorDocument}
 });
+
+test('folded OCR containing domestic names must not become an overseas project',async()=>{
+ const {overseasProjectAnswer}=await import('../supabase/functions/agent-conversation/catalog-projects.mjs');
+ const result=overseasProjectAnswer([{catalog:'c1',page:10,quote:'Landmark Projects Nationwide Hangzhou event Beijing airport Synthetic Egypt CBD project'},{catalog:'c1',page:10,quote:'Synthetic Egypt CBD project'}],()=> '工程画册 PDF第10页',{});
+ assert.match(result,/1\. Synthetic Egypt CBD project/);assert.doesNotMatch(result,/Nationwide|Hangzhou|Beijing/);
+});
+
+test('curated project translation is selected before geography and mixed-row filtering',()=>{
+ const c={...catalog,pages:[],facts:[{topic:'landmarks',catalog:'c1',page:10,text:'Synthetic foreign reference',zh:'埃及合成商务区项目。'}]};
+ const q='有哪些海外工程案例';const a=catalogAnswer(catalogIntent(q,c),c,q);
+ assert.match(a,/埃及合成商务区项目/);assert.doesNotMatch(a,/Synthetic foreign/);
+});

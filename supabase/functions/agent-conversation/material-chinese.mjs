@@ -17,7 +17,7 @@ export function chineseMaterialText(value){
  return s;
 }
 const residue=s=>s.replace(/\b(?:WONLY|AI|PDF|PPT|PVC|APP|Max|Pro|Plus|Ultra|Basic|Standard|EN|BS|GB|GA|IEC|IP|CE|UL|RC|EI|Rw|HD|USB|WiFi|Wi-Fi|mm|cm|m|kg|dB|min|V|Hz|GHz|W|H|D|T)\b/gi,'').replace(/\b[A-Z]{1,8}[-\d][\w.-]*\b/g,'');
-export function presentMaterialAnswer(answer,question='',catalog=null,{projectNames=false}={}){
+export function presentMaterialAnswer(answer,question='',catalog=null,{projectNames=false,parameterAnswer=false}={}){
  if(typeof answer!=='string'||wantsFactOriginal(question))return answer;
  let text=answer.replace(/对外报价或投标前[^\n]+/g,'画册摘录，待产品负责人确认。').replace(/这些是画册里的公司宣传口径[^\n]+/g,'画册宣传口径，待产品负责人确认。');
  for(const f of catalog?.facts||[])if(typeof f.zh==='string'&&f.zh.length<=500&&/[\u3400-\u9fff]/u.test(f.zh))text=text.split(f.text).join(f.zh);
@@ -31,14 +31,14 @@ export function presentMaterialAnswer(answer,question='',catalog=null,{projectNa
   // Cited project names are proper names: retain their original spelling, including tables.
   if(projectNames&&(/PDF第[\d、]+页/u.test(raw)||/^\s*\|(?:\s*项目\s*\||[\s:|\-]+$)/u.test(raw))){lines.push(raw);continue;}
   let s=chineseMaterialText(raw).replace(/(\d)-英寸/g,'$1英寸').replace(/画册原文[：:]?[“”"]?/g,'画册释义：').replace(/[“”]/g,'');
-  if(/[a-z]{3,}/i.test(residue(s))){missing=true;continue;}
+  if(/[a-z]{3,}/i.test(residue(s))){missing=true;if(!parameterAnswer)continue;}
   lines.push(s);
  }
  let details=lines.filter(l=>/^\s*[-•]/.test(l));
  const asked=['标准功能','开锁方式','尺寸','厚度','颜色','供电','材质','锁体','锁芯','特色功能'].filter(word=>question.includes(word));
- if(/[A-Z]{1,5}[- ]?\d/i.test(question)&&asked.length){const focused=details.filter(l=>asked.some(word=>l.includes(word)));if(focused.length)details=focused;}
+ if(!parameterAnswer&&/[A-Z]{1,5}[- ]?\d/i.test(question)&&asked.length){const focused=details.filter(l=>asked.some(word=>l.includes(word)));if(focused.length)details=focused;}
  const priority=line=>/标准功能|开锁方式|尺寸|厚度|材质|供电|耐火|隔声|防盗|锁体|锁芯|特色功能/.test(line)?0:/标记|类型|版本|颜色/.test(line)?2:1;
- const keep=[...details].sort((a,b)=>priority(a)-priority(b)).slice(0,4);let limited=details.length>keep.length;
+ const keep=parameterAnswer?details:[...details].sort((a,b)=>priority(a)-priority(b)).slice(0,4);let limited=details.length>keep.length;
  const output=lines.filter(l=>!/^\s*[-•]/.test(l)||keep.includes(l));
  if(refs.length&&!output.some(l=>/来源|出处|PDF第\d+页|第\s*\d+\s*页/.test(l)))output.push('来源：'+refs.join('；')+'。');
  if(missing)output.push('部分内容的中文释义尚待核对，可要求查看原文。');

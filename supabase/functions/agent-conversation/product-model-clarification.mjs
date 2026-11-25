@@ -15,7 +15,7 @@ export function correctedProductQuestion(question,history=[]){
  const code=q.replace(/^(?:是|型号是|改为|换成|我说的是|不是[\s\S]{1,40}[，,]是)\s*/,'');
  if(!bareModel(code))return null;
  const latest=String(history.at(-1)||'');
- if(!/^(?:产品型号待确认：|私有产品：|资料任务：)/.test(latest))return null;
+ if(!/^(?:产品型号待确认：|私有产品：|资料任务：|事实核对：)/.test(latest))return null;
  const wanted=fields(latest);if(!wanted.length)return null;
  // Carry only requested field labels. Never carry the old model's suffix or edition.
  return materialModelCodes(code)[0]+'；'+wanted.join('、');

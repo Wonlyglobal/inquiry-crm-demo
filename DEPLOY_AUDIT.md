@@ -373,3 +373,10 @@
 - 权限边界：owner 原路径保持；指定成员不读取 owner 私有来源、不执行写操作；仅通用问答、CRM 指引、本人 JWT/RLS 可见的聚合统计；服务端审计与 12/min 限流。
 - 生产核验：线上 `assets/agent-world.mjs` 已含两人精确邮箱；匿名函数请求 HTTP 401。未代用两人账号登录，不记录或重置其凭据。
 - 回滚：revert PR #553 并部署上一函数版本；不删除查询审计，无数据库/业务数据回滚。
+
+
+## 2026-11-25 Factual answer boundary and followup scope — candidate
+
+Recognized company/product facts cannot fall through to unsupported model-generated claims. Model identity questions stay internal; ambiguous multi-model followups clarify the model and retain the requested field on selection. Natural project supply and short company-name followups retain their scopes. Company fact answers omit report-action controls; retry text is not duplicated. Source gaps remain explicit.
+
+Validation: 2,821 offline tests passed; browser syntax and diff checks passed. Owner-only preview browser and physical iPhone Safari checks cover a three-turn identity/certification/model-selection chain, company-name followup, project filtering/supply, known dimensions/panel followup and fresh query after refresh. This is bounded acceptance, not full knowledge coverage. No internal evidence or screenshots are committed. Preview preserves original caller authentication, RLS, source limits and voice validation. Production has not changed. Rollback uses the saved full pre-change runtime.

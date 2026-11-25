@@ -23,7 +23,8 @@ export function projectQuestion(question){
  return PROJECT.test(q)&&!(/客户|询盘|商机|合同|报价|我的项目|竞品|对手/.test(q)&&! /画册/.test(q));
 }
 export function projectTurn(question,history=[]){
- const q=String(question||'').trim(),prior=String(history.at(-1)||'');
+ const original=String(question||'').trim(),prior=String(history.at(-1)||'');
+ const q=projectQuestion(prior)&&/供(?:了|的|应了|货了)?(?:什么|哪些)(?:产品|门|锁)|用了什么(?:产品|门|锁)|what (?:products? .*supplied|did .*supply)/i.test(original)?'具体供货产品':original;
  if(projectQuestion(q))return q;
  if(!projectQuestion(prior)||q.length>80)return null;
  const regions=REGIONS.flatMap(r=>[r.names,...r.countries]);

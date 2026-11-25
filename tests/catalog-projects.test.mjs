@@ -57,3 +57,26 @@ test('an unrecognized geography never silently widens to all projects',()=>{
  }
  assert.equal(projectIntent('王力有哪些标杆案例').literal_geography,false);
 });
+
+test('overseas answer lists relevant evidence without empty rows or domestic projects',()=>{
+ const c={...catalog,pages:[{catalog:'c1',page:10,text:'项目案例\n埃及合成商务区项目。\n杭州合成工程项目。\n多国使馆。'}],facts:[{topic:'landmarks',catalog:'c1',page:10,text:'埃及合成商务区项目。'}]};
+ const q='有哪些海外工程案例';const a=catalogAnswer(catalogIntent(q,c),c,q);
+ assert.match(a,/埃及合成商务区项目/);assert.match(a,/PDF第10页/);
+ assert.equal(a.split('埃及合成商务区项目').length-1,1);
+ assert.doesNotMatch(a,/杭州|多国使馆|原页文字线索|已扫描|查得/);
+ assert.ok(a.length<250);
+ const follow=projectTurn('来源呢',[q]);assert.equal(projectIntent(follow).overseas,true);
+});
+test('overseas does not join adjacent country and project lines',()=>{
+ const c={...catalog,facts:[],pages:[{catalog:'c1',page:10,text:'项目案例\n埃及\n合成大厦项目'}]};
+ const q='有哪些海外工程案例';assert.doesNotMatch(catalogAnswer(catalogIntent(q,c),c,q),/1\. /);
+});
+
+test('overseas paraphrases and regional followups keep concise scoped answers',()=>{
+ for(const q of ['海外有哪些工程案例','国外有什么项目案例','境外工程案例有哪些','有哪些海外工程案例']){
+  const i=projectIntent(q);assert.equal(i.overseas,true);assert.equal(i.literal_geography,false);
+ }
+ const turn=projectTurn('那埃及呢？',['有哪些海外工程案例']);const i=projectIntent(turn);
+ assert.equal(i.overseas,true);assert.equal(i.geography,'埃及');
+ const a=catalogAnswer(i,catalog,turn);assert.match(a,/Egypt/);assert.doesNotMatch(a,/Nairobi|France|检索范围|原页文字线索/);
+});

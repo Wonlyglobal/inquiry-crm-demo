@@ -26,7 +26,7 @@ export function projectTurn(question,history=[]){
  const q=String(question||'').trim(),prior=String(history.at(-1)||'');
  if(projectQuestion(q))return q;
  if(projectQuestion(prior)&&q.length<=80&&/^(那|还有|非洲|埃及|来源|出处|页码|展开|详细)/.test(q)){
-  if(projectIntent(q+' 项目案例')?.terms.length)return `画册 ${q} 标杆项目`;
+  if(projectIntent(q+' 项目案例')?.terms.length)return `画册 ${/海外|国外|境外|overseas|international/i.test(prior)?'海外 ':''}${q} 标杆项目`;
   return `${prior} ${q}`.slice(0,500);
  }
  return null;
@@ -35,10 +35,11 @@ export function projectIntent(question){
  if(!projectQuestion(question))return null;
  const q=String(question).slice(0,500),regions=REGIONS.filter(r=>r.names.some(w=>has(q,w)));
  const countries=REGIONS.flatMap(r=>r.countries).filter(words=>words.some(w=>has(q,w)));
+ const overseas=/海外|国外|境外|overseas|international/i.test(q);
  const requested=[...regions.flatMap(r=>[r.names,...r.countries]),...countries];
  const literal=!requested.length?(q.replace(/^画册\s*/, '').match(/^([^\s，。？?]{2,12}?)(?:有哪些|有什么|的)(?:标杆|项目|工程|案例)/)?.[1]||q.match(/^([A-Za-z][A-Za-z -]{1,30}?)\s+(?:reference|benchmark|landmark)\s+projects?/i)?.[1]||''):'';
- const unknown=literal&&!/王力|我司|我们|wonly|画册|哪些地区|哪些国家|所有|全部|公司/i.test(literal)?literal:'';
- return {kind:'projects',geography:regions.length?regions.map(r=>r.names[0]).join('、'):countries.map(r=>r[0]).join('、')||unknown,terms:requested.length?[...new Set(requested.flat())]:unknown?[unknown]:[],literal_geography:!!unknown};
+ const unknown=literal&&!/王力|我司|我们|wonly|画册|哪些地区|哪些国家|所有|全部|公司|海外|国外|境外|overseas|international/i.test(literal)?literal:'';
+ return {kind:'projects',overseas,geography:regions.length?regions.map(r=>r.names[0]).join('、'):countries.map(r=>r[0]).join('、')||unknown,terms:requested.length?[...new Set(requested.flat())]:unknown?[unknown]:[],literal_geography:!!unknown};
 }
 export function projectEvidence(intent,catalog){
  const sourceIds=new Set((catalog?.sources||[]).map(s=>s.id));
@@ -63,7 +64,27 @@ export function projectEvidence(intent,catalog){
 export function projectAnswer(intent,catalog,{ref,head,note}){
  if(!catalog)return '本次未能读取公司私有画册索引，尚未完成项目证据检索，不能判断有无相关项目。';
  const {hits,coverage}=projectEvidence(intent,catalog);
+ if(intent.overseas)return overseasProjectAnswer(hits,ref);
  const c=`检索范围：已扫描全部 ${coverage.sources} 本已授权画册索引、${coverage.indexed_pages} 个已索引页面（原册登记 ${coverage.declared_pages||'未标注'} 页）；索引覆盖不等于全部原页均已解析。`;
  const body=hits.length?hits.slice(0,12).map(p=>`- ${ref(p.catalog,p.page)}\n原页文字线索：\n${p.quote}`).join('\n\n'):'本次已索引文字没有检出对应项目证据。这是检索缺口，不能据此说公司没有这些项目；图片文字、未索引页或其他版本仍需核对。';
  return [head(catalog),c,intent.literal_geography?'地区词暂未完成同义词扩展，本轮仅按所写原词检索，不用其他地区的项目代替。':null,`按${intent.geography||'项目'}查得 ${hits.length} 条原页线索${hits.length>12?'，本次展示前12条':''}：`,body,'项目名称与国家/地区的对应关系须对照同页版式核实；相邻文字不能自动视为同一项目。画册记录不证明当前履约状态或获准对外引用。',note].filter(Boolean).join('\n\n');
+}
+
+// Present only same-line named project evidence. Never attach a neighbouring country.
+export function overseasProjectAnswer(hits,ref){
+ const countries=REGIONS.flatMap(r=>r.countries).filter(ws=>ws[0]!=='中国');
+ const seen=new Set(),items=[];
+ for(const hit of hits){
+  for(const raw of hit.quote.split(/\n|[。；;]|、/)){
+   const line=raw.trim().replace(/^(?:画册列举项目|项目案例|原页文字线索)[:：]\s*/, '');
+   if(!line||!countries.some(ws=>ws.some(w=>has(line,w))))continue;
+   if(!/项目|工程|机场|酒店|学校|医院|商务区|大厦|体育场|project|airport|hotel|hospital|school|tower|stadium/i.test(line))continue;
+   // Mixed domestic lists and generic geography headings are not a project identity.
+   if(/中国|国内|杭州|北京|西昌|多国使馆|China|domestic/i.test(line))continue;
+   const key=line.toLocaleLowerCase().replace(/[\s，,：:。.!！]/g,'');
+   if(seen.has(key))continue;seen.add(key);
+   items.push(`${items.length+1}. ${line}——来源：${ref(hit.catalog,hit.page)}`);
+  }
+ }
+ return items.length?`目前资料中可定位的海外工程案例：\n\n${items.slice(0,10).join('\n')}\n\n具体供货产品和履约情况尚待核实。${items.length>10?'本次先列10项，可继续查看。':''}`:'目前尚未取得名称与海外所在地明确对应的案例记录；这不代表没有海外案例。需核对画册原页。';
 }

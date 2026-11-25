@@ -159,7 +159,7 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     const companyName = clean(input.company_name, 300);
     const focus=Object.hasOwn(PUBLIC_PRODUCT_TERMS,input.focus_category||"")?PUBLIC_PRODUCT_TERMS[input.focus_category]:"";
     const marketQuery=publicMarketQuery(input.market_code,input.focus_category);
-    const website = safeWebsite(input.website);
+
     const [{ data: profile }, { data: inquiry, error: inquiryError }] = await Promise.all([
       client.from("profiles").select("id,active,is_test_data,data_environment").eq("id", user.id).single(),
       client.from("inquiries").select("id,companies(seo_focus_categories,project_category_signals)").eq("id", inquiryId).single(),
@@ -167,6 +167,36 @@ Deno.serve(withReadOnlyGuard(async (req) => {
     if (!profile?.active || profile.is_test_data || profile.data_environment!=="production") throw new Error("账号不可用");
     if (inquiryError || !inquiry) throw inquiryError || new Error("无权查看该询盘");
 
+    if (input.action === "discover_company") {
+      const location = clean(input.location, 160);
+      if (!companyName || companyName.length > 120 || /[@\n\r]|https?:|web3forms|wonly/i.test(companyName) || /[@\n\r]|https?:/.test(location)) throw new Error("请核对邮件原文中的公司名称和所在地，不要填写邮件、网址或联系方式");
+      const query = [companyName, location].filter(Boolean).join(" ");
+      const discoveryAdmin=createClient(Deno.env.get("SUPABASE_URL")||"",envKey("SUPABASE_SECRET_KEYS","SUPABASE_SERVICE_ROLE_KEY"),{auth:{persistSession:false}});
+      const recent=await discoveryAdmin.from("audit_logs").select("id",{count:"exact",head:true}).eq("actor_id",user.id).eq("action","company_identity_search_requested").gte("created_at",new Date(Date.now()-60000).toISOString());
+      if(recent.error||recent.count===null||recent.count>=3)throw Error("检索频率限制或审计暂不可用，请稍后重试");
+      const audit=await discoveryAdmin.from("audit_logs").insert({actor_id:user.id,entity_type:"inquiry",entity_id:inquiry.id,action:"company_identity_search_requested",after_data:{company:companyName,location,provider:"bing_rss",verification:"customer_claim"},reason:"按用户批准规则，以公司名和所在地检索公开候选；不外传原文、联系人或内部资料，不自动判定身份或入库"});
+      if(audit.error)throw Error("检索审计暂不可用");
+      const endpoint = new URL("https://www.bing.com/search");
+      endpoint.searchParams.set("format", "rss");endpoint.searchParams.set("q", query);
+      let status="completed", items: Array<{title:string;url:string;summary:string;verification:string}>=[];
+      try {
+        const found=await fetch(endpoint,{redirect:"error",signal:AbortSignal.timeout(8000)});
+        if(!found.ok)throw Error("search_unavailable");
+        const reader=found.body?.getReader();if(!reader)throw Error("search_unavailable");
+        const chunks:Uint8Array[]=[];let length=0;
+        while(true){const {done,value}=await reader.read();if(done)break;length+=value.byteLength;if(length>300000){await reader.cancel();throw Error("search_too_large")}chunks.push(value)}
+        const bytes=new Uint8Array(length);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length}
+        const xml=new TextDecoder().decode(bytes);
+        if(!/<rss\b/i.test(xml))throw Error("search_unavailable");
+        for(const match of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)){
+          const part=match[1],field=(tag:string)=>decodeXml(new RegExp("<"+tag+"[^>]*>([\\s\\S]*?)<\\/"+tag+">","i").exec(part)?.[1]||"");
+          const link=field("link");let url;try{url=safeWebsite(link)}catch{continue}
+          items.push({title:plainText(field("title"),240),url:url.toString(),summary:plainText(field("description"),600),verification:"search_lead_unverified"});if(items.length>=5)break;
+        }
+      }catch{status="unavailable"}
+      return new Response(JSON.stringify({status,query,candidates:items,accessed_at:new Date().toISOString(),verification:"company_match_required",limits:"仅搜索候选，未读取原始页面；客户身份与采购授权未核验，不自动选择官网或写入公开库。"}),{headers:cors});
+    }
+    const website = safeWebsite(input.website);
     const response = await fetch(website, {
       redirect: "error",
       headers: { "User-Agent": "WONLY-CRM-Research/1.0", Accept: "text/html" },

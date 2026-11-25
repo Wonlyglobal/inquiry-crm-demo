@@ -7026,6 +7026,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $("#detail-smart-project").value = inquiry.project_name || "";
         $("#detail-smart-reason").value = "";
         const company = inquiry.companies || {};
+        $("#company-identity-candidates")?.remove();
         const originalText = String(inquiry.original_message || "");
         const senderEmail = String(intake?.sender_email || "").trim().toLowerCase();
         const {mailCompanyWebsite}=await import("./assets/mail-company-website.mjs?v=20261024-1");
@@ -8732,7 +8733,34 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       $("#run-business-research").addEventListener("click", async () => {
         if (!currentInquiry || autonomousResearchInquiryId) return;
         const id=currentInquiry.id, button=$("#run-business-research");
-        if (!$("#detail-research-domain").value.trim()) { $("#detail-research-status").textContent="缺少已核对官网，尚未执行独立核验；请补充官网或公开来源，不代表公司不存在。"; $("#detail-research-domain").scrollIntoView({block:"center"});$("#detail-research-domain").focus({preventScroll:true});toast("请先填写从邮件正文或签名核对的公司官网，再生成背调");return; }
+        const {mailCompanyIdentity,identitySummary}=await import("./assets/mail-company-identity.mjs?v=20261125-1");
+        if(currentInquiry?.id!==id)return;
+        const claimed=mailCompanyIdentity(currentInquiry.original_message||"");
+        if(claimed.status==="missing"){
+          const supplied=$("#detail-research-company").value.trim();
+          if(supplied&&!/未知|待核实|待确认|web3forms|wonly/i.test(supplied)){claimed.company=supplied;claimed.status="self_reported";claimed.location=$("#detail-smart-country").value.trim();}
+        }
+        $("#company-identity-candidates")?.remove();
+        if (!$("#detail-research-domain").value.trim()) {
+          if(!claimed.company){$("#detail-research-status").textContent=claimed.companies.length?"原文包含多个公司名称，请先确认研究对象，再继续核验。":"未识别出邮件原文中的公司，请补充公司名称及所在地后核验；不要求先有官网。";return toast("请先核对原文中声称的公司");}
+          $("#detail-research-company").value=claimed.company;
+          autonomousResearchInquiryId=id;button.disabled=true;
+          $("#detail-research-status").textContent="正在检索原文声称的公司与所在地（客户自述，待核验）…";
+          try{
+            const response=await supabase.functions.invoke("company-website-images",{body:{action:"discover_company",inquiry_id:id,company_name:claimed.company,location:claimed.location}});
+            if(response.error||response.data?.error)throw Error("公开检索暂不可用");
+            if(currentInquiry?.id!==id)return;
+            const result=response.data;
+            $("#detail-research-summary").value=identitySummary(claimed,result);
+            $("#detail-research-deep-status").value="company_match_required";
+            $("#detail-research-status").textContent=result.status==="completed"?"公开候选检索完成，待人工核对；尚未独立验证公司身份或存入 Business。":"公开检索暂不可用，保留客户自述，稍后可重试；不能判断公司不存在。";
+            let panel=$("#company-identity-candidates");if(!panel){panel=document.createElement("section");panel.id="company-identity-candidates";$("#detail-research-status").after(panel)}
+            panel.replaceChildren();const title=document.createElement("p");title.textContent="客户自述："+claimed.company+" · "+(claimed.location||"所在地未识别")+"（未核验）";panel.append(title);
+            for(const item of result.candidates||[]){const url=safeExternalUrl(item.url);if(!url)continue;const row=document.createElement("p"),link=document.createElement("a"),note=document.createElement("small");link.href=url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title||url;note.textContent=" — 待核验候选："+(item.summary||"");row.append(link,note);panel.append(row)}
+          }catch{if(currentInquiry?.id===id)$("#detail-research-status").textContent="公开候选检索未完成；客户自述尚未证实，请稍后重试。";}
+          finally{autonomousResearchInquiryId=null;button.disabled=false;}
+          return;
+        }
         const {researchCompanyDomain}=await import("./assets/business-public-research.mjs?v=20261022-2");
         if(!researchCompanyDomain($("#detail-research-domain").value.trim()))return toast("邮箱平台或表单服务商不能当作客户官网，请核对邮件正文中的真实公司网站");
         autonomousResearchInquiryId=id; button.disabled=true;

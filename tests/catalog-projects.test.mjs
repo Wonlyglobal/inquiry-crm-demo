@@ -118,3 +118,9 @@ test('project names survive the final Chinese presenter and citation folding acr
   }
  }finally{globalThis.document=priorDocument}
 });
+
+test('folded OCR containing domestic names must not become an overseas project',async()=>{
+ const {overseasProjectAnswer}=await import('../supabase/functions/agent-conversation/catalog-projects.mjs');
+ const result=overseasProjectAnswer([{catalog:'c1',page:10,quote:'Landmark Projects Nationwide Hangzhou event Beijing airport Synthetic Egypt CBD project'},{catalog:'c1',page:10,quote:'Synthetic Egypt CBD project'}],()=> '工程画册 PDF第10页',{});
+ assert.match(result,/1\. Synthetic Egypt CBD project/);assert.doesNotMatch(result,/Nationwide|Hangzhou|Beijing/);
+});

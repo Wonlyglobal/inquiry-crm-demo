@@ -82,10 +82,10 @@ export function overseasProjectAnswer(hits,ref,intent={}){
  for(const hit of hits){
   for(const raw of hit.quote.split(/\n|[。；;]|、/)){
    const line=raw.trim().replace(/^(?:画册列举项目|项目案例|原页文字线索)[:：]\s*/, '');
-   if(!line||!countries.some(ws=>ws.some(w=>has(line,w))))continue;
+   if(!line||line.length>240||!countries.some(ws=>ws.some(w=>has(line,w))))continue;
    if(!/项目|工程|机场|酒店|学校|医院|商务区|大厦|体育场|project|airport|hotel|hospital|school|tower|stadium/i.test(line))continue;
    // Mixed domestic lists and generic geography headings are not a project identity.
-   if(/中国|国内|杭州|北京|西昌|多国使馆|China|domestic/i.test(line))continue;
+   if(/中国|国内|杭州|北京|西昌|多国使馆|China|domestic|nationwide|Hangzhou|Beijing|Xichang|Tianjin|Shenyang|Xi[’' -]?an/i.test(line))continue;
    const key=line.toLocaleLowerCase().replace(/[\s，,：:。.!！]/g,'');
    if(seen.has(key))continue;seen.add(key);
    items.push({name:line,source:ref(hit.catalog,hit.page)});

@@ -7,6 +7,13 @@ input,textarea{font-size:16px}
 .grace-review form:not([hidden]) { display:grid; gap:12px; margin:16px 0; }
 .grace-review form button { justify-self:start; }
 .grace-review summary { cursor:pointer; padding:12px 0; }
+.grace-review .review-nav,.grace-review .review-actions { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.grace-review [aria-pressed=true] { background:#d6b7e6; color:#25212c; }
+.grace-review ol,.grace-review ul { padding-inline-start:24px; }
+.grace-review li { margin-block:10px; }
+.grace-review audio { max-width:100%; }
+.grace-review.review-light { color-scheme:light; color:#27232b; background:#f8f5fa; }
+.grace-review.review-light a { color:#503367; }
 
 /* One viewport, one scroll area, composer in its own non-shrinking row. */
 html{height:100%;overflow:hidden}body{position:fixed;inset:var(--grace-viewport-top,0px) 0 auto;height:var(--grace-viewport-height,100dvh);min-height:0;overflow:hidden}

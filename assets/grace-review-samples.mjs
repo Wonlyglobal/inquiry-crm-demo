@@ -37,3 +37,8 @@ export function sampleAnswer(question, { attached = false, previousTopic } = {})
   }
   return null;
 }
+
+export function sampleFileText(file) {
+  return [file.title, 'Synthetic review materials',
+    ...file.pages.map((text, i) => `Page ${i + 1}\n${text}`)].join('\n\n');
+}

@@ -1,7 +1,7 @@
 import { loadBrowserScript } from './browser-dependency.mjs';
 import { publicConfig } from './grace-public-config.mjs';
 import { fitGraceViewport } from './grace-viewport.mjs';
-import { sampleAnswer, sampleFiles } from './grace-review-samples.mjs';
+import { sampleAnswer, sampleFileText, sampleFiles } from './grace-review-samples.mjs';
 
 const get = id => document.getElementById('review-' + id);
 const signIn = get('sign-in');
@@ -10,6 +10,7 @@ const status = get('status');
 const question = get('question');
 const panels = [...workspace.querySelectorAll('[data-review-panel]')];
 const navigation = [...workspace.querySelectorAll('[data-review-view]')];
+const androidWebView = /Android.*; wv\)/.test(navigator.userAgent);
 const sampleQuestion = '示例门的标准尺寸是多少？ / What are the sample door dimensions?';
 let auth;
 let spaces;
@@ -24,6 +25,12 @@ let microphonePending = false;
 let microphoneAttempt = 0;
 
 fitGraceViewport(document.body);
+if (androidWebView) {
+  const download = get('download-image');
+  download.removeAttribute('download');
+  download.href = 'https://wonlyglobal.github.io/inquiry-crm-demo/grace-review-download.html#image';
+  download.textContent = '在浏览器下载示例图 / Download sample image in browser';
+}
 
 async function reviewAuth() {
   if (auth) return auth;
@@ -203,11 +210,16 @@ function openFile(file, position) {
   reading = file;
   page = position;
   if (downloadUrl) URL.revokeObjectURL(downloadUrl);
-  const contents = [file.title, 'Synthetic review materials',
-    ...file.pages.map((text, i) => `Page ${i + 1}\n${text}`)].join('\n\n');
-  downloadUrl = URL.createObjectURL(new Blob([contents], { type: 'text/plain;charset=utf-8' }));
-  get('download').href = downloadUrl;
-  get('download').download = file.filename;
+  downloadUrl = undefined;
+  const download = get('download');
+  if (androidWebView) {
+    download.href = 'https://wonlyglobal.github.io/inquiry-crm-demo/grace-review-download.html#' + file.id;
+    download.textContent = '在浏览器下载示例资料 / Download sample in browser';
+  } else {
+    downloadUrl = URL.createObjectURL(new Blob([sampleFileText(file)], { type: 'text/plain;charset=utf-8' }));
+    download.href = downloadUrl;
+    download.download = file.filename;
+  }
   renderFilePage();
   get('reader').hidden = false;
   selectView('files');

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" role="img" aria-label="Synthetic sample door dimension drawing">
+  <rect width="160" height="200" rx="12" fill="#eeebf2"/>
+  <rect x="39" y="25" width="70" height="131" rx="2" fill="#b39ad0" stroke="#453b53" stroke-width="3"/>
+  <circle cx="95" cy="92" r="3" fill="#453b53"/>
+  <path d="M39 170h70M122 25v131" fill="none" stroke="#453b53"/>
+  <text x="74" y="185" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#292331">900 mm</text>
+  <text x="136" y="92" text-anchor="middle" transform="rotate(90 136 92)" font-family="sans-serif" font-size="12" fill="#292331">2100 mm</text>
+</svg>

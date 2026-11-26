@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://xzetwedmveglnjkxiuet.supabase.co; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; connect-src https://xzetwedmveglnjkxiuet.supabase.co; base-uri 'none'; form-action 'none'">
   <title>Grace · 企业空间演示</title>
   <link rel="stylesheet" href="assets/grace-public.css">
 </head>
@@ -20,18 +20,71 @@
     </form>
     <p id="review-status" role="status"></p>
     <section id="review-workspace" hidden>
-      <form id="review-question" method="post">
-        <label>你的问题 / Question <input name="question" maxlength="300" required></label>
-        <button type="submit">提问 / Ask</button>
-      </form>
-      <button id="review-example" type="button">示例问题：示例门的标准尺寸是多少？</button>
-      <p id="review-answer" aria-live="polite"></p>
-      <details>
-        <summary id="review-source">打开示例画册 / Open sample catalogue</summary>
-        <p id="review-preview"></p>
-        <a id="review-download" download="grace-sample-catalogue.txt">下载示例资料 / Download sample</a>
-      </details>
-      <p><button id="review-sign-out" type="button">退出演示 / Sign out</button></p>
+      <nav class="review-nav" aria-label="Demo navigation">
+        <button type="button" data-review-view="chat" aria-pressed="true">对话 / Chat</button>
+        <button type="button" data-review-view="history" aria-pressed="false">记录 / History</button>
+        <button type="button" data-review-view="files" aria-pressed="false">资料 / Files</button>
+        <button type="button" data-review-view="settings" aria-pressed="false">设置 / Settings</button>
+      </nav>
+      <section data-review-panel="chat">
+        <p id="review-scope"></p>
+        <button id="review-new-chat" type="button">新对话 / New chat</button>
+        <ol id="review-messages" aria-live="polite"></ol>
+        <form id="review-question" method="post">
+          <label>你的问题 / Question <input name="question" maxlength="300"></label>
+          <button type="submit">提问 / Ask</button>
+        </form>
+        <div class="review-actions">
+          <button id="review-example" type="button">示例问题 / Sample question</button>
+          <button id="review-use-sample" type="button">附上示例图 / Attach sample image</button>
+        </div>
+        <label>选择已下载的示例图 / Choose the downloaded sample image
+          <input id="review-pick-image" type="file" accept="image/*">
+        </label>
+        <p id="review-image-status" role="status"></p>
+        <p id="review-attachment" hidden><img src="assets/grace-review-sample-door.svg" alt="Sample door with dimensions 900 × 2100 mm" width="96" height="120">
+          <button id="review-remove-sample" type="button">移除示例图 / Remove sample image</button>
+        </p>
+        <details>
+          <summary>语音体验 / Voice demo</summary>
+          <p>麦克风测试仅在本机运行。 The microphone check stays on this device.</p>
+          <button id="review-mic" type="button" aria-pressed="false">测试麦克风 / Test microphone</button>
+          <p id="review-mic-status" role="status"></p>
+          <p>示例问答播放 / Play a synthetic question and answer</p>
+          <audio id="review-voice" controls preload="none" src="assets/grace-review-sample-voice.m4a"></audio>
+        </details>
+      </section>
+      <section data-review-panel="history" hidden>
+        <h2>示例对话记录 / Demo history</h2>
+        <ul id="review-history"></ul>
+      </section>
+      <section data-review-panel="files" hidden>
+        <h2>示例资料 / Sample files</h2>
+        <label>筛选 / Filter <input id="review-file-filter" type="search"></label>
+        <p><a href="assets/grace-review-sample-door.svg" download="grace-review-sample-door.svg">下载示例图 / Download sample image</a></p>
+        <ul id="review-files"></ul>
+        <article id="review-reader" hidden>
+          <h3 id="review-file-title"></h3>
+          <p id="review-file-page"></p>
+          <p id="review-preview"></p>
+          <div class="review-actions">
+            <button id="review-prev-page" type="button">上一页 / Previous</button>
+            <button id="review-next-page" type="button">下一页 / Next</button>
+          </div>
+          <p><a id="review-download">下载示例资料 / Download sample</a></p>
+        </article>
+      </section>
+      <section data-review-panel="settings" hidden>
+        <h2>演示设置 / Demo settings</h2>
+        <label>演示空间 / Demo space
+          <select id="review-space">
+            <option value="enterprise">企业空间演示 / Enterprise demo</option>
+            <option value="personal">个人空间演示 / Personal demo</option>
+          </select>
+        </label>
+        <label><input id="review-light" type="checkbox"> 浅色 / Light appearance</label>
+        <p><button id="review-sign-out" type="button">退出演示 / Sign out</button></p>
+      </section>
     </section>
   </main>
   <script type="module" src="assets/grace-review.mjs"></script>

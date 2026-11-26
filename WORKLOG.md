@@ -521,3 +521,10 @@ Grace入口恢复最新已保存正文与签名状态，只放回materialHistory
 Recognized company/product facts cannot fall through to unsupported model-generated claims. Model identity questions stay internal; ambiguous multi-model followups clarify the model and retain the requested field on selection. Natural project supply and short company-name followups retain their scopes. Company fact answers omit report-action controls; retry text is not duplicated. Source gaps remain explicit.
 
 Validation: 2,821 offline tests passed; browser syntax and diff checks passed. Owner-only preview browser and physical iPhone Safari checks cover a three-turn identity/certification/model-selection chain, company-name followup, project filtering/supply, known dimensions/panel followup and fresh query after refresh. This is bounded acceptance, not full knowledge coverage. No internal evidence or screenshots are committed. Preview preserves original caller authentication, RLS, source limits and voice validation. Production has not changed. Rollback uses the saved full pre-change runtime.
+## 2026-11-25 Grace 学习资料题库问答修复
+
+用户要求修复五份学习资料的线上抽测失败。Codex 只读核对生产物料库，五份原件均为当前内部版本，文件名、大小和校验值与本机原表匹配。解析进程无法读取这批以 0600 存储且属主为 root 的文件，五份索引均为 parse_failed。原问答路由曾优先调用企业报告、产品选型或画册索引。
+
+新增离线答案键提取，覆盖原表 334 道题，归档包保存在 Git 外。Grace 根据明确题库和题号，优先通过现有签名物料检索读取单条索引，返回答案、工作表题号和行号。普通物料回答不显示这些索引记录，保持原授权和审计。五道原题使用真实工作簿和材料接口的返回格式回放通过。2839 项离线回归及浏览器模块语法通过。
+
+部署状态为本地候选。上线需在已有审核流程下写入五份精确匹配原件的索引，再发布经评审的 Grace 函数并实问。回滚恢复已保存的旧函数和这五条索引状态，保留原件和审计。

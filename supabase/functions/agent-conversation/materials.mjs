@@ -3,11 +3,12 @@ import {materialQuery,normalizeDocument,documentEvidence,coverageSummary} from '
 import {signMaterialRequest} from './material-request-proof.mjs';
 import {boundedBytes} from './bailian.mjs';
 import {productLedger,productLedgerText} from './product-coverage.mjs';
+import {LEARNING_ROW_PREFIX} from './learning-questions.mjs';
 const TRANSIENT_HTTP=new Set([502,503,504]);
 export function materialConnectionUnavailable(data){
  return data.status==='unavailable'&&(data.code==='connection_failed'||[...TRANSIENT_HTTP].some(status=>data.code==='http_'+status));
 }
-export async function loadFullMaterials({actor,privateJwk,serviceUrl,secret,question,exactName,recoverConnection=false,retrieval=null},fetcher=fetch){
+export async function loadFullMaterials({actor,privateJwk,serviceUrl,secret,question,exactName,recoverConnection=false,retrieval=null,learning=false},fetcher=fetch){
  if(!serviceUrl||!secret||!privateJwk||!actor)return {status:'not_configured',assets:[]};
  let url;try{url=new globalThis.URL(serviceUrl);if(url.protocol!=='https:'||!['file.foreverdoodle.com'].includes(url.hostname)||url.username||url.password)throw Error();url.pathname='/api/integrations/crm/knowledge';url.search='';url.hash=''}catch{return {status:'not_configured',assets:[]}}
  const {query,terms,page,constraints}=exactName?{query:exactName,terms:[],page:1,constraints:{}}:retrieval||materialQuery(question);
@@ -42,8 +43,17 @@ export async function loadFullMaterials({actor,privateJwk,serviceUrl,secret,ques
    await response?.body?.cancel().catch(()=>{});
   }
  }
- stage='parse';const data=JSON.parse(new TextDecoder().decode(bytes));if(data.status!=='available'||data.scope!=='authorized_material_library'||!Array.isArray(data.assets))return {status:'unavailable',code:'invalid_response',assets:[]};return {...data,assets:data.assets.slice(0,20).map(a=>({id:String(a.id),name:String(a.name).slice(0,200),type:String(a.type||''),language:String(a.language||''),versionLabel:String(a.versionLabel||''),isCurrentVersion:a.isCurrentVersion===true,updatedAt:String(a.updatedAt||''),visibility:a.visibility==='public'?'public':'internal',excerpt:String(a.excerpt||'').slice(0,600),document:normalizeDocument(a.document,question),video:a.type==='视频'?{status:['ready','partial','queued','processing','failed'].includes(a.video?.status)?a.video.status:'not_indexed',segments:Array.isArray(a.video?.segments)?a.video.segments.filter(s=>['speech','screen_text','visual_inference'].includes(s.kind)&&Number.isFinite(s.start)&&s.start>=0&&s.start<=3600).slice(0,6).map(s=>({kind:s.kind,start:s.start,text:String(s.text||'').slice(0,500)})):[]}:null,relativePath:String(a.relativePath||'').slice(0,500),openUrl:'https://file.foreverdoodle.com:8088/#library/folder/'+encodeURIComponent(String(a.relativePath||'').split('/').slice(0,-1).join('/'))}))}}
+ stage='parse';const data=JSON.parse(new TextDecoder().decode(bytes));if(data.status!=='available'||data.scope!=='authorized_material_library'||!Array.isArray(data.assets))return {status:'unavailable',code:'invalid_response',assets:[]};return {...data,assets:data.assets.slice(0,20).map(a=>({id:String(a.id),name:String(a.name).slice(0,200),type:String(a.type||''),language:String(a.language||''),versionLabel:String(a.versionLabel||''),isCurrentVersion:a.isCurrentVersion===true,updatedAt:String(a.updatedAt||''),visibility:a.visibility==='public'?'public':'internal',excerpt:String(a.excerpt||'').slice(0,600),document:normalizeDocument(learning?a.document:withoutLearningRows(a.document),question),video:a.type==='视频'?{status:['ready','partial','queued','processing','failed'].includes(a.video?.status)?a.video.status:'not_indexed',segments:Array.isArray(a.video?.segments)?a.video.segments.filter(s=>['speech','screen_text','visual_inference'].includes(s.kind)&&Number.isFinite(s.start)&&s.start>=0&&s.start<=3600).slice(0,6).map(s=>({kind:s.kind,start:s.start,text:String(s.text||'').slice(0,500)})):[]}:null,relativePath:String(a.relativePath||'').slice(0,500),openUrl:'https://file.foreverdoodle.com:8088/#library/folder/'+encodeURIComponent(String(a.relativePath||'').split('/').slice(0,-1).join('/'))}))}}
  catch(error){console.error('material_lookup_failure',stage,error instanceof Error?error.name:'unknown','attempt',attemptNumber,'elapsed_ms',Math.round(performance.now()-started));const transient=stage==='connection'||stage==='body'&&['TimeoutError','TypeError'].includes(error?.name);return {status:'unavailable',code:stage==='signing'?'signing_failed':transient?'connection_failed':'invalid_response',assets:[]}}
+}
+function withoutLearningRows(document){
+ if(!Array.isArray(document?.pages))return document;
+ const pages=document.pages.flatMap(page=>{
+  if(!Array.isArray(page?.chunks))return [page];
+  const chunks=page.chunks.filter(chunk=>!String(chunk).startsWith(LEARNING_ROW_PREFIX));
+  return chunks.length===page.chunks.length?[page]:chunks.length?[{...page,chunks}]:[];
+ });
+ return {...document,pages};
 }
 export function fullMaterialAnswer(data){
  if(data.status!=='available')return (data.status==='not_configured'?'物料库连接尚未正确配置。':data.code==='signing_failed'?'物料库签名配置暂不可用。':data.code==='http_401'||data.code==='http_403'?'物料库未通过账号授权校验。':data.code==='http_404'?'物料库全库接口尚未就绪。':'物料库连接暂时未完成。')+'不能把营销资料目录当作全库，请稍后重试。';

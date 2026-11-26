@@ -3,6 +3,11 @@
 /* Keep iOS input focus from zooming and cropping the app viewport. */
 input,textarea{font-size:16px}
 
+.grace-review a { color:#ddd0e7; }
+.grace-review form:not([hidden]) { display:grid; gap:12px; margin:16px 0; }
+.grace-review form button { justify-self:start; }
+.grace-review summary { cursor:pointer; padding:12px 0; }
+
 /* One viewport, one scroll area, composer in its own non-shrinking row. */
 html{height:100%;overflow:hidden}body{position:fixed;inset:var(--grace-viewport-top,0px) 0 auto;height:var(--grace-viewport-height,100dvh);min-height:0;overflow:hidden}
 header{flex:none;padding:12px 24px}main{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 24px 24px;width:min(100%,740px);scroll-padding-bottom:20px}

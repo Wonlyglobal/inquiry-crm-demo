@@ -1,4 +1,5 @@
 import {namedMaterialRequest,namedMaterialReply} from './named-material.mjs';
+import {learningQuestion,learningReply} from './learning-questions.mjs';
 import {companyListingTurn,companyListingAnswer} from './company-listing-turn.mjs';
 import {archivedCatalogField} from './catalog-field-turn.mjs';
 import {factualScope,factualGap} from './factual-boundary.mjs';
@@ -333,7 +334,8 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
   const privateReply=async()=>{const result=await readPrivateIntelligence(client,privateReportQuestion(input.question,input.privateReportKey),Date.now(),{authorization,materialConfig});return json({answer:result.answer,provider:'internal',model:'private-intelligence',context:{route:'private_intelligence',receipts:result.receipts,video_index:result.video_index,...(result.answer_kind==='company_fact'?{answer_kind:'company_fact',material_question:('企业事实：'+input.question).slice(0,500)}:{})},...(key?{ticket:await ticket({user:user.id,persona:input.persona,text:result.receipts.length?'我查到了公司私有知识库中的报告和证据，带编号的详细内容在窗口里。':'本次没有找到对应的私有报告，请核对日期或先同步。',expires:Date.now()+300000},key)}:{})})};
   const namedFile=input.action==='chat'&&input.persona==='Grace'&&!input.privateReportKey?namedMaterialRequest(input.question):null;
   const catalogueReference=input.action==='chat'&&input.persona==='Grace'&&!input.privateReportKey?catalogueReferenceRequest(input.question):null;
-  if(!namedFile&&!catalogueReference&&input.action==='chat'&&input.voice!==true&&!socialWeekPeriod(input.question)&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
+  const exercise=input.action==='chat'&&input.persona==='Grace'?learningQuestion(input.question):null;
+  if(!namedFile&&!catalogueReference&&!exercise&&input.action==='chat'&&input.voice!==true&&!socialWeekPeriod(input.question)&&!workScenarioIntent(input)&&privateIntelligenceIntent(privateReportQuestion(input.question,input.privateReportKey))&&(!questionPlan(input.question).parts.length||socialAnalysisCoversParts(input.question,questionPlan(input.question).parts))){
    validateDialogue(input);return await privateReply();
   }
   if(input.action==='status')return json({configured:!!key,enabled,policy:POLICY,model:Deno.env.get('BAILIAN_AGENT_MODEL')||'qwen-plus'});
@@ -370,6 +372,15 @@ async function handleAgent(req:Request,nested=false,onDelta?:(text:string)=>void
    validateDialogue(input);
    const speaker=input.voice===true?await readVoiceProof(input.voiceProof,{user:user.id,question:input.question},t=>mac(t,key)):null;guest=speaker==='other';
    if(input.voice===true&&Deno.env.get('VOICEPRINT_ENABLED')==='1'&&(speaker===null||ignoredSpeaker(speaker)))return json({ignored:speaker||'unverified',answer:'',provider:'internal',model:'voiceprint-gate',context:{route:'ignored'}});
+   if(!guest&&exercise){
+    const data=exercise.clarify?null:gateMaterialEvidence(await loadFullMaterials({...materialConfig,
+     question:exercise.label,retrieval:exercise.retrieval,recoverConnection:true,learning:true}));
+    const reply=learningReply(data,exercise);
+    const {error}=await admin.from('audit_logs').insert({actor_id:user.id,entity_type:'profile',entity_id:user.id,action,
+     after_data:{operation:'learning_material_qa',status:reply.status,external_model_called:false},reason:'按现有物料权限核对学习题库原表及题号'});
+    if(error)return json({error:'调用审计失败'},503);
+    return json({answer:reply.answer,provider:'internal',model:'learning-material',context:{route:'materials',status:reply.status}});
+   }
    if(!guest&&namedFile){
     const data=gateMaterialEvidence(await loadFullMaterials({...materialConfig,question:namedFile.kind==='content'?namedFile.subject:namedFile.name,exactName:namedFile.name,recoverConnection:true}));
     const result=namedMaterialReply(data,namedFile,targetedMaterialAnswer);

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://xzetwedmveglnjkxiuet.supabase.co; base-uri 'none'; form-action 'none'">
+  <title>Grace · 企业空间演示</title>
+  <link rel="stylesheet" href="assets/grace-public.css">
+</head>
+<body class="grace-review">
+  <header><strong>grace<span>·</span></strong><a href="grace-app.html">返回 Grace</a></header>
+  <main>
+    <h1>企业空间演示</h1>
+    <p>示例资料 · Sample content</p>
+    <form id="review-sign-in" method="post">
+      <label>演示邮箱 / Email <input name="email" type="email" autocomplete="username" required></label>
+      <label>密码 / Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">登录演示 / Sign in</button>
+    </form>
+    <p id="review-status" role="status"></p>
+    <section id="review-workspace" hidden>
+      <form id="review-question" method="post">
+        <label>你的问题 / Question <input name="question" maxlength="300" required></label>
+        <button type="submit">提问 / Ask</button>
+      </form>
+      <button id="review-example" type="button">示例问题：示例门的标准尺寸是多少？</button>
+      <p id="review-answer" aria-live="polite"></p>
+      <details>
+        <summary id="review-source">打开示例画册 / Open sample catalogue</summary>
+        <p id="review-preview"></p>
+        <a id="review-download" download="grace-sample-catalogue.txt">下载示例资料 / Download sample</a>
+      </details>
+      <p><button id="review-sign-out" type="button">退出演示 / Sign out</button></p>
+    </section>
+  </main>
+  <script type="module" src="assets/grace-review.mjs"></script>
+</body>
+</html>

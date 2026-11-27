@@ -19,7 +19,7 @@ function harness({scopeChanges=false,failConnect=false,noAnchor=false,duplicate=
   async list(){return[{path:'INBOX'},{path:'Sent',specialUse:'\\Sent'}]}
   async getMailboxLock(path,opts){calls.push(['lock',path,opts]);this.mailbox={uidValidity:100};return{release(){calls.push(['release'])}}}
   async search(search,options){calls.push(['search',search,options]);return[1,2]}
-  async fetchOne(uid,query,options){calls.push(['fetchOne',uid,query,options]);if(query.source)return{source:Buffer.from('full-body')};return{uid,size:100,bodyStructure:{type:'text/plain',part:'1'},internalDate:new Date('2026-11-01T01:00:00Z'),headers:Buffer.from(uid===1?'matched':'not-matched'),envelope:{from:[{address:'buyer@example.invalid'}],to:[{address:'s@example.invalid'}],subject:'Inquiry',messageId:'<other>'}}}
+  async fetchOne(uid,query,options){calls.push(['fetchOne',uid,query,options]);if(query.source)return{source:Buffer.from('full-body')};return{uid,size:100,bodyStructure:{type:'text/plain',part:'1'},internalDate:new Date('2026-11-27T01:00:00Z'),headers:Buffer.from(uid===1?'matched':'not-matched'),envelope:{date:new Date('2026-11-01T01:00:00Z'),from:[{address:'buyer@example.invalid'}],to:[{address:'s@example.invalid'}],subject:'Inquiry',messageId:'<other>'}}}
   async download(uid,part,options){calls.push(['download',uid,part,options]);return{content:(async function*(){yield Buffer.from('客户原始正文')})()}}
   async logout(){calls.push(['logout'])}
  }
@@ -27,7 +27,7 @@ function harness({scopeChanges=false,failConnect=false,noAnchor=false,duplicate=
  return{job,args:{admin,userClient:{from:query},actorId:'sales',requestId:'request',ImapFlow:Imap,simpleParser},calls,writes,finishes};
 }
 test('90-day backfill only persists exact matched source; read-only IMAP and no live-mail writes',async()=>{
- const h=harness();const result=await processHistoryChunk(h.args);assert.equal(result.progress.status,'queued');assert.equal(h.writes.length,1);assert.equal(h.writes[0].record.body_text,'客户原始正文');assert.equal(h.writes[0].record.inquiry_id,'inquiry');assert.ok(h.calls.some(c=>c[0]==='rpc'&&c[1]==='append_inquiry_mail_history'));assert.ok(h.calls.some(c=>c[0]==='rpc'&&c[1]==='read_inquiry_mail_history_forward_ids'));assert.equal(h.calls.some(c=>c[0]==='select'&&c[1]==='integration_events'),false);assert.equal(h.writes[0].record.body_truncated,false);
+ const h=harness();const result=await processHistoryChunk(h.args);assert.equal(result.progress.status,'queued');assert.equal(h.writes.length,1);assert.equal(h.writes[0].record.body_text,'客户原始正文');assert.equal(h.writes[0].record.inquiry_id,'inquiry');assert.equal(h.writes[0].record.event_at,'2026-11-01T01:00:00.000Z');assert.ok(h.calls.some(c=>c[0]==='rpc'&&c[1]==='append_inquiry_mail_history'));assert.ok(h.calls.some(c=>c[0]==='rpc'&&c[1]==='read_inquiry_mail_history_forward_ids'));assert.equal(h.calls.some(c=>c[0]==='select'&&c[1]==='integration_events'),false);assert.equal(h.writes[0].record.body_truncated,false);
  assert.ok(h.calls.some(x=>x[0]==='search'&&x[1].or[0].header['message-id']==='delivered-forward'));assert.deepEqual(h.calls.find(x=>x[0]==='lock')[2],{readOnly:true});assert.equal(h.calls.filter(x=>x[0]==='download').length,1);assert.equal(h.calls.some(x=>x[0]==='fetchOne'&&x[2].source),false);assert.equal(h.finishes[0].new_cursor.folderIndex,1);
  assert.equal(h.calls.some(x=>x[0]==='select'&&['follow_ups','notifications','mail_outbox'].includes(x[1])),false);assert.equal(JSON.stringify(result).includes('synthetic-only'),false);
 });

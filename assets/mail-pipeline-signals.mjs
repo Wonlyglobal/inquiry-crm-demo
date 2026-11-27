@@ -43,7 +43,7 @@ export function detectMailSignals(messages, context = {}, asOf = Date.now()) {
   const signals = [];
   for (const message of messages) {
     if (message.inquiry_id !== inquiry.id || message.association_status !== 'matched') continue;
-    const at = timestamp(message.direction === 'outbound' ? message.sent_at : message.received_at || message.event_at);
+    const at = message.raw_headers?.date_source==='unavailable'?null:timestamp(message.raw_headers?.original_date || (message.direction === 'outbound' ? message.sent_at : message.received_at || message.event_at));
     if (at === null || at > asOf || /^\s*(?:fw|fwd|转发|转寄)\s*[:：]/iu.test(message.subject || '') || /draft|outbox|草稿|发件箱/iu.test(message.folder || '')) continue;
     const text = splitMailText(message.body_text).text.slice(0, 24000);
     if (!text) continue;

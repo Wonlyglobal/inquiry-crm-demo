@@ -2,7 +2,7 @@ import {Buffer} from 'node:buffer';
 const header=v=>String(v||'').trim().replace(/^<|>$/g,'');
 const addr=v=>String(v||'').trim().toLowerCase();
 const addresses=v=>(v||[]).map(x=>addr(x.address)).filter(Boolean);
-const stamp=v=>{const d=new Date(v);return Number.isFinite(d.getTime())?d.toISOString():null};
+const stamp=v=>{if(v===null||v===undefined||v==='')return null;const d=new Date(v);return Number.isFinite(d.getTime())?d.toISOString():null};
 export function anchorIds(messages,intakes,forwards=[]){return [...new Set([...messages,...intakes,...forwards.map(x=>({message_id:x.provider_message_id}))].map(x=>header(x.message_id)).filter(x=>x&&x.length<=500&&!/[\r\n]/.test(x)))].slice(0,100)}
 export function linkedToAnchor(message,anchors){return [message.messageId,message.inReplyTo,...(Array.isArray(message.references)?message.references:message.references?[message.references]:[])].some(x=>anchors.includes(header(x)))}
 export function historyFolders(boxes){
@@ -83,7 +83,7 @@ export async function processHistoryChunk({admin,userClient,actorId,requestId,Im
     if(!metadata){cursor.uidIndex++;counts.skipped++;continue}
     const parsedHeaders=await simpleParser(metadata.headers||Buffer.from(''));
     const headers={messageId:parsedHeaders.messageId||metadata.envelope?.messageId,inReplyTo:parsedHeaders.inReplyTo||metadata.envelope?.inReplyTo,references:parsedHeaders.references||[]};
-    const time=stamp(metadata.internalDate||metadata.envelope?.date);
+    const time=stamp(metadata.envelope?.date);
     if(!time||Date.parse(time)<Date.parse(claim.window_from)||Date.parse(time)>Date.parse(claim.window_to)||!linkedToAnchor(headers,anchors)){cursor.uidIndex++;counts.skipped++;continue}
     const fresh=await checked(userClient.from('inquiries').select('id,owner_id').eq('id',claim.inquiry_id).single());
     if(fresh?.owner_id!==claim.owner_id)return await finish('cancelled','scope_changed');

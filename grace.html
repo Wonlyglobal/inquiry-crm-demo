@@ -1568,7 +1568,8 @@
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
     <link rel="stylesheet" href="./assets/customer-directory.css?v=20261104-1">
-  </head>
+  <link rel="stylesheet" href="assets/inquiry-mail-conversation.css?v=20261127-1">
+</head>
   <body>
     <section id="boot" class="boot-shell">
       <div class="boot-card"><span class="boot-spinner"></span><span>Grace 正在准备…</span></div>
@@ -2306,10 +2307,12 @@
           <div class="detail-kpi"><span>最近沟通</span><b id="detail-kpi-last-contact">—</b></div>
           <div class="detail-kpi"><span>下次跟进</span><b id="detail-kpi-next-followup">—</b></div>
         </div>
+        <section class="form-body" aria-label="自动邮件回复情况"><div class="inquiry-conversation-tools"><h4>自动邮件回复情况</h4><button id="detail-open-mail-conversation" class="ghost" type="button">查看邮件沟通</button></div><p id="detail-mail-reply-status" role="status" style="white-space:pre-line">正在核对已同步邮件…</p><small>每60秒核对新同步及已回补记录；最近90天历史自动分批回补，不自动发信。点“邮件沟通”查看来往原文；未检出不代表从未回复。</small></section>
         <nav class="detail-tabs" aria-label="询盘详情分区">
           <button class="detail-tab" type="button" data-detail-tab="summary">原文与整理</button>
           <button class="detail-tab active" type="button" data-detail-tab="research">客户背调</button>
           <button class="detail-tab" type="button" data-detail-tab="outreach">开发信</button>
+          <button class="detail-tab" type="button" data-detail-tab="mail-conversation">邮件沟通</button>
           <button class="detail-tab" type="button" data-detail-tab="followup">分配与跟进</button>
           <button class="detail-tab" type="button" data-detail-tab="validity">有效性判断</button>
           <button class="detail-tab" type="button" data-detail-tab="attribution">营销归因</button>
@@ -2544,6 +2547,7 @@
           </div>
         </div>
         <div class="form-body detail-section hidden" data-detail-section="journey"><div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap"><div><h4 style="margin:0">询盘提交用户路径</h4><p class="hint">展示客户从入口到生成询盘的匿名行为路径；只记录页面与交互上下文，不采集姓名、邮箱、电话或留言正文。</p></div><span id="journey-completeness" class="tag">暂无路径</span></div><div id="journey-summary" class="qualification-summary"><div><span class="hint">标准转化路径</span><br><b style="font-size:15px">CTA 点击 → 打开表单 → 开始填写 → 提交 → 生成询盘</b></div></div><div id="journey-event-list" class="company-event-timeline"></div><div id="journey-event-empty" class="empty">该询盘没有官网路径数据；旧询盘或非官网询盘属于正常情况。</div></div>
+        <section class="form-body detail-section hidden" data-detail-section="mail-conversation"><div id="inquiry-mail-conversation"></div></section>
         <div class="form-body detail-section hidden" data-detail-section="followup">
           <div id="detail-workflow-lock" class="notice hidden" style="margin-bottom:16px">请先在“有效性判断”中确认询盘有效；确认前不能推进阶段、分配负责人或新增跟进。</div>
           <div class="detail-grid">
@@ -2722,6 +2726,8 @@ import {readAnswerStream} from './assets/grace-answer-stream.mjs';
 import {recoveryIntent,recoveryRedirect,cleanRecoveryUrl,observePasswordRecovery} from "./assets/password-recovery.mjs?v=20261116-recovery1";
       import {loadBrowserScript} from "./assets/browser-dependency.mjs?v=20261105-local1";
       import {trendPointText,bindTrendTooltips} from "./assets/trend-tooltip.mjs?v=20261125-2";
+      import {mountInquiryConversation,historyBackfillQueue} from "./assets/inquiry-mail-conversation.mjs?v=20261127-1";
+      import {loadInquiryMailReplies,mailReplyText} from "./assets/inquiry-mail-replies.mjs?v=20261127-1";
       import {countryView,countryChoices,compareCountries} from "./assets/country-view.mjs?v=20261125-1";
       import {inquiryCountryText,claimedInquiryCountry} from "./assets/inquiry-country-display.mjs?v=20261125-1";
       import {bindResearchGenerateEntry} from "./assets/research-generate-entry.mjs?v=20261029-1";
@@ -3603,6 +3609,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           const tr = document.createElement("tr");
           row.cells.forEach((value, index) => {
             const td = document.createElement("td"), label = columns[index];
+            if(label==="邮件回复情况"){td.style.whiteSpace="pre-line";td.style.minWidth="230px";td.style.maxWidth="320px";}
             if(label==="选择"){const mailboxSelection=activeModuleView==="mailbox",selectionSet=mailboxSelection?selectedMailboxMessageIds:selectedEmailIntakeIds,checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=Boolean(row.selectionId&&selectionSet.has(row.selectionId));checkbox.disabled=!row.selectionId||(mailboxSelection&&selectionSet.size>=200&&!checkbox.checked);checkbox.setAttribute("aria-label",mailboxSelection?"选择未读邮件":"选择邮件");checkbox.onclick=event=>event.stopPropagation();checkbox.onchange=()=>{if(checkbox.checked){if(selectionSet.size>=200){checkbox.checked=false;toast("一次最多选择 200 封邮件");return}selectionSet.add(row.selectionId)}else selectionSet.delete(row.selectionId);if(mailboxSelection)$("#mailbox-selected-count").textContent=`已选 ${selectionSet.size} 封`;else syncEmailSelectionState();renderModuleTable(moduleColumns,moduleRows,moduleRowClick,true)};td.append(checkbox);tr.append(td);return}
             if(activeModuleView==="knowledge"&&label==="缩略图"){
               const preview=row.preview||{},box=document.createElement("div");box.className=`knowledge-thumbnail ${preview.kind||"document"}`;box.setAttribute("aria-label",preview.alt||"文件缩略图");
@@ -5041,7 +5048,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
             const requestResult=await loadModuleRowsPaged((from,to)=>supabase.from("inquiry_public_pool_requests").select("id,inquiry_id,requested_by,request_type,reason,status,review_reason,created_at,profiles!inquiry_public_pool_requests_requested_by_fkey(full_name)").eq("status","pending").order("created_at",{ascending:true}).range(from,to));
             if(requestResult.error)publicPoolRequestError=requestResult.error;else publicPoolRequests=requestResult.data||[];
           }
-          const inquiryQueryFactory=(from,to)=>{let q=supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason,qualification_score,lead_priority,sales_disposition,recycle_reason,nurture_status,nurture_next_at,nurture_note,estimated_amount,currency,quoted_at,next_follow_up_at").eq("excluded_from_dashboard",false).order("created_at", { ascending: false }).range(from,to);
+          const inquiryQueryFactory=(from,to)=>{let q=supabase.from("inquiries").select("id,inquiry_no,title,status,validity,invalid_review_status,source,owner_id,assigned_at,target_country,created_at,updated_at,public_pool_entered_at,last_change_reason,qualification_score,lead_priority,sales_disposition,recycle_reason,nurture_status,nurture_next_at,nurture_note,estimated_amount,currency,quoted_at,next_follow_up_at").eq("excluded_from_dashboard",false).order("created_at", { ascending: false }).range(from,to);
             if(view==="quotes"){q=q.eq("validity","valid").in("status",["received","qualified","contacted","quoted","sample_sent","negotiating"]);if(profile.role==="sales")q=q.eq("owner_id",profile.id)}
             if(view==="inquiries"&&activeInquiryScope==="open")q=q.eq("validity","valid").not("status","in","(won,lost)");
             if(view==="assignment")q=q.eq("validity","valid").eq("status","pending_assignment");
@@ -5253,11 +5260,24 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         const mailboxBulkSelectable=view==="mailbox"&&mailboxFolder==="inbox"&&!mailboxTemplateView&&!mailboxScheduledView;
         if(mailboxBulkSelectable)columns.unshift("选择");
         const mappedRows = sourceRows.map(mapper);
+        const showMailReplies=view==="inquiries"&&!activeInquiryArchive;
+        if(showMailReplies){columns.splice(7,0,"邮件回复情况");mappedRows.forEach(row=>row.cells.splice(7,0,"正在核对已同步邮件…"));}
         if(mailboxBulkSelectable)mappedRows.forEach(row=>{const message=row.message;row.selectionId=message?.direction==="inbound"&&!message.mailRead?message.id:null;row.cells.unshift("")});
         if(view==="knowledge")knowledgeRowMapper=mapper;
         const onRowClick = view === "sales-today" ? (row)=>openSalesTask(row.salesTask) : view === "knowledge" ? (row)=>row.materialAsset?openMaterialAsset(row.materialAsset):row.knowledgeArticle&&openKnowledgeArticle(row.knowledgeArticle) : view === "fulfillment" ? (row)=>row.fulfillmentInquiry&&openFulfillmentManager(row.fulfillmentInquiry) : view === "customers" ? (row)=>row.customerCompanyId&&openCustomerRecord(row.customerCompanyId) : view === "research" ? (row) => row.id && openCompanyResearch(row.id) : view === "email" ? (row) => row.emailIntakeId && openEmailIntakeDetail(row.emailIntakeId) : view === "communications" ? (row)=>row.message&&openCommunicationRecord(row.message) : view === "mailbox" ? (row)=>row.message&&openMailboxMessage(row.message) : clickable ? (row) => row.id && openInquiryDetail(row.id) : null;
         renderModuleTable(columns, mappedRows, onRowClick);
         moduleMemoryCache.set(view, { columns, rows:mappedRows, onRowClick, knowledgeCount:view==="knowledge"?knowledgeCountState:null, loadedAt:new Date().toISOString() });
+        if(showMailReplies){
+          refreshInquiryMailList=async()=>{
+            const sequence=++mailListSequence;
+            const result=await loadInquiryMailReplies(supabase,sourceRows,{role:profile.role,actorId:profile.id});
+            if(sequence!==mailListSequence||moduleLoadVersion!==loadVersion||activeModuleView!==view||activeInquiryArchive)return;
+            mappedRows.forEach(row=>{row.cells[7]=mailReplyText(result.get(row.id)||{label:"邮件状态暂不可核对"})+"\n"+(historyQueue().states.get(row.id)||"");});
+            filterModuleRows();
+          };
+          historyQueue().add(sourceRows);
+          void refreshInquiryMailList();
+        }
         $("#module-table-context").textContent = view==="sop"?`当前角色专属流程 · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`:`${view==="public-pool"?"按进入公海时间排列":"按最新创建时间排列"} · 更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12:false })}`;
         if (view === "email" && $("#module-search").value.trim()) filterModuleRows();
         if (view === "inquiries") { if(activeInquiryArchive){$("#inquiry-stage-tabs").classList.add("hidden");$("#module-table-title").textContent="询盘回收站";$("#module-table-context").textContent="仅老板可见 · 可恢复 · 不执行物理删除"}else renderInquiryCommand(mappedRows); filterModuleRows(); }
@@ -6960,15 +6980,18 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           inquiry.emailNeedsExtractionError=extraction.error?.message||"";
         }
         currentInquiry = inquiry;
+        void refreshDetailMailReply(inquiry);
         inquiryLeadHistory ||= mountInquiryLeadHistory($('#detail-lead-history'),{rpc:async(name,args)=>{const result=await supabase.rpc(name,args);if(result.error)throw result.error;return result.data}});
         void inquiryLeadHistory.refresh({inquiryId:inquiry.id,ownSales:profile.role==='sales'&&inquiry.owner_id===profile.id});
         $("#grace-outreach-confirm").checked=false;$("#grace-outreach-angle").value='';$("#grace-outreach-result").textContent='';$("#grace-outreach-private-evidence").textContent='';$("#grace-outreach-private-panel").classList.add('hidden');
         currentQualificationAiSuggestion = null;
         const marketAssignedScope=profile.role==="marketing"&&Boolean(inquiry.owner_id);
         const marketHiddenDetailTabs=profile.role==="marketing"
-          ? new Set(["outreach","followup",...(marketAssignedScope?["qualification","audit"]:[])])
+          ? new Set(["outreach","followup","mail-conversation",...(marketAssignedScope?["qualification","audit"]:[])])
           : new Set();
+        if(crmReadOnly)marketHiddenDetailTabs.add("mail-conversation");
         $$(".detail-tab[data-detail-tab]").forEach(tab=>tab.classList.toggle("hidden",marketHiddenDetailTabs.has(tab.dataset.detailTab)));
+        $("#detail-open-mail-conversation").classList.toggle("hidden",profile.role==="marketing"||crmReadOnly);
         renderOutreachGuidanceOptions();
         // email_intake is loaded in a separate query, so preserve it on the
         // active inquiry record for outreach generation and reply workflows.
@@ -7806,7 +7829,12 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $$(".detail-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.detailTab === name));
         $$(".detail-section").forEach((section) => section.classList.toggle("hidden", section.dataset.detailSection !== name));
         if(name === "events") renderCompanyEventTimeline();
+        if(name === "mail-conversation"&&currentInquiry){
+          inquiryMailConversation ||= mountInquiryConversation($("#inquiry-mail-conversation"),{client:supabase,role:profile.role,isCurrent:id=>currentInquiry?.id===id});
+          void inquiryMailConversation.open(currentInquiry.id);
+        }
       }
+      $("#detail-open-mail-conversation").addEventListener("click",()=>{setDetailTab("mail-conversation");$('.detail-section[data-detail-section="mail-conversation"]').scrollIntoView({block:"start",behavior:"smooth"});});
       $$(".detail-tab").forEach((tab) => tab.addEventListener("click", (event) => {if(detailTabsEditing){event.preventDefault();return}setDetailTab(tab.dataset.detailTab)}));
       const companyEventTypeNames={inquiry:"询盘/采购",project:"项目合作",expansion:"扩张产能",product:"产品/认证",risk:"风险负面",other:"其他"};
       const companyEventKindNames={fact:"已确认事实",inference:"AI 判断",unverified:"待核验"};
@@ -8012,9 +8040,30 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           btn.disabled = false;
         }
       });
+      let refreshInquiryMailList=null,mailRefreshBusy=false,detailMailSequence=0,mailListSequence=0;
+      let inquiryMailConversation=null,inquiryHistoryQueue=null;
+      const historyQueue=()=>inquiryHistoryQueue ||= historyBackfillQueue({client:supabase,role:crmReadOnly?'restricted':profile.role,actorId:profile.id});
+      async function refreshDetailMailReply(inquiry){
+        const sequence=++detailMailSequence,panel=$("#detail-mail-reply-status");
+        historyQueue().add([inquiry]);
+        panel.textContent="正在核对已同步邮件…";
+        const result=await loadInquiryMailReplies(supabase,[inquiry],{role:profile.role,actorId:profile.id});
+        if(sequence!==detailMailSequence||currentInquiry?.id!==inquiry.id)return;
+        const value=result.get(inquiry.id);panel.textContent=mailReplyText(value||{label:"邮件状态暂不可核对"})+"\n"+(historyQueue().states.get(inquiry.id)||"");
+      }
+      setInterval(async()=>{
+        if(mailRefreshBusy||document.visibilityState!=="visible")return;
+        inquiryHistoryQueue?.resume();
+        mailRefreshBusy=true;
+        try{
+          if(currentInquiry&&!$("#detail-modal").classList.contains("hidden"))await refreshDetailMailReply(currentInquiry);
+          else if(activeModuleView==="inquiries"&&!activeInquiryArchive&&!$("#module-page").classList.contains("hidden"))await refreshInquiryMailList?.();
+        }finally{mailRefreshBusy=false;}
+      },60000);
       function closeInquiryPage() {
         $("#detail-modal").classList.add("hidden");
         if (detailStageTicker) { clearInterval(detailStageTicker); detailStageTicker = null; }
+        inquiryMailConversation?.clear();
         currentInquiry = null;
         if (detailOriginView === "sales-profile") {
           $("#dashboard-page").classList.add("hidden");

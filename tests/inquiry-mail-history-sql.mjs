@@ -1,0 +1,48 @@
+// Synthetic isolated database only; never connects to production.
+import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+const {PGlite}=await import(process.argv[2]);const db=new PGlite();let checks=0;
+await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema private;
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+create function auth.role() returns text language sql stable as $$select current_setting('test.role',true)$$;
+create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('role',auth.role(),'app_metadata',jsonb_build_object('crm_read_only',coalesce(nullif(current_setting('test.readonly',true),''),'false')::boolean))$$;
+create table public.profiles(id uuid primary key,role text,team text,active boolean default true,is_test_data boolean default false,data_environment text default 'production');
+create table public.inquiries(id uuid primary key,owner_id uuid,merged_into_id uuid,archived_at timestamptz,is_test_data boolean default false,excluded_from_dashboard boolean default false,data_environment text default 'production');
+create table public.mailbox_connections(id uuid primary key,user_id uuid,email text,mailbox_kind text,status text,sync_enabled boolean default true);
+create table public.audit_logs(id uuid default gen_random_uuid(),actor_id uuid,entity_type text,entity_id uuid,action text,reason text,after_data jsonb);
+create function private.crm_manager_covers_inquiry(manager uuid,target uuid) returns boolean language sql stable as $$select exists(select 1 from public.profiles a join public.profiles b on a.team=b.team join public.inquiries i on i.owner_id=b.id where a.id=manager and i.id=target)$$;
+grant usage on schema auth,private to authenticated,service_role;`);
+const ids=Object.fromEntries(['owner','sales','other','manager','market','inactive','i','otherI','box','otherBox','source'].map((k,n)=>[k,`00000000-0000-4000-8000-${String(n+1).padStart(12,'0')}`]));
+for(const role of ['owner','sales','other','manager','market','inactive'])await db.query('insert into public.profiles(id,role,team,active) values($1,$2,$3,$4)',[ids[role],role==='other'||role==='inactive'?'sales':role==='manager'?'sales_manager':role==='market'?'marketing':role,role==='other'?'B':'A',role!=='inactive']);
+await db.query('insert into public.inquiries(id,owner_id) values($1,$2),($3,$4),($5,$2)',[ids.i,ids.sales,ids.otherI,ids.other,ids.source]);
+await db.query("insert into public.mailbox_connections(id,user_id,email,mailbox_kind,status) values($1,$2,'a@example.invalid','personal','connected'),($3,$4,'b@example.invalid','personal','connected')",[ids.box,ids.sales,ids.otherBox,ids.other]);
+await db.exec(await readFile(new URL('../supabase/migrations/20261127090000_inquiry_mail_history.sql',import.meta.url),'utf8'));
+const as=async who=>{await db.exec('reset role');await db.query("select set_config('test.uid',$1,false),set_config('test.role',$2,false),set_config('test.readonly','false',false)",[ids[who]||'',who==='service'?'service_role':who==='anon'?'anon':'authenticated']);await db.exec('set role '+(who==='service'?'service_role':who==='anon'?'anon':'authenticated'))};
+const call=async(name,args)=>((await db.query('select public.'+name+'('+args.map((_,n)=>'$'+(n+1)).join(',')+') r',args)).rows[0].r);
+const ok=v=>{assert.ok(v);checks++},reject=async fn=>{await assert.rejects(fn);checks++};
+const record=[crypto.randomUUID(),ids.i,ids.box,ids.sales,crypto.randomUUID()];
+await db.query("insert into private.inquiry_mail_history_requests(id,requested_by,inquiry_id,owner_id,day,window_from,window_to) values($1,$2,$3,$2,'2000-01-01',clock_timestamp()-interval '90 days',clock_timestamp())",[record[4],ids.sales,ids.i]);
+await db.query("insert into private.inquiry_mail_history_jobs(request_id,connection_id,status) values($1,$2,'completed')",[record[4],ids.box]);
+await db.query("insert into public.inquiry_mail_history(id,inquiry_id,mailbox_connection_id,mailbox_owner_id,folder,uid_validity,uid,direction,sender_email,event_at,received_at,body_text,run_id) values($1,$2,$3,$4,'INBOX','1',1,'inbound','buyer@example.invalid',clock_timestamp(),clock_timestamp(),'合成正文',$5)",record);
+await as('sales');let result=await call('get_inquiry_mail_history',[[ids.i],false,0]);ok(result.items.length===1&&!('body_text' in result.items[0]));ok((await call('get_inquiry_mail_history',[[ids.i],true,0])).items[0].body_text==='合成正文');await reject(()=>db.query('select body_text from public.inquiry_mail_history'));await reject(()=>db.exec('delete from public.inquiry_mail_history'));
+await as('other');await reject(()=>call('get_inquiry_mail_history',[[ids.i],true,0]));ok((await db.query('select id from public.inquiry_mail_history')).rows.length===0);
+await as('manager');ok((await call('get_inquiry_mail_history',[[ids.i],true,0])).items.length===1);await reject(()=>call('get_inquiry_mail_history',[[ids.otherI],true,0]));
+for(const who of ['market','inactive','anon']){await as(who);await reject(()=>call('get_inquiry_mail_history',[[ids.i],true,0]))}
+await as('sales');await db.query("select set_config('test.readonly','true',false)");await reject(()=>call('get_inquiry_mail_history',[[ids.i],true,0]));await as('sales');await reject(()=>call('get_inquiry_mail_history',[[ids.i,ids.otherI],true,0]));await reject(()=>call('start_inquiry_mail_history',[ids.sales,ids.i,crypto.randomUUID()]));
+await as('service');const request=await call('start_inquiry_mail_history',[ids.sales,ids.i,crypto.randomUUID()]);ok(request);ok(await call('start_inquiry_mail_history',[ids.sales,ids.i,crypto.randomUUID()])===request);
+const claim=await call('claim_inquiry_mail_history',[ids.sales,request]);ok(claim.job&&claim.job.lease_token);ok(!(await call('claim_inquiry_mail_history',[ids.sales,request])).job);
+const secondRequest=await call('start_inquiry_mail_history',[ids.sales,ids.source,crypto.randomUUID()]);ok(!(await call('claim_inquiry_mail_history',[ids.sales,secondRequest])).job);
+await reject(()=>call('finish_inquiry_mail_history',[claim.job.id,crypto.randomUUID(),'completed','{}','{}',null]));
+const messageData={folder:'Sent',uid_validity:'1',uid:2,direction:'outbound',sender_email:'a@example.invalid',recipient_emails:['buyer@example.invalid'],subject:'Re: synthetic',message_id:'reply',reference_ids:['root'],event_at:new Date(Date.now()-60000).toISOString(),body_text:'合成业务员回复',body_status:'complete'};
+const appended=await call('append_inquiry_mail_history',[claim.job.id,claim.job.lease_token,JSON.stringify(messageData)]);ok(appended);ok(await call('append_inquiry_mail_history',[claim.job.id,claim.job.lease_token,JSON.stringify(messageData)])===null);await reject(()=>call('append_inquiry_mail_history',[claim.job.id,crypto.randomUUID(),JSON.stringify({...messageData,uid:3})]));
+await db.exec('reset role');await db.query('update public.profiles set active=false where id=$1',[ids.sales]);await as('service');await reject(()=>call('append_inquiry_mail_history',[claim.job.id,claim.job.lease_token,JSON.stringify({...messageData,uid:3})]));await db.exec('reset role');await db.query('update public.profiles set active=true where id=$1',[ids.sales]);await as('service');
+await call('finish_inquiry_mail_history',[claim.job.id,claim.job.lease_token,'completed','{}',JSON.stringify({stored:1}),null]);ok((await call('claim_inquiry_mail_history',[ids.sales,request])).done);
+await reject(()=>db.exec('update public.inquiry_mail_history set body_text=\'changed\''));await reject(()=>db.exec('delete from public.inquiry_mail_history'));await reject(()=>call('start_inquiry_mail_history',[ids.sales,ids.otherI,crypto.randomUUID()]));
+// Canonical ownership after a merge controls historical visibility.
+await db.exec('reset role');await db.query('update public.inquiries set merged_into_id=$1 where id=$2',[ids.otherI,ids.i]);
+await as('sales');await reject(()=>call('get_inquiry_mail_history',[[ids.otherI],true,0]));
+await as('other');result=await call('get_inquiry_mail_history',[[ids.otherI],true,0]);ok(result.items.length===2&&result.items[0].inquiry_id===ids.otherI);
+await db.exec('reset role');await db.query('update public.profiles set active=false where id=$1',[ids.sales]);
+await as('service');await call('next_inquiry_mail_history_request',[]);await db.exec('reset role');ok((await db.query("select status from private.inquiry_mail_history_jobs where request_id=$1",[secondRequest])).rows[0].status==='cancelled');await db.exec('reset role');ok((await db.query("select count(*) n from public.audit_logs where action='inquiry_mail_history_viewed'")).rows[0].n>0);ok((await db.query('select count(*) n from public.inquiry_mail_history')).rows[0].n===2);
+// No trigger touches the live mail, notification, followup or inquiry pipelines.
+ok((await db.query("select count(*) n from pg_trigger where tgrelid='public.inquiry_mail_history'::regclass and not tgisinternal")).rows[0].n===0);
+await db.close();console.log(`${checks} isolated mail-history permission / lease / canonical ownership checks passed`);

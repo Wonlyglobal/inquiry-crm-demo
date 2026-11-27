@@ -1568,7 +1568,7 @@
     <script>window.CRM_EMBED=(()=>{try{return new URLSearchParams(location.search).get('embed')==='1'&&window.top!==window.self&&window.top.location.origin===location.origin}catch{return false}})();if(window.CRM_EMBED)document.documentElement.classList.add('crm-embed');</script>
     <style>.crm-embed .rail,.crm-embed .top,.crm-embed #ai-assistant-open,.crm-embed #ai-assistant-panel,.crm-embed #world-switch{display:none!important}.crm-embed .app{display:block!important;padding:8px!important;min-height:0!important}.crm-embed .main{padding:0 4px 16px!important}</style>
     <link rel="stylesheet" href="./assets/customer-directory.css?v=20261104-1">
-  <link rel="stylesheet" href="assets/inquiry-mail-conversation.css?v=20261127-1">
+  <link rel="stylesheet" href="assets/inquiry-mail-conversation.css?v=20261127-2">
 </head>
   <body>
     <section id="boot" class="boot-shell">
@@ -2734,7 +2734,8 @@ import {readAnswerStream} from './assets/grace-answer-stream.mjs';
 import {recoveryIntent,recoveryRedirect,cleanRecoveryUrl,observePasswordRecovery} from "./assets/password-recovery.mjs?v=20261116-recovery1";
       import {loadBrowserScript} from "./assets/browser-dependency.mjs?v=20261105-local1";
       import {trendPointText,bindTrendTooltips} from "./assets/trend-tooltip.mjs?v=20261125-2";
-      import {mountInquiryConversation,historyBackfillQueue} from "./assets/inquiry-mail-conversation.mjs?v=20261127-1";
+      import {mountInquiryConversation,historyBackfillQueue} from "./assets/inquiry-mail-conversation.mjs?v=20261127-2";
+      import {signalCustomerEmails} from "./assets/mail-pipeline-signals.mjs?v=20261127-1";
       import {loadInquiryMailReplies,mailReplyText} from "./assets/inquiry-mail-replies.mjs?v=20261127-1";
       import {countryView,countryChoices,compareCountries} from "./assets/country-view.mjs?v=20261125-1";
       import {inquiryCountryText,claimedInquiryCountry} from "./assets/inquiry-country-display.mjs?v=20261125-1";
@@ -6987,7 +6988,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           if(!extraction.error&&extraction.data?.fields){Object.assign(inquiry,extraction.data.fields);inquiry.emailNeedsReport=extraction.data.report;}
           inquiry.emailNeedsExtractionError=extraction.error?.message||"";
         }
-        currentInquiry = inquiry;
+        currentInquiry = inquiry;pendingMailStageReview=null;
         void refreshDetailMailReply(inquiry);
         inquiryLeadHistory ||= mountInquiryLeadHistory($('#detail-lead-history'),{rpc:async(name,args)=>{const result=await supabase.rpc(name,args);if(result.error)throw result.error;return result.data}});
         void inquiryLeadHistory.refresh({inquiryId:inquiry.id,ownSales:profile.role==='sales'&&inquiry.owner_id===profile.id});
@@ -7838,9 +7839,30 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         $$(".detail-section").forEach((section) => section.classList.toggle("hidden", section.dataset.detailSection !== name));
         if(name === "events") renderCompanyEventTimeline();
         if(name === "mail-conversation"&&currentInquiry){
-          inquiryMailConversation ||= mountInquiryConversation($("#inquiry-mail-conversation"),{client:supabase,role:profile.role,isCurrent:id=>currentInquiry?.id===id});
+          inquiryMailConversation ||= mountInquiryConversation($("#inquiry-mail-conversation"),{client:supabase,role:profile.role,isCurrent:id=>currentInquiry?.id===id,getContext:()=>({inquiry:currentInquiry,actorId:profile.id,readOnly:crmReadOnly,customerEmails:signalCustomerEmails(currentInquiry)}),onReviewSignal:reviewMailPipelineSignal});
           void inquiryMailConversation.open(currentInquiry.id);
         }
+      }
+      async function reviewMailPipelineSignal(signal,context){
+        const expected=context.inquiry;
+        if(!currentInquiry||currentInquiry.id!==signal.inquiryId||!expected||signal.historical||!signal.route||crmReadOnly)return;
+        if(!(profile.role==="owner"||(profile.role==="sales"&&currentInquiry.owner_id===profile.id)))return toast("仅负责人或老板可核对业务推进；主管可查看邮件依据");
+        const {data:fresh,error}=await supabase.from("inquiries").select("id,owner_id,status,validity,invalid_review_status,updated_at").eq("id",signal.inquiryId).single();
+        if(error||!fresh||fresh.owner_id!==expected.owner_id||fresh.status!==expected.status||fresh.updated_at!==expected.updated_at)return toast("询盘阶段或负责人已变化，请刷新后重新识别");
+        if(fresh.validity!=="valid"||fresh.invalid_review_status==="pending"||["won","lost"].includes(fresh.status))return toast("当前询盘状态不能推进，请先核对有效性及现有阶段");
+        if(currentInquiry?.id!==signal.inquiryId)return;
+        if(signal.route==="quote")return openQuoteManager(currentInquiry);
+        if(signal.route==="sample")return openFulfillmentManager(currentInquiry);
+        setDetailTab("followup");
+        if(signal.route==="order"){toast("客户意向不等于成交，请在原流程核对订单、金额及凭据后提交审批");$("#detail-won-evidence").scrollIntoView({block:"center",behavior:"smooth"});return;}
+        if(signal.route!=="negotiation"||!["quoted","sample_sent"].includes(fresh.status)||$("#detail-status").disabled)return;
+        if($("#detail-reason").value.trim()||$("#detail-status").value!==fresh.status||($("#detail-owner").value||null)!==fresh.owner_id)return toast("阶段表单已有未保存修改，请先保存或清除后再核对邮件建议");
+        const confirmed=await appConfirm("邮件中出现价格或折扣协商信号。是否带入谈判阶段？\n\n只填写阶段与邮件依据，不立即保存；请核对原文和业务情况后点击“保存阶段与分配”。",{title:"人工核对邮件信号",confirmText:"带入表单"});
+        if(!confirmed||currentInquiry?.id!==signal.inquiryId)return;
+        pendingMailStageReview={...fresh,target:"negotiating",messageId:signal.messageId,version:signal.version};
+        $("#detail-status").value="negotiating";syncDetailedOutcomeVisibility();
+        $("#detail-reason").value=`人工核对邮件协商信号；${signal.version}；邮件记录 ${signal.messageId}`;
+        $("#detail-status").focus();toast("已带入谈判阶段，请核对后保存；尚未修改流水线");
       }
       $("#detail-open-mail-conversation").addEventListener("click",()=>{setDetailTab("mail-conversation");$('.detail-section[data-detail-section="mail-conversation"]').scrollIntoView({block:"start",behavior:"smooth"});});
       $$(".detail-tab").forEach((tab) => tab.addEventListener("click", (event) => {if(detailTabsEditing){event.preventDefault();return}setDetailTab(tab.dataset.detailTab)}));
@@ -8049,7 +8071,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
         }
       });
       let refreshInquiryMailList=null,mailRefreshBusy=false,detailMailSequence=0,mailListSequence=0;
-      let inquiryMailConversation=null,inquiryHistoryQueue=null;
+      let inquiryMailConversation=null,inquiryHistoryQueue=null,pendingMailStageReview=null;
       const historyQueue=()=>inquiryHistoryQueue ||= historyBackfillQueue({client:supabase,role:crmReadOnly?'restricted':profile.role,actorId:profile.id});
       async function refreshDetailMailReply(inquiry){
         const sequence=++detailMailSequence,panel=$("#detail-mail-reply-status");
@@ -8071,7 +8093,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
       function closeInquiryPage() {
         $("#detail-modal").classList.add("hidden");
         if (detailStageTicker) { clearInterval(detailStageTicker); detailStageTicker = null; }
-        inquiryMailConversation?.clear();
+        inquiryMailConversation?.clear();pendingMailStageReview=null;
         currentInquiry = null;
         if (detailOriginView === "sales-profile") {
           $("#dashboard-page").classList.add("hidden");
@@ -8288,6 +8310,8 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           toast("请填写修改原因");
           return;
         }
+        const mailReview=pendingMailStageReview&&$("#detail-status").value===pendingMailStageReview.target?pendingMailStageReview:null;
+        if(mailReview&&((currentInquiry.owner_id!==mailReview.owner_id)||($("#detail-owner").value||null)!==mailReview.owner_id))return toast("负责人或分配选择已变化，请先核对分配后重新识别邮件");
         const button = $("#save-detail");
         button.disabled = true;
         const update = {
@@ -8299,7 +8323,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           deal_type: normalizeDealType($("#detail-deal-type").value),
           primary_source: $("#detail-primary-source").value,
           risk_flag: $("#detail-risk-flag").checked,
-          last_change_reason: reason,
+          last_change_reason: mailReview&&(!reason.includes(mailReview.version)||!reason.includes(mailReview.messageId))?`${reason}；人工核对 ${mailReview.version}；邮件记录 ${mailReview.messageId}`:reason,
           updated_by: profile.id,
           updated_at: new Date().toISOString(),
         };
@@ -8390,7 +8414,10 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           update.owner_id = selectedOwner;
           update.status = currentInquiry.owner_id || currentInquiry.public_pool_entered_at ? currentInquiry.status : "received";
         } else {
-          ({ error } = await supabase.from("inquiries").update(update).eq("id", currentInquiry.id));
+          if(mailReview){
+            const saved=await supabase.from("inquiries").update(update).eq("id",currentInquiry.id).eq("owner_id",mailReview.owner_id).eq("status",mailReview.status).eq("updated_at",mailReview.updated_at).select("id,updated_at").maybeSingle();
+            error=saved.error||(!saved.data?{message:"询盘已被更新，请刷新后重新核对邮件建议"}:null);if(!error&&saved.data.updated_at)currentInquiry.updated_at=saved.data.updated_at;
+          }else({ error } = await supabase.from("inquiries").update(update).eq("id", currentInquiry.id));
         }
         button.disabled = false;
         if (error) {
@@ -8398,7 +8425,7 @@ import {renderReviewControls,renderReviewItems,renderReviewOriginal,createReview
           return;
         }
         toast(isAssignment && (currentInquiry.owner_id||currentInquiry.public_pool_entered_at) ? "询盘已重新分配，原阶段和全部沟通记录均已保留" : "阶段与分配已更新，修改记录已留痕");
-        currentInquiry.status = update.status;
+        pendingMailStageReview=null;currentInquiry.status = update.status;
         currentInquiry.owner_id = update.owner_id ?? currentInquiry.owner_id;
         if (isAssignment) {
           const { error: groupNotifyError } = await supabase.functions.invoke("group-notify", { body: { inquiry_id: currentInquiry.id, action: "assigned" } });

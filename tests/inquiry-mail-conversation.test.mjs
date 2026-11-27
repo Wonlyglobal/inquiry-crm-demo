@@ -10,7 +10,7 @@ test('conversation uses actual message times, deduplicates copies and prefers re
 test('quoted mail stays inside its own original email, never becomes a fabricated conversation turn',()=>{
  const text='确认尺寸后再报价。\n\nOn Mon, Buyer wrote:\n> 需要20套门';const result=bodyParts(text);assert.equal(result.text,'确认尺寸后再报价。');assert.match(result.quoted,/需要20套门/);assert.equal(mergeConversation([{id:'one',body_text:text}],[]).length,1);
 });
-class Node{constructor(tag){this.tag=tag;this.children=[];this.textContent='';this.className=''}append(...items){this.children.push(...items)}replaceChildren(...items){this.children=items}}
+class Node{constructor(tag){this.tag=tag;this.children=[];this.textContent='';this.className=''}setAttribute(k,v){this[k]=v}append(...items){this.children.push(...items)}replaceChildren(...items){this.children=items}}
 const allText=node=>[node.textContent,...node.children.map(c=>typeof c==='string'?c:allText(c))].join('\n');
 test('plaintext bodies, visible sender/time, incomplete evidence and original expansion remain safe',()=>{
  const before=globalThis.document;globalThis.document={createElement:tag=>new Node(tag)};

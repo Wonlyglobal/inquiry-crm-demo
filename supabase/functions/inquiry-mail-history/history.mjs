@@ -3,7 +3,7 @@ const header=v=>String(v||'').trim().replace(/^<|>$/g,'');
 const addr=v=>String(v||'').trim().toLowerCase();
 const addresses=v=>(v||[]).map(x=>addr(x.address)).filter(Boolean);
 const stamp=v=>{const d=new Date(v);return Number.isFinite(d.getTime())?d.toISOString():null};
-export function anchorIds(messages,intakes){return [...new Set([...messages,...intakes].map(x=>header(x.message_id)).filter(x=>x&&x.length<=500&&!/[\r\n]/.test(x)))].slice(0,100)}
+export function anchorIds(messages,intakes,forwards=[]){return [...new Set([...messages,...intakes,...forwards.map(x=>({message_id:x.provider_message_id}))].map(x=>header(x.message_id)).filter(x=>x&&x.length<=500&&!/[\r\n]/.test(x)))].slice(0,100)}
 export function linkedToAnchor(message,anchors){return [message.messageId,message.inReplyTo,...(Array.isArray(message.references)?message.references:message.references?[message.references]:[])].some(x=>anchors.includes(header(x)))}
 export function historyFolders(boxes){
  const inbox=boxes.find(b=>b.specialUse==='\\Inbox')||boxes.find(b=>b.path==='INBOX');
@@ -46,11 +46,12 @@ export async function processHistoryChunk({admin,userClient,actorId,requestId,Im
   if(inquiry?.owner_id!==claim.owner_id)return await finish('cancelled','scope_changed');
   const connection=await checked(admin.from('mailbox_connections').select('id,user_id,email,mailbox_kind,status,sync_enabled,imap_host,imap_port').eq('id',job.connection_id).eq('user_id',claim.owner_id).eq('mailbox_kind','personal').eq('status','connected').single());
   if(!connection?.sync_enabled||!['imap.qiye.aliyun.com','imap.mxhichina.com','imap.aliyun.com','imap.exmail.qq.com','outlook.office365.com','imap.gmail.com'].includes(String(connection.imap_host).toLowerCase())||Number(connection.imap_port)!==993)return await finish('failed','mailbox_unavailable');
-  const [messages,intakes]=await Promise.all([
+  const [messages,intakes,forwards]=await Promise.all([
    checked(admin.from('email_messages').select('message_id').eq('inquiry_id',claim.inquiry_id).eq('association_status','matched').order('created_at',{ascending:true}).limit(100)),
-   checked(admin.from('email_intake').select('message_id').eq('inquiry_id',claim.inquiry_id).order('created_at',{ascending:true}).limit(100))
+   checked(admin.from('email_intake').select('message_id').eq('inquiry_id',claim.inquiry_id).order('created_at',{ascending:true}).limit(100)),
+   checked(admin.from('integration_events').select('provider_message_id').eq('inquiry_id',claim.inquiry_id).eq('event_type','forward_original_email').eq('delivery_status','sent').order('created_at',{ascending:true}).limit(100))
   ]);
-  const anchors=anchorIds(messages||[],intakes||[]);cursor.anchor_limit=(messages||[]).length>=100||(intakes||[]).length>=100;if(!anchors.length)return await finish('partial','no_thread_anchor');
+  const anchors=anchorIds(messages||[],intakes||[],forwards||[]);cursor.anchor_limit=(messages||[]).length+(intakes||[]).length+(forwards||[]).length>=100;if(!anchors.length)return await finish('partial','no_thread_anchor');
   const password=await checked(admin.rpc('read_mailbox_secret',{target_connection_id:connection.id}));if(!password)return await finish('failed','mailbox_unavailable');
   client=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:8000,greetingTimeout:8000,socketTimeout:12000});
   client.on?.('error',()=>{});

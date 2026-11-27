@@ -24,7 +24,7 @@ function harness({scopeChanges=false,failConnect=false,noAnchor=false,duplicate=
   async logout(){calls.push(['logout'])}
  }
  const simpleParser=async source=>source.toString()==='full-body'?{text:'客户原始正文',attachments:[{content:'not-stored'}]}:source.toString()==='matched'?{inReplyTo:'<root>',messageId:'<message>'}:{messageId:'root-substring-only'};
- return{args:{admin,userClient:{from:query},actorId:'sales',requestId:'request',ImapFlow:Imap,simpleParser},calls,writes,finishes};
+ return{job,args:{admin,userClient:{from:query},actorId:'sales',requestId:'request',ImapFlow:Imap,simpleParser},calls,writes,finishes};
 }
 test('90-day backfill only persists exact matched source; read-only IMAP and no live-mail writes',async()=>{
  const h=harness();const result=await processHistoryChunk(h.args);assert.equal(result.progress.status,'queued');assert.equal(h.writes.length,1);assert.equal(h.writes[0].record.body_text,'客户原始正文');assert.equal(h.writes[0].record.inquiry_id,'inquiry');assert.ok(h.calls.some(c=>c[0]==='rpc'&&c[1]==='append_inquiry_mail_history'));assert.equal(h.writes[0].record.body_truncated,false);
@@ -49,4 +49,10 @@ test('a stalled IMAP operation is stopped before its lease, without leaking diag
  const h=harness();let closeCount=0;
  h.args.ImapFlow=class extends h.args.ImapFlow{async connect(){return new Promise(()=>{})}close(){closeCount++}};h.args.ioTimeoutMs=5;
  const result=await processHistoryChunk(h.args);assert.equal(result.progress.status,'queued');assert.equal(result.progress.error_code,'read_failed');assert.equal(h.writes.length,0);assert.ok(closeCount>=1);assert.equal(h.finishes.length,1);
+});
+
+test('only consecutive read failures exhaust retry budget, independent of successful chunk attempts',async()=>{
+ const h=harness({failConnect:true});h.job.attempts=40;
+ for(let n=1;n<=3;n++){const result=await processHistoryChunk(h.args);assert.equal(result.progress.status,n<3?'queued':'failed');assert.equal(h.finishes.at(-1).new_cursor.read_failures,n);h.job.cursor=h.finishes.at(-1).new_cursor;}
+ const successful=harness();successful.job.cursor={read_failures:2};await processHistoryChunk(successful.args);assert.equal(successful.finishes.at(-1).new_cursor.read_failures,0);
 });

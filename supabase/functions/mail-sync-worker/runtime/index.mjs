@@ -1,3 +1,4 @@
+import { originalMailTime } from './message-time.mjs';
 import { classifySystemNotice } from './system-notices.mjs';
 import { selectPersonalMailbox } from './mailbox-selection.mjs';
 import { ImapFlow } from 'imapflow';
@@ -359,8 +360,9 @@ async function syncFolder(connection,password,folder,{edge=false,maxMessages=Inf
         maxUid=Math.max(maxUid,msg.uid);
         const parsed=await simpleParser(msg.source);
         const sent=isSentFolder(folder);
+        const originalAt=originalMailTime(parsed.date,msg.envelope?.date);
         const references=Array.isArray(parsed.references)?parsed.references:(parsed.references?[parsed.references]:[]);
-        const record={mailbox_connection_id:connection.id,folder,uid:msg.uid,message_id:headerId(parsed.messageId),in_reply_to:headerId(parsed.inReplyTo),reference_ids:references.map(headerId),direction:sent?'outbound':'inbound',sender_email:cleanEmail(parsed.from?.value?.[0]?.address),recipient_emails:addrList(parsed.to),cc_emails:addrList(parsed.cc),subject:parsed.subject||'',body_text:parsed.text||'',body_html:typeof parsed.html==='string'?parsed.html:'',sent_at:sent?(parsed.date||new Date()).toISOString():null,received_at:sent?null:(parsed.date||new Date()).toISOString(),attachment_count:parsed.attachments?.length||0,raw_headers:{message_id:parsed.messageId||null,in_reply_to:parsed.inReplyTo||null,references}};
+        const record={mailbox_connection_id:connection.id,folder,uid:msg.uid,message_id:headerId(parsed.messageId),in_reply_to:headerId(parsed.inReplyTo),reference_ids:references.map(headerId),direction:sent?'outbound':'inbound',sender_email:cleanEmail(parsed.from?.value?.[0]?.address),recipient_emails:addrList(parsed.to),cc_emails:addrList(parsed.cc),subject:parsed.subject||'',body_text:parsed.text||'',body_html:typeof parsed.html==='string'?parsed.html:'',sent_at:sent?originalAt:null,received_at:sent?null:originalAt,attachment_count:parsed.attachments?.length||0,raw_headers:{original_date:originalAt,date_source:originalAt?'message_date':'unavailable',message_id:parsed.messageId||null,in_reply_to:parsed.inReplyTo||null,references}};
         const nurturing=!junkFolder&&isInstantlyNurturing(record,connection);
         const systemNotice=classifySystemNotice(record);
         record.folder=folder;

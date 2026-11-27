@@ -1,5 +1,6 @@
-import {splitMailText,detectMailSignals,paintMailSignals} from './mail-pipeline-signals.mjs?v=20261127-1';
-const time=m=>m.received_at||m.sent_at||m.event_at||'';
+import {splitMailText,detectMailSignals,paintMailSignals} from './mail-pipeline-signals.mjs?v=20261127-2';
+export const conversationTime=m=>{const value=m.raw_headers?.date_source==='unavailable'?null:m.raw_headers?.original_date||(m.direction==='outbound'?m.sent_at:m.received_at)|| (m.historical?m.event_at:null);return value&&Number.isFinite(Date.parse(value))?value:''};
+const time=conversationTime;
 const header=v=>String(v||'').trim().replace(/^<|>$/g,'');
 export function mergeConversation(live=[],history=[]){
  const map=new Map();
@@ -8,7 +9,7 @@ export function mergeConversation(live=[],history=[]){
   const quality=x=>(x.body_text?10:0)+(!x.body_truncated?2:0)+(!x.historical?4:0)+(x.direction==='outbound'?1:0);
   if(!previous||quality(m)>quality(previous))map.set(key,{...m,recordKey:key});
  }
- return [...map.values()].sort((a,b)=>Date.parse(time(a)||0)-Date.parse(time(b)||0)||a.recordKey.localeCompare(b.recordKey));
+ return [...map.values()].sort((a,b)=>(time(a)?Date.parse(time(a)):Infinity)-(time(b)?Date.parse(time(b)):Infinity)||a.recordKey.localeCompare(b.recordKey));
 }
 export function bodyParts(value=''){
  return splitMailText(value);
@@ -20,7 +21,7 @@ export function paintConversation(host,messages,{formatDate=v=>new Date(v).toLoc
   const row=document.createElement('article');row.className='inquiry-conversation-message '+(m.direction==='outbound'?'outbound':'inbound');row.setAttribute('data-conversation-record',String(m.id));
   const h=document.createElement('header'),who=document.createElement('b'),date=document.createElement('time');
   who.textContent=m.direction==='outbound'?'我方发件（以发件人地址为准）':/@(?:[^@.]+\.)*wonlyglobal\.com$/i.test(m.sender_email||'')?'内部转发 / 往来':'客户来信（已关联）';
-  date.textContent=time(m)?formatDate(time(m))+'（北京时间）':'时间未提供';h.append(who,date);
+  date.textContent=time(m)?formatDate(time(m))+'（北京时间）'+(!m.historical&&!m.raw_headers?.original_date?' · 原始邮件时间待核对':''):'原始收发信时间未取得（不以导入时间替代）';h.append(who,date);
   const people=document.createElement('small');people.textContent='发件人：'+(m.sender_email||'未提供')+' → 收件人：'+((m.recipient_emails||[]).join('、')||'未提供');
   const title=document.createElement('strong');title.textContent=m.subject||'无主题';
   const source=document.createElement('small');source.textContent=m.historical?'最近90天历史回补 · 不生成旧信待办':'现有邮箱同步记录';
@@ -42,7 +43,7 @@ export function mountInquiryConversation(host,{client,role,isCurrent=()=>true,ge
   try{
    if(!['owner','sales_manager','sales'].includes(role))throw Error('邮件沟通内容仅负责人、主管及老板可查看');
    const results=await Promise.allSettled([
-    liveMore?client.from('email_messages').select('id,inquiry_id,message_id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,created_at,association_method,association_status,folder,attachment_count').eq('inquiry_id',id).eq('association_status','matched').order('created_at',{ascending:false}).order('id',{ascending:false}).range(offset,offset+24):Promise.resolve({data:[]}),
+    liveMore?client.from('email_messages').select('id,inquiry_id,message_id,direction,sender_email,recipient_emails,subject,body_text,sent_at,received_at,created_at,raw_headers,association_method,association_status,folder,attachment_count').eq('inquiry_id',id).eq('association_status','matched').order('created_at',{ascending:false}).order('id',{ascending:false}).range(offset,offset+24):Promise.resolve({data:[]}),
     historyMore?client.rpc('get_inquiry_mail_history',{target_ids:[id],include_body:true,page_offset:offset}):Promise.resolve({data:{items:[],has_more:false}})
    ]);
    if(seq!==sequence||!isCurrent(id))return;

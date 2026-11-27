@@ -23,3 +23,15 @@ test('three app paths keep historical content private and use the distinct mail 
  for(const file of ['index.html','grace.html']){const source=fs.readFileSync(new URL('../'+file,import.meta.url),'utf8');assert.match(source,/data-detail-tab="mail-conversation"/);assert.match(source,/mountInquiryConversation/);assert.match(source,/inquiryMailConversation\?\.clear/);}
  const module=fs.readFileSync(new URL('../assets/inquiry-mail-conversation.mjs',import.meta.url),'utf8');assert.doesNotMatch(module,/innerHTML\s*=\s*(?:m\.|.*body_text)|localStorage|sessionStorage|sendMail/);assert.match(module,/include_body:true/);
 });
+
+test('conversation timestamp is directional, original-header based, never import time; unknown sorts last',async()=>{
+ const {conversationTime}=await import('../assets/inquiry-mail-conversation.mjs');
+ const sent={id:'sent',direction:'outbound',sent_at:'2026-11-01T08:00:00Z',received_at:'2026-11-27T08:00:00Z',created_at:'2026-11-27T08:00:00Z'};
+ assert.equal(conversationTime(sent),sent.sent_at);
+ assert.equal(conversationTime({...sent,raw_headers:{original_date:'2026-10-30T08:00:00Z'}}),'2026-10-30T08:00:00Z');
+ assert.equal(conversationTime({...sent,raw_headers:{date_source:'unavailable'}}),'');
+ assert.equal(conversationTime({direction:'inbound',sent_at:sent.sent_at,created_at:sent.created_at}),'');
+ assert.equal(conversationTime({direction:'outbound',created_at:sent.created_at,event_at:sent.created_at}),'');
+ const rows=mergeConversation([{id:'unknown',created_at:'2020-01-01'},sent,{id:'old',direction:'inbound',received_at:'2026-10-01T08:00:00Z'}]);
+ assert.deepEqual(rows.map(x=>x.id),['old','sent','unknown']);
+});

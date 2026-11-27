@@ -44,14 +44,17 @@ export async function processHistoryChunk({admin,userClient,actorId,requestId,Im
  try{
   const inquiry=await checked(userClient.from('inquiries').select('id,owner_id').eq('id',claim.inquiry_id).single());
   if(inquiry?.owner_id!==claim.owner_id)return await finish('cancelled','scope_changed');
+  phase='mailbox';
   const connection=await checked(admin.from('mailbox_connections').select('id,user_id,email,mailbox_kind,status,sync_enabled,imap_host,imap_port').eq('id',job.connection_id).eq('user_id',claim.owner_id).eq('mailbox_kind','personal').eq('status','connected').single());
   if(!connection?.sync_enabled||!['imap.qiye.aliyun.com','imap.mxhichina.com','imap.aliyun.com','imap.exmail.qq.com','outlook.office365.com','imap.gmail.com'].includes(String(connection.imap_host).toLowerCase())||Number(connection.imap_port)!==993)return await finish('failed','mailbox_unavailable');
+  phase='anchors';
   const [messages,intakes,forwards]=await Promise.all([
    checked(admin.from('email_messages').select('message_id').eq('inquiry_id',claim.inquiry_id).eq('association_status','matched').order('created_at',{ascending:true}).limit(100)),
    checked(admin.from('email_intake').select('message_id').eq('inquiry_id',claim.inquiry_id).order('created_at',{ascending:true}).limit(100)),
-   checked(admin.from('integration_events').select('provider_message_id').eq('inquiry_id',claim.inquiry_id).eq('event_type','forward_original_email').eq('delivery_status','sent').order('created_at',{ascending:true}).limit(100))
+   checked(admin.rpc('read_inquiry_mail_history_forward_ids',{job_key:job.id,lease_key:job.lease_token}))
   ]);
   const anchors=anchorIds(messages||[],intakes||[],forwards||[]);cursor.anchor_limit=(messages||[]).length+(intakes||[]).length+(forwards||[]).length>=100;if(!anchors.length)return await finish('partial','no_thread_anchor');
+  phase='credential';
   const password=await checked(admin.rpc('read_mailbox_secret',{target_connection_id:connection.id}));if(!password)return await finish('failed','mailbox_unavailable');
   client=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:8000,greetingTimeout:8000,socketTimeout:12000});
   client.on?.('error',()=>{});

@@ -45,4 +45,7 @@ await db.exec('reset role');await db.query('update public.profiles set active=fa
 await as('service');await call('next_inquiry_mail_history_request',[]);await db.exec('reset role');ok((await db.query("select status from private.inquiry_mail_history_jobs where request_id=$1",[secondRequest])).rows[0].status==='cancelled');await db.exec('reset role');ok((await db.query("select count(*) n from public.audit_logs where action='inquiry_mail_history_viewed'")).rows[0].n>0);ok((await db.query('select count(*) n from public.inquiry_mail_history')).rows[0].n===2);
 // No trigger touches the live mail, notification, followup or inquiry pipelines.
 ok((await db.query("select count(*) n from pg_trigger where tgrelid='public.inquiry_mail_history'::regclass and not tgisinternal")).rows[0].n===0);
+// Unknown manager scope must fail closed, including service-side continuation.
+await db.exec('reset role');await db.exec('create or replace function private.crm_manager_covers_inquiry(manager uuid,target uuid) returns boolean language sql stable as $$select null::boolean$$');
+await as('service');await reject(()=>call('start_inquiry_mail_history',[ids.manager,ids.otherI,crypto.randomUUID()]));await as('manager');await reject(()=>call('get_inquiry_mail_history',[[ids.otherI],true,0]));
 await db.close();console.log(`${checks} isolated mail-history permission / lease / canonical ownership checks passed`);

@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {anchorIds,linkedToAnchor,historyFolders,safeBody,textBodyPart,processHistoryChunk} from '../supabase/functions/inquiry-mail-history/history.mjs';
+import {anchorIds,linkedToAnchor,historyFolders,safeBody,textBodyPart,boundedRead,processHistoryChunk} from '../supabase/functions/inquiry-mail-history/history.mjs';
 test('exact message headers anchor one inquiry, never subject/contact similarity or substring search hits',()=>{
  assert.deepEqual(anchorIds([{message_id:'<root>'}],[{message_id:'root'}]),['root']);
  assert.ok(linkedToAnchor({inReplyTo:'<root>'},['root']));assert.ok(linkedToAnchor({references:['earlier','<root>']},['root']));
@@ -43,3 +43,10 @@ test('worker cannot send SMTP, invoke AI, mutate live mail or change existing sy
 });
 
 test('body selection never downloads attachment parts, preferring plain text to HTML',()=>{const part=textBodyPart({type:'multipart/mixed',childNodes:[{type:'text/plain',part:'1',disposition:'attachment'},{type:'text/html',part:'2'},{type:'text/plain',part:'3'}]});assert.equal(part.part,'3');assert.equal(textBodyPart({type:'application/pdf',part:'1'}),null)});
+
+test('a stalled IMAP operation is stopped before its lease, without leaking diagnostics',async()=>{
+ let closed=0;await assert.rejects(()=>boundedRead(()=>new Promise(()=>{}),5,()=>closed++),/history_io_timeout/);assert.equal(closed,1);
+ const h=harness();let closeCount=0;
+ h.args.ImapFlow=class extends h.args.ImapFlow{async connect(){return new Promise(()=>{})}close(){closeCount++}};h.args.ioTimeoutMs=5;
+ const result=await processHistoryChunk(h.args);assert.equal(result.progress.status,'queued');assert.equal(result.progress.error_code,'read_failed');assert.equal(h.writes.length,0);assert.ok(closeCount>=1);assert.equal(h.finishes.length,1);
+});

@@ -29,13 +29,18 @@ export async function readTextBody(client,uid,structure){
  if(bytes>=262144||body.body_truncated)return {...body,body_truncated:true,body_status:'truncated'};
  return body;
 }
-async function checked(query){const result=await query;if(result.error)throw Error('read_failed');return result.data}
-export async function processHistoryChunk({admin,userClient,actorId,requestId,ImapFlow,simpleParser,now=()=>Date.now()}){
+export async function boundedRead(operation,timeoutMs,onTimeout=()=>{}){
+ let timer;
+ try{return await Promise.race([Promise.resolve().then(operation),new Promise((_,reject)=>{timer=setTimeout(()=>{try{onTimeout()}catch{}reject(Error('history_io_timeout'))},Math.max(1,timeoutMs))})])}finally{clearTimeout(timer)}
+}
+async function checked(query){const bounded=typeof query.abortSignal==='function'?query.abortSignal(AbortSignal.timeout(10000)):query;const result=await bounded;if(result.error)throw Error('read_failed');return result.data}
+export async function processHistoryChunk({admin,userClient,actorId,requestId,ImapFlow,simpleParser,now=()=>Date.now(),ioTimeoutMs=8000}){
  const claim=await checked(admin.rpc('claim_inquiry_mail_history',{actor_id:actorId,request_key:requestId}));
  if(!claim?.job)return {done:!!claim?.done,jobs:claim?.jobs||[]};
  const job=claim.job,cursor={...job.cursor},counts={searched:0,matched:0,stored:0,skipped:0,bodies_incomplete:0,...job.counts};
  const finish=async(status,code=null)=>{await checked(admin.rpc('finish_inquiry_mail_history',{job_key:job.id,lease_key:job.lease_token,new_status:status,new_cursor:cursor,new_counts:counts,failure_code:code}));return {done:false,progress:{status,counts,error_code:code}}};
- let client;
+ let client;const chunkDeadline=now()+35000;
+ const read=operation=>{const remaining=chunkDeadline-now();if(remaining<=0)throw Error('history_io_timeout');return boundedRead(operation,Math.min(ioTimeoutMs,remaining),()=>client?.close?.())};
  try{
   const inquiry=await checked(userClient.from('inquiries').select('id,owner_id').eq('id',claim.inquiry_id).single());
   if(inquiry?.owner_id!==claim.owner_id)return await finish('cancelled','scope_changed');
@@ -48,11 +53,12 @@ export async function processHistoryChunk({admin,userClient,actorId,requestId,Im
   const anchors=anchorIds(messages||[],intakes||[]);cursor.anchor_limit=(messages||[]).length>=100||(intakes||[]).length>=100;if(!anchors.length)return await finish('partial','no_thread_anchor');
   const password=await checked(admin.rpc('read_mailbox_secret',{target_connection_id:connection.id}));if(!password)return await finish('failed','mailbox_unavailable');
   client=new ImapFlow({host:connection.imap_host,port:connection.imap_port,secure:true,auth:{user:connection.email,pass:password},logger:false,connectionTimeout:8000,greetingTimeout:8000,socketTimeout:12000});
-  await client.connect();
-  cursor.folders ||= historyFolders(await client.list());cursor.folderIndex ||=0;cursor.anchorIndex ||=0;cursor.uidIndex ||=0;cursor.uids ||= [];
+  client.on?.('error',()=>{});
+  await read(()=>client.connect());
+  cursor.folders ||= historyFolders(await read(()=>client.list()));cursor.folderIndex ||=0;cursor.anchorIndex ||=0;cursor.uidIndex ||=0;cursor.uids ||= [];
   if(!cursor.folders.length)return await finish('failed','mailbox_unavailable');
   if(cursor.folderIndex>=cursor.folders.length)return await finish('completed');
-  const folder=cursor.folders[cursor.folderIndex],lock=await client.getMailboxLock(folder.path,{readOnly:true}),deadline=now()+15000;
+  const folder=cursor.folders[cursor.folderIndex],lock=await read(()=>client.getMailboxLock(folder.path,{readOnly:true})),deadline=now()+15000;
   let terminal=false;
   try{
    const validity=String(client.mailbox.uidValidity||'');
@@ -60,7 +66,7 @@ export async function processHistoryChunk({admin,userClient,actorId,requestId,Im
    let searches=0;
    while(cursor.anchorIndex<anchors.length&&searches<4&&now()<deadline){
     const id=anchors[cursor.anchorIndex];
-    const found=await client.search({since:new Date(claim.window_from),before:new Date(new Date(claim.window_to).getTime()+86400000),or:[{header:{'message-id':id}},{header:{'in-reply-to':id}},{header:{references:id}}]},{uid:true});
+    const found=await read(()=>client.search({since:new Date(claim.window_from),before:new Date(new Date(claim.window_to).getTime()+86400000),or:[{header:{'message-id':id}},{header:{'in-reply-to':id}},{header:{references:id}}]},{uid:true}));
     cursor.uids=[...new Set([...cursor.uids,...(Array.isArray(found)?found:[])])].sort((a,b)=>a-b);cursor.anchorIndex++;searches++;counts.searched++;
     if(cursor.uids.length>10000){terminal=true;break}
    }
@@ -69,7 +75,7 @@ export async function processHistoryChunk({admin,userClient,actorId,requestId,Im
    let processed=0;
    while(cursor.uidIndex<cursor.uids.length&&processed<5&&now()<deadline){
     const uid=cursor.uids[cursor.uidIndex];
-    const metadata=await client.fetchOne(uid,{uid:true,envelope:true,internalDate:true,size:true,bodyStructure:true,headers:['Message-ID','In-Reply-To','References']},{uid:true});
+    const metadata=await read(()=>client.fetchOne(uid,{uid:true,envelope:true,internalDate:true,size:true,bodyStructure:true,headers:['Message-ID','In-Reply-To','References']},{uid:true}));
     if(!metadata){cursor.uidIndex++;counts.skipped++;continue}
     const parsedHeaders=await simpleParser(metadata.headers||Buffer.from(''));
     const headers={messageId:parsedHeaders.messageId||metadata.envelope?.messageId,inReplyTo:parsedHeaders.inReplyTo||metadata.envelope?.inReplyTo,references:parsedHeaders.references||[]};
@@ -78,7 +84,7 @@ export async function processHistoryChunk({admin,userClient,actorId,requestId,Im
     const fresh=await checked(userClient.from('inquiries').select('id,owner_id').eq('id',claim.inquiry_id).single());
     if(fresh?.owner_id!==claim.owner_id)return await finish('cancelled','scope_changed');
     let body={body_text:'',body_truncated:false,body_status:'unavailable'};
-    try{body=await readTextBody(client,uid,metadata.bodyStructure)}catch{body={body_text:'',body_truncated:false,body_status:'unavailable'}}
+    try{body=await read(()=>readTextBody(client,uid,metadata.bodyStructure))}catch{body={body_text:'',body_truncated:false,body_status:'unavailable'}}
     if(body.body_status!=='complete')counts.bodies_incomplete++;
     const record={inquiry_id:claim.inquiry_id,mailbox_connection_id:connection.id,mailbox_owner_id:claim.owner_id,folder:folder.path,uid_validity:validity,uid,message_id:header(headers.messageId)||null,in_reply_to:header(headers.inReplyTo)||null,reference_ids:(Array.isArray(headers.references)?headers.references:headers.references?[headers.references]:[]).map(header).slice(0,100),direction:folder.direction,sender_email:addr(metadata.envelope?.from?.[0]?.address),recipient_emails:addresses(metadata.envelope?.to),subject:String(metadata.envelope?.subject||'').slice(0,2000),event_at:time,sent_at:folder.direction==='outbound'?time:null,received_at:folder.direction==='inbound'?time:null,run_id:job.request_id,...body};
     const beforeWrite=await checked(userClient.from('inquiries').select('id,owner_id').eq('id',claim.inquiry_id).single());
@@ -91,5 +97,5 @@ export async function processHistoryChunk({admin,userClient,actorId,requestId,Im
   }finally{lock.release()}
  }catch{
   return await finish(Number(job.attempts||0)>=2?'failed':'queued','read_failed');
- }finally{if(client)await client.logout().catch(()=>{})}
+ }finally{if(client){await boundedRead(()=>client.logout(),2000,()=>client.close?.()).catch(()=>{});try{client.close?.()}catch{}}}
 }

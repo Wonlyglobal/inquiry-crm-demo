@@ -32,6 +32,7 @@ jobs:
           node tests/sales-lead-estimate-sql.mjs "$RUNNER_TEMP/company-export-test/node_modules/@electric-sql/pglite/dist/index.js"
           node tests/grace-writing-session-sql.mjs "$RUNNER_TEMP/company-export-test/node_modules/@electric-sql/pglite/dist/index.js"
           node tests/personal-lead-lifecycle-sql.mjs "$RUNNER_TEMP/company-export-test/node_modules/@electric-sql/pglite/dist/index.js"
+          node tests/inquiry-mail-history-sql.mjs "$RUNNER_TEMP/company-export-test/node_modules/@electric-sql/pglite/dist/index.js"
           node tests/research-attempts-sql.mjs "$RUNNER_TEMP/company-export-test/node_modules/@electric-sql/pglite/dist/index.js"
           node tests/sales-lead-progress-sql.mjs "$RUNNER_TEMP/company-export-test/node_modules/@electric-sql/pglite/dist/index.js"
           PGLITE_MODULE="$RUNNER_TEMP/company-export-test/node_modules/@electric-sql/pglite/dist/index.js" node tests/inquiry-merge-behavior.mjs
